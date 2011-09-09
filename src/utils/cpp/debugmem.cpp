@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 M.Mueller
+ * Copyright 2011-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,50 +26,63 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  XSTRING_API_H
-#define  XSTRING_API_H
 
-#include <config.h>
+#include <stdlib.h>
+#include <memory.h>
+#include <debuglog.h>
 
-#include <format.h>
-#include <cpp/xstring.h>
 
-#include <stdarg.h>
+#define SCALAR_MAGIC 0xdddddddd
+#define ARRAY_MAGIC 0xeeeeeeee
+#define FREE_MAGIC 0xcccccccc
 
-/****************************************************************************
-*
-*  Proxy functions to export xstring to plug-ins.
-*
-****************************************************************************/
-extern "C" {
 
-const char* DLLENTRY xstring_create(const char* cstr);
+struct preamble
+{ size_t length;
+  int    magic;
+};
 
-void DLLENTRY xstring_free(volatile xstring* dst);
 
-unsigned DLLENTRY xstring_length(const xstring* src);
-
-char DLLENTRY xstring_equal(const xstring* src1, const xstring* src2);
-
-int  DLLENTRY xstring_compare(const xstring* src1, const xstring* src2);
-
-void DLLENTRY xstring_copy(volatile xstring* dst, const xstring* src);
-
-void DLLENTRY xstring_copy_safe(volatile xstring* dst, volatile const xstring* src);
-
-void DLLENTRY xstring_assign(volatile xstring* dst, const char* cstr);
-
-char DLLENTRY xstring_cmpassign( xstring* dst, const char* cstr );
-
-void DLLENTRY xstring_append( xstring* dst, const char* cstr );
-
-char* DLLENTRY xstring_allocate( xstring* dst, unsigned int len );
-
-void DLLENTRY xstring_sprintf( volatile xstring* dst, const char* fmt, ... );
-
-void DLLENTRY xstring_vsprintf( volatile xstring* dst, const char* fmt, va_list va );
-
+void* operator new(size_t len)
+{ if (!len)
+    return NULL;
+  preamble* storage = (preamble*)malloc(len + sizeof(preamble) + sizeof(int));
+  storage->length = len;
+  storage->magic = SCALAR_MAGIC;
+  ++storage;
+  *(int*)(((char*)storage)+len) = SCALAR_MAGIC;
+  return storage;
 }
 
-#endif
+void operator delete(void* ptr)
+{ if (!ptr)
+    return;
+  preamble* storage = (preamble*)ptr -1;
+  ASSERT(storage->magic == SCALAR_MAGIC);
+  ASSERT(*(int*)((char*)ptr)+storage->length == SCALAR_MAGIC);
+  storage->magic = FREE_MAGIC;
+  *(int*)((char*)ptr)+storage->length = FREE_MAGIC;
+  free(storage);
+}
 
+void* operator new[](size_t len)
+{ if (!len)
+    return NULL;
+  preamble* storage = (preamble*)malloc(len + sizeof(preamble) + sizeof(int));
+  storage->length = len;
+  storage->magic = ARRAY_MAGIC;
+  ++storage;
+  *(int*)(((char*)storage)+len) = ARRAY_MAGIC;
+  return storage;
+}
+
+void operator delete[](void* ptr)
+{ if (!ptr)
+    return;
+  preamble* storage = (preamble*)ptr -1;
+  ASSERT(storage->magic == ARRAY_MAGIC);
+  ASSERT(*(int*)((char*)ptr)+storage->length == ARRAY_MAGIC);
+  storage->magic = FREE_MAGIC;
+  *(int*)((char*)ptr)+storage->length = FREE_MAGIC;
+  free(storage);
+}

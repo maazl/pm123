@@ -30,7 +30,7 @@
 #define PM123_PULSE123_H
 
 
-#define OUTPUT_PLUGIN_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 3
 
 #include <output_plug.h>
 

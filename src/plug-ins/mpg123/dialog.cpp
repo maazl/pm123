@@ -1172,7 +1172,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   ID3 id3file(filename);
   PLUGIN_RC ret = id3file.Open("r+bU");
   if (ret != PLUGIN_OK)
-  { Ctx.plugin_api->error_display(id3file.GetLastError());
+  { Ctx.plugin_api->message_display(MSG_ERROR, id3file.GetLastError());
     return PLUGIN_NO_OP;
   }
 
@@ -1333,7 +1333,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     
     if (errmsg)
     { // Error message
-      errmsg.sprintf("%s\nRetry?", errmsg);
+      errmsg.sprintf("%s\nRetry?", errmsg.cdata());
       ULONG btn = WinMessageBox(HWND_DESKTOP, hwnd, errmsg, NULL, 0, MB_YESNOCANCEL|MB_ERROR|MB_MOVEABLE);
       errmsg.reset();
       switch (btn)

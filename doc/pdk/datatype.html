@@ -1,35 +1,33 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head>
-  
+<html>
+<head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Common plug-in data types</title>
-
-  
-  
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-
-</head><body>
+</head>
+<body>
 <h1>PM123 common plug-in data types</h1>
-
 <p><tt><a href="#ATTR_INFO">ATTR_INFO</a> <a href="#DRPL_INFO">DRPL_INFO</a>
-<a href="xstring_api.html">xstring</a> <a href="#INFO_BUNDLE">INFO_BUNDLE</a>
-<a href="#INFOTYPE">INFOTYPE</a> <a href="#ITEM_INFO">ITEM_INFO</a> <a href="#META_INFO">META_INFO</a> <a href="#OBJ_INFO">OBJ_INFO</a> <a href="#PHYS_INFO">PHYS_INFO</a><a href="#PL_OPTIONS">PL_OPTIONS</a> <a href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
-<a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a></tt> </p>
-
+<a href="#FORMAT_INFO2">FORMAT_INFO2</a> <a href="#INFO_BUNDLE">INFO_BUNDLE</a>
+<a href="#INFOTYPE">INFOTYPE</a> <a href="#ITEM_INFO">ITEM_INFO</a> <a
+ href="#META_INFO">META_INFO</a> <a href="#OBJ_INFO">OBJ_INFO</a> <a
+ href="#PHYS_INFO">PHYS_INFO</a><a href="#PL_OPTIONS">PL_OPTIONS</a> <a
+ href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
+<a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a
+ href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a> </tt><a
+ href="#TECH_ATTRIBUTES"><tt><a href="xstring_api.html">xstring</a></tt></a>
+</p>
 <h3><a name="xstring"></a>xstring</h3>
-
 <a href="xstring_api.html">See separate document</a>.
 <h3><tt><a name="INFOTYPE"></a></tt>INFOTYPE</h3>
-
 <p><code>INFOTYPE</code> is an enumeration type. It
 is bit vector with flags
 for each individual type of information. The values may be ored to
-identify combinations. This type is usually used in conjunction with a <a href="datatype.html#INFO_BUNDLE"><code>INFO_BUNDLE</code>
+identify combinations. This type is usually used in conjunction with a <a
+ href="datatype.html#INFO_BUNDLE"><code>INFO_BUNDLE</code>
 structure</a> to identify the valid fields in this structure.</p>
-
 <code></code>
 <ul>
-
   <li><b><tt>INFO_NONE</tt></b> - simply
 zero.<code></code></li>
   <li><b><code>INFO_PHYS</code></b> - <a href="#PHYS_INFO">Physical
@@ -74,18 +72,14 @@ objects.</li>
 The list of children for
 enumerable objects like playlists.</li>
 </ul>
-
 <h3><a name="PHYS_INFO"></a>PHYS_INFO
 -&nbsp;Physical information
 about an
 object.</h3>
-
 <blockquote>
   <pre>typedef struct<br>{ <a href="datatype.html#PM123_SIZE">PM123_SIZE</a> filesize;<br>  unsigned   tstmp;<br>  unsigned   attributes;<br>} <b>PHYS_INFO</b>;</pre>
 </blockquote>
-
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -116,23 +110,20 @@ edit meta data function of PM123.</td>
     </tr>
   </tbody>
 </table>
-
 <br>
-
 <h3><a name="TECH_INFO"></a>TECH_INFO
 -&nbsp;Technical information
 about an
 object.</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a href="xstring_api.html">xstring</a>    info;<br>  <a href="xstring_api.html">xstring</a>    format;<br>  <a href="xstring_api.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
+  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a
+ href="xstring_api.html">xstring</a>    info;<br>  <a
+ href="xstring_api.html">xstring</a>    format;<br>  <a
+ href="xstring_api.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
 </blockquote>
-
 <p>Note that objects of type <tt>TECH_INFO</tt> should not be copied
 binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>s.</p>
-
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -177,28 +168,24 @@ returned by <a href="decode_plug.html#decoder_support"><code>decoder_support</co
 to identify the
 format to save. If the parameter is missing, the plug-in should try to
 use a
-default format.<br>
-      </td>
+default format. </td>
       <td><tt>""</tt></td>
     </tr>
     <tr>
       <td><tt>decoder</tt></td>
       <td>Name of the decoder. This field need not be set by a
-decoder plug-in because PM123 automatically fills the right name when <a href="decode_plug.html#decoder_fileinfo"><tt>decoder_fileinfo</tt></a>
+decoder plug-in because PM123 automatically fills the right name when <a
+ href="decode_plug.html#decoder_fileinfo"><tt>decoder_fileinfo</tt></a>
 returned <tt>PLUGIN_OK</tt>.</td>
       <td><tt>""</tt></td>
     </tr>
   </tbody>
 </table>
-
 <h3><a name="TECH_ATTRIBUTES"></a>TECH_ATTRIBUTES</h3>
-
 <p><code>TECH_ATTRIBUTES</code> is an enumeration type. It
 is bit vector. The values may be ored to
 identify combinations.</p>
-
 <ul>
-
   <li><b><tt>TATTR_NONE</tt></b>
 - No of the flags below.</li>
   <li><b><tt>TATTR_SONG</tt></b>
@@ -206,13 +193,14 @@ identify combinations.</p>
   <li><b><tt>TATTR_PLAYLIST</tt></b>
 -&nbsp;The item can have sub entries (playlist).</li>
   <li><b><tt>TATTR_WRITABLE</tt></b>
--&nbsp;This item is writable. E.g. <a href="decode_plug.html#decoder_saveinfo"><tt>decoder_saveinfo</tt></a>
+-&nbsp;This item is writable. E.g. <a
+ href="decode_plug.html#decoder_saveinfo"><tt>decoder_saveinfo</tt></a>
 can be used.</li>
   <li><b><tt>TATTR_SAVEABLE</tt></b>
--&nbsp;This stream is saveable (<a href="decode_plug.html#decoder_command"><tt>DECODER_SAVEDATA</tt></a>
+-&nbsp;This stream is saveable (<a
+ href="decode_plug.html#decoder_command"><tt>DECODER_SAVEDATA</tt></a>
 is supported).</li>
 </ul>
-
 <tt>TATTR_SONG</tt> and <tt>TATTR_PLAYLIST</tt>
 are not mutually exclusive. E.g. a decoder might represent CD tracks as
 song while they still may contain sub entries because of track index
@@ -221,13 +209,10 @@ only a indexed section of it. PM123 will not automatically descend to
 the index tracks unless the user explicitly requests to do so.
 <h3><a name="OBJ_INFO"></a>OBJ_INFO
 - Detailed Song Information</h3>
-
 <blockquote>
   <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> songlength;<br>  int        bitrate;<br>  int        num_items;<br>} <b>OBJ_INFO</b>;</pre>
 </blockquote>
-
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -247,29 +232,29 @@ for an 128kbps MP3.</td>
       <td><tt>-1</tt></td>
     </tr>
     <tr>
-      <td valign="top"><tt>num_items</tt><br>
-      </td>
-      <td valign="top">Number of immediate subitems (for playlists).<br>
-      </td>
+      <td valign="top"><tt>num_items</tt> </td>
+      <td valign="top">Number of immediate subitems (for playlists). </td>
       <td valign="top"><tt>-1</tt></td>
     </tr>
   </tbody>
 </table>
-
 <br>
-
 <h3><a name="META_INFO"></a>META_INFO - Meta
 information</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    title;<br>  <a href="xstring_api.html">xstring</a>    artist;<br>  <a href="xstring_api.html">xstring</a>    album;<br>  <a href="xstring_api.html">xstring</a>    year;<br>  <a href="xstring_api.html">xstring</a>    comment;<br>  <a href="xstring_api.html">xstring</a>    genre;<br>  <a href="xstring_api.html">xstring</a>    track;<br>  <a href="xstring_api.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    title;<br>  <a
+ href="xstring_api.html">xstring</a>    artist;<br>  <a
+ href="xstring_api.html">xstring</a>    album;<br>  <a
+ href="xstring_api.html">xstring</a>    year;<br>  <a
+ href="xstring_api.html">xstring</a>    comment;<br>  <a
+ href="xstring_api.html">xstring</a>    genre;<br>  <a
+ href="xstring_api.html">xstring</a>    track;<br>  <a
+ href="xstring_api.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
 </blockquote>
-
 <p>Note that objects of type META_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a href="xstring_api.html">xstring</a></tt>.</p>
-
+binary by value because of the embedded&nbsp;<tt><a
+ href="xstring_api.html">xstring</a></tt>.</p>
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -296,14 +281,12 @@ general.</td>
     <tr>
       <td><tt>year</tt></td>
       <td>Release date in the format <var><tt>YYYY</tt></var>[<tt>-<var>MM</var></tt>[<tt>-<var>DD</var></tt>]]
-(month and day are optional).<br>
-      </td>
+(month and day are optional). </td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
       <td><tt>comment</tt></td>
-      <td>Comment.<br>
-      </td>
+      <td>Comment. </td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
@@ -326,31 +309,28 @@ general.</td>
 track_peak<br>
 album_gain<br>
 album_peak</tt></td>
-      <td>Replay gain values. See&nbsp;<a href="http://www.replaygain.org/">www.replaygain.org</a>.<br>
+      <td>Replay gain values. See&nbsp;<a
+ href="http://www.replaygain.org/">www.replaygain.org</a>.<br>
 Values less or equal to -1000 are considered to be undefined. This
 indicates that the information is not available.</td>
       <td><tt>-1000</tt></td>
     </tr>
   </tbody>
 </table>
-
 <p>Note that <tt>NULL</tt> strings will display the
 same as <tt>""</tt>,
 but they indicate that the information is not available rather than
 explicitly set to blank. In fact this will rarely make a difference.
 </p>
-
 <h3><a name="ATTR_INFO"></a>ATTR_INFO
 -&nbsp;Object attributes.</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ unsigned   ploptions;<br>  <a href="xstring_api.html">xstring</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
+  <pre>typedef struct<br>{ unsigned   ploptions;<br>  <a
+ href="xstring_api.html">xstring</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
 </blockquote>
-
 Note that objects of type ATTR_INFO should not be copied
 binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>.
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -359,8 +339,8 @@ binary by value because of the embedded <tt><a href="xstring_api.html">xstring</
     </tr>
     <tr>
       <td><tt>ploptions</tt></td>
-      <td>Playlist options. This is a bit vector of <a href="#PL_OPTIONS"><tt>PL_OPTIONS</tt></a>.<br>
-      </td>
+      <td>Playlist options. This is a bit vector of <a
+ href="#PL_OPTIONS"><tt>PL_OPTIONS</tt></a>. </td>
       <td><i>none</i></td>
     </tr>
     <tr>
@@ -373,15 +353,11 @@ location string</a>.</p>
     </tr>
   </tbody>
 </table>
-
 <h3><a name="PL_OPTIONS"></a>PL_OPTIONS</h3>
-
 <p><code>PL_OPTIONS</code> is an enumeration type. It
 is bit vector. The values may be ored to
 identify combinations.</p>
-
 <ul>
-
   <li><b><tt>PLO_NONE</tt></b> - simply
 zero.</li>
   <li><b><tt>PLO_ALTERNATION</tt></b>
@@ -406,140 +382,113 @@ individual album lists are marked with <tt>PLO_NO_SHUFFLE</tt>,
 the player will play the albums in random sequence but keep the titles
 in each album in order.</li>
 </ul>
-
 <tt>PLO_SHUFFLE</tt> and <tt>PLO_NO_SHUFFLE</tt>
 are mutually exclusive.
 <h3><a name="RPL_INFO"></a>RPL_INFO
 -&nbsp;Recursive
 playlist information.</h3>
-
 <blockquote>
   <pre>typedef struct<br>{ int        totalsongs;<br>  int        totallists;<br>  int        invalid;<br>  int        unknown;<br>} <b>RPL_INFO</b>;</pre>
 </blockquote>
-
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
       <th>Meaning</th>
-      
     </tr>
     <tr>
       <td><tt>totalsongs</tt></td>
       <td>The total number of playable objects. This includes
 songs in nested playlists but not the playlists itself since they are
-not directly playable. For song items this is 1.<br>
-      </td>
-      
+not directly playable. For song items this is 1. </td>
     </tr>
-    
     <tr>
       <td><tt>totallists</tt></td>
       <td>The total number of enumerable objects including the
 top level list and nested objects. For song items this is 0.</td>
-      
     </tr>
     <tr>
-<td valign="top"><tt>invalid</tt></td><td valign="top">The total number of invalid objects (i.e neither
-song nor playlist) in the nested tree.<br>
-      </td></tr>
-<tr>
-      <td valign="top"><tt>unknown</tt> </td>
-      <td valign="top">Total number of objects with an unknown number of nested objects. If this is non-zero the <tt>totalsongs</tt>, <tt>totallists</tt>
-and <tt>invalid</tt> counters are incomplete. </td>
-      
+      <td valign="top"><tt>invalid</tt></td>
+      <td valign="top">The total number of invalid objects (i.e neither
+song nor playlist) in the nested tree. </td>
     </tr>
-    
-    
-    
+    <tr>
+      <td valign="top"><tt>unknown</tt> </td>
+      <td valign="top">Total number of objects with an unknown number
+of nested objects. If this is non-zero the <tt>totalsongs</tt>, <tt>totallists</tt>
+and <tt>invalid</tt> counters are incomplete. </td>
+    </tr>
   </tbody>
 </table>
-
 <p>The recursive playlist information takes care of <em>slices</em>
 that only select a part of a nested object.&nbsp;Ranges outside the
 slice are not part of the aggregation.</p>
-
 <p>
 Furthermore <em>recursive links</em> in
 enumerable objects are treated in the way that any recursive object is
 ignored. See <a href="../manual/recursive.html">recursive
 playlists</a></p>
-
 <p>The <tt>unknown</tt> counter is used to
 support incremental updates. E.g. if a playlist currently contains
 exactly one nested playlist with an unknown number of sub objects the <tt>unknown</tt>
 counter is set to 1 and the <tt>totalsongs</tt> counter collects the
 songs in all other items. If this nested playlist is removed, the <tt>unknown</tt>
 counter is decremented and the <tt>totalsongs</tt> counter becomes
-valid without recalculating it's value.<br>
+valid without recalculating it's value.
 </p>
-<p>This also implies that the structure has no undefined value. Instead unknown is initially <tt>1</tt> and all other fields <tt>0</tt>.<br>
+<p>This also implies that the structure has no undefined value. Instead
+unknown is initially <tt>1</tt> and all other fields <tt>0</tt>.
 </p>
 <h3><a name="DRPL_INFO"></a>DRPL_INFO
 - Detailed recursive
 playlist information.</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> totallength;<br>  int        unk_length;<br>  <a href="#PM123_SIZE">PM123_SIZE</a> totalsize;<br>  int        unk_size;<br>} <b>DRPL_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> totallength;<br>  int        unk_length;<br>  <a
+ href="#PM123_SIZE">PM123_SIZE</a> totalsize;<br>  int        unk_size;<br>} <b>DRPL_INFO</b>;</pre>
 </blockquote>
-
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
       <th>Meaning</th>
-      
     </tr>
     <tr>
       <td><tt>totallength</tt></td>
       <td>Sum of the playing times (<tt>TECH_INFO.songlength</tt>)
 of all songs in a playlist including nested lists.</td>
-      
     </tr>
     <tr>
-      <td valign="top"><tt>unk_length
-      </tt> </td>
+      <td valign="top"><tt>unk_length </tt> </td>
       <td valign="top">Total number of objects with unknown or
 indefinite length. If this is non-zero the <tt>totallength</tt> is
-incomplete.<br>
-      </td>
-      
+incomplete. </td>
     </tr>
     <tr>
       <td><tt>totalsize</tt></td>
       <td>Sum of the physical object size of all nested objects (<tt>PHYS_INFO.filesize</tt>).
 This is always an approximate number, since slices cannot be projected
 to exact byte numbers in general.</td>
-      
     </tr>
     <tr>
-      <td valign="top"><tt>unk_size
-      </tt> </td>
+      <td valign="top"><tt>unk_size </tt> </td>
       <td valign="top">Total number of objects with unknown object
-size. If this is non-zero the <tt>totalsize</tt> is incomplete.<br>
-      </td>
-      
+size. If this is non-zero the <tt>totalsize</tt> is incomplete. </td>
     </tr>
   </tbody>
 </table>
-
 <p>See also notes of <tt><a href="datatype.html#RPL_INFO">RPL_INFO</a></tt>.</p>
-
 <h3><a name="ITEM_INFO"></a>ITEM_INFO
 -&nbsp;Playlist
 item information.</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>      alias;<br>  <a href="xstring_api.html">xstring</a>      start;<br>  <a href="xstring_api.html">xstring</a>      stop;<br>  float        pregap;<br>  float        postgap;<br>  float        gain;<br>} <b>ITEM_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    alias;<br>  <a
+ href="xstring_api.html">xstring</a>    start;<br>  <a
+ href="xstring_api.html">xstring</a>    stop;<br>  float      pregap;<br>  float      postgap;<br>  float      gain;<br>} <b>ITEM_INFO</b>;</pre>
 </blockquote>
-
 <p>Note that objects of type ITEM_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a href="xstring_api.html">xstring</a></tt>s.</p>
-
+binary by value because of the embedded&nbsp;<tt><a
+ href="xstring_api.html">xstring</a></tt>s.</p>
 <table border="1" cellpadding="3" cellspacing="0">
-
   <tbody>
     <tr>
       <th>Field</th>
@@ -549,19 +498,20 @@ binary by value because of the embedded&nbsp;<tt><a href="xstring_api.html">xstr
     <tr>
       <td><tt>alias</tt></td>
       <td>This is an alias name used for locations where the name
-of an object is shown, like bookmark entries.<br>
-      </td>
+of an object is shown, like bookmark entries. </td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
       <td><tt>start</tt></td>
-      <td>Start location in the referenced object as <a href="../manual/location.html">PM123 location string</a>. <tt>NULL</tt>
+      <td>Start location in the referenced object as <a
+ href="../manual/location.html">PM123 location string</a>. <tt>NULL</tt>
 =&gt; the beginning of the object.</td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
       <td><tt>stop</tt></td>
-      <td>Stop location in the referenced object as&nbsp;<a href="../manual/location.html">PM123 location string</a>. <tt>NULL</tt>
+      <td>Stop location in the referenced object as&nbsp;<a
+ href="../manual/location.html">PM123 location string</a>. <tt>NULL</tt>
 =&gt; until the end of the object.</td>
       <td><tt>NULL</tt></td>
     </tr>
@@ -572,34 +522,37 @@ postgap</tt></td>
       <td><i>none</i></td>
     </tr>
     <tr>
-      <td valign="top"><tt>gain</tt><br>
-      </td>
-      <td valign="top">Additional playback gain in dB.<br>
-      </td>
+      <td valign="top"><tt>gain</tt> </td>
+      <td valign="top">Additional playback gain in dB. </td>
       <td valign="top"><i>none</i></td>
     </tr>
   </tbody>
 </table>
-
 <h3><a name="INFO_BUNDLE"></a>INFO_BUNDLE</h3>
-
 <blockquote>
-  <pre>typedef struct<br>{ <a href="datatype.html#PHYS_INFO">PHYS_INFO</a>* phys;<br>  <a href="#TECH_INFO">TECH_INFO</a>* tech;<br>  <a href="#OBJ_INFO">OBJ_INFO</a>*  obj;<br>  <a href="#META_INFO">META_INFO</a>* meta;<br>  <a href="#ATTR_INFO">ATTR_INFO</a>* attr;<br>  <a href="#RPL_INFO">RPL_INFO</a>*  rpl;<br>  <a href="#DRPL_INFO">DRPL_INFO</a>* drpl;<br>  <a href="#ITEM_INFO">ITEM_INFO</a>* item;<br>} <b>INFO_BUNDLE</b>;</pre>
+  <pre>typedef struct<br>{ <a href="datatype.html#PHYS_INFO">PHYS_INFO</a>* phys;<br>  <a
+ href="#TECH_INFO">TECH_INFO</a>* tech;<br>  <a href="#OBJ_INFO">OBJ_INFO</a>*  obj;<br>  <a
+ href="#META_INFO">META_INFO</a>* meta;<br>  <a href="#ATTR_INFO">ATTR_INFO</a>* attr;<br>  <a
+ href="#RPL_INFO">RPL_INFO</a>*  rpl;<br>  <a href="#DRPL_INFO">DRPL_INFO</a>* drpl;<br>  <a
+ href="#ITEM_INFO">ITEM_INFO</a>* item;<br>} <b>INFO_BUNDLE</b>;</pre>
 </blockquote>
-
 <p>The <tt>INFO_BUNDLE</tt> structure is a
 collection of <em>all available information about an object</em>.
 Depending on the usage context the relevance of the sub structures may
 be masked either by a <a href="#INFO_TYPE"><tt>INFOTYPE</tt></a>
 bit vector passed
 as separate parameter or by setting some of the pointers to <tt>NULL</tt>.</p>
-
+<h3><a name="FORMAT_INFO2"></a>FORMAT_INFO2</h3>
+<blockquote>
+  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>} <b>FORMAT_INFO2</b>;</pre>
+</blockquote>
+<p>The <tt>FORMAT_INFO2</tt> structure is a slice of <a
+ href="#TECH_INFO"><tt>TECH_INFO</tt></a> that is used to identify the
+format of samples passed through the plug-in chain.</p>
 <h3><a name="PM123_TIME"></a>PM123_TIME</h3>
-
 <blockquote>
   <pre>typedef double <b>PM123_TIME</b>;</pre>
 </blockquote>
-
 <p>The <tt>PM123_TIME</tt> type is a double
 precision floating point type, so it can have fractional seconds also.
 If a <tt>PM123_TIME</tt>
@@ -607,17 +560,14 @@ value is applied to sample data, the floating point value is rounded to
 the nearest sample boundary. Even tough it is an approximate number,
 this gives an accuracy of 1 sample up to about 3000 years of music @
 48kHz sample rate - should be sufficient, I think.</p>
-
 <h3><a name="PM123_SIZE"></a>PM123_SIZE</h3>
-
 <blockquote>
   <pre>typedef double <b>PM123_SIZE</b>;</pre>
 </blockquote>
-
 <p>Data type used to deal with file sizes. Since some compilers
 do not
 support 64 bit integers, a double value is used. This is accurate up to
 2<small><sup>52</sup></small> bytes - still
 more than any now existing file system can hold (including ZFS).</p>
-
-</body></html>
+</body>
+</html>

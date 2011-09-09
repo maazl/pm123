@@ -33,7 +33,6 @@
 #define PM123_PLUGMAN_H
 
 #include <plugin.h>
-#include <decoder_plug.h>
 #include <cpp/event.h>
 #include <cpp/xstring.h>
 #include <cpp/container/vector.h>
@@ -160,6 +159,9 @@ class Module
   void    Command(const char* command, xstring& result) const
                                              { if (plugin_command) (*plugin_command)(command, &result); }
 
+  /// Helper function to provide message callback for plug-in API.
+  PROXYFUNCDEF void DLLENTRY PluginDisplayMessage(MESSAGE_TYPE type, const char* msg);
+
  private: // non-copyable
   Module(const Module&);
   void operator=(const Module&);
@@ -225,7 +227,8 @@ class Plugin : public Iref_count
                Plugin(Module& mod, PLUGIN_TYPE type);
   /// Raise plugin_event
   void         RaisePluginChange(PluginEventArgs::event ev);
- public:
+
+public:
   /// @brief Destroy the current plug-in.
   /// @details This will implicitly deregister it from the plug-in list.
   /// If the module is not used by another plug-in it will be unloaded.
@@ -251,14 +254,14 @@ class Plugin : public Iref_count
   void         Serialize(xstringbuilder& target) const;
 
  protected:
-   // The lists are protected by Module::Mtx.
-   static PluginList Decoders; // only decoders
-   static PluginList Outputs;  // only outputs
-   static PluginList Filters;  // only filters
-   static PluginList Visuals;  // only visuals
+  // The lists are protected by Module::Mtx.
+  static PluginList Decoders; // only decoders
+  static PluginList Outputs;  // only outputs
+  static PluginList Filters;  // only filters
+  static PluginList Visuals;  // only visuals
  private:
-   /// Notify changes to the plug-in lists.
-   static event<const PluginEventArgs> ChangeEvent;
+  /// Notify changes to the plug-in lists.
+  static event<const PluginEventArgs> ChangeEvent;
 
  protected:
   static PluginList& GetPluginList(PLUGIN_TYPE type);
@@ -266,6 +269,9 @@ class Plugin : public Iref_count
   /// Access plug-in change event.
   static event_pub<const PluginEventArgs>& GetChangeEvent() { return ChangeEvent; }
 
+  // Return the \c plug-in instance of the requested type on \a module
+  /// or null if none.
+  static int_ptr<Plugin> FindInstance(Module& module, PLUGIN_TYPE type);
   /// Return the \c plug-in instance of the requested type on \a module. Create a new one if required.
   /// @exception ModuleException Something went wrong.
   static int_ptr<Plugin> GetInstance(Module& module, PLUGIN_TYPE type);
@@ -316,9 +322,9 @@ class PluginList : public vector_int<Plugin>
   /// Check whether a plug-in is already in the list.
   bool            contains(const Plugin* plugin) const { return find(plugin) != NULL; }
 
-  /// Remove the plug-in from the list.
+  /*/// Remove the plug-in from the list.
   /// @return true on success.
-  bool            remove(Plugin* plugin);
+  bool            remove(Plugin* plugin);*/
 
   /// @brief Serialize plug-in list to a string.
   /// @details This implicitly calls Serialize for each plug-in in the list.
@@ -329,53 +335,6 @@ class PluginList : public vector_int<Plugin>
 
   /// Reset the list to the default of this plug-in flavor.
   void            LoadDefaults();
-};
-
-
-/****************************************************************************
-*
-*  Helper class for plug-in virtualization proxies
-*
-****************************************************************************/
-
-struct ProxyHelper
-{protected:
-  /// Convert file URL
-  /// - discard file: prefix,
-  /// - replace '/' by '\'
-  /// - replace "X|" by "X:"
-  /// The string url is modified in place
-  static const char* ConvertUrl2File(char* url);
-
-  /// Convert time stamp in seconds to an integer in milliseconds.
-  /// Truncate leading bits in case of an overflow.
-  static int    TstmpF2I(double pos);
-  /// Convert possibly truncated time stamp in milliseconds to seconds.
-  /// The missing bits are taken from a context time stamp which has to be sufficiently close
-  /// to the original time stamp. Sufficient is about 24 days.
-  static double TstmpI2F(int pos, double context);
-
-  /// convert META_INFO into DECODER_INFO
-  static void ConvertMETA_INFO(DECODER_INFO* dinfo, const volatile META_INFO* meta);
-  /// convert DECODER_INFO2 to DECODER_INFO
-  static void ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV* info);
-  static void ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo);
-
-  // global services
- protected:
-  enum
-  { UM_CREATEPROXYWINDOW = WM_USER,
-    UM_DESTROYPROXYWINDOW
-  };
- private:
-  static HWND ServiceHwnd;
-  friend MRESULT EXPENTRY ProxyHelperWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
- protected:
-  static HWND CreateProxyWindow(const char* cls, void* ptr);
-  static void DestroyProxyWindow(HWND hwnd);
- public:
-  static void Init();
-  static void Uninit();
 };
 
 

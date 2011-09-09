@@ -20,6 +20,7 @@
 #define NO_NTOM 1
 #define NO_DOWNSAMPLE 1
 #define NO_8BIT 1
+#define NO_16BIT 1
 #define NO_32BIT 1
 
 /* We do not use the ID3V2 code of libmpg123, since it does not handle writing. */

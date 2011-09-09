@@ -32,8 +32,10 @@
  */
 
 #include "visual.h"
-#include "123_util.h"
 #include "glue.h"
+#include "eventhandler.h"
+#include "controller.h"
+#include <decoder_plug.h>
 
 #include <debuglog.h>
 
@@ -45,6 +47,25 @@
 *
 ****************************************************************************/
 
+static ULONG DLLENTRY dec_status()
+{ if (!Ctrl::IsPlaying())
+    return DECODER_STOPPED;
+  return Ctrl::IsPaused() ? DECODER_PAUSED : DECODER_PLAYING;
+}
+
+static PM123_TIME DLLENTRY dec_length()
+{ int_ptr<APlayable> song = Ctrl::GetCurrentSong();
+  return song ? song->GetInfo().obj->songlength : -1;
+}
+
+const PLUGIN_PROCS Visual::VisualCallbacks =
+{ &out_playing_samples,
+  &out_playing_data,
+  &out_playing_pos,
+  &dec_status,
+  &dec_length
+};
+
 /* Assigns the addresses of the visual plug-in procedures. */
 void Visual::LoadPlugin()
 { DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
@@ -53,16 +74,6 @@ void Visual::LoadPlugin()
   mod.LoadMandatoryFunction(&plugin_deinit, "plugin_deinit");
   mod.LoadMandatoryFunction(&plugin_init,   "vis_init");
 }
-
-static const PLUGIN_PROCS visual_procs =
-{ &out_playing_samples,
-  &out_playing_data,
-  &out_playing_pos,
-  &dec_status,
-  &pm123_getstring,
-  &pm123_control,
-  &dec_length
-};
 
 bool Visual::InitPlugin(HWND owner)
 { DEBUGLOG(("Visual(%p{%s})::initialize(%x) - %d %d, %d %d, %s\n",
@@ -74,8 +85,7 @@ bool Visual::InitPlugin(HWND owner)
   visinit.cx      = Props.cx;
   visinit.cy      = Props.cy;
   visinit.hwnd    = owner;
-  visinit.procs   = &visual_procs;
-  visinit.id      = 7; // Whatever this is good for
+  visinit.procs   = &VisualCallbacks;
   visinit.param   = Props.param;
 
   Hwnd = (*plugin_init)(&visinit);
@@ -130,11 +140,11 @@ int_ptr<Visual> Visual::GetInstance(Module& module)
   Visual* vis = module.Vis;
   if (vis && !vis->RefCountIsUnmanaged())
     return vis;
-  if (module.GetParams().interface == 0)
-  { pm123_display_error(xstring::sprintf(
-      "Could not load visual plug-in %s because it is designed for PM123 before version 1.40\n"
-      "Please get a newer version of this plug-in which supports at least interface revision 1.",
-      module.ModuleName.cdata()));
+  if (module.GetParams().interface < 3)
+  { throw ModuleException(
+      "Could not load visual plug-in %s because it is designed for PM123 before version 1.41.\n"
+      "Please get a newer version of this plug-in.",
+      module.ModuleName.cdata());
     return NULL;
   }
   vis = new Visual(module);

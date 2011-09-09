@@ -143,6 +143,7 @@ class Playable
   InfoFlags                 UpdateInfo(const INFO_BUNDLE& info, InfoFlags what);
   /// Raise InfoChange event
   void                      RaiseInfoChange(InfoFlags loaded, InfoFlags changed);
+
  private: // Services for playlist functions
   void                      EnsurePlaylist();
   /// Create an new Playlist item.
@@ -190,7 +191,9 @@ class Playable
   virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);
-  // Callback function of dec_fileinfo
+  /// Returns the decoder NAME that can play this file and returns 0
+  /// if not returns error 200 = nothing can play that.
+  ULONG                     DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param);
   PROXYFUNCDEF void DLLENTRY Playable_DecoderEnumCb(void* param, const char* url,
                             const INFO_BUNDLE* info, int cached, int override );
 

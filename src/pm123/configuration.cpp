@@ -31,11 +31,10 @@
 
 #define INCL_ERRORS
 #include "configuration.h"
+#include "eventhandler.h"
 #include "plugman.h"
 #include "visual.h"
-#include "123_util.h"
 #include "pm123.h"
-#include "dialog.h"
 #include <inimacro.h>
 #include <os2.h>
 #include <time.h>
@@ -132,9 +131,9 @@ HINI Cfg::HIni;
 void Cfg::LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
 { PluginList list(type);
   if (ini_query_xstring(HIni, INI_SECTION, key, Current.*cfg))
-  { xstring err = list.Deserialize(Current.*cfg);
+  { const xstring& err = list.Deserialize(Current.*cfg);
     if (err)
-    { pm123_display_error(err);
+    { EventHandler::Post(MSG_ERROR, err);
       if (!list.size())
         goto fail;
     }
@@ -525,7 +524,6 @@ void Cfg::Init()
 void Cfg::Uninit()
 { if (!PrfCloseProfile(HIni))
   { char buf[1024];
-    os2pm_strerror(buf, sizeof(buf));
-    amp_error(HWND_DESKTOP, "PM123 failed to write its profile: %s", buf);
+    EventHandler::PostFormat(MSG_ERROR, "PM123 failed to write its profile: %s", os2pm_strerror(buf, sizeof(buf)));
   }
 }

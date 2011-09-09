@@ -38,11 +38,12 @@
 #include "configuration.h"
 #include "glue.h"
 #include "pm123.h"
-#include "dialog.h"
+#include "eventhandler.h"
 #include "pm123.rc.h"
 #include "button95.h"
 #include "plugman.h"
 #include "visual.h"
+#include "dialog.h"
 
 #include <gbm.h>
 #include <gbmerr.h>
@@ -59,10 +60,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
-#include <sys/io.h>
-#include <fcntl.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -291,42 +288,38 @@ bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData 
   char* opt = "";
 
   if( gbm_guess_filetype( filename, &filetype ) != GBM_ERR_OK ) {
-    amp_player_error( "Unable deduce bitmap format from file extension:\n%s\n", filename );
+    EventHandler::PostFormat(MSG_ERROR, "Unable deduce bitmap format from file extension:\n%s\n", filename);
     return FALSE;
   }
 
   file = gbm_io_open( filename, GBM_O_RDONLY );
 
   if( file == -1 ) {
-    amp_player_error( "Unable open bitmap file:\n%s\n", filename );
+    EventHandler::PostFormat(MSG_ERROR, "Unable open bitmap file:\n%s\n", filename);
     return FALSE;
   }
 
   if( gbm_read_header( filename, file, filetype, gbm, opt ) != GBM_ERR_OK ) {
     gbm_io_close( file );
-    amp_player_error( "Unable read bitmap file header:\n%s\n", filename );
+    EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file header:\n%s\n", filename);
     return FALSE;
   }
 
   if( gbm_read_palette( file, filetype, gbm, gbmrgb ) != GBM_ERR_OK ) {
     gbm_io_close( file );
-    amp_player_error( "Unable read bitmap file palette:\n%s\n", filename );
+    EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file palette:\n%s\n", filename);
     return FALSE;
   }
 
   cb = (( gbm->w * gbm->bpp + 31 ) / 32 ) * 4 * gbm->h;
 
-  if(( *ppbData = (BYTE*)malloc( cb )) == NULL ) {
-    gbm_io_close( file );
-    amp_player_error( "Out of memory" );
-    return FALSE;
-  }
+  *ppbData = new BYTE[cb];
 
   if( gbm_read_data( file, filetype, gbm, (byte*)*ppbData ) != GBM_ERR_OK )
   {
-    free( *ppbData );
+    delete[] *ppbData;
     gbm_io_close( file );
-    amp_player_error( "Unable read bitmap file data:\n%s\n", filename );
+    EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file data:\n%s\n", filename);
     return FALSE;
   }
 
@@ -1807,8 +1800,7 @@ static int bmp_map_bitmap_id( unsigned i )
 }
 
 /* Returns TRUE if specified mode supported by current skin. */
-BOOL
-bmp_is_mode_supported( int mode )
+BOOL bmp_is_mode_supported( int mode )
 {
   switch( mode )
   {
@@ -1824,8 +1816,7 @@ bmp_is_mode_supported( int mode )
 }
 
 /* Returns TRUE if specified font supported by current skin. */
-BOOL
-bmp_is_font_supported( int font )
+BOOL bmp_is_font_supported( int font )
 {
   if( font != 0 && bmp_ulong[ UL_ONE_FONT ] ) {
     return FALSE;
@@ -1835,12 +1826,10 @@ bmp_is_font_supported( int font )
 }
 
 /* Loads specified bitmaps bundle. */
-static BOOL
-bmp_load_packfile( char *filename )
+static BOOL bmp_load_packfile( char *filename )
 {
   FILE*     pack;
   FILE*     temp;
-  char*     fbuf;
   char      tempname[_MAX_PATH];
   char      tempexts[_MAX_EXT ];
   int       cb;
@@ -1848,8 +1837,8 @@ bmp_load_packfile( char *filename )
 
   pack = fopen( filename, "rb" );
   if( pack == NULL ) {
-    amp_player_error( "The bitmap bundle file, %s, for this skin was not found. "
-                      "Skin display as incomplete.", filename );
+    EventHandler::PostFormat(MSG_ERROR,
+      "The bitmap bundle file, %s, for this skin was not found. Skin display as incomplete.", filename);
     return FALSE;
   }
 
@@ -1857,40 +1846,26 @@ bmp_load_packfile( char *filename )
   {
     if( fread( &hdr, 1, sizeof( BUNDLEHDR ), pack ) == sizeof( BUNDLEHDR ) &&
         hdr.length > 0 )
-    { if(( fbuf = (char*)malloc( hdr.length )) != NULL )
-      {
-        cb = fread( fbuf, 1, hdr.length, pack );
+    { sco_arr<char> fbuf(hdr.length);
+      cb = fread( fbuf.get(), 1, hdr.length, pack );
 
-        // decouple from internal IDs
-        hdr.resource = bmp_map_bitmap_id( hdr.resource );
-        if ( hdr.resource == 0 )
-          continue;
+      // decouple from internal IDs
+      hdr.resource = bmp_map_bitmap_id( hdr.resource );
+      if ( hdr.resource == 0 )
+        continue;
 
-        sprintf( tempname, "%spm123%s", amp_basepath.cdata(),
-                           sfext( tempexts, hdr.filename, sizeof( tempexts )));
+      sprintf( tempname, "%spm123%s", amp_basepath.cdata(),
+                         sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
-        if(( temp = fopen( tempname, "wb" )) != NULL )
-        {
-          fwrite( fbuf, 1, cb, temp );
-          fclose( temp );
+      if(( temp = fopen( tempname, "wb" )) != NULL )
+      { fwrite( fbuf.get(), 1, cb, temp );
+        fclose( temp );
 
-
-          bmp_cache[ hdr.resource ] = bmp_load_bitmap( tempname );
-          remove( tempname );
-        }
-        else
-        {
-          amp_player_error( "Unable create temporary bitmap file %s\n", tempname );
-          free  ( fbuf );
-          fclose( pack );
-          return FALSE;
-        }
-        free( fbuf );
-      }
-      else
-      {
+        bmp_cache[ hdr.resource ] = bmp_load_bitmap( tempname );
+        remove( tempname );
+      } else
+      { EventHandler::PostFormat(MSG_ERROR, "Unable create temporary bitmap file %s\n", tempname);
         fclose( pack );
-        amp_player_error( "Out of memory" );
         return FALSE;
       }
     }
@@ -1965,7 +1940,7 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
   sdrivedir( path, filename, sizeof( path ));
   file = fopen( filename, "r" );
   if( !file && strlen( filename ) > 0 )
-    amp_player_error( "Unable open skin %s, %s", filename, strerror( errno ));
+    EventHandler::PostFormat(MSG_ERROR, "Unable open skin %s: %s", filename, strerror(errno));
 
   { PresentationSpace hps(hplayer);
     bmp_clean_skin();
@@ -2176,6 +2151,7 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
       bmp_init_colors();
 
       if( errors > 0 ) {
+        // TODO: Query in case of remote commands???
         if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
                                  "Would you like to continue the loading of this skin? "
                                  "(if you select No, default skin will be used)" ))
@@ -2197,7 +2173,7 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
       pp->SetEnabled(false);
       vpl.append() = pp;
     } catch (const ModuleException& ex)
-    { amp_player_error("Skinned plug-in %s failed to load: %s", (*svpp)->plugin.cdata(), ex.GetErrorText().cdata());
+    { EventHandler::PostFormat(MSG_ERROR, "Skinned plug-in %s failed to load: %s", (*svpp)->plugin.cdata(), ex.GetErrorText().cdata());
     }
   // replace skinned visual plug-ins
   { Mutex::Lock lock(Module::Mtx);

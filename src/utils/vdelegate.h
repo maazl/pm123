@@ -64,6 +64,7 @@ class VREPLACE1
  public:
   VREPLACE1() {}
 };
+
 extern "C" {
 #else
 /* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */

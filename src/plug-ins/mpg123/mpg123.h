@@ -31,7 +31,7 @@
 #define MPG123_H
 
 #ifndef RC_INVOKED
-#define PLUGIN_INTERFACE_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 3
 
 #define  INCL_PM
 #define  INCL_DOS
@@ -119,8 +119,9 @@ class MPG123 : public ID3
   XFILE*        XSave;
   /// For internal use to sync the decoder and file replace thread.
   Mutex         DecMutex;
-
-  TECH_INFO     Tech;
+  /// Initial frame info
+  mpg123_frameinfo FrameInfo;
+  int           Channels;
  private:
   unsigned      FirstFrameLen;
   off_t         LastLength;
@@ -138,7 +139,7 @@ class MPG123 : public ID3
 
  protected:
   off_t         Time2Sample(PM123_TIME time);
-  int           ReadTechInfo();
+  bool          ReadFrameInfo();
   bool          UpdateStreamLength();
 
  protected:
@@ -156,7 +157,7 @@ class MPG123 : public ID3
   void          Close();
 
   /// Return most recent stream length or -1 if not available.
-  PM123_TIME    StreamLength() const { return (double)LastLength / Tech.samplerate; }
+  PM123_TIME    StreamLength() const { return (double)LastLength / FrameInfo.rate; }
 
   void          FillPhysInfo(PHYS_INFO& phys);
   bool          FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj);
@@ -200,7 +201,7 @@ class Decoder : public MPG123
 
  private: // Setup context
   /// function which the decoder should use for output
-  int   DLLENTRYP(OutRequestBuffer)(void* a, const TECH_INFO* format, short** buf);
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   /// function which the decoder should use for output
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
   /// decoder events

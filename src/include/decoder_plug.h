@@ -11,10 +11,33 @@
 extern "C" {
 #endif
 
+#if PLUGIN_INTERFACE_LEVEL == 2
+#error "The decoder plug-in interface level 2 (PM123 1.40a) is no longer supported."
+#endif
+
 #pragma pack(4)
 
+/****************************************************************************
+ *
+ * Definitions common to all interface levels.
+ *
+ ***************************************************************************/
 int  DLLENTRY decoder_init  (void** w);
 BOOL DLLENTRY decoder_uninit(void*  w);
+
+/* returns ORed values */
+typedef enum
+{ DECODER_FILENAME = 0x0001, /* Decoder can play a regular file. (file:) */
+  DECODER_URL      = 0x0002, /* Decoder can play a internet stream or file. (http:, https:, ftp:) */
+  DECODER_TRACK    = 0x0004, /* Decoder can play a CD track. (cd: cdda:) */
+  DECODER_OTHER    = 0x0008, /* Decoder can play something else. */
+  #if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL >= 2
+  DECODER_SONG     = 0x0100, /* Decoder can play songs with this file type. */
+  DECODER_PLAYLIST = 0x0200, /* Decoder can play playlists with this file type. */
+  DECODER_WRITABLE = 0x1000, /* Decoder can save items of this type. */
+  DECODER_METAINFO = 0x2000  /* Decoder can save a meta info. */
+  #endif
+} DECODER_TYPE;
 
 typedef enum
 {
@@ -23,7 +46,9 @@ typedef enum
   DECODER_STOP     = 2, /* returns 101 -> already stopped
                                    102 -> error, decoder killed (and stopped) */
   DECODER_FFWD     = 3,
+  #if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
   DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */
+  #endif
   DECODER_JUMPTO   = 5,
   DECODER_SETUP    = 6,
   DECODER_EQ       = 7, /* obsolete, no longer used since PM123 1.40b */
@@ -41,11 +66,44 @@ typedef enum
 } DECEVENTTYPE;
 
 typedef enum
-{ DECFAST_NORMAL_PLAY = 0,
-  DECFAST_FORWARD     = 1,
-  DECFAST_REWIND      = 2
-} DECFASTMODE;
+{ DECODER_STOPPED  = 0,
+  DECODER_PLAYING  = 1,
+  DECODER_STARTING = 2,
+  DECODER_PAUSED   = 3,
+  DECODER_STOPPING = 4,
+  DECODER_ERROR    = 200
+} DECODERSTATE;
 
+ULONG DLLENTRY decoder_status(void* w);
+
+/* See haveinfo field of the DECODER_INFO structure. */
+typedef enum
+{ DECODER_HAVE_NONE       = 0x0000
+, DECODER_HAVE_TITLE      = 0x0001
+, DECODER_HAVE_ARTIST     = 0x0002
+, DECODER_HAVE_ALBUM      = 0x0004
+, DECODER_HAVE_YEAR       = 0x0008
+, DECODER_HAVE_COMMENT    = 0x0010
+, DECODER_HAVE_GENRE      = 0x0020
+, DECODER_HAVE_TRACK      = 0x0040
+, DECODER_HAVE_COPYRIGHT  = 0x0080
+, DECODER_HAVE_TRACK_GAIN = 0x0100
+, DECODER_HAVE_TRACK_PEAK = 0x0200
+, DECODER_HAVE_ALBUM_GAIN = 0x0400
+, DECODER_HAVE_ALBUM_PEAK = 0x0800
+} DECODERMETA;
+
+#if PLUGIN_INTERFACE_LEVEL > 0
+ULONG DLLENTRY decoder_editmeta(HWND owner, const char* url);
+#endif
+
+
+/****************************************************************************
+ *
+ * Definitions of level 1 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
 
 typedef struct _DECODER_PARAMS
 {
@@ -103,81 +161,6 @@ typedef struct _DECODER_PARAMS
   const char*  save_filename;
 
 } DECODER_PARAMS;
-
-typedef struct _DECODER_PARAMS2
-{
-  /* --- DECODER_PLAY, STOP */
-  xstring      URL;
-
-  /* --- DECODER_REW, FFWD and JUMPTO */
-  PM123_TIME   JumpTo;      /* absolute positioning in seconds */
-  DECFASTMODE  Fast;        /* fast forward/rewind */
-
-  /* --- DECODER_SETUP */
-  /* specify a function which the decoder should use for output */
-  int   DLLENTRYP(OutRequestBuffer)(void* a, const TECH_INFO* format, short** buf);
-  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  /* decoder events */
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
-  void* A;                  /* only to be used with the precedent functions */
-
-  /* --- DECODER_SAVEDATA */
-  xstring      SaveFilename;
-
-} DECODER_PARAMS2;
-
-/* returns 0 -> ok
-           1 -> command unsupported
-           1xx -> msg specific */
-#if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL <= 1
-ULONG DLLENTRY decoder_command(void* w, ULONG msg, DECODER_PARAMS* params);
-/* WARNING!! this _can_ change in time!!! returns stream length in ms */
-/* the decoder should keep in memory a last valid length so the call  */
-/* remains valid even if decoder_status() == DECODER_STOPPED          */
-ULONG DLLENTRY decoder_length(void* w);
-
-/* These modes are from the MPEG Audio specification and only used for old plug-ins. */
-#define DECODER_MODE_STEREO         0
-#define DECODER_MODE_JOINT_STEREO   1
-#define DECODER_MODE_DUAL_CHANNEL   2
-#define DECODER_MODE_SINGLE_CHANNEL 3
-
-#else
-ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params);
-void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
-/* WARNING!! this _can_ change in time!!! returns stream length in s  */
-/* the decoder should keep in memory a last valid length so the call  */
-/* remains valid even if decoder_status() == DECODER_STOPPED          */
-PM123_TIME DLLENTRY decoder_length(void* w);
-#endif
-
-typedef enum
-{ DECODER_STOPPED  = 0,
-  DECODER_PLAYING  = 1,
-  DECODER_STARTING = 2,
-  DECODER_PAUSED   = 3,
-  DECODER_STOPPING = 4,
-  DECODER_ERROR    = 200
-} DECODERSTATE;
-
-ULONG DLLENTRY decoder_status(void* w);
-
-/* See haveinfo field of the DECODER_INFO structure. */
-typedef enum
-{ DECODER_HAVE_NONE       = 0x0000
-, DECODER_HAVE_TITLE      = 0x0001
-, DECODER_HAVE_ARTIST     = 0x0002
-, DECODER_HAVE_ALBUM      = 0x0004
-, DECODER_HAVE_YEAR       = 0x0008
-, DECODER_HAVE_COMMENT    = 0x0010
-, DECODER_HAVE_GENRE      = 0x0020
-, DECODER_HAVE_TRACK      = 0x0040
-, DECODER_HAVE_COPYRIGHT  = 0x0080
-, DECODER_HAVE_TRACK_GAIN = 0x0100
-, DECODER_HAVE_TRACK_PEAK = 0x0200
-, DECODER_HAVE_ALBUM_GAIN = 0x0400
-, DECODER_HAVE_ALBUM_PEAK = 0x0800
-} DECODERMETA;
 
 #define INFO_SIZE_1  976  /* size of the DECODER_INFO structure prior PM123 1.32 */
 #define INFO_SIZE_2 1264  /* size of the DECODER_INFO structure since PM123 1.32 */
@@ -241,17 +224,6 @@ typedef struct _DECODER_INFO
 
 } DECODER_INFO;
 
-
-/* Callback of decoder_fileinfo. Called once per item.
- */
-typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
-  const INFO_BUNDLE* info, int cached, int override);
-
-/* Callback of decoder_savelist. Called once per item.
- */
-typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
-  const INFO_BUNDLE** info, int* valid, int* override);
-
 /* CD info structure for old style plug-ins.
  */
 typedef struct _DECODER_CDINFO
@@ -260,29 +232,32 @@ typedef struct _DECODER_CDINFO
   int lasttrack;
 } DECODER_CDINFO;
 
+#if PLUGIN_INTERFACE_LEVEL <= 1
+/* size is i/o and is the size of the array.
+   each ext should not be bigger than 8bytes */
+ULONG DLLENTRY decoder_support(char* fileext[], int* size);
+
+/* returns 0 -> ok
+           1 -> command unsupported
+           1xx -> msg specific */
+ULONG DLLENTRY decoder_command(void* w, ULONG msg, DECODER_PARAMS* params);
+
+/* WARNING!! this _can_ change in time!!! returns stream length in ms */
+/* the decoder should keep in memory a last valid length so the call  */
+/* remains valid even if decoder_status() == DECODER_STOPPED          */
+ULONG DLLENTRY decoder_length(void* w);
+
+/* These modes are from the MPEG Audio specification and only used for old plug-ins. */
+#define DECODER_MODE_STEREO         0
+#define DECODER_MODE_JOINT_STEREO   1
+#define DECODER_MODE_DUAL_CHANNEL   2
+#define DECODER_MODE_SINGLE_CHANNEL 3
+
 /* returns
       PLUGIN_OK      = everything's perfect, structure is set,
       PLUGIN_NO_READ = error reading file (too small?),
       PLUGIN_NO_PLAY = decoder can't play that,
       other values   = errno, check xio_strerror() for string. */
-#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 1
-/* Request the information 'what' about 'url' from the decoder
- * 'what' is an input/output parameter. On input it is the requested information,
- * on output the returned information which must not be less than the requested bits.
- * If some type of information is not available, the bits in the return value of what
- * must be set either. The fields in the INFO_BUNDLE structure should be set
- * to their invalid values. This is the default.
- * decoder_fileinfo must not change fields that correspond to reset bits in what.
- * It must not change the pointers in INFO_BUNDLE either.
- */
-ULONG DLLENTRY decoder_fileinfo (const char* url, int* what, const INFO_BUNDLE* info,
-                                 DECODER_INFO_ENUMERATION_CB cb, void* param);
-
-ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int haveinfo, xstring* errortext);
-
-ULONG DLLENTRY decoder_savefile (const char* url, const char* format, int* what, const INFO_BUNDLE* info,
-                                 DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* errortext);
-#else
 ULONG DLLENTRY decoder_fileinfo (const char* filename, DECODER_INFO* info);
 ULONG DLLENTRY decoder_trackinfo(const char* drive, int track, DECODER_INFO* info);
 
@@ -301,20 +276,18 @@ ULONG DLLENTRY decoder_cdinfo   (const char* drive, DECODER_CDINFO* info);
       PLUGIN_OK      = everything's perfect, structure is saved to filename,
       other values   = errno, check xio_strerror() for string. */
 ULONG DLLENTRY decoder_saveinfo (const char* filename, const DECODER_INFO* info);
+
 #endif
 
+#endif /* Level 1 interface */
 
-/* returns ORed values */
-typedef enum
-{ DECODER_FILENAME = 0x0001, /* Decoder can play a regular file. (file:) */
-  DECODER_URL      = 0x0002, /* Decoder can play a internet stream or file. (http:, https:, ftp:) */
-  DECODER_TRACK    = 0x0004, /* Decoder can play a CD track. (cd: cdda:) */
-  DECODER_OTHER    = 0x0008, /* Decoder can play something else. */
-  DECODER_SONG     = 0x0100, /* Decoder can play songs with this file type. */
-  DECODER_PLAYLIST = 0x0200, /* Decoder can play playlists with this file type. */
-  DECODER_WRITABLE = 0x1000, /* Decoder can save items of this type. */
-  DECODER_METAINFO = 0x2000  /* Decoder can save a meta info. */
-} DECODER_TYPE;
+
+/****************************************************************************
+ *
+ * Definitions of level 3 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL >= 3
 
 typedef struct
 { const char* category;  /* File type category, e.g. "Playlist file" */
@@ -323,17 +296,75 @@ typedef struct
   unsigned    flags;     /* Bit vector of DECODER_TYPE */
 } DECODER_FILETYPE;
 
-#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 1
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count);
-#else
-/* size is i/o and is the size of the array.
-   each ext should not be bigger than 8bytes */
-ULONG DLLENTRY decoder_support(char* fileext[], int* size);
-#endif
 
-#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 0
-ULONG DLLENTRY decoder_editmeta(HWND owner, const char* url);
-#endif
+typedef enum
+{ DECFAST_NORMAL_PLAY = 0,
+  DECFAST_FORWARD     = 1,
+  DECFAST_REWIND      = 2
+} DECFASTMODE;
+
+typedef struct _DECODER_PARAMS2
+{
+  /* --- DECODER_PLAY, STOP */
+  xstring      URL;
+
+  /* --- DECODER_REW, FFWD and JUMPTO */
+  PM123_TIME   JumpTo;      /* absolute positioning in seconds */
+  DECFASTMODE  Fast;        /* fast forward/rewind */
+
+  /* --- DECODER_SETUP */
+  /* specify a function which the decoder should use for output */
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+  /* decoder events */
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void* A;                  /* only to be used with the precedent functions */
+
+  /* --- DECODER_SAVEDATA */
+  xstring      SaveFilename;
+
+} DECODER_PARAMS2;
+
+ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params);
+void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
+/* WARNING!! this _can_ change in time!!! returns stream length in s  */
+/* the decoder should keep in memory a last valid length so the call  */
+/* remains valid even if decoder_status() == DECODER_STOPPED          */
+PM123_TIME DLLENTRY decoder_length(void* w);
+
+
+/* Callback of decoder_fileinfo. Called once per item.
+ */
+typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
+  const INFO_BUNDLE* info, int cached, int override);
+
+/* Callback of decoder_savelist. Called once per item.
+ */
+typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
+  const INFO_BUNDLE** info, int* valid, int* override);
+
+
+/* Request the information 'what' about 'url' from the decoder
+ * 'what' is an input/output parameter. On input it is the requested information,
+ * on output the returned information which must not be less than the requested bits.
+ * If some type of information is not available, the bits in the return value of what
+ * must be set either. The fields in the INFO_BUNDLE structure should be set
+ * to their invalid values. This is the default.
+ * decoder_fileinfo must not change fields that correspond to reset bits in what.
+ * It must not change the pointers in INFO_BUNDLE either.
+ * returns
+      PLUGIN_OK      = everything's perfect, structure is set,
+      PLUGIN_NO_READ = error reading file (too small?),
+      PLUGIN_NO_PLAY = decoder can't play that,
+      other values   = errno, check xio_strerror() for string. */
+ULONG DLLENTRY decoder_fileinfo (const char* url, int* what, const INFO_BUNDLE* info,
+                                 DECODER_INFO_ENUMERATION_CB cb, void* param);
+
+ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int haveinfo, xstring* errortext);
+
+ULONG DLLENTRY decoder_savefile (const char* url, const char* format, int* what, const INFO_BUNDLE* info,
+                                 DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* errortext);
 
 typedef ULONG DLLENTRYP(DECODER_WIZARD_FUNC)(HWND owner, const char* title,
                                              DECODER_INFO_ENUMERATION_CB callback, void* param);
@@ -345,7 +376,7 @@ typedef struct _DECODER_WIZARD
   const char*             prompt;
   /* Procedure to be called when the specified item is selected */
   DECODER_WIZARD_FUNC     wizard;
-  /* Acceleration Table entries for normal invokation */
+  /* Acceleration Table entries for normal invocation */
   USHORT                  accel_key;
   USHORT                  accel_opt;
   /* Acceleration Table entries for direct playlist manipulation in playlist manager */
@@ -354,6 +385,8 @@ typedef struct _DECODER_WIZARD
 } DECODER_WIZARD;
 
 const DECODER_WIZARD* DLLENTRY decoder_getwizard(void);
+
+#endif /* Level 3 interface */
 
 #pragma pack()
 

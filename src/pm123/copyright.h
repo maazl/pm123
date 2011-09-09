@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli Leppï¿½  <rosmo@sektori.com>
  * Copyright 2004-2007 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2006-2008 Marcel Mueller <pm123@maazl.de>
  *
@@ -32,7 +32,7 @@
 #ifndef PM123_COPYRIGHT_H
 #define PM123_COPYRIGHT_H
 
-#define AMP_VERSION  "1.41 alpha 4"
+#define AMP_VERSION  "1.41 alpha"
 #define AMP_NAME     "PM123"
 #define AMP_FULLNAME AMP_NAME " " AMP_VERSION
 
@@ -64,7 +64,7 @@
 "\n"\
 "Graphical User Interface for pm123 by:\n"\
 "\n"\
-"   Taneli Lepp„ <rosmo@sektori.com>\n"\
+"   Taneli Leppï¿½ <rosmo@sektori.com>\n"\
 "   Samuel Audet <guardia@step.polymtl.ca>\n"\
 "   Dmitry A.Steklenev <glass@ptv.ru>\n"\
 "   Marcel Mueller (http://www.maazl.de/)\n"\
@@ -85,7 +85,7 @@
 "COPYING\n"\
 "=======\n"\
 "\n"\
-"This license covers ONLY mpg123.dll and the related source files.\n"\
+"This license covers ONLY libmpg123.dll and the related source files.\n"\
 "\n"\
 "Copyright (c) 1995-1999 by Michael Hipp, all rights reserved.\n"\
 "Copyright (c) 1998-2003 by Samuel Audet, all rights reserved.\n"\
@@ -156,10 +156,10 @@
 "This license covers the entirety of the PM123 source file distribution, "\
 "except GBM which is left into the public domain, and the plug-ins."\
 "\n"\
-"Copyright 2006-2008 Marcel Mueller\n"\
+"Copyright 2006-2011 Marcel Mueller\n"\
 "Copyright 2004-2007 Dmitry A.Steklenev\n"\
 "Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>\n"\
-"                    Taneli Lepp„ <rosmo@sektori.com>\n"\
+"                    Taneli Leppï¿½ <rosmo@sektori.com>\n"\
 "\n"\
 "Redistribution and use in source and binary forms, with or without "\
 "modification, are permitted provided that the following conditions are met:\n"\

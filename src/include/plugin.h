@@ -11,33 +11,13 @@
 
 #ifdef PM123_CORE
 /* maximum supported and most recent plugin-level */
-#define PLUGIN_INTERFACE_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 3
+#else
+#ifndef PLUGIN_INTERFACE_LEVEL
+#define PLUGIN_INTERFACE_LEVEL 0 /* default interface level */
+#endif
 #endif
 
-typedef enum
-{ PLUGIN_OK           = 0
-, PLUGIN_UNSUPPORTED  = 1
-, PLUGIN_NO_READ      = 100
-, PLUGIN_GO_ALREADY   = 101
-, PLUGIN_GO_FAILED    = 102
-, PLUGIN_NO_PLAY      = 200
-, PLUGIN_NO_OP        = 300
-, PLUGIN_NO_SAVE      = 400
-, PLUGIN_ERROR        = 500
-, PLUGIN_FAILED       = ((unsigned long)-1)
-, PLUGIN_NO_USABLE    = ((unsigned long)-2)
-} PLUGIN_RC;
-
-// Old style window messages for Level 1 Plug-ins only
-#define WM_PLAYSTOP         (WM_USER +  69)
-#define WM_PLAYERROR        (WM_USER + 100)
-#define WM_SEEKSTOP         (WM_USER + 666)
-#define WM_METADATA         (WM_USER +  42)
-#define WM_CHANGEBR         (WM_USER +  43)
-#define WM_OUTPUT_OUTOFDATA (WM_USER + 667)
-#define WM_PLUGIN_CONTROL   (WM_USER + 668) /* Plugin notify message */
-
-#define PN_TEXTCHANGED  1 /* Display text changed */
 
 #ifndef __cplusplus
 /** Dynamically allocated, reference counted string.
@@ -64,45 +44,17 @@ static const xstring xstring_NULL = { NULL };
  * C runtime instance than where it is allocated. */
 #include <cpp/xstring.h>
 class xstring; // Keep CDT happy
-static const xstring xstring_NULL;
+#define xstring_NULL xstring()
+//static const xstring xstring_NULL;
 #else
 /** 2nd Hack: In C++ we forward the string API calls to the runtime of the
  * PM123 core.
  * Note that you \e must not call any of these functions in a static initializer,
  * because at this point \c plugin_init has not yet been called.
  */
-class xstring
-{ const char* cstr;
- public:
-  xstring() : cstr(NULL) {}
-  xstring(xstring& r);
-  xstring(const xstring& r);
-  xstring(const volatile xstring& r);
-  xstring(const char* r);
-  xstring(const char* r, size_t len);
-  ~xstring();
-  size_t      length() const;
-  bool        operator!() const volatile    { return !cstr; }
-  const char* cdata() const                 { return cstr; }
-  operator const char*() const              { return cstr; }
-  const char& operator[](size_t i) const    { return cstr[i]; }
-  int         compareTo(const xstring& r) const;
-  char*       allocate(size_t len);
-  bool        cmpassign(const char* str);
-  void        reset();
-  xstring&    operator=(xstring& r);
-  xstring&    operator=(const xstring& r);
-  void        operator=(const xstring& r) volatile;
-  xstring&    operator=(volatile const xstring& r);
-  void        operator=(volatile const xstring& r) volatile;
-  xstring&    operator=(const char* str);
-  void        operator=(const char* str) volatile;
-  void        operator+=(const char* str);
-  xstring&    sprintf(const char* fmt, ...);
-  xstring&    vsprintf(const char* fmt, va_list va);
-};
+class xstring;
 /* Avoid accidental include of xstring.h. */
-#define XSTRGING_H
+#define XSTRING_H
 #endif
 
 #ifdef __cplusplus
@@ -112,12 +64,35 @@ extern "C" {
 #pragma pack(4)
 
 typedef enum
+{ PLUGIN_OK           = 0
+, PLUGIN_UNSUPPORTED  = 1
+, PLUGIN_NO_READ      = 100
+, PLUGIN_GO_ALREADY   = 101
+, PLUGIN_GO_FAILED    = 102
+, PLUGIN_NO_PLAY      = 200
+, PLUGIN_NO_OP        = 300
+, PLUGIN_NO_SAVE      = 400
+, PLUGIN_ERROR        = 500
+, PLUGIN_FAILED       = ((unsigned long)-1)
+, PLUGIN_NO_USABLE    = ((unsigned long)-2)
+} PLUGIN_RC;
+
+typedef enum
 { PLUGIN_NULL     = 0x00,
   PLUGIN_VISUAL   = 0x01,
   PLUGIN_FILTER   = 0x02,
   PLUGIN_DECODER  = 0x04,
   PLUGIN_OUTPUT   = 0x08
 } PLUGIN_TYPE;
+
+typedef enum
+{ /** Informational message */
+  MSG_INFO,
+  /** Warning, something went wrong */
+  MSG_WARNING,
+  /** Error */
+  MSG_ERROR
+} MESSAGE_TYPE;
 
 typedef struct _PLUGIN_QUERYPARAM
 {
@@ -131,16 +106,14 @@ typedef struct _PLUGIN_QUERYPARAM
 
 /* Common services of the PM123 core for plug-ins. */
 typedef struct
-{ /* error message function */
-  void DLLENTRYP(error_display)(const char* msg);
-  /* info message function */
-  /* this information is always displayed to the user right away */
-  void DLLENTRYP(info_display)(const char* msg);
+{ /* message function */
+  void DLLENTRYP(message_display)(MESSAGE_TYPE type, const char* msg);
 
   /* retrieve configuration setting */
   int DLLENTRYP(profile_query)(const char* key, void* data, int maxlength);
   /* store configuration setting */
   int DLLENTRYP(profile_write)(const char* key, const void* data, int length);
+
   /* execute remote command */
   /* See the documentation of remote commands for a description. */
   const char* DLLENTRYP(exec_command)(const char* cmd);
@@ -197,6 +170,28 @@ void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
 void DLLENTRY plugin_command(const char* command, xstring* result);
 int DLLENTRY plugin_deinit(int unload);
 
+
+/****************************************************************************
+ *
+ * Definitions of level 1 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
+
+// Old style window messages for Level 1 Plug-ins only
+#define WM_PLAYSTOP         (WM_USER +  69)
+#define WM_PLAYERROR        (WM_USER + 100)
+#define WM_SEEKSTOP         (WM_USER + 666)
+#define WM_METADATA         (WM_USER +  42)
+#define WM_CHANGEBR         (WM_USER +  43)
+#define WM_OUTPUT_OUTOFDATA (WM_USER + 667)
+#define WM_PLUGIN_CONTROL   (WM_USER + 668) /* Plugin notify message */
+
+#define PN_TEXTCHANGED  1 /* Display text changed */
+
+#endif /* level 1 interface */
+
+
 #pragma pack()
 
 #ifdef __cplusplus
@@ -209,13 +204,42 @@ int DLLENTRY plugin_deinit(int unload);
  */
 extern PLUGIN_CONTEXT Ctx;
 
-inline xstring::xstring(xstring& r) : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
-inline xstring::xstring(const xstring& r) : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
-inline xstring::xstring(const volatile xstring& r) : cstr(NULL) { Ctx.xstring_api->copy_safe(this, &r); }
-inline xstring::xstring(const char* r) : cstr(((const char* DLLENTRYP()(const char*))Ctx.xstring_api->create)(r)) {}
-inline xstring::xstring(const char* r, size_t len) : cstr(NULL) { memcpy(Ctx.xstring_api->allocate(this, len), &r, len); }
-inline xstring::~xstring() { Ctx.xstring_api->free(this); }
-inline size_t   xstring::length() const { return Ctx.xstring_api->length(this); }
+/** 2nd Hack: In C++ we forward the string API calls to the runtime of the
+ * PM123 core.
+ * Note that you \e must not call any of these functions in a static initializer,
+ * because at this point \c plugin_init has not yet been called.
+ */
+class xstring
+{ const char* cstr;
+ public:
+  xstring() : cstr(NULL) {}
+  xstring(xstring& r)                       : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
+  xstring(const xstring& r)                 : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
+  xstring(const volatile xstring& r)        : cstr(NULL) { Ctx.xstring_api->copy_safe(this, &r); }
+  xstring(const char* r)                    : cstr(((const char* DLLENTRYP()(const char*))Ctx.xstring_api->create)(r)) {}
+  xstring(const char* r, size_t len)        : cstr(NULL) { memcpy(Ctx.xstring_api->allocate(this, len), &r, len); }
+  ~xstring()                                { Ctx.xstring_api->free(this); }
+  size_t      length() const                { return Ctx.xstring_api->length(this); }
+  bool        operator!() const volatile    { return !cstr; }
+  const char* cdata() const                 { return cstr; }
+  operator const char*() const              { return cstr; }
+  const char& operator[](size_t i) const    { return cstr[i]; }
+  int         compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
+  char*       allocate(size_t len)          { return Ctx.xstring_api->allocate(this, len); }
+  bool        cmpassign(const char* str)    { return Ctx.xstring_api->cmpassign(this, str); }
+  void        reset()                       { Ctx.xstring_api->free(this); }
+  xstring&    operator=(xstring& r)         { Ctx.xstring_api->copy(this, &r); return *this; }
+  xstring&    operator=(const xstring& r)   { Ctx.xstring_api->copy(this, &r); return *this; }
+  void        operator=(const xstring& r) volatile { Ctx.xstring_api->copy(this, &r); }
+  xstring&    operator=(volatile const xstring& r) { Ctx.xstring_api->copy_safe(this, &r); return *this; }
+  void        operator=(volatile const xstring& r) volatile { Ctx.xstring_api->copy_safe(this, &r); }
+  xstring&    operator=(const char* str)    { Ctx.xstring_api->assign(this, str); return *this; }
+  void        operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
+  void        operator+=(const char* str)   { Ctx.xstring_api->append(this, str); }
+  xstring&    sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
+  xstring&    vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }
+};
+/*inline size_t   xstring::length() const { return Ctx.xstring_api->length(this); }
 inline int      xstring::compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
 inline char*    xstring::allocate(size_t len) { return Ctx.xstring_api->allocate(this, len); }
 inline bool     xstring::cmpassign(const char* str) { return Ctx.xstring_api->cmpassign(this, str); }
@@ -229,7 +253,7 @@ inline xstring& xstring::operator=(const char* str) { Ctx.xstring_api->assign(th
 inline void     xstring::operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
 inline void     xstring::operator+=(const char* str) { Ctx.xstring_api->append(this, str); }
 inline xstring& xstring::sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
-inline xstring& xstring::vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }
+inline xstring& xstring::vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }*/
 #endif
 #endif
 

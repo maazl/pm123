@@ -61,34 +61,22 @@
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
 
 
-// static HWND  hhelp      = NULLHANDLE;
+static USHORT amp_message_box( HWND owner, const char* title,
+                             const char* message, ULONG style  )
+{
+  char padded_title[60];
+  sprintf( padded_title, "%-59s", title );
 
-
-/*HWND amp_help_mgr()
-{ return hhelp;
-}*/
-
-/*static xstring joinstringset(const stringset& set, char delim)
-{ size_t len = 0;
-  strkey*const* sp;
-  // determine required size
-  for (sp = set.begin(); sp != set.end(); ++sp)
-    len += (*sp)->Key.length() +1;
-  if (len == 0)
-    return xstring::empty;
-  // concatenate string
-  xstring ret;
-  char* dp = ret.raw_init(len-1);
-  sp = set.begin();
-  for(;;)
-  { memcpy(dp, (*sp)->Key.cdata(), (*sp)->Key.length() +1);
-    dp += (*sp)->Key.length();
-    if (++sp == set.end())
-      break;
-    *dp++ = delim;
+  if( owner == NULLHANDLE )
+  { owner  =  HWND_DESKTOP;
+    style &= ~MB_APPLMODAL;
+  } else {
+    style |=  MB_APPLMODAL;
   }
-  return ret; 
-}*/
+
+  return WinMessageBox(HWND_DESKTOP, owner, (PSZ)message, padded_title, 0, style);
+}
+
 
 /* Wizard function for the default entry "File..." */
 ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
@@ -404,14 +392,13 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     // Deduce decoder and format from file dialog format.
     decoder = amp_decoder_by_type(DECODER_PLAYLIST|DECODER_WRITABLE, filedialog.pszIType, format);
     if (decoder == NULL)
-    { amp_info(owner, "The format to save cannot be guessed. "
-                      "Please select an appropriate format to save in the file dialog.");
+    { amp_messagef(owner, MSG_ERROR, "The format to save cannot be guessed. Please select an appropriate format to save in the file dialog.");
       goto retry;
     }
   }
 
   if (!playlist.Save(dest, decoder, format, relative))
-  { amp_error(owner, "Failed to create playlist \"%s\". Error %s.", dest.cdata(), xio_strerror(xio_errno()));
+  { amp_messagef(owner, MSG_ERROR, "Failed to create playlist \"%s\". Error %s.", dest.cdata(), xio_strerror(xio_errno()));
     return xstring();
   }
   return dest;
@@ -444,59 +431,27 @@ bool amp_loadskin()
 }
 
 
-static USHORT amp_message_box( HWND owner, const char* title,
-                             const char* message, ULONG style  )
-{
-  char padded_title[60];
-  sprintf( padded_title, "%-59s", title );
-
-  if( owner == NULLHANDLE )
-  { owner  =  HWND_DESKTOP;
-    style &= ~MB_APPLMODAL;
-  } else {
-    style |=  MB_APPLMODAL;
+void amp_message( HWND owner, MESSAGE_TYPE type, const char* message )
+{ DEBUGLOG(("amp_message(%x, %i, %s)\n", owner, type, message));
+  switch (type)
+  {default: // MSG_ERROR
+    ASSERT(type == MSG_ERROR);
+    amp_message_box(owner, "PM123 Error", message, MB_ERROR|MB_OK|MB_MOVEABLE);
+    break;
+   case MSG_WARNING:
+    amp_message_box(owner, "PM123 Warning", message, MB_WARNING|MB_OK|MB_MOVEABLE);
+    break;
+   case MSG_INFO:
+    amp_message_box(owner, "PM123 Information", message, MB_INFORMATION|MB_OK|MB_MOVEABLE);
+    break;
   }
-
-  return WinMessageBox(HWND_DESKTOP, owner, (PSZ)message, padded_title, 0, style);
 }
-
-/* Creates and displays a error message window.
-   Use the player window as message window owner. */
-void amp_player_error( const char* format, ... )
+void amp_messagef( HWND owner, MESSAGE_TYPE type, const char* format, ... )
 { va_list args;
   va_start(args, format);
   xstring message = xstring::vsprintf(format, args);
   va_end(args);
-
-  DEBUGLOG(("ERROR: %s\n", message.cdata()));
-  // TODO: central logger
-  amp_message_box( GUI::GetFrameWindow(), "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
-}
-
-/* Creates and displays a error message window.
-   The specified owner window is disabled. */
-void amp_verror( HWND owner, const char* format, va_list va )
-{ xstring message = xstring::vsprintf(format, va);
-
-  DEBUGLOG(("ERROR: %x, %s\n", owner, message.cdata()));
-  amp_message_box( owner, "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
-}
-void amp_error( HWND owner, const char* format, ... )
-{ va_list args;
-  va_start(args, format);
-  amp_verror( owner, format, args );
-  va_end(args);
-}
-
-/* Creates and displays a message window. */
-void amp_info( HWND owner, const char* format, ... )
-{ va_list args;
-  va_start(args, format);
-  xstring message = xstring::vsprintf(format, args);
-  va_end(args);
-
-  DEBUGLOG(("INFO: %s\n", message.cdata()));
-  amp_message_box( owner, "PM123 Information", message, MB_INFORMATION | MB_OK | MB_MOVEABLE );
+  amp_message(owner, type, message);
 }
 
 /* Requests the user about specified action. Returns
@@ -507,7 +462,7 @@ BOOL amp_query( HWND owner, const char* format, ... )
   xstring message = xstring::vsprintf(format, args);
   va_end(args);
 
-  return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNO | MB_MOVEABLE ) == MBID_YES;
+  return amp_message_box(owner, "PM123 Query", message, MB_QUERY|MB_YESNO|MB_MOVEABLE) == MBID_YES;
 }
 
 /* Requests the user about specified action. Provodes a cancel button.

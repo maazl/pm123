@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 Marcel Mueller
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
@@ -42,7 +43,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define PLUGIN_INTERFACE_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 3
 
 #include <utilfct.h>
 #include <fftw3.h>
@@ -54,7 +55,7 @@
 //#define DEBUG 2
 #include <debuglog.h>
 
-#define PLUGIN "Real Equalizer 1.22"
+#define PLUGIN "Real Equalizer 1.23"
 #define MAX_COEF 32768
 #define MIN_COEF   512
 #define MAX_FIR  16384
@@ -117,7 +118,7 @@ static BOOL  mute[2][NUM_BANDS+1];      // mute flags (TRUE = mute), first entry
 
 // for FFT convolution...
 static struct
-{ short* inbox;               // buffer to collect incoming samples
+{ float* inbox;               // buffer to collect incoming samples
   float* time_domain;         // buffer in the time domain
   fftwf_complex* freq_domain; // buffer in the frequency domain (shared memory with design)
   //float* design;              // buffer to design filter kernel (shared memory with freq_domain)
@@ -154,8 +155,8 @@ static enum
 
 /* Hamming window
 #define WINDOW_FUNCTION( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
- * Well, since the EQ does not provide more tham 24dB dynamics
- * we should use a much more agressive window function.
+ * Well, since the EQ does not provide more than 24dB dynamics
+ * we should use a much more aggressive window function.
  * This is verified by calculations.
  */
 #define WINDOW_FUNCTION( n, N ) (0.77 - 0.23 * cos( 2 * M_PI * n / N ))
@@ -175,12 +176,12 @@ static enum
 
 typedef struct {
 
-   ULONG  DLLENTRYP(output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-   int    DLLENTRYP(output_request_buffer)( void* a, const TECH_INFO* format, short** buf );
-   void   DLLENTRYP(output_commit_buffer) ( void* a, int len, PM123_TIME posmarker );
+   ULONG  DLLENTRYP(output_command)       (void* a, ULONG msg, OUTPUT_PARAMS2* info);
+   int    DLLENTRYP(output_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
+   void   DLLENTRYP(output_commit_buffer) (void* a, int len, PM123_TIME posmarker);
    void*  a;
 
-   TECH_INFO format;
+   FORMAT_INFO2 format;
 
    PM123_TIME posmarker; // starting point of the inbox buffer
    int    inboxlevel;    // number of samples in inbox buffer
@@ -194,8 +195,7 @@ typedef struct {
 
 /********** Ini file stuff */
 
-static void
-save_ini( void )
+static void save_ini(void)
 {
   DEBUGLOG(("realeq:save_ini\n"));
 
@@ -212,8 +212,7 @@ save_ini( void )
   DEBUGLOG(("realeq:save_ini - completed\n"));
 }
 
-static void
-load_ini( void )
+static void load_ini(void)
 {
   DEBUGLOG(("realeq:load_ini\n"));
 
@@ -267,8 +266,7 @@ INLINE double ToGain(double dB)
 { return exp(dB/20.*M_LN10);
 }
 
-static BOOL
-load_eq_file( char* filename )
+static BOOL load_eq_file(char* filename)
 {
   FILE* file;
   int   i = 0;
@@ -324,8 +322,7 @@ load_eq_file( char* filename )
   return TRUE;
 }
 
-static void
-init_request( void )
+static void init_request(void)
 {
   DEBUGLOG(("realeq:init_request\n"));
   if (!plugininit) // first time?
@@ -337,8 +334,7 @@ init_request( void )
   }
 }
 
-static void
-trash_buffers( REALEQ_STRUCT* f )
+static void trash_buffers(REALEQ_STRUCT* f)
 { DEBUGLOG(("realeq::trash_buffers(%p) - %d %d\n", f, f->inboxlevel, f->latency));
   f->inboxlevel = 0;
   f->latency    = -1;
@@ -352,8 +348,7 @@ typedef struct
 } EQcoef;
 
 /* setup FIR kernel */
-static BOOL
-fil_setup( REALEQ_STRUCT* f )
+static BOOL fil_setup(REALEQ_STRUCT* f)
 {
   static BOOL FFTinit = FALSE;
   int   i, channel;
@@ -395,7 +390,7 @@ fil_setup( REALEQ_STRUCT* f )
   DEBUGLOG(("I: %d\n", FFT.plansize));
 
   // allocate buffers
-  FFT.inbox       = (short*)malloc(FFT.plansize * 2 * sizeof(short));
+  FFT.inbox       = (float*)malloc(FFT.plansize * 2 * sizeof(float));
   FFT.freq_domain = (fftwf_complex*)fftwf_malloc((FFT.plansize/2+1) * sizeof *FFT.freq_domain);
   FFT.time_domain = (float*)fftwf_malloc((FFT.plansize+1) * sizeof *FFT.time_domain);
   //FFT.design      = FFT.freq_domain[0]; // Aliasing!
@@ -425,7 +420,7 @@ fil_setup( REALEQ_STRUCT* f )
   FFT.FIRorder >>= 4-min(4,i); // / 2**(4-i)
 
   if( FFT.FIRorder < 2 || FFT.FIRorder >= FFT.plansize)
-  { (*context->plugin_api->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+  { (*context->plugin_api->message_display)(MSG_ERROR, "very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
@@ -549,8 +544,7 @@ fil_setup( REALEQ_STRUCT* f )
 
 /* do convolution and back transformation
  */
-static void
-do_fft_convolute(fftwf_complex* sp, fftwf_complex* kp)
+static void do_fft_convolute(fftwf_complex* sp, fftwf_complex* kp)
 { int l;
   float tmp;
   fftwf_complex* dp = FFT.freq_domain;
@@ -579,15 +573,13 @@ do_fft_convolute(fftwf_complex* sp, fftwf_complex* kp)
 }
 
 /* fetch saved samples */
-INLINE void
-do_fft_load_overlap(float* overlap_buffer)
+INLINE void do_fft_load_overlap(float* overlap_buffer)
 { memcpy(FFT.time_domain + FFT.plansize - FFT.FIRorder/2, overlap_buffer, FFT.FIRorder/2 * sizeof *FFT.time_domain);
   memcpy(FFT.time_domain, overlap_buffer + FFT.FIRorder/2, FFT.FIRorder/2 * sizeof *FFT.time_domain);
 }
 
 /* store last FIRorder samples */
-static void
-do_fft_save_overlap(float* overlap_buffer, int len)
+static void do_fft_save_overlap(float* overlap_buffer, int len)
 {
   DEBUGLOG(("realeq:do_fft_save_overlap(%p, %i) - %i\n", overlap_buffer, len, FFT.FIRorder));
   if (len < FFT.FIRorder/2)
@@ -597,34 +589,25 @@ do_fft_save_overlap(float* overlap_buffer, int len)
     memcpy(overlap_buffer, FFT.time_domain + len - FFT.FIRorder/2, FFT.FIRorder * sizeof *overlap_buffer);
 }
 
-/* convert samples from short to float and store it in the FFT.time_domain buffer
+/* store the samples in the FFT.time_domain buffer
    The samples are shifted by FIRorder/2 to the right.
    FIRorder samples before the starting position are taken from overlap_buffer.
    The overlap_buffer is updated with the last FIRorder samples before return.
  */
-static void
-do_fft_load_samples_mono(const short* sp, const int len, float* overlap_buffer)
-{ int l;
-  float* dp = FFT.time_domain + FFT.FIRorder/2;
+static void do_fft_load_samples_mono(const float* sp, const int len, float* overlap_buffer)
+{ float* dp = FFT.time_domain + FFT.FIRorder/2;
   DEBUGLOG(("realeq:do_fft_load_samples_mono(%p, %i, %p) - %i\n", sp, len, overlap_buffer));
   do_fft_load_overlap(overlap_buffer);
   // fetch new samples
-  for (l = len >> 3; l; --l) // coarse
-  { DO_8(p, dp[p] = sp[p]);
-    sp += 8;
-    dp += 8;
-  }
-  for (l = len & 7; l; --l) // fine
-    *dp++ = *sp++;
-  memset(dp, 0, (FFT.plansize - FFT.FIRorder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  memcpy(dp, sp, len * sizeof *dp);
+  memset(dp + len, 0, (FFT.plansize - FFT.FIRorder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
   do_fft_save_overlap(overlap_buffer, len);
 }
-/* convert samples from short to float and store it in the FFT.time_domain buffer
+/* store the samples in the FFT.time_domain buffer
  * This will cover only one channel. The only difference to to mono-version is that
  * the source pointer is incremented by 2 per sample.
  */
-static void
-do_fft_load_samples_stereo(const short* sp, const int len, float* overlap_buffer)
+static void do_fft_load_samples_stereo(const float* sp, const int len, float* overlap_buffer)
 { int l;
   float* dp = FFT.time_domain + FFT.FIRorder/2;
   DEBUGLOG(("realeq:do_fft_load_samples_stereo(%p, %i, %p) - %i\n", sp, len, overlap_buffer));
@@ -642,38 +625,27 @@ do_fft_load_samples_stereo(const short* sp, const int len, float* overlap_buffer
   do_fft_save_overlap(overlap_buffer, len);
 }
 
-INLINE short
-quantize(float f)
-{ if (f < -32768)
-    return -32768;
-  if (f > 32767)
-    return 32767;
-  return (short)f; // Well, dithering might be nice, but slow either.
-}
-
 /* store stereo samples
  * This will cover only one channel. The only difference to to mono-version is that
  * the destination pointer is incremented by 2 per sample.
  */
-static void
-do_fft_store_samples_stereo(short* sp, const int len)
+static void do_fft_store_samples_stereo(float* sp, const int len)
 { float* dp = FFT.time_domain;
   int l;
   DEBUGLOG(("realeq:do_fft_store_samples_stereo(%p, %i)\n", sp, len));
   // transfer samples
   for (l = len >> 3; l; --l) // coarse
-  { DO_8(p, sp[p<<1] = quantize(dp[p]));
+  { DO_8(p, sp[p<<1] = dp[p]);
     sp += 16;
     dp += 8;
   }
   for (l = len & 7; l; --l) // fine
-  { *sp = quantize(*dp++);
+  { *sp = *dp++;
     sp += 2;
   }
 }
 
-static void
-filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int len )
+static void filter_samples_fft(REALEQ_STRUCT* f, float* newsamples, const float* buf, int len)
 { DEBUGLOG(("realeq:filter_samples_fft(%p, %p, %p, %i)\n", f, newsamples, buf, len));
 
   while (len) // we might need more than one FFT cycle
@@ -683,22 +655,20 @@ filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int l
 
     if ( f->format.channels == 2 )
     { // left channel
-      // convert to float (well, that bill we have to pay)
       do_fft_load_samples_stereo(buf, l2, FFT.overlap[0]);
       // do FFT
       fftwf_execute(FFT.forward_plan);
       // convolution
       do_fft_convolute(FFT.freq_domain, FFT.kernel[0]);
-      // convert back to short
+      // convert back
       do_fft_store_samples_stereo(newsamples, l2);
       // right channel
-      // convert to float (well, that bill we have to pay)
       do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
       // do FFT
       fftwf_execute(FFT.forward_plan);
       // convolution
       do_fft_convolute(FFT.freq_domain, FFT.kernel[1]);
-      // convert back to short
+      // convert back
       do_fft_store_samples_stereo(newsamples+1, l2);
       // next block
       len -= l2;
@@ -707,7 +677,6 @@ filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int l
       newsamples += l2;
     } else
     { // left channel
-      // convert to float (well, that bill we have to pay)
       do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
       // do FFT
       fftwf_execute(FFT.forward_plan);
@@ -715,12 +684,12 @@ filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int l
       memcpy(FFT.channel_save, FFT.freq_domain, (FFT.plansize/2+1) * sizeof *FFT.freq_domain);
       // convolution
       do_fft_convolute(FFT.freq_domain, FFT.kernel[0]);
-      // convert back to short
+      // convert back
       do_fft_store_samples_stereo(newsamples, l2);
       // right channel
       // convolution
       do_fft_convolute(FFT.channel_save, FFT.kernel[1]);
-      // convert back to short
+      // convert back
       do_fft_store_samples_stereo(newsamples+1, l2);
       // next block
       len -= l2;
@@ -732,8 +701,7 @@ filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int l
 }
 
 /* only update the overlap buffer, no filtering */
-static void
-filter_samples_new_overlap( REALEQ_STRUCT* f, const short* buf, int len )
+static void filter_samples_new_overlap(REALEQ_STRUCT* f, const float* buf, int len)
 { int l2;
   DEBUGLOG(("realeq:filter_samples_new_overlap(%p, %p, %i)\n", f, buf, len));
 
@@ -753,9 +721,8 @@ filter_samples_new_overlap( REALEQ_STRUCT* f, const short* buf, int len )
   }
 }
 
-/* Proxy funtions to remove the first samples to compensate for the filter delay */
-static int
-do_request_buffer( REALEQ_STRUCT* f, short** buf )
+/* Proxy functions to remove the first samples to compensate for the filter delay */
+static int do_request_buffer(REALEQ_STRUCT* f, float** buf)
 { DEBUGLOG(("realeq:do_request_buffer(%p, %p) - %d\n", f, buf, f->latency));
   if (f->latency != 0)
   { if (f->latency < 0)
@@ -763,30 +730,27 @@ do_request_buffer( REALEQ_STRUCT* f, short** buf )
     *buf = NULL; // discard
     return f->latency;
   } else
-  { TECH_INFO fi = f->format;
+  { FORMAT_INFO2 fi = f->format;
     fi.channels = 2; // result is always stereo
-    return (*f->output_request_buffer)( f->a, &fi, buf );
+    return (*f->output_request_buffer)(f->a, &fi, buf);
   }
 }
 
-static void
-do_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
+static void do_commit_buffer(REALEQ_STRUCT* f, int len, PM123_TIME posmarker)
 { DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %f) - %d\n", f, len, posmarker, f->latency));
   if (f->latency != 0)
-  { f->latency -= len;
-  } else
-  { (*f->output_commit_buffer)( f->a, len, posmarker );
-  }
+    f->latency -= len;
+  else
+    (*f->output_commit_buffer)(f->a, len, posmarker);
 }
 
 /* applies the FFT filter to the current inbox content and sends the result to the next plug-in.
  * You should not call this function with f->inboxlevel == 0.
  */
-static void
-filter_and_send( REALEQ_STRUCT* f )
+static void filter_and_send(REALEQ_STRUCT* f)
 {
   int    len, dlen;
-  short* dbuf;
+  float* dbuf;
   DEBUGLOG(("realeq:filter_and_send(%p) - %d\n", f, f->inboxlevel));
 
   // request destination buffer
@@ -802,15 +766,15 @@ filter_and_send( REALEQ_STRUCT* f )
   if (dlen < len)
   { // with fragmentation
     int rem = len;
-    short* sp;
+    float* sp;
 
-    filter_samples_fft( f, FFT.inbox, FFT.inbox, f->inboxlevel );
+    filter_samples_fft(f, FFT.inbox, FFT.inbox, f->inboxlevel);
 
     // transfer data
     sp = FFT.inbox;
     for(;;)
     { if (dbuf != NULL)
-        memcpy(dbuf, sp, dlen * sizeof(short) * 2);
+        memcpy(dbuf, sp, dlen * sizeof(float) * 2);
       do_commit_buffer( f, dlen, f->posmarker + (double)(len-rem)/f->format.samplerate );
       rem -= dlen;
       if (rem == 0)
@@ -830,20 +794,18 @@ filter_and_send( REALEQ_STRUCT* f )
   } else
   { // without fragmentation
     if (dbuf == NULL)
-    { // only save overlap
-      filter_samples_new_overlap( f, FFT.inbox, f->inboxlevel );
-    } else
-    { filter_samples_fft( f, dbuf, FFT.inbox, f->inboxlevel );
-    }
-    do_commit_buffer( f, len, f->posmarker );
+      // only save overlap
+      filter_samples_new_overlap(f, FFT.inbox, f->inboxlevel);
+    else
+      filter_samples_fft(f, dbuf, FFT.inbox, f->inboxlevel);
+    do_commit_buffer(f, len, f->posmarker);
   }
 
   f->posmarker += (double)f->inboxlevel/f->format.samplerate;
   f->inboxlevel = 0;
 }
 
-static void
-local_flush( REALEQ_STRUCT* f )
+static void local_flush(REALEQ_STRUCT* f)
 { // emulate input of some zeros to compensate for filter size
   int   len = (FFT.FIRorder+1) >> 1;
   DEBUGLOG(("realeq:local_flush(%p) - %d %d %d\n", f, len, f->inboxlevel, f->latency));
@@ -851,7 +813,7 @@ local_flush( REALEQ_STRUCT* f )
   { int dlen = FFT.plansize - FFT.FIRorder - f->inboxlevel;
     if (dlen > len)
       dlen = len;
-    memset(FFT.inbox + f->inboxlevel * f->format.channels, 0, dlen * f->format.channels * sizeof(short));
+    memset(FFT.inbox + f->inboxlevel * f->format.channels, 0, dlen * f->format.channels * sizeof(float));
     // commit buffer
     f->inboxlevel += dlen;
     if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
@@ -872,8 +834,7 @@ local_flush( REALEQ_STRUCT* f )
 }
 
 /* Entry point: do filtering */
-static int DLLENTRY
-filter_request_buffer( REALEQ_STRUCT* f, const TECH_INFO* format, short** buf )
+static int DLLENTRY filter_request_buffer(REALEQ_STRUCT* f, const FORMAT_INFO2* format, float** buf)
 { BOOL enabled;
   #ifdef DEBUG_LOG
   if (format != NULL)
@@ -893,8 +854,7 @@ filter_request_buffer( REALEQ_STRUCT* f, const TECH_INFO* format, short** buf )
     local_flush(f);
     f->enabled = FALSE;
     if (buf == NULL) // global flush();
-    { return (*f->output_request_buffer)( f->a, format, buf );
-    }
+      return (*f->output_request_buffer)(f->a, format, buf);
   }
 
   if ( f->enabled )
@@ -926,8 +886,7 @@ filter_request_buffer( REALEQ_STRUCT* f, const TECH_INFO* format, short** buf )
   }
 }
 
-static void DLLENTRY
-filter_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
+static void DLLENTRY filter_commit_buffer(REALEQ_STRUCT* f, int len, PM123_TIME posmarker)
 {
   DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %f) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
 
@@ -948,8 +907,7 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
   }
 }
 
-static ULONG DLLENTRY
-filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
+static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
 { ULONG rc;
   INFO_BUNDLE_CV ib;
   TECH_INFO ti;
@@ -1002,14 +960,13 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->format.samplerate     = 0;
   f->format.channels       = 0;
 
-  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))   &filter_command;
-  params->output_request_buffer = (int   DLLENTRYP()(void*, const TECH_INFO*, short**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, PM123_TIME))          &filter_commit_buffer;
+  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
+  params->output_request_buffer = (int   DLLENTRYP()(void*, const FORMAT_INFO2*, float**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, PM123_TIME))             &filter_commit_buffer;
   return 0;
 }
 
-void DLLENTRY
-filter_update( void *F, const FILTER_PARAMS2 *params )
+void DLLENTRY filter_update(void *F, const FILTER_PARAMS2 *params)
 { REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
   DosEnterCritSec();
   f->output_command        = params->output_command;
@@ -1019,8 +976,7 @@ filter_update( void *F, const FILTER_PARAMS2 *params )
   DosExitCritSec();
 }
 
-BOOL DLLENTRY
-filter_uninit( void* F )
+BOOL DLLENTRY filter_uninit(void* F)
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
   DEBUGLOG(("filter_uninit(%p)\n", F));
@@ -1035,8 +991,7 @@ filter_uninit( void* F )
 
 /********** GUI stuff *******************************************************/
 
-static BOOL
-save_eq( HWND hwnd )
+static BOOL save_eq(HWND hwnd)
 {
   FILEDLG filedialog;
   FILE*   file;
@@ -1089,8 +1044,7 @@ save_eq( HWND hwnd )
   return FALSE;
 }
 
-static
-void drivedir( char* buf, char* fullpath )
+static void drivedir(char* buf, char* fullpath)
 {
   char drive[_MAX_DRIVE],
        path [_MAX_PATH ];
@@ -1100,8 +1054,7 @@ void drivedir( char* buf, char* fullpath )
   strcat( buf, path  );
 }
 
-static BOOL
-load_eq( HWND hwnd )
+static BOOL load_eq(HWND hwnd)
 {
   FILEDLG filedialog;
   DEBUGLOG(("realeq:load_eq: OK\n"));
@@ -1128,8 +1081,7 @@ load_eq( HWND hwnd )
   return FALSE;
 }
 
-int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM *param )
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 { param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mueller";
   param->desc         = PLUGIN;
@@ -1139,8 +1091,7 @@ plugin_query( PLUGIN_QUERYPARAM *param )
 }
 
 /* init plug-in */
-int DLLENTRY
-plugin_init( const PLUGIN_CONTEXT* ctx )
+int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 { context = ctx;
   return 0;
 }
@@ -1149,8 +1100,7 @@ plugin_init( const PLUGIN_CONTEXT* ctx )
    channel 0 = left, channel 1 = right
    band 0..31 = EQ, -1 = master
 */
-static void
-set_slider( HWND hwnd, int channel, int band, double value )
+static void set_slider(HWND hwnd, int channel, int band, double value)
 { MRESULT rangevalue;
   int     id = ID_BANDL + (ID_BANDR-ID_BANDL)*channel + band;
   DEBUGLOG2(("realeq:set_slider(%p, %d, %d, %f)\n", hwnd, channel, band, value));
@@ -1171,8 +1121,7 @@ set_slider( HWND hwnd, int channel, int band, double value )
                      MPFROMSHORT( (value/24.+.5) * (SHORT2FROMMR(rangevalue) - 1) +.5 ));
 }
 
-static void
-load_sliders( HWND hwnd )
+static void load_sliders(HWND hwnd)
 { int e,i;
   float (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
   for( e = 0; e < 2; e++ )
@@ -1180,8 +1129,7 @@ load_sliders( HWND hwnd )
       set_slider( hwnd, e, i-1, (*dp)[e][i] );
 }
 
-static void
-load_dialog( HWND hwnd )
+static void load_dialog(HWND hwnd)
 {
   int     i, e;
   float   (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
@@ -1227,8 +1175,7 @@ load_dialog( HWND hwnd )
   WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
 }
 
-static MRESULT EXPENTRY
-ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   static char nottheuser = FALSE;
 
@@ -1519,8 +1466,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-void DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
+void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
   init_request();
 

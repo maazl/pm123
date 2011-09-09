@@ -30,12 +30,15 @@
 #define INCL_PM
 #define INCL_BASE
 #include "playable.h"
+#include "eventhandler.h"
 #include "properties.h"
-#include "glue.h"
+#include "decoder.h"
 #include "waitinfo.h"
 #include "location.h"
 #include <strutils.h>
 #include <utilfct.h>
+#include <fileutil.h> // is_cdda
+#include <eautils.h>
 #include <vdelegate.h>
 #include <cpp/algorithm.h>
 #include <string.h>
@@ -380,10 +383,10 @@ void Playable::DoLoadInfo(JobSet& job)
 
   // get information
   InfoBundle info;
-  int what2 = upd & IF_Decoder; // incompatible types and do not request RPL info from the decoder.
+  InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
   if (what2)
   { deccbdata children(*this);
-    int rc = dec_fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, &children);
+    int rc = DecoderFileInfo(what2, info, &children);
     upd.Extend((InfoFlags)what2);
     DEBUGLOG(("Playable::DoLoadInfo - rc = %i\n", rc));
     
@@ -443,6 +446,104 @@ void Playable::DoLoadInfo(JobSet& job)
     // Raise event if any
     RaiseInfoChange(upd.Commit(), changed);
   }
+}
+
+ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
+{ DEBUGLOG(("Playable(%p{%s})::DecoderFileInfo(%x&, {...}, %p)\n", this, URL.cdata(), what, param));
+  ASSERT(what);
+  PluginList decoders(PLUGIN_DECODER);
+  Plugin::GetPlugins(decoders);
+  bool* checked = (bool*)alloca(sizeof(bool) * decoders.size());
+  PHYS_INFO& phys = *info.phys;
+  TECH_INFO& tech = *info.tech;
+
+  memset(checked, 0, sizeof *checked * decoders.size());
+
+  const char* file = NULL;
+  int type_mask;
+  char* eadata = NULL;
+  if (is_cdda(URL))
+    type_mask = DECODER_TRACK;
+  else if (strnicmp("file:", URL, 5) == 0)
+  { type_mask = DECODER_FILENAME;
+    file = URL + 5;
+    if (file[2] == '/')
+      file += 3;
+    size_t size = 0;
+    APIRET rc = eaget(file, ".type", &eadata, &size);
+    if (rc != NO_ERROR)
+    { // Errors of DosQueryPathInfo are considered to be permanent.
+      char buf[256];
+      os2_strerror(rc, buf, sizeof buf);
+      tech.info = buf;
+      // Even in case of an error the requested information is in fact available.
+      what = IF_Decoder|IF_Aggreg;
+      phys.attributes = PATTR_INVALID;
+      return PLUGIN_NO_READ;
+    }
+  } else if (strnicmp("http:", URL, 5) == 0 || strnicmp("https:", URL, 6) == 0 || strnicmp("ftp:", URL, 4) == 0)
+    type_mask = DECODER_URL;
+  else
+    type_mask = DECODER_OTHER;
+
+  ULONG rc;
+  Decoder* dp;
+  int what2;
+  size_t i;
+  // First checks decoders supporting the specified type of files.
+  for (i = 0; i < decoders.size(); i++)
+  { dp = (Decoder*)decoders[i].get();
+    DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef.Key.cdata(),
+      dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
+    if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
+    { if (file && !dp->IsFileSupported(file, eadata))
+        continue;
+      what2 = what;
+      rc = dp->Fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+      if (rc != PLUGIN_NO_PLAY)
+        goto ok; // This also happens in case of a plug-in independent error
+    }
+    checked[i] = TRUE;
+  }
+
+  // Next checks the rest decoders.
+  for (i = 0; i < decoders.size(); i++)
+  { if (checked[i])
+      continue;
+    dp = (Decoder*)decoders[i].get();
+    if (!dp->TryOthers)
+      continue;
+    what2 = what;
+    rc = dp->Fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+    if (rc != PLUGIN_NO_PLAY)
+      goto ok; // This also happens in case of a plug-in independent error
+  }
+
+  // No decoder found
+  info.tech->info = "Cannot find a decoder that supports this item.";
+  // Even in case of an error the requested information is in fact available.
+  what = IF_Decoder|IF_Aggreg;
+  tech.attributes = TATTR_INVALID;
+  return PLUGIN_NO_PLAY;
+ ok:
+  tech.decoder = dp->ModRef.Key;
+  if (rc != 0)
+  { phys.attributes |= PATTR_INVALID;
+    if (tech.info == 0)
+      tech.info = xstring::sprintf("Decoder error %i", rc);
+  }
+  DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
+    phys.filesize, phys.tstmp, phys.attributes,
+    tech.samplerate, tech.channels, tech.attributes,
+      tech.info.cdata(), tech.format.cdata(), tech.decoder.cdata(),
+    info.obj->songlength, info.obj->bitrate, info.obj->num_items,
+    info.attr->ploptions, info.attr->at.cdata(),
+    info.rpl->songs, info.rpl->lists, info.rpl->lists, info.rpl->unknown,
+    info.drpl->totallength, info.drpl->unk_length, info.drpl->totalsize, info.drpl->unk_size,
+    what2));
+  ASSERT((what & ~what2) == 0); // The decoder must not reset bits.
+  what |= (InfoFlags)what2; // do not reset bits
+  return rc;
 }
 
 PROXYFUNCIMP(void DLLENTRY, Playable)
@@ -842,10 +943,47 @@ bool Playable::Shuffle()
   return true;
 }
 
+struct save_cb_data
+{ Playable&                 Parent;
+  const bool                Relative;
+  int_ptr<PlayableInstance> Current;
+  InfoBundle                Info;
+  save_cb_data(Playable& parent, bool relative)
+  : Parent(parent), Relative(relative)
+  { Info.Assign(parent.GetInfo()); }
+};
+
+static int DLLENTRY save_callback(void* param, xstring* url,
+  const INFO_BUNDLE** info, int* valid, int* override)
+{ save_cb_data& cbd = *(save_cb_data*)param;
+  // TODO: This is a race condition, because the exact content that is saved is not
+  // well defined if the list is currently manipulation. Normally a snapshot should be taken.
+  cbd.Current = cbd.Parent.GetNext(cbd.Current);
+  if (cbd.Current == NULL)
+    return PLUGIN_FAILED;
+  *url = cbd.Relative
+    ? cbd.Current->GetPlayable().URL.makeRelative(cbd.Parent.URL)
+    : cbd.Current->GetPlayable().URL;
+  cbd.Info.Assign(cbd.Current->GetInfo());
+  *info  = &cbd.Info;
+  *valid = cbd.Current->GetValid();
+  *override = cbd.Current->GetOverridden();
+  return PLUGIN_OK;
+}
+
 bool Playable::Save(const url123& dest, const char* decoder, const char* format, bool relative)
 { DEBUGLOG(("Playable::Save(%s, %s, %s, %u)\n", dest.cdata(), decoder, format, relative));
-  if (dec_saveplaylist(dest, *this, decoder, format, relative) != PLUGIN_OK)
+  ULONG rc;
+  try
+  { int_ptr<Decoder> dp = Decoder::GetDecoder(decoder);
+    save_cb_data cbd(*this, relative);
+    int what = IF_Child;
+    rc = dp->SaveFile(dest, format, &what, &cbd.Info, &save_callback, &cbd);
+  } catch (const ModuleException& ex)
+  { EventHandler::PostFormat(MSG_ERROR, "Failed to save playlist %s:\n%s", dest.cdata(), ex.GetErrorText().cdata());
     return false;
+  }
+
   if (dest == URL)
   { // Save in place
     SetModified(false);
@@ -862,9 +1000,16 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
 int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo, xstring& errortxt)
 { DEBUGLOG(("Playable(%p)::SaveMetaInfo({...}, %x,)\n", this, haveinfo));
   // Write meta Info by plugin
-  int rc = dec_saveinfo(URL, &meta, haveinfo, Info.Tech.decoder, errortxt);
-  if (rc != 0)
-    return rc;
+  try
+  { int_ptr<Decoder> dp = Decoder::GetDecoder(Info.Tech.decoder);
+    ULONG rc = dp->SaveInfo(URL, &meta, haveinfo, errortxt);
+    if (rc != 0)
+      return rc;
+  } catch (const ModuleException& ex)
+  { errortxt = ex.GetErrorText();
+    return PLUGIN_FAILED;
+  }
+
   // adjust local meta info too.
   Mutex::Lock lock(Mtx);
   if (Info.InfoStat.Check(IF_Meta, REL_Cached))

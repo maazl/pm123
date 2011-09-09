@@ -407,7 +407,7 @@ class sco_arr
   /// Initialze a empty array.
   sco_arr()                             : Ptr(NULL), Size(0) {};
   /// Allocates an array of size.
-  sco_arr(size_t size)                  : Ptr(new T[size]), Size(size) {};
+  sco_arr(size_t size)                  : Ptr(new T[size]), Size(size) {}
   /// Store a new object under control.
   sco_arr(T* ptr, size_t size)          : Ptr(ptr), Size(size) {};
   /// Destructor, frees the stored object if any.

@@ -25,8 +25,18 @@ analyzer.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
 clean:  $(MDUMMY)
 	-@del analyzer$(LBI) analyzer.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-analyzer.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_plug.h ..\..\include\plugin.h analyzer.h colormap.h specana.h ..\..\utils\debuglog.h
+analyzer.cpp:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_plug.h ..\..\include\plugin.h analyzer.h colormap.h specana.h ..\..\utils\debuglog.h
+..\..\utils\utilfct.h:	..\..\include\config.h ..\..\utils\errorstr.h ..\..\utils\minmax.h ..\..\utils\strutils.h
+..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
+..\..\include\format.h:	..\..\include\plugin.h
+..\..\include\plugin.h:	..\..\include\config.h ..\..\utils\cpp\xstring.h
+..\..\utils\cpp\xstring.h:	..\..\utils\cpp\smartptr.h
+..\..\utils\cpp\smartptr.h:	..\..\include\config.h ..\..\utils\cpp\cpputil.h ..\..\utils\cpp\mutex.h ..\..\utils\debuglog.h
+..\..\utils\cpp\mutex.h:	..\..\include\config.h ..\..\utils\interlocked.h ..\..\utils\debuglog.h
+..\..\utils\interlocked.h:	..\..\include\config.h
+..\..\utils\debuglog.h:	..\..\utils\errorstr.h
+..\..\include\visual_plug.h:	..\..\include\format.h
 specana.h:	..\..\include\format.h
-colormap.c:	analyzer.h colormap.h ..\..\utils\debuglog.h
-specana.c:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h ..\..\utils\debuglog.h
-analyzer.rc:	analyzer.h
+colormap.cpp:	analyzer.h colormap.h ..\..\utils\debuglog.h
+specana.cpp:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h ..\..\utils\debuglog.h
+..\..\fft123\api\fftw3.h:	..\..\include\config.h

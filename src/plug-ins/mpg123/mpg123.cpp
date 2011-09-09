@@ -105,7 +105,7 @@ PLUGIN_RC ID3::Open(const char* mode)
   XFile = xio_fopen(Filename, mode);
   if (XFile == NULL)
   { LastError.sprintf("Unable open file %s:\n%s", Filename.cdata(), xio_strerror(errno));
-    Ctx.plugin_api->error_display(LastError);
+    Ctx.plugin_api->message_display(MSG_ERROR, LastError);
     return PLUGIN_NO_READ;
   }
 
@@ -221,7 +221,7 @@ void MPG123::EndTrackInstance()
 }
 
 inline off_t MPG123::Time2Sample(PM123_TIME time)
-{ return (off_t)(floor(time * Tech.samplerate + .5));
+{ return (off_t)(floor(time * FrameInfo.rate + .5));
 }
 
 static const char* const ch_modes[] = { "Stereo", "Joint-Stereo", "Dual-Channel", "Mono" };
@@ -234,42 +234,24 @@ static inline const char* vbr_mode(mpg123_vbr mode)
 { return (unsigned)mode < sizeof vbr_modes / sizeof *vbr_modes ? vbr_modes[mode] : "";
 }
 
-int MPG123::ReadTechInfo()
-{ mpg123_frameinfo info;
-  int rc = mpg123_info(MPEG, &info);
-  DEBUGLOG(("MPG123::ReadTechInfo - mpg123_info: %i\n", rc));
+bool MPG123::ReadFrameInfo()
+{ int rc = mpg123_info(MPEG, &FrameInfo);
+  DEBUGLOG(("MPG123::ReadFrameInfo - mpg123_info: %i\n", rc));
   if (rc != MPG123_OK)
   { LastError = mpg123_strerror(MPEG);
-    return -1;
+    return false;
   }
-  int bitrate = info.bitrate * 1000;
-  if (FirstFrameLen == 0)
-    FirstFrameLen = info.framesize;
-  switch (info.vbr)
-  {case MPG123_VBR:
-    if (LastSize >= 0 && LastLength >= 0)
-    { long size = LastSize - FirstFrameLen; // Do not count info frame
-      mpg123_id3v1* tagv1;
-      mpg123_id3v2* tagv2;
-      if (mpg123_id3(MPEG, &tagv1, &tagv2) == MPG123_OK)
-      { if (tagv1 && ((ID3V1_TAG*)tagv1)->IsValid())
-          size -= sizeof(ID3V1_TAG); // Do not count ID3V1 tag size
-        if (tagv2)
-          size -= tagv2->taglen; // Do not count ID3V2 tag size
-      }
-      bitrate = (int)floor(size * 8. / LastLength * info.rate + .5);
-    }
-    break;
-   case MPG123_ABR:
-    bitrate = info.abr_rate * 1000;
-   default:;
+  Channels = (FrameInfo.mode != MPG123_M_MONO) +1;
+  // Verify format
+  long rate = 0;
+  int channels = 0, encoding = 0;
+  mpg123_getformat(MPEG, &rate, &channels, &encoding);
+  if (rate != FrameInfo.rate || channels != Channels || encoding != MPG123_ENC_FLOAT_32)
+  { LastError.sprintf("Internal format mismatch: rate: %li/%li, channels %i/%i, encoding: %x",
+      rate, FrameInfo.rate, channels, Channels, encoding);
+    return false;
   }
-  Tech.samplerate = info.rate;
-  Tech.channels = (info.mode != MPG123_M_MONO) +1;
-  Tech.attributes = TATTR_SONG|TATTR_WRITABLE|TATTR_STORABLE;
-  Tech.info.sprintf("%i kb/s %s, %.1f kHz, %s", bitrate/1000, vbr_mode(info.vbr), info.rate/1000., ch_mode(info.mode));
-  Tech.format.sprintf("MP%u", info.layer);
-  return bitrate;
+  return true;
 }
 
 bool MPG123::UpdateStreamLength()
@@ -310,17 +292,21 @@ PLUGIN_RC MPG123::Open(const char* mode)
   if ((rc = mpg123_open_handle(MPEG, this)) != 0)
   { Close();
     LastError.sprintf("Unable open source with mpg123:\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
-    Ctx.plugin_api->error_display(LastError);
+    Ctx.plugin_api->message_display(MSG_ERROR, LastError);
     return PLUGIN_NO_PLAY;
   }
 
   rc = mpg123_read(MPEG, NULL, 0, NULL);
   if (rc != MPG123_OK && rc != MPG123_NEW_FORMAT)
-  { LastError.sprintf("Unable read source with mpg123:\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
+  { LastError.sprintf("Unable to read source with mpg123:\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
     return PLUGIN_NO_PLAY;
   }
   UpdateStreamLength();
-  ReadTechInfo();
+
+  if (!ReadFrameInfo())
+  { LastError.sprintf("Unable to get frame info\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
+    return PLUGIN_NO_PLAY;
+  }
 
   return PLUGIN_OK;
 }
@@ -366,13 +352,41 @@ void MPG123::FillPhysInfo(PHYS_INFO& phys)
 
 inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
 { DEBUGLOG(("MPG123(%p{%s})::FillTechInfo(&%p, &%p)\n", this, Filename.cdata(), &tech, &obj));
-  obj.bitrate = ReadTechInfo();
+  int bitrate = FrameInfo.bitrate * 1000;
+  if (FirstFrameLen == 0)
+    FirstFrameLen = FrameInfo.framesize;
+  switch (FrameInfo.vbr)
+  {case MPG123_VBR:
+    if (LastSize >= 0 && LastLength >= 0)
+    { long size = LastSize - FirstFrameLen; // Do not count info frame
+      mpg123_id3v1* tagv1;
+      mpg123_id3v2* tagv2;
+      if (mpg123_id3(MPEG, &tagv1, &tagv2) == MPG123_OK)
+      { if (tagv1 && ((ID3V1_TAG*)tagv1)->IsValid())
+          size -= sizeof(ID3V1_TAG); // Do not count ID3V1 tag size
+        if (tagv2)
+          size -= tagv2->taglen; // Do not count ID3V2 tag size
+      }
+      if (LastLength)
+        bitrate = (int)floor(size * 8. / LastLength * FrameInfo.rate + .5);
+    }
+    break;
+   case MPG123_ABR:
+    bitrate = FrameInfo.abr_rate * 1000;
+   default:;
+  }
+  tech.samplerate = FrameInfo.rate;
+  tech.channels = Channels;
+  tech.attributes = TATTR_SONG|TATTR_WRITABLE|TATTR_STORABLE;
+  tech.info.sprintf("%i kb/s %s, %.1f kHz, %s", bitrate/1000, vbr_mode(FrameInfo.vbr), FrameInfo.rate/1000., ch_mode(FrameInfo.mode));
+  tech.format.sprintf("MP%u", FrameInfo.layer);
+
+  obj.bitrate = bitrate;
   if (obj.bitrate < 0)
   { tech.info = LastError;
     return false;
   }
-  tech = Tech;
-  obj.songlength = (double)LastLength / Tech.samplerate;
+  obj.songlength = (double)LastLength / FrameInfo.rate;
   return true;
 }
 
@@ -655,9 +669,10 @@ void Decoder::ThreadFunc()
     mpg123_seek(MPEG, Time2Sample(-.3), SEEK_CUR);
   state = ST_READY; // Recover from ST_EOF in case of seek
 
-  short* buffer;
+  float* buffer;
   DecMutex.Release();
-  int count = (*OutRequestBuffer)(OutParam, &Tech, &buffer);
+  FORMAT_INFO2 format = { FrameInfo.rate, Channels };
+  int count = (*OutRequestBuffer)(OutParam, &format, &buffer);
   DecMutex.Request();
   if ((Status & 3) == 0)
     goto done;
@@ -669,14 +684,14 @@ void Decoder::ThreadFunc()
   }
 
   size_t done;
-  int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Tech.channels, &done);
+  int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Channels, &done);
   DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
   bool upd_len = UpdateStreamLength(); // Update stream length before ReadTechInfo
   switch (rc)
   {case MPG123_DONE:
     if (done)
-    { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
-      (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
+    { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
+      (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Channels, pos);
     }
     (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
     state = ST_EOF;
@@ -688,10 +703,10 @@ void Decoder::ThreadFunc()
     goto wait;
    case MPG123_NEW_FORMAT:
     // fetch format
-    ReadTechInfo();
+    ReadFrameInfo();
    case MPG123_OK:
-     PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
-     (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
+     PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
+     (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Channels, pos);
   }
   // Update stream length?
   if (upd_len)
@@ -820,7 +835,7 @@ PLUGIN_RC Decoder::Save(const xstring& savename)
     { int err = xio_errno();
       LastError.sprintf("Could not open file to save data:\n%s\n%s",
         savename.cdata(), xio_strerror(err));
-        Ctx.plugin_api->info_display(LastError);
+        Ctx.plugin_api->message_display(MSG_WARNING, LastError);
       return PLUGIN_NO_READ;
     }
   }

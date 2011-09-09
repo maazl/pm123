@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define DECODER_PLUGIN_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 3
 #define INCL_DOS
 #include <format.h>
 #include <decoder_plug.h>

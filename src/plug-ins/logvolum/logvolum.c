@@ -31,7 +31,7 @@
 #define  INCL_BASE
 #define  INCL_WIN
 
-#define  PLUGIN_INTERFACE_LEVEL 2
+#define  PLUGIN_INTERFACE_LEVEL 3
 
 #include <filter_plug.h>
 #include <output_plug.h>
@@ -87,9 +87,9 @@ filter_command( void* f, ULONG msg, OUTPUT_PARAMS2* info )
     #ifdef WITH_SOFT_VOLUME
     last_volume = info->volume / (scalefactor + 1. - scalefactor*info->volume);
     DEBUGLOG(("logvolume:filter_command vol=%f\n", last_volume));
-    info->volume = cur_cfg.use_software ? 1. : last_volume;
+    info->Volume = cur_cfg.use_software ? 1. : last_volume;
     #else
-    info->volume /= (scalefactor + 1. - scalefactor*info->volume);
+    info->Volume /= (scalefactor + 1. - scalefactor*info->Volume);
     #endif
     break;
   }
@@ -226,8 +226,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 #endif
 
 /* Configure plug-in. */
-int DLLENTRY
-plugin_configure( HWND howner, HMODULE module )
+void DLLENTRY plugin_configure( HWND howner, HMODULE module )
 {
   #ifdef WITH_SOFT_VOLUME
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, howner, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -235,8 +234,6 @@ plugin_configure( HWND howner, HMODULE module )
   WinProcessDlg( hwnd );
   WinDestroyWindow( hwnd );
   #endif
-
-  return 0;
 }
 
 

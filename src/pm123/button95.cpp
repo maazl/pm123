@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -80,7 +80,7 @@ ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                                 NULLHANDLE, 666, &btn->hwnd_bubble );
 
           WinQueryPointerPos( HWND_DESKTOP, &pos );
-          WinSetPresParam( btn->hwnd_bubble, PP_FONTNAMESIZE, 13, "3.System VIO" );
+          WinSetPresParam( btn->hwnd_bubble, PP_FONTNAMESIZE, 13, (PVOID)"3.System VIO" );
           rgb = GpiQueryNearestColor( hps, 0, rgb );
           WinSetPresParam( btn->hwnd_bubble, PP_BACKGROUNDCOLORINDEX, 4, &rgb );
           WinSetWindowText( btn->hwnd_bubble, btn->help );
@@ -132,8 +132,8 @@ ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_CHANGEBMP:
-      btn->bmp_release_id = PVOIDFROMMP(mp1);
-      btn->bmp_pressed_id = PVOIDFROMMP(mp2);
+      btn->bmp_release_id = (HBITMAP*)PVOIDFROMMP(mp1);
+      btn->bmp_pressed_id = (HBITMAP*)PVOIDFROMMP(mp2);
       WinInvalidateRect( hwnd, NULL, 1 );
       break;
 

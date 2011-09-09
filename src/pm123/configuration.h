@@ -108,7 +108,7 @@ struct amp_cfg
   int     font;               // Use font 1 or font 2.
   bool    font_skinned;       // Use skinned font.
   FATTRS  font_attrs;         // Font's attributes.
-  LONG    font_size;          // Font's point size.
+  unsigned font_size;         // Font's point size.
 
   bool    floatontop;         // Float on top.
   cfg_scroll scroll;          // See CFG_SCROLL_*

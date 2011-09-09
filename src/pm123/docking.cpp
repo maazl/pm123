@@ -34,52 +34,18 @@
 #include <memory.h>
 #include <stdio.h>
 
-#include "dialog.h" // for amp_player_error
-#include "configuration.h"
 #include "docking.h"
+#include "configuration.h"
+#include "eventhandler.h"
 #include <utilfct.h>
+#include <cpp/mutex.h>
 
 #define IS_MASTER( data )   ( data->state &   DK_IS_MASTER )
 #define IS_GHOST( data )    ( data->state &   DK_IS_GHOST  )
 #define IS_DOCKABLE( data ) ( data->state & ( DK_IS_MASTER | DK_IS_DOCKED ))
 
 static DK_DATA head;
-static HMTX    mutex;
-
-/* Requests ownership of the docking data. */
-static BOOL
-dk_request( void )
-{
-  APIRET rc = DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-
-  if( rc != NO_ERROR )
-  {
-    char error[1024];
-    amp_player_error( "Unable request the mutex semaphore.\n%s\n",
-                      os2_strerror( rc, error, sizeof( error )));
-    return FALSE;
-  } else {
-    return TRUE;
-  }
-}
-
-/* Relinquishes ownership of the docking data was
-   requested by dk_request(). */
-static BOOL
-dk_release( void )
-{
-  APIRET rc = DosReleaseMutexSem( mutex );
-
-  if( rc != NO_ERROR )
-  {
-    char error[1024];
-    amp_player_error( "Unable release the mutex semaphore.\n%s\n",
-                      os2_strerror( rc, error, sizeof( error )));
-    return FALSE;
-  } else {
-    return TRUE;
-  }
-}
+static Mutex   mutex;
 
 /** Returns a pointer to the data of specified window or NULL if
     the specified window is not a part of a this docking subsystem. */
@@ -104,10 +70,9 @@ dk_request_window( HWND hwnd )
 {
   DK_DATA* window;
 
-  dk_request();
-  if(( window = dk_get_window( hwnd )) == NULL ) {
-    dk_release();
-  }
+  mutex.Request();
+  if(( window = dk_get_window( hwnd )) == NULL )
+    mutex.Release();
 
   return window;
 }
@@ -121,7 +86,7 @@ dk_get_state( HWND hwnd )
 
   if( window ) {
     state = window->state;
-    dk_release();
+    mutex.Release();
   }
 
   return state;
@@ -139,7 +104,7 @@ dk_set_state( HWND hwnd, int state )
     } else {
       window->state &= ~DK_IS_GHOST;
     }
-    dk_release();
+    mutex.Release();
   }
 }
 
@@ -460,7 +425,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if(( window = dk_request_window( hwnd )) != NULL ) {
         window->def_proc( hwnd, msg, mp1, mp2 );
         dk_remove_window( hwnd );
-        dk_release();
+        mutex.Release();
       }
       return 0;
 
@@ -468,7 +433,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( mp1 && Cfg::Get().dock_windows ) {
         if(( window = dk_request_window( hwnd )) != NULL ) {
           dk_move_window( window, NULL, SWP_ZORDER );
-          dk_release();
+          mutex.Release();
         }
       }
       break;
@@ -486,7 +451,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             dk_undock( window, dock );
           }
         }
-        dk_release();
+        mutex.Release();
       }
       return 0;
     }
@@ -513,7 +478,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               dk_arrange( hwnd );
             }
           }
-          dk_release();
+          mutex.Release();
         }
       }
       break;
@@ -551,7 +516,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               dk_arrange( hwnd );
             }
           }
-          dk_release();
+          mutex.Release();
         }
       }
       break;
@@ -560,7 +525,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
   if(( window = dk_request_window( hwnd )) != NULL ) {
     rc = window->def_proc( hwnd, msg, mp1, mp2 );
-    dk_release();
+    mutex.Release();
   }
 
   return rc;
@@ -571,17 +536,11 @@ BOOL
 dk_add_window( HWND hwnd, int state )
 {
   DK_DATA* node;
-  dk_request();
+  mutex.Request();
 
   if( head.childs_count < DK_MAX_DOCKED )
   {
-    node = (DK_DATA*)malloc( sizeof( DK_DATA ));
-
-    if( !node ) {
-      dk_release();
-      amp_player_error( "Not enough memory." );
-      return FALSE;
-    }
+    node = new DK_DATA;
 
     memset( node, 0, sizeof( DK_DATA ));
 
@@ -592,7 +551,7 @@ dk_add_window( HWND hwnd, int state )
     head.childs[ head.childs_count++ ] = node;
   }
 
-  dk_release();
+  mutex.Release();
   return TRUE;
 }
 
@@ -612,9 +571,9 @@ dk_remove_window( HWND hwnd )
 
     dk_remove_data( head.childs, &head.childs_count, window );
     WinSubclassWindow( window->hwnd, window->def_proc );
-    free( window );
+    delete window;
 
-    dk_release();
+    mutex.Release();
     return TRUE;
   }
 
@@ -631,7 +590,7 @@ dk_cleanup( HWND hwnd )
     while( window->childs_count ) {
       dk_undock( window, window->childs[0] );
     }
-    dk_release();
+    mutex.Release();
   }
 }
 
@@ -682,24 +641,22 @@ dk_arrange( HWND hwnd )
     dk_arrange( window->childs[i]->hwnd );
   }
 
-  dk_release();
+  mutex.Release();
 }
 
 /** Initializes of the docking subsystem. */
-void
-dk_init() {
-  DosCreateMutexSem( NULL, &mutex, 0, FALSE );
+void dk_init()
+{
+
 }
 
 /** Terminates  of the docking subsystem. */
-void
-dk_term()
+void dk_term()
 {
-  dk_request();
+  mutex.Request();
   while( head.childs_count ) {
     dk_remove_window( head.childs[0]->hwnd );
   }
 
-  dk_release();
-  DosCloseMutexSem( mutex );
+  mutex.Release();
 }

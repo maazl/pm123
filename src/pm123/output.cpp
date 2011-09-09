@@ -36,8 +36,10 @@
 #define  INCL_ERRORS
 
 #include "output.h"
-#include "123_util.h"
+#include "proxyhelper.h"
 #include "pm123.h" // for hab
+
+#include <limits.h>
 
 #include <debuglog.h>
 
@@ -108,31 +110,38 @@ bool Output::UninitPlugin()
 // Proxy for loading level 1 plug-ins
 class OutputProxy1 : public Output, protected ProxyHelper
 {private:
-  int         DLLENTRYP(voutput_command     )(void* a, ULONG msg, OUTPUT_PARAMS* info);
-  int         DLLENTRYP(voutput_play_samples)(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker);
-  ULONG       DLLENTRYP(voutput_playing_pos )(void* a);
-  short       voutput_buffer[BUFSIZE/2];
-  int         voutput_buffer_level;             // current level of voutput_buffer
-  BOOL        voutput_trash_buffer;
-  BOOL        voutput_flush_request;            // flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
-  HWND        voutput_hwnd;                     // Window handle for catching event messages
-  double      voutput_posmarker;
-  FORMAT_INFO voutput_format;
-  int         voutput_bufsamples;
-  BOOL        voutput_always_hungry;
-  void        DLLENTRYP(voutput_event)(void* w, OUTEVENTTYPE event);
-  void*       voutput_w;
-  VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos;
+  int          DLLENTRYP(voutput_command        )(void* a, ULONG msg, OUTPUT_PARAMS* info);
+  int          DLLENTRYP(voutput_play_samples   )(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker);
+  ULONG        DLLENTRYP(voutput_playing_pos    )(void* a);
+  ULONG        DLLENTRYP(voutput_playing_samples)(void* a, FORMAT_INFO* info, char* buf, int len);
+  union
+  { float      fbuf[BUFSIZE/2];
+    short      sbuf[BUFSIZE/2];
+  }            voutput_buffer;
+  int          voutput_buffer_level;         // current level of voutput_buffer
+  BOOL         voutput_trash_buffer;
+  BOOL         voutput_flush_request;        // flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
+  HWND         voutput_hwnd;                 // Window handle for catching event messages
+  PM123_TIME   voutput_posmarker;
+  FORMAT_INFO  voutput_format;
+  int          voutput_bufsamples;
+  BOOL         voutput_always_hungry;
+  void         DLLENTRYP(voutput_event)(void* w, OUTEVENTTYPE event);
+  void*        voutput_w;
+  VDELEGATE    vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos, vd_output_playing_samples;
 
  private:
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_output_command       (OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info);
-  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer(OutputProxy1* op, void* a, const TECH_INFO* format, short** buf);
-  PROXYFUNCDEF void   DLLENTRY proxy_1_output_commit_buffer (OutputProxy1* op, void* a, int len, double posmarker);
-  PROXYFUNCDEF double DLLENTRY proxy_1_output_playing_pos   (OutputProxy1* op, void* a);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_command        (OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info);
+  PROXYFUNCDEF int        DLLENTRY proxy_1_output_request_buffer (OutputProxy1* op, void* a, const FORMAT_INFO2* format, float** buf);
+  PROXYFUNCDEF void       DLLENTRY proxy_1_output_commit_buffer  (OutputProxy1* op, void* a, int len, PM123_TIME posmarker);
+  PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_output_playing_pos    (OutputProxy1* op, void* a);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_playing_samples(OutputProxy1* op, void* a, FORMAT_INFO2* info, float* buf, int len);
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  /// Convert the range [0,voutput_buffer_level[ to 16 bit audio and send it to the output.
+  void         SendSamples(void* a);
  public:
   OutputProxy1(Module& mod) : Output(mod), voutput_hwnd(NULLHANDLE), voutput_posmarker(0) {}
-  virtual ~OutputProxy1();
+  virtual      ~OutputProxy1();
   virtual void LoadPlugin();
 };
 
@@ -141,23 +150,32 @@ OutputProxy1::~OutputProxy1()
     WinDestroyWindow(voutput_hwnd);
 }
 
-/* Assigns the addresses of the out7put plug-in procedures. */
+/* Assigns the addresses of the output plug-in procedures. */
 void OutputProxy1::LoadPlugin()
 { DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
   A = NULL;
   const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&output_init,            "output_init");
   mod.LoadMandatoryFunction(&output_uninit,          "output_uninit");
-  mod.LoadMandatoryFunction(&output_playing_samples, "output_playing_samples");
+  mod.LoadMandatoryFunction(&voutput_playing_samples,"output_playing_samples");
   mod.LoadMandatoryFunction(&voutput_playing_pos,    "output_playing_pos");
   mod.LoadMandatoryFunction(&output_playing_data,    "output_playing_data");
   mod.LoadMandatoryFunction(&voutput_command,        "output_command");
   mod.LoadMandatoryFunction(&voutput_play_samples,   "output_play_samples");
 
-  output_command        = vdelegate(&vd_output_command,        &proxy_1_output_command,        this);
-  output_request_buffer = vdelegate(&vd_output_request_buffer, &proxy_1_output_request_buffer, this);
-  output_commit_buffer  = vdelegate(&vd_output_commit_buffer,  &proxy_1_output_commit_buffer,  this);
-  output_playing_pos    = vdelegate(&vd_output_playing_pos,    &proxy_1_output_playing_pos,    this);
+  output_command         = vdelegate(&vd_output_command,         &proxy_1_output_command,         this);
+  output_request_buffer  = vdelegate(&vd_output_request_buffer,  &proxy_1_output_request_buffer,  this);
+  output_commit_buffer   = vdelegate(&vd_output_commit_buffer,   &proxy_1_output_commit_buffer,   this);
+  output_playing_pos     = vdelegate(&vd_output_playing_pos,     &proxy_1_output_playing_pos,     this);
+  output_playing_samples = vdelegate(&vd_output_playing_samples, &proxy_1_output_playing_samples, this);
+}
+
+inline void OutputProxy1::SendSamples(void* a)
+{ // Convert samples to 16 bit audio
+  Float2Short(voutput_buffer.sbuf, voutput_buffer.fbuf, voutput_buffer_level * voutput_format.channels);
+  // Send samples
+  (*voutput_play_samples)(a, &voutput_format, (char*)voutput_buffer.sbuf, voutput_buffer_level * voutput_format.channels * sizeof(short), TstmpF2I(voutput_posmarker));
+  voutput_buffer_level = 0;
 }
 
 /* virtualization of level 1 output plug-ins */
@@ -194,8 +212,8 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
   params.boostdelta            = DECODER_HIGH_PRIORITY_DELTA;
   params.normaldelta           = DECODER_LOW_PRIORITY_DELTA;
   params.nobuffermode          = FALSE;
-  params.error_display         = &pm123_display_error;
-  params.info_display          = &pm123_display_info;
+  params.error_display         = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
+  params.info_display          = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
   params.volume                = (char)(info->Volume*100+.5);
   params.amplifier             = info->Amplifier;
   params.pause                 = info->Pause;
@@ -233,12 +251,12 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
 }
 
 PROXYFUNCIMP(int DLLENTRY, OutputProxy1)
-proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* format, short** buf )
+proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, float** buf )
 {
   #ifdef DEBUG_LOG
   if (format != NULL)
-    DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%x...}, %p) - %d\n",
-      op, a, format->samplerate, format->channels, format->attributes, buf, op->voutput_buffer_level));
+    DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i}, %p) - %d\n",
+      op, a, format->samplerate, format->channels, buf, op->voutput_buffer_level));
    else
     DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, %p, %p) - %d\n", op, a, format, buf, op->voutput_buffer_level));
   #endif
@@ -251,10 +269,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* forma
   if ( op->voutput_buffer_level != 0
     && ( buf == 0
       || (op->voutput_format.samplerate != format->samplerate || op->voutput_format.channels != format->channels) ))
-  { // flush
-    (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), ProxyHelper::TstmpF2I(op->voutput_posmarker));
-    op->voutput_buffer_level = 0;
-  }
+    op->SendSamples(a);
   if (buf == 0)
   { if (op->voutput_always_hungry)
       (*op->voutput_event)(op->voutput_w, OUTEVENT_END_OF_DATA);
@@ -263,16 +278,16 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* forma
     return 0;
   }
 
-  *buf = op->voutput_buffer + op->voutput_buffer_level * format->channels;
+  *buf = op->voutput_buffer.fbuf + op->voutput_buffer_level * format->channels;
   op->voutput_format.samplerate = format->samplerate;
   op->voutput_format.channels   = format->channels;
-  op->voutput_bufsamples        = sizeof op->voutput_buffer / sizeof *op->voutput_buffer / format->channels;
+  op->voutput_bufsamples        = sizeof op->voutput_buffer.fbuf / sizeof *op->voutput_buffer.fbuf / format->channels;
   DEBUGLOG(("proxy_1_output_request_buffer: %d\n", op->voutput_bufsamples - op->voutput_buffer_level));
   return op->voutput_bufsamples - op->voutput_buffer_level;
 }
 
 PROXYFUNCIMP(void DLLENTRY, OutputProxy1)
-proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, double posmarker )
+proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, PM123_TIME posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
     op, op->ModRef.Key.cdata(), a, len, posmarker, op->voutput_buffer_level));
 
@@ -281,12 +296,10 @@ proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, double posmark
 
   op->voutput_buffer_level += len;
   if (op->voutput_buffer_level == op->voutput_bufsamples)
-  { (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), ProxyHelper::TstmpF2I(op->voutput_posmarker));
-    op->voutput_buffer_level = 0;
-  }
+    op->SendSamples(a);
 }
 
-PROXYFUNCIMP(double DLLENTRY, OutputProxy1)
+PROXYFUNCIMP(PM123_TIME DLLENTRY, OutputProxy1)
 proxy_1_output_playing_pos( OutputProxy1* op, void* a )
 { DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->ModRef.Key.cdata(), a));
   return ProxyHelper::TstmpI2F((*op->voutput_playing_pos)(a), op->voutput_posmarker);
@@ -309,6 +322,21 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
   return WinDefWindowProc(hwnd, msg, mp1, mp2);
 }
 
+PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
+proxy_1_output_playing_samples(OutputProxy1* op, void* a, FORMAT_INFO2* info, float* buf, int len)
+{ DEBUGLOG2(("proxy_1_output_playing_samples(%p{%s}, %p, %p, %p, %i) - %p \n", op, op == NULL ? NULL : op->ModuleName.cdata(), a, info, buf, len));
+  FORMAT_INFO fmt = { sizeof(FORMAT_INFO) };
+  int clen = len * sizeof(short);
+  ULONG rc = (*op->voutput_playing_samples)(a, &fmt, (char*)buf + clen, clen);
+  if (rc != 0)
+    return rc;
+  info->samplerate = fmt.samplerate;
+  info->channels   = fmt.channels;
+  // convert samples to float
+  ProxyHelper::Short2Float(buf, (short*)((char*)buf + clen), len);
+  return 0;
+}
+
 
 int_ptr<Output> Output::FindInstance(const Module& module)
 { Mutex::Lock lock(Module::Mtx);
@@ -323,6 +351,8 @@ int_ptr<Output> Output::GetInstance(Module& module)
   Output* out = module.Out;
   if (out && !out->RefCountIsUnmanaged())
     return out;
+  if (module.GetParams().interface == 2)
+    throw ModuleException("The output plug-in %s is not supported. It is intended for PM123 1.40.", module.Key.cdata());
   out = module.GetParams().interface <= 1 ? new OutputProxy1(module) : new Output(module);
   try
   { out->LoadPlugin();

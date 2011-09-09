@@ -4,12 +4,10 @@
 
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\include;..
-TARGET   = all2
+TARGET   = cpputil$(LBO) xstring$(LBO)
 SRCFIL   = *.cpp container/*.cpp
 
 !include $(TOPDIR)\config\makerules
-
-all2: cpputil$(LBO) xstring$(LBO) $(MDUMMY)
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO)
@@ -18,7 +16,7 @@ OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO)
 
 OBJECTS2 = xstring$(CO) xstringbuilder$(CO) url123$(CO) container\stringmap$(CO)
 
-cpputil$(LBO): $(OBJECTS)
+cpputil$(LBO): $(OBJECTS) debugmem$(CO)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
@@ -38,14 +36,6 @@ test: unittest.exe
 unittest.exe: $(OBJECTS3) $(LIBS3)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS3) $(LIBS3) $(STDLIBS)$(LOBJ_SUFFX)
 	$(POSTLINKCMD)
-
-# Keep wmake happy
-container\vector$(CO) : container\vector.cpp
-	$(CC) $(CFLAGS) -c $[@ -fo=$@
-container\list$(CO) : container\list.cpp
-	$(CC) $(CFLAGS) -c $[@ -fo=$@
-container\stringmap$(CO) : container\stringmap.cpp
-	$(CC) $(CFLAGS) -c $[@ -fo=$@
 
 algorithm.cpp:	algorithm.h ..\debuglog.h
 algorithm.h:	container\vector.h

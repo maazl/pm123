@@ -61,6 +61,44 @@ APSZ_list::operator APSZ*() const
 }
 
 
+class FileTypesEnumerator
+{private:
+  PluginList              Decoders;
+  size_t                  DecNo;
+  const vector<const DECODER_FILETYPE>* Current;
+  size_t                  Item;
+ public:
+  FileTypesEnumerator();
+  const DECODER_FILETYPE* GetCurrent() const { return (*Current)[Item]; }
+  int_ptr<Decoder> GetDecoder() const { return (Decoder*)Decoders[DecNo]; }
+  bool            Next();
+};
+
+FileTypesEnumerator::FileTypesEnumerator()
+: Decoders(PLUGIN_DECODER)
+, Current(NULL)
+{ Plugin::GetPlugins(Decoders);
+}
+
+bool FileTypesEnumerator::Next()
+{ DEBUGLOG(("FileTypesEnumerator(%p)::Next() - %p\n", this, Current));
+  if (!Current)
+  { DecNo = 0;
+   load_decoder:
+    Current = &((const Decoder&)*Decoders[DecNo]).GetFileTypes();
+    Item = 0;
+  } else
+    ++Item;
+  if (Item < Current->size())
+    return true;
+  while (++DecNo < Decoders.size())
+    if (Decoders[DecNo]->GetEnabled())
+      goto load_decoder;
+  Current = NULL;
+  return false;
+}
+
+
 typedef strmapentry<stringset_own> AggregateEntry;
 typedef sorted_vector<AggregateEntry,xstring,&AggregateEntry::compare> Aggregate;
 
@@ -87,9 +125,11 @@ APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
 { // Create aggregate[EA type][extension]
   Aggregate aggregate;
   
-  sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
+  sco_ptr<FileTypesEnumerator> en(new FileTypesEnumerator());
   while (en->Next())
   { const DECODER_FILETYPE* filetype = en->GetCurrent();
+    if (~filetype->flags & flagsreq)
+      continue;
     do_aggregate(aggregate, filetype->eatype ? filetype->eatype : "", filetype->extension);
     // Aggregate
     if (filetype->category)
@@ -157,9 +197,11 @@ xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& 
   //int matchlevel = 0; // 0 => no match, 1 => Category match, 2 => Exact match
   int_ptr<Decoder> decoder;
   //Mutex::Lock lock(PluginMtx);
-  { sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
+  { sco_ptr<FileTypesEnumerator> en(new FileTypesEnumerator());
     while (en->Next())
     { const DECODER_FILETYPE* ft = en->GetCurrent();
+      if (~ft->flags & flagsreq)
+        continue;
       DEBUGLOG(("amp_decoder_by_type %s %s %s\n", ft->eatype, ft->category, ft->extension));
       // Exact match?
       if (strnicmp(ft->eatype, filter, typelen) == 0)

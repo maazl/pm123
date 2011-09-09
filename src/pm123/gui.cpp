@@ -317,12 +317,18 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG %p, %u\n", pp.get(), type));
       switch (type)
       { case DLT_INFOEDIT:
-        { // TODO: ensure Decoder availability
-          ULONG rc = dec_editmeta(HFrame, pp->URL, xstring(pp->GetInfo().tech->decoder));
+        { ULONG rc;
+          try
+          { int_ptr<Decoder> dp = Decoder::GetDecoder(xstring(pp->GetInfo().tech->decoder));
+            rc = dp->EditMeta(HFrame, pp->URL);
+          } catch (const ModuleException& ex)
+          { amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", ex.GetErrorText().cdata());
+            break;
+          }
           DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG rc = %u\n", rc));
           switch (rc)
           { default:
-              amp_error(HFrame, "Cannot edit tag of file:\n%s", pp->URL.cdata());
+              amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", pp->URL.cdata());
               break;
             case 0:   // tag changed
               pp->RequestInfo(IF_Meta, PRI_Normal);
@@ -333,7 +339,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
               AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_MetaInfo);
               break;
             case 500:
-              amp_error(HFrame, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), strerror(errno));
+              amp_messagef(HFrame, MSG_ERROR, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), strerror(errno));
               break;
           }
           break;
@@ -356,11 +362,8 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WMP_DISPLAY_MESSAGE:
     { xstring text;
-      text.fromCstr((const char*)mp1); 
-      if (mp2)
-        amp_error(HPlayer, "%s", text.cdata() );
-      else
-        amp_info (HPlayer, "%s", text.cdata() );
+      text.fromCstr((const char*)mp1);
+      amp_message(HFrame, (MESSAGE_TYPE)SHORT1FROMMP(mp2), text.cdata());
       return 0;
     }
    case WMP_DISPLAY_MODE:
@@ -392,7 +395,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       {case Ctrl::Cmd_Load:
         // Successful? if not display error.
         if (cmd->Flags != Ctrl::RC_OK)
-          amp_player_error("Error loading %s\n%s", cmd->StrArg.cdata(), xstring(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
+          amp_messagef(HFrame, MSG_ERROR, "Error loading %s\n%s", cmd->StrArg.cdata(), xstring(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
         break;
        case Ctrl::Cmd_Skip:
         WinSendDlgItemMsg(HPlayer, BMP_PREV, WM_DEPRESS, 0, 0);
@@ -425,7 +428,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case Ctrl::Cmd_Save:
         if (cmd->Flags != Ctrl::RC_OK)
-          amp_player_error( "The current active decoder don't support saving of a stream.\n" );
+          amp_message(HFrame, MSG_ERROR, "The current active decoder don't support saving of a stream.");
         break;
        case Ctrl::Cmd_Location:
         { IsLocMsg = false;
@@ -1868,7 +1871,7 @@ void GUIImp::Init()
 
   HHelp = WinCreateHelpInstance(amp_player_hab, &hinit);
   if( HHelp == NULLHANDLE )
-    amp_error(HFrame, "Error create help instance: %s", infname.cdata());
+    amp_messagef(HFrame, MSG_ERROR, "Error create help instance: %s", infname.cdata());
   else
     PMRASSERT(WinAssociateHelpInstance(HHelp, HPlayer));
 

@@ -1,6 +1,7 @@
 /*
  * Code that uses fft123.dll to make some interesting data to display
  *
+ * Copyright 2008-2011 Marcel Mueller
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
@@ -29,7 +30,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define  INCL_WIN
+#define INCL_WIN
+#define PLUGIN_INTERFACE_LEVEL 3
 #include <os2.h>
 
 #include <stdio.h>
@@ -58,13 +60,13 @@
                                         + 0.08 * cos( 4 * M_PI * (n) / (N) ))
 
 // Entry points
-ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO2* info, float* buf, int len );
 BOOL  DLLENTRYP(decoderPlaying)( void );
 
 static int            last_numsamples = 0;// number of samples in the last call
 static WIN_FN         last_winfn;    // window function in wnd[]
-static int            last_bps = 0;  // bytes per sample
-static char*          last_buf = NULL;// last samples from output
+static int            last_channels = 0;// number of channels
+static float*         last_buf = NULL;// last samples from output
 static float*         wnd  = NULL;   // window function (2nd half) [numsamples/2]
 static float*         in   = NULL;   // FFT input buffer [numsamples]
 static fftwf_complex* out  = NULL;   // FFT output buffer [numsamples/2+1]
@@ -79,27 +81,14 @@ static fftwf_plan     plan = NULL;   // fftw plan
 }
 
 
-/* calculate the number of bytes per sample */
-static int clac_bps(const FORMAT_INFO* info)
-{ if (info->bits <= 8)
-    return info->channels * sizeof(unsigned char);
-   else if (info->bits <= 16)
-    return info->channels * sizeof(short);
-   else if (info->bits <= 32)
-    return info->channels * sizeof(long);
-   else
-    return 0;
-}
-
-
 static BOOL init_fft(void)
 {
   free(wnd); // always destroy window
   wnd = NULL;
   fftwf_free(in);
   fftwf_free(out);
-  in  = fftwf_malloc(sizeof(*in ) * last_numsamples );
-  out = fftwf_malloc(sizeof(*out) * (last_numsamples/2+1) );
+  in  = (float*)fftwf_malloc(sizeof(*in) * last_numsamples );
+  out = (fftwf_complex*)fftwf_malloc(sizeof(*out) * (last_numsamples/2+1) );
   if (in == NULL || out == NULL)
     return FALSE;
 
@@ -116,7 +105,7 @@ static BOOL init_window(void)
   float* dp;
   
   free(wnd);
-  wnd = dp = malloc((last_numsamples >> 1) * sizeof *wnd);
+  wnd = dp = (float*)malloc((last_numsamples >> 1) * sizeof *wnd);
   if (dp == NULL)
     return FALSE;
   DEBUGLOG(("SA: init_window %d\n", last_numsamples));
@@ -146,46 +135,13 @@ static BOOL init_window(void)
   return TRUE;
 }
 
-static void fetch_byte(unsigned char* sp, int ch)
+static void fetch_data(float* sp, int ch)
 { int i,e;
   float* dp = in;
-  DEBUGLOG(("SA fetch_byte(%p, %d) %d\n", sp, ch, last_numsamples)); 
+  DEBUGLOG(("SA fetch_data(%p, %d) %d\n", sp, ch, last_numsamples));
   switch (ch)
   {case 1:
-    for (i = last_numsamples >> 2; i; --i )
-    { DO_4(p, dp[p] = sp[p] - 128);
-      dp += 4;
-      sp += 4;
-    }
-    break;
-   case 2:
-    for ( i = last_numsamples >> 2; i; --i )
-    { DO_4(p, dp[p] = (int)sp[2*p] + sp[2*p+1] - 256);
-      dp += 4;
-      sp += 2 * 4;
-    }
-    break;
-   default:  
-    for( i = last_numsamples; i; --i )
-    { register float s = 0;
-      for( e = ch; e; --e )
-        s += *sp++ - 128;
-      *dp++ = s;
-    }
-  }
-}
-
-static void fetch_short(short* sp, int ch)
-{ int i,e;
-  float* dp = in;
-  DEBUGLOG(("SA fetch_short(%p, %d) %d\n", sp, ch, last_numsamples));
-  switch (ch)
-  {case 1:
-    for ( i = last_numsamples >> 2; i; --i )
-    { DO_4(p, dp[p] = sp[p]);
-      dp += 4;
-      sp += 4;
-    }
+    memcpy(dp, sp, last_numsamples * sizeof(float));
     break;
    case 2:
     for ( i = last_numsamples >> 2; i; --i )
@@ -204,96 +160,66 @@ static void fetch_short(short* sp, int ch)
   }
 }
 
-static void fetch_long(long* sp, int ch)
-{ int i,e;
-  float* dp = in;
-  DEBUGLOG(("SA fetch_long(%p, %d) %d\n", sp, ch, last_numsamples));
-  switch (ch)
-  {case 1:
-    for ( i = last_numsamples >> 2; i; --i )
-    { DO_4(p, dp[p] = sp[p]);
-      dp += 4;
-      sp += 4;
-    }
-    break;
-   case 2:
-    for ( i = last_numsamples >> 2; i; --i )
-    { DO_4(p, dp[p] = (float)sp[2*p] + sp[2*p+1]);
-      dp += 4;
-      sp += 2 * 4;
-    }
-    break;
-   default:  
-    for( i = last_numsamples; i; --i )
-    { register float s = 0;
-      for( e = ch; e; --e )
-        s += *sp++;
-      *dp++ = s;
-    }
-  }
-}
-
-SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* const info)
+SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO2* const info)
 {
-  FORMAT_INFO bufferinfo;
+  FORMAT_INFO2 bufferinfo;
   int len;
   int i;
-  float scale;
-  char* sample;
+  float* sample;
 
-  DEBUGLOG(("SA: specana_do(%d, %d, %p, {%d,%d,%d,%d}) %d\n", numsamples, winfn, bands, info->size, info->samplerate, info->channels, info->bits, last_bps));
+  DEBUGLOG(("SA: specana_do(%d, %d, %p, {%d,%d}) %d\n", numsamples, winfn, bands, info->samplerate, info->channels, last_channels));
   if (numsamples & 7)
     return SPECANA_ERROR;
 
   // check whether we have to examine the format first
   if (info->samplerate == 0)
-  {
-    DEBUGLOG(("SA: FORMAT_INIT - %d\n", (*decoderPlayingSamples)(&bufferinfo, NULL, 0)));
+  { DEBUGLOG(("SA: FORMAT_INIT - %d\n", (*decoderPlayingSamples)(&bufferinfo, NULL, 0)));
     if ((*decoderPlayingSamples)(&bufferinfo, NULL, 0) != 0)
       return SPECANA_ERROR;
-    last_bps = clac_bps(&bufferinfo);
+    last_channels = bufferinfo.channels;
     goto clb;
-  } else if (last_bps <= 0)
-  { last_bps = clac_bps(info);
+  } else if (last_channels <= 0)
+  { last_channels = info->channels;
    clb:
     free(last_buf);
     last_buf = NULL;
     // calculate bytes per sample
-    if (last_bps == 0)
+    if (last_channels == 0)
       return SPECANA_ERROR;
   }
 
  redo: // restart here in case of an unexpected format change
   // allocate required buffer length
-  len = numsamples * last_bps;
-  sample = alloca(len);
-  DEBUGLOG(("SA: len = %d, bps = %d\n", len, last_bps));
+  len = numsamples * last_channels;
+  sample = (float*)alloca(len * sizeof(float));
+  DEBUGLOG(("SA: len = %d, chl = %d\n", len, last_channels));
   
   // fetch data
   if ((*decoderPlayingSamples)(&bufferinfo, sample, len) != 0)
     return SPECANA_ERROR;
   // check for format change
-  if (info->samplerate != bufferinfo.samplerate || info->channels != bufferinfo.channels || info->bits != bufferinfo.bits)
+  if (info->samplerate != bufferinfo.samplerate || info->channels != bufferinfo.channels)
   { *info = bufferinfo;
     return SPECANA_NEWFORMAT;
   }
   // check bps
-  i = clac_bps(&bufferinfo);
-  if (i != last_bps)
+  i = bufferinfo.channels;
+  if (i != last_channels)
   { if (i == 0)
       return SPECANA_ERROR;
     free(last_buf);
     last_buf = NULL;
-    if (i > last_bps)
-    { last_bps = i;
+    if (i > last_channels)
+    { last_channels = i;
       goto redo;
     } else
-      last_bps = i; // the buffer was too large, continue anyway
+      last_channels = i; // the buffer was too large, continue anyway
   }
   // allocate buffer for last samples?
+  len *= sizeof(float); // From here len is the length in bytes
   if (last_buf == NULL || last_numsamples != numsamples)
   { free(last_buf);
-    last_buf = malloc(len);
+    last_buf = (float*)malloc(len);
     if (last_buf == NULL)
       return SPECANA_ERROR;
     DEBUGLOG(("SA: new last_buf\n"));
@@ -317,25 +243,8 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
   } 
 
   // demultiplex samples
-  // Oh, well, C++ with templates would be nice...
-  switch ((bufferinfo.bits > 8) + (bufferinfo.bits > 16))
-  {default:
-   // case 0: same as default
-    fetch_byte((unsigned char*)sample, bufferinfo.channels);
-    scale = 1./128; // normalize
-    break;
-
-   case 1:
-    fetch_short((short*)sample, bufferinfo.channels);
-    scale = 1./32768; // normalize
-    break;
-    
-   case 2:
-    fetch_long((long*)sample, bufferinfo.channels);
-    // I am unsure how the 0dB level of >16Bit data is usually defined.
-    scale = 1./0x80000000U; // normalize
-  }
-  DEBUGLOG(("SA: demux done %g\n", scale));
+  fetch_data(sample, bufferinfo.channels);
+  DEBUGLOG(("SA: demux done\n"));
 
   // To reduce spectral leakage, the samples are multipled with a window.
   { float* wp = wnd;
@@ -354,9 +263,9 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
   fftwf_execute(plan);
   DEBUGLOG(("SA: FFT done\n"));
   // fetch the norm of the coefficients
-  // Additionaly compensate for the channel addition and the unnormalized FFT above.
+  // Additionally compensate for the channel addition and the unnormalized FFT above.
   { fftwf_complex* sp = out;
-    scale /= bufferinfo.channels * sqrt(numsamples);
+    float scale = 1 / (bufferinfo.channels * sqrt(numsamples));// normalize
     for (i = numsamples >> 3; i; --i)
     { DO_4(p, bands[p] = sqrt(sp[p][0]*sp[p][0] + sp[p][1]*sp[p][1]) * scale);
       bands += 4;
@@ -371,7 +280,7 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
 
 void specana_uninit(void)
 { last_numsamples = 0;
-  last_bps = 0;
+  last_channels = 0;
   free(last_buf);
   last_buf = NULL;
   free(wnd);

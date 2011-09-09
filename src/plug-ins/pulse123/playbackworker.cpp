@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Marcel Mueller
+ * Copyright 2010-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -92,7 +92,7 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
   return l;
 }*/
 
-void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const short* data, size_t count)
+void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const float* data, size_t count)
 { DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData(%Lu, %f, %i, %i, %p, %u) - [%u,%u[ %u\n",
     wi, pos, channels, rate, data, count, BufferLow, BufferHigh, DataHigh));
   if (wi <= MaxWriteIndex)
@@ -119,8 +119,8 @@ void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int ch
   ep->Data = (DataHigh + count * channels) % (sizeof DataBuffer/sizeof *DataBuffer);
   if (ep->Data < DataHigh)
   { // memory wrap
-    memcpy(DataBuffer + DataHigh, data, (sizeof DataBuffer/sizeof *DataBuffer - DataHigh) * sizeof (short));
-    memcpy(DataBuffer, data + sizeof DataBuffer/sizeof *DataBuffer - DataHigh, ep->Data * sizeof (short));
+    memcpy(DataBuffer + DataHigh, data, (sizeof DataBuffer/sizeof *DataBuffer - DataHigh) * sizeof (float));
+    memcpy(DataBuffer, data + sizeof DataBuffer/sizeof *DataBuffer - DataHigh, ep->Data * sizeof (float));
   } else
     memcpy(DataBuffer + DataHigh, data, count);
   BufferHigh = newbufhigh;
@@ -136,7 +136,7 @@ PM123_TIME PlaybackWorker::BackupBuffer::GetPosByWriteIndex(uint64_t wi) const
   }
   size_t p = FindByWriteIndex(wi);
   const Entry* ep = BufferQueue + p;
-  return ep->Pos - (PM123_TIME)(ep->WriteIndex - wi) / sizeof(short) / ep->Channels / ep->SampleRate;
+  return ep->Pos - (PM123_TIME)(ep->WriteIndex - wi) / sizeof(float) / ep->Channels / ep->SampleRate;
 }
 
 /*PM123_TIME PlaybackWorker::BackupBuffer::GetPosByTimeIndex(pa_usec_t time) const
@@ -150,20 +150,20 @@ PM123_TIME PlaybackWorker::BackupBuffer::GetPosByWriteIndex(uint64_t wi) const
   return ep->Pos - (ep->Time - time) / 1E6;
 }*/
 
-bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, short* data, size_t bytes, int& channels, int& rate) const
+bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, float* data, size_t samples, int& channels, int& rate) const
 { if (wi > MaxWriteIndex)
     return false; // Error: negative latency???
   size_t p = FindByWriteIndex(wi);
   const Entry* ep = BufferQueue + p;
   channels = ep->Channels;
   rate = ep->SampleRate;
-  size_t datastart = (ep->Data + sizeof DataBuffer/sizeof *DataBuffer - (ep->WriteIndex - wi) / sizeof(short)) % (sizeof DataBuffer/sizeof *DataBuffer);
-  size_t dataend = (datastart + bytes / sizeof(short)) % (sizeof DataBuffer/sizeof *DataBuffer);
+  size_t datastart = (ep->Data + sizeof DataBuffer/sizeof *DataBuffer - (ep->WriteIndex - wi) / sizeof(float)) % (sizeof DataBuffer/sizeof *DataBuffer);
+  size_t dataend = (datastart + samples) % (sizeof DataBuffer/sizeof *DataBuffer);
   if (datastart > dataend)
-  { memcpy(data, DataBuffer + datastart, (sizeof DataBuffer/sizeof *DataBuffer - datastart) * sizeof(short));
-    memcpy(data + (sizeof DataBuffer/sizeof *DataBuffer - datastart), DataBuffer, dataend * sizeof(short));
+  { memcpy(data, DataBuffer + datastart, (sizeof DataBuffer/sizeof *DataBuffer - datastart) * sizeof(float));
+    memcpy(data + (sizeof DataBuffer/sizeof *DataBuffer - datastart), DataBuffer, dataend * sizeof(float));
   } else
-    memcpy(data, DataBuffer + datastart, bytes);
+    memcpy(data, DataBuffer + datastart, samples * sizeof(float));
   return true;
 }
 
@@ -223,13 +223,13 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
       pl[PA_PROP_MEDIA_ARTIST]     = ToUTF8(buf, sizeof buf, tmp = meta->artist);
       pl[PA_PROP_MEDIA_COPYRIGHT]  = ToUTF8(buf, sizeof buf, tmp = meta->copyright);
     }
-    SS.assign(PA_SAMPLE_S16NE, info->tech->channels, info->tech->samplerate);
+    SS.assign(PA_SAMPLE_FLOAT32LE, info->tech->channels, info->tech->samplerate);
 
     // The context is automatically connected at plug-in initialization,
     // but at this point we have to synchronize the connection process.
     Context.WaitReady();
     Stream.Connect(Context, "Out", SS, NULL, pl,
-                     NULL, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
+                   NULL, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
 
     LastBuffer = NULL;
     TimeOffset = pos;
@@ -301,7 +301,7 @@ void PlaybackWorker::DrainOpCompletion(const int& success)
   RaiseOutputEvent(OUTEVENT_END_OF_DATA);
 }
 
-int PlaybackWorker::RequestBuffer(const TECH_INFO* format, short** buf) throw()
+int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::RequestBuffer({%i, %i}, )\n", this,
     format ? format->channels : -1, format ? format->samplerate : -1));
   try
@@ -312,8 +312,8 @@ int PlaybackWorker::RequestBuffer(const TECH_INFO* format, short** buf) throw()
     }
     // TODO: format changes!
     size_t len = (size_t)-1;
-    *buf = LastBuffer = (short*)Stream.BeginWrite(len);
-    len /= sizeof(short) * format->channels;
+    *buf = LastBuffer = (float*)Stream.BeginWrite(len);
+    len /= sizeof(float) * format->channels;
     DEBUGLOG(("PlaybackWorker::RequestBuffer: %i\n", len));
     return len;
 
@@ -327,7 +327,7 @@ void PlaybackWorker::CommitBuffer(int len, PM123_TIME pos) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::CommitBuffer(%i, %f) - %p\n", this, len, pos, LastBuffer));
   ASSERT(LastBuffer);
   try
-  { uint64_t wi = Stream.Write(LastBuffer, len * sizeof(short) * SS.channels);
+  { uint64_t wi = Stream.Write(LastBuffer, len * sizeof(float) * SS.channels);
     Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, LastBuffer, len);
     TrashFlag = false;
     LastBuffer = NULL;
@@ -344,7 +344,7 @@ BOOL PlaybackWorker::IsPlaying() throw()
 PM123_TIME PlaybackWorker::GetPosition() throw()
 { try
   { if (!TrashFlag && Stream.GetState() == PA_STREAM_READY)
-    { double tmp = Stream.GetTime()/1E6 * sizeof(short) * SS.channels * SS.rate;
+    { double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
       tmp = Buffer.GetPosByWriteIndex((uint64_t)tmp + WriteIndexOffset);
       DEBUGLOG(("PlaybackWorker::GetPosition: %f\n", tmp));
       return tmp;
@@ -357,15 +357,13 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
   return TimeOffset;
 }
 
-ULONG PlaybackWorker::GetCurrentSamples(FORMAT_INFO* info, char* buf, int len) throw()
+ULONG PlaybackWorker::GetCurrentSamples(FORMAT_INFO2* info, float* buf, int len) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::GetCurrentSamples(%p, %p, %i,)\n", this, info, buf, len));
   try
   { if (TrashFlag || Stream.GetState() != PA_STREAM_READY)
       return 1;
-    double tmp = Stream.GetTime()/1E6 * sizeof(short) * SS.channels * SS.rate;
-    info->format = WAVE_FORMAT_PCM;
-    info->bits = 16;
-    return !Buffer.GetDataByWriteIndex((uint64_t)tmp + WriteIndexOffset, (short*)buf, len, info->channels, info->samplerate);
+    double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
+    return !Buffer.GetDataByWriteIndex((uint64_t)tmp + WriteIndexOffset, buf, len, info->channels, info->samplerate);
   } catch (const PAException& ex)
   { // We ignore errors here
     DEBUGLOG(("PlaybackWorker::GetCurrentSamples: %s\n", ex.GetMessage().cdata()));
@@ -379,6 +377,6 @@ void PlaybackWorker::Error(const char* fmt, ...) throw()
   va_start(va, fmt);
   xstring err;
   err.vsprintf(fmt, va);
-  (*Ctx.plugin_api->error_display)(err);
+  (*Ctx.plugin_api->message_display)(MSG_ERROR, err);
   va_end(va);
 }

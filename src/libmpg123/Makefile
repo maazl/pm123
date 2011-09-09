@@ -12,8 +12,9 @@ TARGET   = libmpg123$(LBO)
 OBJECTS=compat$(CO) dct64$(CO) dct64_i386$(CO) dither$(CO) equalizer$(CO) feature$(CO)
 OBJECTS=$(OBJECTS) format$(CO) frame$(CO) id3$(CO) index$(CO) layer1$(CO) layer2$(CO)
 OBJECTS=$(OBJECTS) layer3$(CO) libmpg123$(CO) optimize$(CO) parse$(CO) readers$(CO)
-OBJECTS=$(OBJECTS) stringbuf$(CO) synth$(CO) synth_real$(CO) tabinit$(CO) tabinit_mmx$(CO)
+OBJECTS=$(OBJECTS) stringbuf$(CO) synth_real$(CO) tabinit$(CO) tabinit_mmx$(CO)
 OBJECTS=$(OBJECTS) testcpu$(CO)
+# synth$(CO) 
 
 # Assembler files
 OBJECTS=$(OBJECTS) dct36_3dnow$(CO) dct36_3dnowext$(CO) dct64_3dnow$(CO) dct64_3dnowext$(CO)

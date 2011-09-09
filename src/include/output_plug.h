@@ -9,11 +9,17 @@
 extern "C" {
 #endif
 
+#if PLUGIN_INTERFACE_LEVEL == 2 && !defined(PM123_DECODER_PLUG_H) && !defined(PM123_DECODER_PLUG_H)
+#error "The output plug-in interface level 2 (PM123 1.40a) is no longer supported."
+#endif
+
 #pragma pack(4)
 
-// forward declaration
-struct _DECODER_INFO;
-struct _DECODER_INFO2;
+/****************************************************************************
+ *
+ * Definitions common to all interface levels.
+ *
+ ***************************************************************************/
 
 ULONG DLLENTRY output_init  (void** a);
 ULONG DLLENTRY output_uninit(void*  a);
@@ -25,8 +31,20 @@ typedef enum
   OUTPUT_PAUSE         = 4,
   OUTPUT_SETUP         = 5,
   OUTPUT_TRASH_BUFFERS = 6,
+  #if PLUGIN_INTERFACE_LEVEL < 2
   OUTPUT_NOBUFFERMODE  = 7 /* obsolete */
+  #endif
 } OUTMSGTYPE;
+
+/****************************************************************************
+ *
+ * Definitions of level 1 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
+
+// forward declaration
+struct _DECODER_INFO;
 
 #define OUTPUT_SIZE_1 76  /* size of the OUTPUT_PARAMS structure prior PM123 1.32 */
 #define OUTPUT_SIZE_2 80  /* size of the OUTPUT_PARAMS structure since PM123 1.32 */
@@ -78,6 +96,25 @@ typedef struct _OUTPUT_PARAMS
 
 } OUTPUT_PARAMS;
 
+#if PLUGIN_INTERFACE_LEVEL < 2
+ULONG  DLLENTRY output_command(void* a, ULONG msg, OUTPUT_PARAMS* info);
+int    DLLENTRY output_play_samples(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker);
+ULONG  DLLENTRY output_playing_pos(void* a);
+
+ULONG  DLLENTRY output_playing_samples(void* a, FORMAT_INFO* info, char* buf, int len);
+BOOL   DLLENTRY output_playing_data(void* a);
+#endif
+
+#endif /* level 1 interface */
+
+
+/****************************************************************************
+ *
+ * Definitions of level 3 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL >= 3
+
 typedef enum
 { OUTEVENT_END_OF_DATA,   // The flush signal is passed to the ouput plugin and the last sample has been played
   OUTEVENT_LOW_WATER,     // The buffers of the output plug-in are getting low. Try to speed up the data source.
@@ -109,18 +146,16 @@ typedef struct _OUTPUT_PARAMS2
 
 } OUTPUT_PARAMS2;
 
-#if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL <= 1
-ULONG  DLLENTRY output_command(void* a, ULONG msg, OUTPUT_PARAMS* info);
-int    DLLENTRY output_play_samples(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker);
-ULONG  DLLENTRY output_playing_pos(void* a);
-#else
 ULONG  DLLENTRY output_command(void* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info);
-int    DLLENTRY output_request_buffer(void* a, const TECH_INFO* format, short** buf);
+int    DLLENTRY output_request_buffer(void* a, const FORMAT_INFO2* format, float** buf);
 void   DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker);
 PM123_TIME DLLENTRY output_playing_pos(void* a);
-#endif
-ULONG  DLLENTRY output_playing_samples(void* a, FORMAT_INFO* info, char* buf, int len);
+
+ULONG  DLLENTRY output_playing_samples(void* a, FORMAT_INFO2* info, float* buf, int len);
 BOOL   DLLENTRY output_playing_data(void* a);
+
+#endif /* level 3 interface */
+
 
 #pragma pack()
 

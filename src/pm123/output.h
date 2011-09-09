@@ -58,9 +58,9 @@ struct OutputProcs
   ULONG  DLLENTRYP(output_init           )(void** a);
   ULONG  DLLENTRYP(output_uninit         )(void*  a);
   ULONG  DLLENTRYP(output_command        )(void*  a, ULONG msg, OUTPUT_PARAMS2* info);
-  int    DLLENTRYP(output_request_buffer )(void*  a, const TECH_INFO* format, short** buf);
+  int    DLLENTRYP(output_request_buffer )(void*  a, const FORMAT_INFO2* format, float** buf);
   void   DLLENTRYP(output_commit_buffer  )(void*  a, int len, double posmarker);
-  ULONG  DLLENTRYP(output_playing_samples)(void*  a, FORMAT_INFO* info, char* buf, int len);
+  ULONG  DLLENTRYP(output_playing_samples)(void*  a, FORMAT_INFO2* info, float* buf, int len);
   double DLLENTRYP(output_playing_pos    )(void*  a);
   BOOL   DLLENTRYP(output_playing_data   )(void*  a);
          OutputProcs()                    { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs

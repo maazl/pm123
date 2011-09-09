@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Marcel Mueller
+ * Copyright 2010-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,8 +28,6 @@
 
 #define  INCL_DOS
 #define  INCL_WIN
-
-#define PLUGIN_INTERFACE_LEVEL 2
 
 #include "pulse123.h"
 #include "playbackworker.h"
@@ -74,10 +72,8 @@ ULONG DLLENTRY output_uninit(void* A)
 }
 
 /// Processing of a command messages.
-ULONG DLLENTRY
-output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
-{
-  DEBUGLOG(("pulse123:output_command(%p, %d, %p)\n", A, msg, info));
+ULONG DLLENTRY output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
+{ DEBUGLOG(("pulse123:output_command(%p, %d, %p)\n", A, msg, info));
   PlaybackWorker* a = (PlaybackWorker*)A;
 
   switch (msg)
@@ -102,7 +98,7 @@ output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
   return PLUGIN_ERROR;
 }
 
-int DLLENTRY output_request_buffer(void* a, const TECH_INFO* format, short** buf)
+int DLLENTRY output_request_buffer(void* a, const FORMAT_INFO2* format, float** buf)
 { return ((PlaybackWorker*)a)->RequestBuffer(format, buf);
 }
 
@@ -110,7 +106,7 @@ void DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker)
 { return ((PlaybackWorker*)a)->CommitBuffer(len, posmarker);
 }
 
-ULONG DLLENTRY output_playing_samples(void* a, FORMAT_INFO* info, char* buf, int len)
+ULONG DLLENTRY output_playing_samples(void* a, FORMAT_INFO2* info, float* buf, int len)
 { return ((PlaybackWorker*)a)->GetCurrentSamples(info, buf, len);
 }
 

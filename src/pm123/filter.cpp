@@ -28,7 +28,8 @@
 
 #include "filter.h"
 #include "infobundle.h"
-#include "123_util.h"
+#include "eventhandler.h"
+#include "proxyhelper.h"
 
 #include <debuglog.h>
 
@@ -102,15 +103,18 @@ class FilterProxy1 : public Filter, protected ProxyHelper
   BOOL  DLLENTRYP(vfilter_uninit       )( void*  f );
   int   DLLENTRYP(vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void* vf;
-  int   DLLENTRYP(output_request_buffer)( void*  a, const TECH_INFO* format, short** buf );
-  void  DLLENTRYP(output_commit_buffer )( void*  a, int len, double posmarker );
+  int   DLLENTRYP(output_request_buffer)( void*  a, const FORMAT_INFO2* format, float** buf );
+  void  DLLENTRYP(output_commit_buffer )( void*  a, int len, PM123_TIME posmarker );
   void* a;
   FORMAT_INFO vformat;                      // format of the samples (old style)
-  TechInfo    vtech;                        // format of the samples (new style)
-  short       vbuffer[BUFSIZE/2];           // buffer to store incoming samples
+  FORMAT_INFO2 vformat2;                    // format of the samples (new style)
+  union
+  { float     fbuf[BUFSIZE/2];              // buffer to store incoming samples
+    short     sbuf[BUFSIZE/2];              // buffer to store 16 bit converted samples
+  }           vbuffer;
   int         vbufsamples;                  // size of vbuffer in samples
   int         vbuflevel;                    // current filled to vbuflevel
-  double      vposmarker;                   // starting point of the current buffer
+  PM123_TIME  vposmarker;                   // starting point of the current buffer
   BOOL        trash_buffer;                 // TRUE: signal to discard any buffer content
   VDELEGATE   vd_filter_init;
   VREPLACE1   vr_filter_update;
@@ -120,9 +124,10 @@ class FilterProxy1 : public Filter, protected ProxyHelper
   PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( FilterProxy1* pp, void** f, FILTER_PARAMS2* params );
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( FilterProxy1* pp, const FILTER_PARAMS2* params );
   PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
-  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const TECH_INFO* format, short** buf );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( FilterProxy1* f, int len, double posmarker );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const FORMAT_INFO2* format, float** buf );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( FilterProxy1* f, int len, PM123_TIME posmarker );
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( FilterProxy1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  void         SendSamples();
  public:
   FilterProxy1(Module& mod) : Filter(mod) {}
   virtual void LoadPlugin();
@@ -144,6 +149,15 @@ void FilterProxy1::LoadPlugin()
   filter_uninit = vreplace1(&vr_filter_uninit, &proxy_1_filter_uninit, (void*)NULL);
 }
 
+inline void FilterProxy1::SendSamples()
+{ DEBUGLOG(("FilterProxy1(%p)::SendSamples() - full: %d\n", this, vbuflevel));
+  // convert samples to 16 bit short
+  Float2Short(vbuffer.sbuf, vbuffer.fbuf, vbuflevel * vformat.channels);
+  // Send samples to filter
+  (*vfilter_play_samples)(vf, &vformat, (char*)vbuffer.sbuf, vbuflevel * vformat.channels * sizeof(short), TstmpF2I(vposmarker));
+  vbuflevel = 0;
+}
+
 PROXYFUNCIMP(ULONG DLLENTRY, FilterProxy1)
 proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
 { DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->ModRef.Key.cdata(), f, params, params->a));
@@ -154,10 +168,10 @@ proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
                             &PROXYFUNCREF(FilterProxy1)proxy_1_filter_play_samples;
   par.a                   = pp;
   par.audio_buffersize    = BUFSIZE;
-  par.error_display       = &pm123_display_error;
-  par.info_display        = &pm123_display_info;
-  par.pm123_getstring     = &pm123_getstring;
-  par.pm123_control       = &pm123_control;
+  par.error_display       = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
+  par.info_display        = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
+  par.pm123_getstring     = &PROXYFUNCREF(ProxyHelper)PluginGetString;
+  par.pm123_control       = &PROXYFUNCREF(ProxyHelper)PluginControl;
   int r = (*pp->vfilter_init)(&pp->vf, &par);
   if (r != 0)
     return r;
@@ -174,9 +188,9 @@ proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
   vreplace1(&pp->vr_filter_uninit, pp->vfilter_uninit, pp->vf);
   // now return some values
   *f = pp;
-  params->output_request_buffer = (int  DLLENTRYPF()(void*, const TECH_INFO*, short**))
+  params->output_request_buffer = (int  DLLENTRYPF()(void*, const FORMAT_INFO2*, float**))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_request_buffer;
-  params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, double))
+  params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, PM123_TIME))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_commit_buffer;
   return 0;
 }
@@ -198,7 +212,7 @@ proxy_1_filter_uninit(void*)
 }
 
 PROXYFUNCIMP(int DLLENTRY, FilterProxy1)
-proxy_1_filter_request_buffer(FilterProxy1* pp, const TECH_INFO* format, short** buf)
+proxy_1_filter_request_buffer(FilterProxy1* pp, const FORMAT_INFO2* format, float** buf)
 { DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p, %p)\n", pp, format, buf));
 
   if ( pp->trash_buffer )
@@ -209,32 +223,22 @@ proxy_1_filter_request_buffer(FilterProxy1* pp, const TECH_INFO* format, short**
   if ( buf == 0
     || ( pp->vbuflevel != 0 &&
          (pp->vformat.samplerate != format->samplerate || pp->vformat.channels != format->channels) ))
-  { // local flush
-    DEBUGLOG(("proxy_1_filter_request_buffer: local flush: %d\n", pp->vbuflevel));
-    // Oh well, the old output plug-ins seem to play some more samples in doubt.
-    // memset( pp->vbuffer + pp->vbuflevel * pp->vformat.channels, 0, (pp->vbufsamples - pp->vbuflevel) * pp->vformat.channels * sizeof(short) );
-    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, pp->vbuflevel * pp->vformat.channels * sizeof(short), TstmpF2I(pp->vposmarker));
-  }
+    // local flush
+    pp->SendSamples();
   if ( buf == 0 )
   { return (*pp->output_request_buffer)( pp->a, format, NULL );
   }
   pp->vformat.samplerate = format->samplerate;
   pp->vformat.channels   = format->channels;
-  pp->vtech.attributes   = format->attributes;
-  // We use cmpcpy because it is faster, since the content of *format does most likely not change
-  // between calls to proxy_1_filter_request_buffer.
-  pp->vtech.info   .cmpassign(format->info);
-  pp->vtech.format .cmpassign(format->format);
-  pp->vtech.decoder.cmpassign(format->decoder);
-  pp->vbufsamples   = sizeof pp->vbuffer / sizeof *pp->vbuffer / format->channels;
+  pp->vbufsamples   = sizeof pp->vbuffer.fbuf / sizeof *pp->vbuffer.fbuf / format->channels;
 
   DEBUGLOG(("proxy_1_filter_request_buffer: %d\n", pp->vbufsamples - pp->vbuflevel));
-  *buf = pp->vbuffer + pp->vbuflevel * format->channels;
+  *buf = pp->vbuffer.fbuf + pp->vbuflevel * format->channels;
   return pp->vbufsamples - pp->vbuflevel;
 }
 
 PROXYFUNCIMP(void DLLENTRY, FilterProxy1)
-proxy_1_filter_commit_buffer( FilterProxy1* pp, int len, double posmarker )
+proxy_1_filter_commit_buffer( FilterProxy1* pp, int len, PM123_TIME posmarker )
 { DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %g)\n", pp, len, posmarker));
 
   if (len == 0)
@@ -245,11 +249,8 @@ proxy_1_filter_commit_buffer( FilterProxy1* pp, int len, double posmarker )
 
   pp->vbuflevel += len;
   if (pp->vbuflevel == pp->vbufsamples)
-  { // buffer full
-    DEBUGLOG(("proxy_1_filter_commit_buffer: full: %d\n", pp->vbuflevel));
-    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, BUFSIZE, TstmpF2I(pp->vposmarker));
-    pp->vbuflevel = 0;
-  }
+    // buffer full
+    pp->SendSamples();
 }
 
 PROXYFUNCIMP(int DLLENTRY, FilterProxy1)
@@ -258,27 +259,27 @@ proxy_1_filter_play_samples(FilterProxy1* pp, const FORMAT_INFO* format, const c
     pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker_i));
 
   if (format->format != WAVE_FORMAT_PCM || format->bits != 16)
-  { pm123_display_error("The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
+  { EventHandler::Post(MSG_ERROR, "The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
     return 0;
   }
-  double posmarker = TstmpI2F(posmarker_i, pp->vposmarker);
+  PM123_TIME posmarker = TstmpI2F(posmarker_i, pp->vposmarker);
   len /= pp->vformat.channels * sizeof(short);
   int rem = len;
   while (rem != 0)
   { // request new buffer
-    short* dest;
-    pp->vtech.samplerate = format->samplerate;
-    pp->vtech.channels   = format->channels;
-    int dlen = (*pp->output_request_buffer)( pp->a, &pp->vtech, &dest );
+    float* dest;
+    pp->vformat2.samplerate = format->samplerate;
+    pp->vformat2.channels   = format->channels;
+    int dlen = (*pp->output_request_buffer)( pp->a, &pp->vformat2, &dest );
     DEBUGLOG(("proxy_1_filter_play_samples: now at %p %d, %p, %d\n", buf, rem, dest, dlen));
     if (dlen <= 0)
       return 0; // error
     if (dlen > rem)
       dlen = rem;
     // store data
-    memcpy( dest, buf, dlen * pp->vformat.channels * sizeof(short) );
+    ProxyHelper::Short2Float(dest, (short*)buf, dlen * pp->vformat.channels);
     // commit destination
-    (*pp->output_commit_buffer)( pp->a, dlen, posmarker + (double)(len-rem)/format->samplerate );
+    (*pp->output_commit_buffer)( pp->a, dlen, posmarker + (PM123_TIME)(len-rem)/format->samplerate );
     buf += dlen * pp->vformat.channels * sizeof(short);
     rem -= dlen;
   }
@@ -299,6 +300,8 @@ int_ptr<Filter> Filter::GetInstance(Module& module)
   Filter* fil = module.Fil;
   if (fil && !fil->RefCountIsUnmanaged())
     return fil;
+  if (module.GetParams().interface == 2)
+    throw ModuleException("The filter plug-in %s is not supported. It is intended for PM123 1.40.", module.Key.cdata());
   fil = module.GetParams().interface <= 1 ? new FilterProxy1(module) : new Filter(module);
   try
   { fil->LoadPlugin();

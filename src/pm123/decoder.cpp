@@ -32,15 +32,13 @@
  */
 
 #define  INCL_PM
-#define  INCL_DOS
-#define  INCL_ERRORS
 
 #include "decoder.h"
-#include "dialog.h"
 #include "controller.h" // for starting position work around
-#include "configuration.h"
 #include "glue.h" // out_playing_pos
-#include "123_util.h" // for hab
+#include "configuration.h"
+#include "eventhandler.h"
+#include "proxyhelper.h"
 #include <vdelegate.h>
 #include <charset.h>
 #include <fileutil.h>
@@ -54,18 +52,6 @@
 #include <os2.h>
 
 #include <debuglog.h>
-
-
-#define DO_8(p,x) \
-{  { const int p = 0; x; } \
-   { const int p = 1; x; } \
-   { const int p = 2; x; } \
-   { const int p = 3; x; } \
-   { const int p = 4; x; } \
-   { const int p = 5; x; } \
-   { const int p = 6; x; } \
-   { const int p = 7; x; } \
-}
 
 
 /****************************************************************************
@@ -135,7 +121,7 @@ void Decoder::LoadPlugin()
   if ( (Type & DECODER_SONG)
     && ( !decoder_init || !decoder_uninit || !decoder_command
       || !decoder_status || !decoder_length || !decoder_event ))
-    throw new ModuleException("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
+    throw ModuleException("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
       ModRef.ModuleName.cdata());
 
   FillFileTypeCache();
@@ -252,22 +238,22 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
 
  private:
   int    Magic;
-  ULONG  DLLENTRYP(vdecoder_command      )( void* w, ULONG msg, DECODER_PARAMS* params );
-  int    DLLENTRYP(voutput_request_buffer)( void* a, const TECH_INFO* format, short** buf );
-  void   DLLENTRYP(voutput_commit_buffer )( void* a, int len, double posmarker );
-  void   DLLENTRYP(voutput_event         )( void* a, DECEVENTTYPE event, void* param );
+  ULONG  DLLENTRYP(vdecoder_command      )(void* w, ULONG msg, DECODER_PARAMS* params);
+  int    DLLENTRYP(voutput_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void   DLLENTRYP(voutput_commit_buffer )(void* a, int len, PM123_TIME posmarker);
+  void   DLLENTRYP(voutput_event         )(void* a, DECEVENTTYPE event, void* param);
   void*  a;
-  ULONG  DLLENTRYP(vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
-  ULONG  DLLENTRYP(vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
-  ULONG  DLLENTRYP(vdecoder_saveinfo )( const char* filename, const DECODER_INFO* info );
-  ULONG  DLLENTRYP(vdecoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
-  ULONG  DLLENTRYP(vdecoder_editmeta )( HWND owner, const char* url );
-  ULONG  DLLENTRYP(vdecoder_length   )( void* w );
-  void   DLLENTRYP(error_display)( char* );
+  ULONG  DLLENTRYP(vdecoder_fileinfo )(const char* filename, DECODER_INFO* info);
+  ULONG  DLLENTRYP(vdecoder_trackinfo)(const char* drive, int track, DECODER_INFO* info);
+  ULONG  DLLENTRYP(vdecoder_saveinfo )(const char* filename, const DECODER_INFO* info);
+  ULONG  DLLENTRYP(vdecoder_cdinfo   )(const char* drive, DECODER_CDINFO* info);
+  ULONG  DLLENTRYP(vdecoder_editmeta )(HWND owner, const char* url);
+  ULONG  DLLENTRYP(vdecoder_length   )(void* w);
+  //void   DLLENTRYP(error_display)(char*);
   HWND   hwnd; // Window handle for catching event messages
   ULONG  tid;  // decoder thread id
   xstring url; // currently playing song
-  double temppos;
+  PM123_TIME temppos;
   int    juststarted; // Status whether the first samples after DECODER_PLAY did not yet arrive. 2 = no data arrived, 1 = no valid data arrived, 0 = OK
   DECFASTMODE lastfast;
   DECODER_FILETYPE* filetypebuffer;
@@ -277,14 +263,14 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_editmeta, vd_decoder_length;
 
  private:
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PARAMS2* params );
-  PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, int* what, const INFO_BUNDLE* info,
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PARAMS2* params );
+  PROXYFUNCDEF void       DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, int* what, const INFO_BUNDLE* info,
                                                                                 DECODER_INFO_ENUMERATION_CB cb, void* param );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, xstring* errortxt );
-  PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-  PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, xstring* errortxt );
+  PROXYFUNCDEF int        DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   // Callback for proxy induced commands
   static  void CommandCallback(Ctrl::ControlCommand* cmd);
@@ -412,7 +398,7 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
     op, op->ModRef.Key.cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
-  { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
+  { EventHandler::Post(MSG_ERROR, "PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
     return 0; // error
   }
 
@@ -453,11 +439,9 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
   }
 
   while (rem)
-  { short* dest;
-    TechInfo ti;
-    ti.samplerate = format->samplerate;
-    ti.channels   = format->channels;
-    int l = (*op->voutput_request_buffer)(op->a, &ti, &dest);
+  { float* dest;
+    FORMAT_INFO2 fi = { format->samplerate, format->channels };
+    int l = (*op->voutput_request_buffer)(op->a, &fi, &dest);
     DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i %g\n", buf, l, rem, op->temppos));
     if (op->temppos != -1)
     { (*op->voutput_commit_buffer)(op->a, 0, op->temppos); // no-op
@@ -468,21 +452,20 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
     if (l > rem)
       l = rem;
     if (format->bits == 8)
-    { // convert to 16 bit
-      int i;
-      const unsigned char* sp = (const unsigned char*)buf;
-      short* dp = dest;
-      for (i = (l*format->channels) >> 3; i; --i)
-      { DO_8(p, dp[p] = (sp[p] + 128) << 8);
+    { const unsigned char* sp = (const unsigned char*)buf;
+      const unsigned char* ep = sp + (l*format->channels & -8);
+      float* dp = dest;
+      while (sp != ep)
+      { DO_8(p, dp[p] = (sp[p] - 128) / 256.);
         sp += 8;
         dp += 8;
       }
-      for (i = (l*format->channels) & 7; i; --i)
-      { *dp++ = (*sp++ + 128) << 8;
-      }
-    } else
-    { memcpy(dest, buf, l*bps);
-    }
+      ep = sp + (l*format->channels & ~-8);
+      while (sp != ep)
+        *dp++ = (*sp++ - 128) / 256.;
+    } else // 16 bit
+      ProxyHelper::Short2Float(dest, (short*)buf, l*format->channels);
+
     DEBUGLOG(("proxy_1_decoder_play_samples: commit: %i %g\n", posmarker, posmarker/1000. + (double)(len-rem)/format->samplerate));
     (*op->voutput_commit_buffer)(op->a, l, posmarker/1000. + (double)(len-rem)/format->samplerate);
     rem -= l;
@@ -547,8 +530,8 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
     par1.metadata_buffer     = op->metadata_buffer;
     par1.metadata_size       = sizeof(op->metadata_buffer);
     par1.audio_buffersize    = BUFSIZE;
-    par1.error_display       = &pm123_display_error;
-    par1.info_display        = &pm123_display_info;
+    par1.error_display       = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
+    par1.info_display        = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
 
     op->voutput_request_buffer = params->OutRequestBuffer;
     op->voutput_commit_buffer  = params->OutCommitBuffer;
@@ -755,7 +738,7 @@ proxy_1_decoder_editmeta( DecoderProxy1* op, HWND owner, const char* url )
   return (*op->vdecoder_editmeta)(owner, url);
 }
 
-PROXYFUNCIMP(double DLLENTRY, DecoderProxy1)
+PROXYFUNCIMP(PM123_TIME DLLENTRY, DecoderProxy1)
 proxy_1_decoder_length( DecoderProxy1* op, void* a )
 { DEBUGLOG(("proxy_1_decoder_length(%p, %p)\n", op, a));
   int i = (*op->vdecoder_length)(a);
@@ -861,6 +844,8 @@ int_ptr<Decoder> Decoder::GetInstance(Module& module)
   Decoder* dec = module.Dec;
   if (dec && !dec->RefCountIsUnmanaged())
     return dec;
+  if (module.GetParams().interface == 2)
+    throw ModuleException("The docoder %s is not supported. It is intended for PM123 1.40.", module.Key.cdata());
   dec = module.GetParams().interface <= 1 ? new DecoderProxy1(module) : new Decoder(module);
   try
   { dec->LoadPlugin();

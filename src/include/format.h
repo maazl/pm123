@@ -6,14 +6,19 @@
 
 #ifdef __cplusplus
 extern "C" {
+// Keep Eclipse CDT happy
+class xstring;
 #endif
 
-#define WAVE_FORMAT_PCM 0x0001
 
-/** Time index in seconds (may be fractional) */
-typedef double PM123_TIME;
-/** Object size in bytes (integral) - not all OS/2 compilers support 64 bit ints. */
-typedef double PM123_SIZE;
+/****************************************************************************
+ *
+ * Definitions of level 1 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
+
+#define WAVE_FORMAT_PCM 0x0001
 
 /** Format for Level 1 plug-ins only */
 typedef struct
@@ -23,6 +28,26 @@ typedef struct
   int        bits;
   int        format;     /* WAVE_FORMAT_PCM = 1 */
 } FORMAT_INFO;
+
+#endif /* level 1 interface */
+
+
+/****************************************************************************
+ *
+ * Definitions of level 3 interface
+ *
+ ***************************************************************************/
+#if PLUGIN_INTERFACE_LEVEL >= 2
+
+/** Time index in seconds (may be fractional) */
+typedef double PM123_TIME;
+/** Object size in bytes (integral) - not all OS/2 compilers support 64 bit ints. */
+typedef double PM123_SIZE;
+
+typedef struct
+{ int        samplerate;
+  int        channels;
+} FORMAT_INFO2;
 
 /** Physical file attributes */
 typedef enum
@@ -176,7 +201,8 @@ typedef struct
   volatile const ITEM_INFO*  item;
 } INFO_BUNDLE_CV;
 
-#pragma pack()
+#endif /* level 3 interface */
+
 
 #ifdef __cplusplus
 }

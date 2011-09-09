@@ -280,12 +280,13 @@ class CommandProcessor : public ACommandProcessor
   void CmdPlayonload();
 
   static const strmap<8,PLUGIN_TYPE> PluginTypeMap[];
+  bool ParseTypeList(PLUGIN_TYPE& type);
+  void ReplyType(PLUGIN_TYPE type);
   void AppendPluginType(PLUGIN_TYPE type);
 
   void CmdPluginLoad();
   void CmdPluginUnload();
   void CmdPluginParams();
-  void CmdPluginActive();
   void CmdPluginList();
 
  protected:
@@ -334,11 +335,10 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "play",           &CommandProcessor::CmdPlay          }
 , { "playlist",       &CommandProcessor::CmdPlaylist      }
 , { "playonload",     &CommandProcessor::CmdPlayonload    }
-, { "plugin active",  &CommandProcessor::CmdPluginActive  }
 , { "plugin list",    &CommandProcessor::CmdPluginList    }
 , { "plugin load",    &CommandProcessor::CmdPluginLoad    }
 , { "plugin params",  &CommandProcessor::CmdPluginParams  }
-, { "plugin unload",  &CommandProcessor::CmdPluginActive  }
+, { "plugin unload",  &CommandProcessor::CmdPluginUnload  }
 , { "prev",           &CommandProcessor::CmdPrev          }
 , { "previous",       &CommandProcessor::CmdPrev          }
 , { "query",          &CommandProcessor::CmdQuery         }
@@ -535,11 +535,13 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
 
 void CommandProcessor::DoFontOption(void*)
 { // old value
-  const volatile amp_cfg& rcfg = ReadCfg();
-  if (rcfg.font_skinned)
-    Reply.append(rcfg.font+1);
-  else
-    Reply.appendf("%i.%s", rcfg.font_size, rcfg.font_attrs.szFacename);
+  { Cfg::Access cfg;
+    const amp_cfg& rcfg = Request == Cmd_QueryDefault ? Cfg::Default : *cfg;
+    if (rcfg.font_skinned)
+      Reply.append(rcfg.font+1);
+    else
+      Reply.append(amp_font_attrs_to_string(rcfg.font_attrs, rcfg.font_size));
+  }
 
   if (Request == Cmd_SetDefault)
   { Cfg::ChangeAccess cfg;
@@ -549,34 +551,36 @@ void CommandProcessor::DoFontOption(void*)
     cfg.font         = Cfg::Default.font;
   } else if (Request)
   { // set new value
-    int font = 0;
     char* cp = strchr(Request, '.');
-    if (cp)
-      *cp++ = 0;
-    if (!parse_int(Request, font))
-    { Reply.clear(); // error
-      return;
-    }
-    if (cp)
+    if (!cp)
+    { // Skinned font
+      int font = 0;
+      if (!parse_int(Request, font))
+        Reply.clear(); // error
+      else
+        switch (font)
+        {case 1:
+         case 2:
+          { Cfg::ChangeAccess cfg;
+            cfg.font_skinned = true;
+            cfg.font         = font;
+            break;
+          }
+         default:
+          Reply.clear(); // error
+        }
+    } else
     { // non skinned font
       FATTRS fattrs = { sizeof(FATTRS), 0, 0, "", 0, 0, 16, 7, 0, 0 };
-      strlcpy(fattrs.szFacename, cp, sizeof fattrs.szFacename);
-      Cfg::ChangeAccess cfg;
-      cfg.font_skinned = false;
-      cfg.font_attrs   = fattrs;
-      cfg.font_size    = font;
-      // TODO: we should validate the font here.
-    } else
-    { switch (font)
-      {case 1:
-       case 2:
-        { Cfg::ChangeAccess cfg;
-          cfg.font_skinned = true;
-          cfg.font         = font;
-          break;
-        }
-       default:
+      unsigned size;
+      if (!amp_string_to_font_attrs(fattrs, size, Request))
         Reply.clear(); // error
+      else
+      { Cfg::ChangeAccess cfg;
+        cfg.font_skinned = false;
+        cfg.font_attrs   = fattrs;
+        cfg.font_size    = size;
+        // TODO: we should validate the font here.
       }
     }
   }
@@ -1521,6 +1525,29 @@ const strmap<8,PLUGIN_TYPE> CommandProcessor::PluginTypeMap[] =
 , { "visual",  PLUGIN_VISUAL }
 };
 
+bool CommandProcessor::ParseTypeList(PLUGIN_TYPE& type)
+{ for (const char* cp = strtok(Request, ",|"); cp; cp = strtok(NULL, ",|"))
+  { const strmap<8,PLUGIN_TYPE>* op = mapsearch(PluginTypeMap, cp);
+    if (op == NULL)
+      return false;
+    type |= op->Val;
+  }
+  return true;
+}
+
+void CommandProcessor::ReplyType(PLUGIN_TYPE type)
+{ size_t start = Reply.length();
+  const strmap<8,PLUGIN_TYPE>* tpp = PluginTypeMap;
+  const strmap<8,PLUGIN_TYPE>* tpe = tpp + sizeof PluginTypeMap / sizeof *PluginTypeMap;
+  while (++tpp != tpe)
+    if (type & tpp->Val)
+    { Reply.append(tpp->Str);
+      Reply.append(',');
+    }
+  if (Reply.length() != start)
+    Reply.erase(Reply.length()-1);
+}
+
 void CommandProcessor::AppendPluginType(PLUGIN_TYPE type)
 { size_t pos = Reply.length();
   for (const strmap<8,PLUGIN_TYPE>* op = PluginTypeMap +1
@@ -1537,6 +1564,17 @@ void CommandProcessor::AppendPluginType(PLUGIN_TYPE type)
     Reply.erase(Reply.length()-1);
 }
 
+static PLUGIN_TYPE DoDeserialize(const char* str, PLUGIN_TYPE type)
+{ if (type)
+    try
+    { Plugin::AppendPlugin(Plugin::Deserialize(str, type));
+      return type;
+    } catch (const ModuleException& ex)
+    { // TODO: log exception
+    }
+  return PLUGIN_NULL;
+}
+
 void CommandProcessor::CmdPluginLoad()
 {
   size_t len = strcspn(Request, " \t");
@@ -1544,25 +1582,48 @@ void CommandProcessor::CmdPluginLoad()
     return; // Plug-in name missing
   Request[len] = 0;
 
-  const strmap<8,PLUGIN_TYPE>* op = mapsearch(PluginTypeMap, Request);
-  if (op == NULL)
-    return;
+  PLUGIN_TYPE type = PLUGIN_NULL;
+  if (!ParseTypeList(type))
+    return; // Syntax error
 
   Request += len;
   Request += strspn(Request, " \t");
   // TODO: AppendPluginType(Plugin::Deserialize(Request, op->Val));
+
+  type = DoDeserialize(Request, type & PLUGIN_DECODER)
+       | DoDeserialize(Request, type & PLUGIN_FILTER)
+       | DoDeserialize(Request, type & PLUGIN_OUTPUT)
+       | DoDeserialize(Request, type & PLUGIN_VISUAL);
+
+  ReplyType(type);
+}
+
+static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
+{ if (type)
+  { PluginList list(type);
+    Mutex::Lock lock(Module::Mtx);
+    Plugin::GetPlugins(list, false);
+    const int_ptr<Plugin>* ppp = list.begin();
+    while (ppp != list.end())
+      if (&(*ppp)->ModRef == &module)
+      { list.erase(ppp);
+        Plugin::SetPluginList(list);
+        return type;
+      } else
+        ++ppp;
+  }
+  return PLUGIN_NULL;
 }
 
 void CommandProcessor::CmdPluginUnload()
-{
-  size_t len = strcspn(Request, " \t");
+{ size_t len = strcspn(Request, " \t");
   if (Request[len] == 0)
     return; // Plug-in name missing
   Request[len] = 0;
 
-  const strmap<8,PLUGIN_TYPE>* op = mapsearch(PluginTypeMap, Request);
-  if (op == NULL)
-    return;
+  PLUGIN_TYPE type = PLUGIN_NULL;
+  if (!ParseTypeList(type))
+    return; // Syntax error
 
   Request += len;
   Request += strspn(Request, " \t");
@@ -1570,20 +1631,78 @@ void CommandProcessor::CmdPluginUnload()
   if (module == NULL)
     return;
 
+  type = DoUnload(*module, type & PLUGIN_DECODER)
+       | DoUnload(*module, type & PLUGIN_FILTER)
+       | DoUnload(*module, type & PLUGIN_OUTPUT)
+       | DoUnload(*module, type & PLUGIN_VISUAL);
 
+  ReplyType(type);
 }
 
 void CommandProcessor::CmdPluginList()
-{
-  // TODO
-}
-
-void CommandProcessor::CmdPluginActive()
-{
-  // TODO
+{ size_t len = strcspn(Request, " \t");
+  char* np = Request + len;
+  if (*np)
+  { *np++ = 0;
+    np += strspn(np, " \t");
+  }
+  // requested plug-in type
+  const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
+  if (op == NULL)
+    return;
+  // Current state
+  PluginList list(op->Val);
+  if (*np)
+  { // set plug-in list
+    try
+    { list.Deserialize(np);
+      Plugin::SetPluginList(list);
+    } catch (const ModuleException& ex)
+    { // TODO: log error
+      return;
+    }
+  } else
+  { // get plug-in list
+    Plugin::GetPlugins(list, false);
+  }
+  Reply.append(list.Serialize());
 }
 
 void CommandProcessor::CmdPluginParams()
-{
-  // TODO
+{ size_t len = strcspn(Request, " \t");
+  if (!Request[len])
+    return; // missing plug-in name
+  // requested plug-in type
+  const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
+  if (op == NULL)
+    return; // invalid plug-in type
+  Request += len;
+  Request += strspn(Request, " \t");
+
+  char* params = strchr(Request, '?');
+  if (params)
+    *params++ = 0;
+  // find plug-in
+  int_ptr<Module> pm = Module::FindByKey(Request);
+  if (!pm)
+    return;
+  int_ptr<Plugin> pp = Plugin::FindInstance(*pm, op->Val);
+  if (!pp)
+    return;
+  // return current parameters
+  pp->Serialize(Reply);
+  // Set new parameters
+  if (params)
+  { stringmap_own sm(20);
+    url123::parseParameter(sm, params+1);
+    try
+    { pp->SetParams(sm);
+    } catch (const ModuleException& ex)
+    { // TODO: log exception
+    }
+    #ifdef DEBUG_LOG
+    for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
+      DEBUGLOG(("CommandProcessor::CmdPluginParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value.cdata()));
+    #endif
+  }
 }

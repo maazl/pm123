@@ -75,8 +75,8 @@
  * invalid according to the C++ standard, but IBMVAC++ does not care about that fact.
  */
 #ifdef NOSYSTEMSTATICMEMBER
-#define PROXYFUNCDEF friend static
-#define PROXYFUNCIMP(ret, cls) static ret
+#define PROXYFUNCDEF friend
+#define PROXYFUNCIMP(ret, cls) ret
 #define PROXYFUNCREF(cls)
 #else
 #define PROXYFUNCDEF static

@@ -33,6 +33,7 @@
 #define  DIALOG_H
 
 #define INCL_WIN
+#include <plugin.h>
 #include <config.h>
 #include <decoder_plug.h>
 #include <cpp/url123.h>
@@ -42,26 +43,16 @@
 class APlayable;
 class Playable;
 
-
-/* Return help manager instance.
- * Not valid until dlg_init(). */
-//HWND amp_help_mgr();
-
-/// Creates and displays a error message window.
-void amp_error( HWND owner, const char* format, ... );
-//void amp_verror( HWND owner, const char* format, va_list va );
-/// Creates and displays a error message window.
-void amp_player_error( const char* format, ... );
 /// Creates and displays a message window.
-void amp_info ( HWND owner, const char* format, ... );
+void amp_message( HWND owner, MESSAGE_TYPE type, const char* message );
+/// Creates and displays a message window.
+void amp_messagef( HWND owner, MESSAGE_TYPE type, const char* format, ... );
 /// Requests the user about specified action.
 BOOL amp_query( HWND owner, const char* format, ... );
 /// Requests the user about specified action. With cancel button.
 USHORT amp_query3( HWND owner, const char* format, ... );
 /// Requests the user about overwriting a file.
 BOOL amp_warn_if_overwrite( HWND owner, const char* filename );
-/* Tells the help manager to display a specific help window. */
-//bool  amp_show_help( SHORT resid );
 
 /// Wizard function for the default entry "File..."
 ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param );
@@ -81,7 +72,6 @@ void amp_add_bookmark(HWND owner, APlayable& item);
 /// @param playlist Playlist to save.
 /// @param format IN/OUT format to save. Preselected Format on input, selected format on output.
 /// @return Path where the file has been saved. \c NULL in case the user did not press OK.
-//url123 amp_save_playlist(HWND owner, Playable& playlist, xstring& format);
 url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas);
 /* Returns TRUE if the save stream feature has been enabled. */
 //void  amp_save_stream( HWND hwnd, BOOL enable );

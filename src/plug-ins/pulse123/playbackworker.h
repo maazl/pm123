@@ -52,15 +52,15 @@ class PlaybackWorker
     size_t           BufferLow;
     size_t           BufferHigh; // exclusive bound
     uint64_t         MaxWriteIndex;
-    short            DataBuffer[262144];
+    float            DataBuffer[131072];
     size_t           DataHigh;
    private:
-    size_t FindByWriteIndex(uint64_t wi) const;
+    size_t           FindByWriteIndex(uint64_t wi) const;
    public:
-    void Reset();
-    void StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const short* data, size_t count);
-    PM123_TIME GetPosByWriteIndex(uint64_t wi) const;
-    bool GetDataByWriteIndex(uint64_t wi, short* data, size_t bytes, int& channels, int& rate) const;
+    void             Reset();
+    void             StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const float* data, size_t count);
+    PM123_TIME       GetPosByWriteIndex(uint64_t wi) const;
+    bool             GetDataByWriteIndex(uint64_t wi, float* data, size_t samples, int& channels, int& rate) const;
   };
 
  private:
@@ -72,7 +72,7 @@ class PlaybackWorker
  private:
   void DLLENTRYP(OutputEvent)(void* w, OUTEVENTTYPE event);
   void*              W;
-  short*             LastBuffer;
+  float*             LastBuffer;
   pa_volume_t        Volume;
   PM123_TIME         TimeOffset;
   uint64_t           WriteIndexOffset;
@@ -92,12 +92,12 @@ class PlaybackWorker
   ULONG SetPause(bool pause) throw();
   ULONG TrashBuffers(PM123_TIME pos) throw();
 
-  int   RequestBuffer(const TECH_INFO* format, short** buf) throw();
+  int   RequestBuffer(const FORMAT_INFO2* format, float** buf) throw();
   void  CommitBuffer(int len, PM123_TIME posmarker) throw();
 
   BOOL  IsPlaying() throw();
   PM123_TIME GetPosition() throw();
-  ULONG GetCurrentSamples(FORMAT_INFO* info, char* buf, int len) throw();
+  ULONG GetCurrentSamples(FORMAT_INFO2* info, float* buf, int len) throw();
 
  private:
   void  DrainOpCompletion(const int& success);

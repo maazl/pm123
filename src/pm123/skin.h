@@ -32,11 +32,8 @@
 #ifndef PM123_SKIN_H
 #define PM123_SKIN_H
 
-#ifdef __cplusplus
-// Functions no longer supported in C mode
 #define INCL_WIN
 #include <os2.h>
-#endif
 
 /* SKIN */
 
@@ -151,7 +148,7 @@ enum
 #define DEF_HI_FG_COLOR  0x00FFFFFFUL
 #define DEF_HI_BG_COLOR  0x00808080UL
 
-typedef struct _BMPBUTTON
+struct BMPBUTTON
 {
   HWND  handle;           /* Button window handle.                          */
   int   id_r_pressed;     /* Pressed state bitmap for regular mode.         */
@@ -165,11 +162,8 @@ typedef struct _BMPBUTTON
   BOOL  sticky;           /* Is this a sticky button.                       */
   char* help;             /* Button description.                            */
 
-} BMPBUTTON, *PBMPBUTTON;
+};
 
-
-#ifdef __cplusplus
-// Function no longer supported in C mode
 
 /* Draws a activation led. */
 void bmp_draw_led( HPS hps, int active );
@@ -199,9 +193,9 @@ void bmp_draw_text( HPS hps );
 /* Sets the new displayed text. */
 void bmp_set_text( const char* string );
 /* Scrolls the current selected text. */
-BOOL bmp_scroll_text( void );
+BOOL bmp_scroll_text( );
 /* Returns a pointer to the current selected text. */
-const char* bmp_query_text( void );
+const char* bmp_query_text( );
 
 /* Queries whether a point lies within a volume bar rectangle. */
 BOOL bmp_pt_in_volume( POINTL pos );
@@ -216,7 +210,7 @@ double bmp_calc_volume( POINTL pos );
 double bmp_calc_time( POINTL pos );
 
 /* Deallocates all resources used by current loaded skin. */
-void bmp_clean_skin( void );
+void bmp_clean_skin( );
 /* Loads specified skin. */
 bool bmp_load_skin( const char *filename, HWND hplayer );
 /* Adjusts current skin to the selected size of the player window. */
@@ -227,5 +221,4 @@ BOOL bmp_is_mode_supported( int mode );
 /* Returns TRUE if specified font supported by current skin. */
 BOOL bmp_is_font_supported( int font );
 
-#endif
 #endif /* PM123_SKIN_H */

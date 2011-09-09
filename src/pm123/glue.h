@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2010 Marcel Mueller
+ * Copyright 2006-2011 Marcel Mueller
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
@@ -56,16 +56,10 @@ ULONG dec_fast(DECFASTMODE mode);
 ULONG dec_jump(PM123_TIME location);
 /// Set savefilename to save the raw stream data
 ULONG dec_save(const char* file);
-/// Save ID3-data to the given file
-ULONG dec_saveinfo(const char* url, const META_INFO* info, DECODERMETA haveinfo, const char* decoder, xstring& errortxt);
-/// Save Playlist to file
-ULONG dec_saveplaylist(const char* url, Playable& playlist, const char* decoder, const char* format, bool relative);
-/// call special decoder dialog to edit ID3-data of the given file
-ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
 /// get the minimum sample position of a block from the decoder since the last dec_play
-double dec_minpos();
+PM123_TIME dec_minpos();
 /// get the maximum sample position of a block from the decoder since the last dec_play
-double dec_maxpos();
+PM123_TIME dec_maxpos();
 /// Decoder events
 typedef struct
 { DECEVENTTYPE type;
@@ -76,32 +70,6 @@ extern event<const dec_event_args> dec_event;
 /// Output events
 extern event<const OUTEVENTTYPE> out_event;
 
-class Decoder;
-class IFileTypesEnumerator
-{public:
-  virtual ~IFileTypesEnumerator() {}
-  virtual const DECODER_FILETYPE* GetCurrent() const = 0;
-  virtual int_ptr<Decoder> GetDecoder() const = 0;
-  virtual bool Next() = 0;
-};
-IFileTypesEnumerator* dec_filetypes(DECODER_TYPE flagsreq);  
-
-/****************************************************************************
-*
-*  Status interface for the decoder engine
-*  Thread safe
-*
-****************************************************************************/
-ULONG DLLENTRY dec_fileinfo( const char* filename, int* what, INFO_BUNDLE* info,
-                             DECODER_INFO_ENUMERATION_CB cb, void* param );
-
-ULONG DLLENTRY dec_status( void );
-double DLLENTRY dec_length( void );
-
-/* gets a merged list of the file extensions supported by the enabled decoders */
-//void dec_merge_extensions(stringset& list);
-/* gets a merged list of the file types supported by the enabled decoders */
-//void dec_merge_file_types(stringset& list);
 
 /****************************************************************************
 *
@@ -110,11 +78,11 @@ double DLLENTRY dec_length( void );
 *
 ****************************************************************************/
 ULONG out_setup( const APlayable& song );
-ULONG out_close( void );
+ULONG out_close( );
 void  out_set_volume( double volume ); // volume: [0,1]
 ULONG out_pause( BOOL pause );
-BOOL  out_flush( void );
-BOOL  out_trash( void );
+BOOL  out_flush( );
+BOOL  out_trash( );
 
 /****************************************************************************
 *
@@ -122,9 +90,9 @@ BOOL  out_trash( void );
 *  Thread safe
 *
 ****************************************************************************/
-ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
-double DLLENTRY out_playing_pos( void );
-BOOL  DLLENTRY out_playing_data( void );
+ULONG DLLENTRY out_playing_samples( FORMAT_INFO2* info, float* buf, int len );
+PM123_TIME DLLENTRY out_playing_pos( );
+BOOL  DLLENTRY out_playing_data( );
 
 
 #endif /* PM123_GLUE_H */

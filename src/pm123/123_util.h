@@ -37,14 +37,6 @@
 #include <cpp/url123.h>
 
 
-/* visualize errors from anywhere */
-void DLLENTRY pm123_display_info ( const char* );
-void DLLENTRY pm123_display_error( const char* );
-
-void DLLENTRY pm123_control( int index, void* param );
-
-int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-
 /* Constructs a string of the displayable text from the file information. [123_utils] */
 const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info );
 

@@ -30,28 +30,24 @@
  */
 
 #define  INCL_WIN
-#define  INCL_GPI
 #define  INCL_DOS
 #define  INCL_DOSERRORS
-#define  INCL_WINSTDDRAG
-#include <os2.h>
-
-//#undef DEBUG_LOG
-//#define DEBUG_LOG 2
 
 #include "pm123.h"
+#include "eventhandler.h"
 #include "123_util.h"
-#include "plugman.h"
 #include "button95.h"
+#include "plugman.h"
 #include "gui.h"
+#include "dialog.h"
 #include "configuration.h"
 #include "controller.h"
 #include "loadhelper.h"
 #include "pipe.h"
 
-#include <fileutil.h>
-#include <utilfct.h>
 #include <xio.h>
+#include <utilfct.h>
+#include <os2.h>
 
 #include <stdio.h>
 
@@ -84,6 +80,14 @@ void amp_fail(const char* fmt, ...)
   va_end(va);
   exit(1);
 }
+
+static void amp_default_message_handler(MESSAGE_TYPE type, const xstring& msg)
+{ HWND owner = GUI::GetFrameWindow();
+  if (owner == NULLHANDLE)
+    owner = HWND_DESKTOP; // GUI not yet initialized
+  amp_message(owner, type, msg);
+}
+
 
 static char* fetcharg(char**& argv, const char* opt)
 { if (!*++argv)
@@ -210,6 +214,9 @@ int main(int argc, char** argv)
   Hab = WinInitialize(0);
   HMQ hmq = WinCreateMsgQueue(Hab, 0);
   PMASSERT(hmq != NULLHANDLE);
+
+  // Init global message handler
+  EventHandler::SetDefaultHandler(&amp_default_message_handler);
 
   // initialize properties
   Cfg::Init();

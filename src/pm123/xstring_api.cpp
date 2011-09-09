@@ -34,8 +34,6 @@
 #include <interlocked.h>
 #include <cpp/xstring.h>
 
-#include <string.h>
-
 
 /****************************************************************************
 *

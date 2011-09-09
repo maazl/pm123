@@ -37,7 +37,7 @@ All exported and callback functions must use the calling convention <code>_cdecl
  href="#interface_level">interface compatibility</a> of your plugin.
 Example:</p>
 <blockquote>
-  <pre>#define PLUGIN_INTERFACE_LEVEL 2<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;</pre>
+  <pre>#define PLUGIN_INTERFACE_LEVEL 3<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;</pre>
 </blockquote>
 <h4>Initialization</h4>
 <p><a name="plugin_query"></a>A plug-in must have a function that
@@ -67,7 +67,7 @@ the functions must
 not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a>
 returned.</p>
 <blockquote>
-  <pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * xstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>xstring_alloc</b>)( xstring* dst, unsigned int len );<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>xstring_free</b>)( volatile xstring* dst );<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>xstring_length</b>)( const xstring* src );<br>/* Compare two xstrings for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>xstring_equal</b>)( const xstring* src1, const xstring* src2 );<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_assign</b>)( volatile xstring* dst, const char* cstr );<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>xstring_copy</b>)( volatile xstring* dst, const xstring* src );<br>/* Strongly thread safe version of xstring_copy. */<br>void DLLENTRY (*<b>xstring_copy_safe</b>)( volatile xstring* dst, volatile const xstring* src );<br>/* Append to xstring. The source may also be from a xstring.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>xstring_append</b>)( xstring* dst, const char* cstr ); <br>/* printf into a xstring. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_sprintf</b>)( volatile xstring* dst, const char* fmt, ... );<br>void DLLENTRY (*<b>xstring_vsprintf</b>)( volatile xstring* dst, const char* fmt, va_list va );</pre>
+  <pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)(const char* <var>msg</var>);<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)(const char* <var>msg</var>);<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)(const char* <var>cmd</var>);<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)(const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var>);<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)(const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var>);<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * xstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>xstring_alloc</b>)(xstring* dst, unsigned int len);<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>xstring_free</b>)(volatile xstring* dst);<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>xstring_length</b>)(const xstring* src);<br>/* Compare two xstrings for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>xstring_equal</b>)(const xstring* src1, const xstring* src2);<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_assign</b>)(volatile xstring* dst, const char* cstr);<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>xstring_copy</b>)(volatile xstring* dst, const xstring* src);<br>/* Strongly thread safe version of xstring_copy. */<br>void DLLENTRY (*<b>xstring_copy_safe</b>)(volatile xstring* dst, volatile const xstring* src);<br>/* Append to xstring. The source may also be from a xstring.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>xstring_append</b>)(xstring* dst, const char* cstr); <br>/* printf into a xstring. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_sprintf</b>)(volatile xstring* dst, const char* fmt, ...);<br>void DLLENTRY (*<b>xstring_vsprintf</b>)(volatile xstring* dst, const char* fmt, va_list va);</pre>
 </blockquote>
 <p>The <b><tt>exec_command</tt></b>
 function causes
@@ -94,8 +94,9 @@ If you pass <tt>NULL</tt> as <var><tt>key</tt></var>,
 a list of <tt>'\0'</tt> delimited keys is
 returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt>
 on success and <tt>FALSE</tt> on error.</p>
-<p>The <a href="xstring_api.html"><b><tt>xstring_</tt>*</b> API functions</a>
-are used to manipulate dynamic strings of type <b><tt>xstring</tt></b>.</p>
+<p>The <a href="xstring_api.html"><b><tt>xstring_</tt>*</b> API
+functions</a>
+are used to manipulate dynamic strings of type <a href="xstring.html"><b><tt>xstring</tt></b></a>.</p>
 <h4>Configuration</h4>
 <p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable
 = TRUE</tt>
@@ -124,7 +125,7 @@ prefix. The handling is plug-in specific. <var><tt>result</tt></var>
 should be assigned with the result of the command if any. Note that
 these commands must not be used to control the primary function of a
 plug-in like to stop decoding a file. It is mainly intended for remote
-configuration.<br>
+configuration.
 </p>
 <h4>Unload</h4>
 <p><a name="plugin_deinit"></a>Plug-ins should deinitialize and destroy
@@ -150,20 +151,20 @@ levels</h3>
 plug-ins over different versions of PM123. The field defaults to 0
 representing the oldest implementation. Larger values reflect changes
 to the plug-in interface. The interface level reflects changes to any
-of the plugin interfaces, so different levels do not neccessarily mean
+of the plugin interfaces, so different levels do not necessarily mean
 different interfaces of <em>one</em> plug-in interface. A
 change in the interface may be only a modified semantic of a function
 call or it may be a complete change of the interface with entirely
 other function names or whatever. See the individual PDK documentation
 of the desired plug-in type to get further information for each plug-in
 type.<br>
-A new plugin is not necessarily required to use the most recent
+A new plug-in is not necessarily required to use the most recent
 interface level.</p>
 <ul>
   <li>PM123 will refuse to load plug-ins with a higher interface
 level than the one PM123 was compiled with.</li>
   <li>PM123 will handle older plug-ins in a compatibility mode as
-far as possible.</li>
+far as reasonable.</li>
 </ul>
 <p>Overview:
 <table border="1" cellpadding="3" cellspacing="0">
@@ -178,31 +179,39 @@ far as possible.</li>
     </tr>
     <tr>
       <td>0</td>
-      <td>n/a <font size="-1"><sup><a href="index.html#note1">1</a></sup></font></td>
+      <td>n/a <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
       <td><em>no longer supported!</em></td>
       <td>supported</td>
-      <td>supported but deprecated</td>
-      <td>supported</td>
+      <td>supported, deprecated</td>
+      <td>supported, deprecated</td>
     </tr>
     <tr>
       <td>1</td>
       <td>&#8805; 1.32 <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
-      <td>recent</td>
+      <td><em>no longer supported!</em></td>
       <td>supported,<br>
 same as level 0</td>
       <td>supported but deprecated,<br>
 same as level 0</td>
-      <td>suppoerted,<br>
+      <td>supported, deprecated,<br>
 same as level 0</td>
     </tr>
     <tr>
       <td>2</td>
-      <td>&#8805; 1.4</td>
-      <td>recent,<br>
+      <td>= 1.40 <font size="-1"><sup><a href="#note2">2</a></sup></font></td>
+      <td><em>no longer supported!</em><br>
 same as level 1</td>
-      <td>recent redesign</td>
-      <td>recent redesign</td>
-      <td>recent, completely new interface</td>
+      <td><em>no longer supported!</em></td>
+      <td><em>no longer supported!</em></td>
+      <td><em>no longer supported!</em></td>
+    </tr>
+    <tr>
+      <td valign="top">3</td>
+      <td valign="top">= 1.41</td>
+      <td valign="top">recent</td>
+      <td valign="top">recent</td>
+      <td valign="top">recent</td>
+      <td valign="top">recent</td>
     </tr>
   </tbody>
 </table>
@@ -211,19 +220,26 @@ same as level 1</td>
   <li><a name="note1"></a>PM123 up to version 1.32
 does not check for the compatibility of plug-ins. When a wrong plug-in
 is used, the application will most likely crash.</li>
+  <li><a name="note2"></a>The plug-in interface of PM123 1.41 never got
+really stable and therefore is no longer supported.</li>
 </ol>
 <p>For example a filter plug-in will be loaded depending on it's
-interface level by a PM123 instance with interface level 2 (compile
+interface level by a PM123 instance with interface level 3 (compile
 time constant) in the following way:
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
-      <th>Interface level</th>
+      <th>Interface level<br>
+of the plug-in</th>
       <th>Action taken</th>
     </tr>
     <tr>
+      <td valign="top">3</td>
+      <td valign="top">Loaded native.</td>
+    </tr>
+    <tr>
       <td>2</td>
-      <td>Loaded native</td>
+      <td><em>Error</em>, because level 2 is discontinued.</td>
     </tr>
     <tr>
       <td>1</td>
@@ -236,7 +252,7 @@ Level 0 is identical to level 1 with respect to the filter plug-in
 interface.</td>
     </tr>
     <tr>
-      <td>&gt;2</td>
+      <td>&gt;3</td>
       <td>Error, because the interface is potentially
 incompatible and not supported by this PM123 core. </td>
     </tr>

@@ -35,15 +35,16 @@
 #include "configuration.h"
 #include "windowbase.h"
 #include "pm123.rc.h"
+#include "eventhandler.h"
 #include "dialog.h"
 #include "filedlg.h"
 #include "gui.h" // ShowHelp
+#include "123_util.h" // amp_font_attrs_to_string
 #include "controller.h"
 #include "copyright.h"
 #include "plugman.h"
 #include "decoder.h"
 #include "visual.h"
-#include "123_util.h"
 #include "pm123.h"
 #include <utilfct.h>
 #include <cpp/pmutils.h>
@@ -573,11 +574,9 @@ ULONG PropertyDialog::PluginPage::AddPlugin()
       /* TODO: still required?
       if (rc & PLUGIN_VISUAL)
         vis_init(List->size()-1);*/
-      if ((List.Type & PLUGIN_FILTER) && Ctrl::IsPlaying())
-        amp_info(GetHwnd(), "This filter will only be enabled after playback stops.");
       RequestList();
     } catch (const ModuleException& ex)
-    { pm123_display_error(ex.GetErrorText());
+    { amp_message(Parent.GetHwnd(), MSG_ERROR, ex.GetErrorText());
     }
   }
   return rc;

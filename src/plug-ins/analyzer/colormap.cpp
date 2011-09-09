@@ -112,7 +112,7 @@ static void StoreRGBvalue(BYTE* dst, double val)
    else if (val > 255)
     *dst = 255;
    else
-    *dst = val +.5; // rounding 
+    *dst = (BYTE)(val +.5); // rounding
 }
 
 /* color space transformation */
@@ -127,7 +127,7 @@ void YDCyl2RGB(RGB2* result, const YDCyl_color* src)
 
 /* transfer interpolation data into palette */
 void interpolate(RGB2* dst, size_t dstlen, const color_entry* src, size_t srclen)
-{ int i;
+{ size_t i;
   YDCyl_color col;
   for (i = 0; i < dstlen; ++i)
   { interpolate_color(&col, (double)i / (dstlen-1), src, srclen);

@@ -50,7 +50,7 @@
 //#include <direct.h>
 
 
-void DLLENTRY pm123_display_info( const char* info )
+/*void DLLENTRY pm123_display_info( const char* info )
 { GUI::ViewMessage(xstring(info), false);
 }
 
@@ -60,14 +60,14 @@ void DLLENTRY pm123_display_error( const char *info )
 
 void DLLENTRY pm123_control( int index, void* param )
 {
-  /* TODO: pm123_control
+   TODO: pm123_control
   switch (index)
   {
     case CONTROL_NEXTMODE:
       WinSendMsg( amp_player_window(), AMP_DISPLAY_MODE, 0, 0 );
       break;
   }
-  */
+
 }
 
 int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
@@ -108,7 +108,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
    default: break;
   }
  return(0);
-}
+}*/
 
 /* Constructs a string of the displayable text from the file information. */
 const xstring

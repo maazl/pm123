@@ -2,7 +2,7 @@
  * Code that uses fft123.dll to make some interesting data to display
  *
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *           2006      Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ typedef enum
 /* entry points
    The must be set before calling specana_do.
 */
-extern ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+extern ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO2* info, float* buf, int len );
 extern BOOL  DLLENTRYP(decoderPlaying)( void );
 
 
@@ -70,7 +70,7 @@ extern BOOL  DLLENTRYP(decoderPlaying)( void );
    when it is called initially or when numsamples changed since the last call.
    This will take longer than a usual call.
 */
-SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* info);
+SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO2* info);
 /* explicitly uninitialize, free internal resources */
 void specana_uninit(void);
 

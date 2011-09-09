@@ -34,7 +34,7 @@
 #include "pipe.h"
 #include "commandprocessor.h"
 #include "configuration.h"
-#include "dialog.h"
+#include "eventhandler.h"
 
 
 #define PIPE_BUFFER_SIZE 65536
@@ -144,7 +144,7 @@ bool amp_pipe_create( void )
                              2048, 2048, 500 );
 
   if (rc != 0 && rc != ERROR_PIPE_BUSY)
-  { amp_player_error("Could not create pipe %s, rc = %d.", pipe_name.cdata(), rc);
+  { EventHandler::PostFormat(MSG_WARNING, "Could not create pipe %s, rc = %d.", pipe_name.cdata(), rc);
     return false;
   }
 

@@ -1,247 +1,202 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Output Plug-ins</title>
-
-
-
-  
-
-  
-  
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head><body>
+<html>
+<head>
+  <title>Output Plug-ins</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
 <h2>PM123 Output Plug-ins</h2>
-
 <p>Output plug-ins must implement and export the functions defined in <tt>output_plug.h</tt>.
-There are two interface versions. It is strongly recommended to use (at
-least) level 2.</p><h3><a name="level_2"></a>Interface revision level 2 (recommended)</h3>
-
+There are different interface versions. It is recommended to use
+level 3.</p>
+<h3><a name="level_2"></a>Interface revision level 3 (recommended)</h3>
 <h4><a name="initialization_interface"></a>Initialization interface</h4>
-
 <p>The initialization interface does not need to be thread safe.</p>
-
-<pre>     ULONG DLLENTRY <b>output_init</b>  (void **a)<br>     ULONG DLLENTRY <b>output_uninit</b>(void  *a)<br></pre>
-
+<pre>     ULONG DLLENTRY <b>output_init</b>  (void**<var> a</var>)<br>     ULONG DLLENTRY <b>output_uninit</b>(void* <var> a</var>)</pre>
 <ul>
-
-  <li>a : Allocate any chunk of memory necessary for the output's
-function. This pointer will be passed to the other functions.
-  </li>
-  <li>return value : <tt>PLUGIN_OK</tt> (0) means the output was initialized
-successfully.
-  </li>
+  <li><var><tt>a</tt></var> - Allocate any chunk of memory necessary
+for the output's
+function. This pointer will be passed to the other functions. </li>
+  <li><var>return value</var> - <tt>PLUGIN_OK</tt> (<tt>0</tt>) means
+the output was
+initialized
+successfully. </li>
 </ul>
-
-<p>
-Init function is called when the user requests the use of your output
+<p>The <tt>output_init</tt> function is called when the user requests
+the use of your output
 plug-in. So only one output plug-in is active at any given time. It
-should initialize the control variables for an eventual call to <tt>OUTPUT_OPEN</tt>. <i>output_uninit</i>
+should initialize the control variables for an eventual call to <tt>output_command</tt>
+with <tt>OUTPUT_OPEN</tt>.<br>
+<tt>output_uninit</tt>
 is called when another output
 plug-in is request by the user and should free the allocated memory for
-<i>a</i>.</p>
-
+<tt><i>a</i></tt>.</p>
 <h4><a name="control_interface"></a>Control interface</h4>
-
 <p>The control interface does not need to be thread safe itself, but it
 is called from a different thread than the <a href="#data_interface">data
 interface</a>.</p>
-
 <blockquote>
-  <pre><a name="output_command"></a>ULONG DLLENTRY <b>output_command</b>(void *a, ULONG msg, OUTPUT_PARAMS2 *info)</pre>
+  <pre><a name="output_command"></a>ULONG DLLENTRY <b>output_command</b>(void* <var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS2* <var>info</var>)</pre>
 </blockquote>
-
 <ul>
-
-  <li><var>msg</var> - one of the following:<br>
+  <li><tt><var>msg</var></tt> - one of the following:<br>
     <ul>
       <li><code>OUTPUT_OPEN</code> opens the device or file needed for
 output.<br>
 This may happen while the device is already open, if the playback moves
 to the next file in playlist mode. As long as you do not care about the
-new filename you should ignore this message in this case.
-      </li>
+new filename you should ignore this message in this case. </li>
       <li><code>OUTPUT_CLOSE</code> immediately stop playback and close
-the audio device.
-      </li>
+the audio device. </li>
       <li><code>OUTPUT_VOLUME</code> changes the volume of an output
-device.
-      </li>
+device. </li>
       <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in <code>output_request_buffer()</code>).
       </li>
       <li><code>OUTPUT_SETUP</code> setup the format that <code>output_request_buffer()</code>
 will most likely receive, event callback. </li>
       <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently
-awating to be played.
-      </li>
+awaiting to be played. </li>
     </ul>
   </li>
-  <li><var>info</var> - structure that contains the parameters needed
-by the preceding commands
-  </li>
-  <li>return value:<br><tt>
-PLUGIN_OK</tt> (0) -&gt; ok.<br>
-others -&gt; MMOS/2 errors or anything else.
-  </li>
+  <li><tt><var>info</var></tt> - structure that contains the parameters
+needed
+by the preceding commands </li>
+  <li><i>return value - </i><br>
+    <tt>PLUGIN_OK</tt> (<tt>0</tt>) -&gt; O.K.<br>
+others -&gt; MMOS/2 errors or anything else. </li>
 </ul>
-
 <p>There is a lot of commands to implement for this function.
 Parameters
 needed for each of them are described in the definition of the
 <tt>OUTPUT_PARAMS2</tt> structure
 in the <tt>output_plug.h</tt> file.</p>
-
 <p>The status graph is as follows:
 </p>
-
 <ol>
-
   <li><code>OUTPUT_VOLUME</code></li>
   <li><code>OUTPUT_SETUP</code></li>
-  <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>. The <a href="#data_interface">data interface</a> may be used.<br>
+  <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>. The <a
+ href="#data_interface">data interface</a> may be used.<br>
 Optionally repeat this step.</li>
   <li><code>OUTPUT_CLOSE</code> - now we are no longer active.</li>
 </ol>
-
-<p>The funtion codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
+<p>The function codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
 are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always
 allowed.</p>
-
 <h5>Notes</h5>
-
 <ol>
-
-<li>The output plug-in MUST call the eventhandler <strong><code>output_event</code></strong>
-with the parameter <strong><code>OUTEVENT_PLAY_ERROR</code></strong>
-when a playback error occures. This will stop the playback, but it is
+  <li>The output plug-in MUST call the event handler <b><code>output_event</code></b>
+with the parameter <b><code>OUTEVENT_PLAY_ERROR</code></b>
+when a playback error occurs. This will stop the playback, but it is
 not guaranteed that this ist done immediately.</li>
-  <li>The output plug-in must call <code>output_event</code> with <strong><code>OUTEVENT_END_OF_DATA</code></strong>
+  <li>The output plug-in must call <code>output_event</code> with <b><code>OUTEVENT_END_OF_DATA</code></b>
 when the last sample is really processed. This must not be done unless
 the function <code>output_play_samples</code> has been called with a
 buffer pointer of <code>NULL</code> (flush signal).</li>
-  <li>The output plug-in may raise the events <strong><code>OUTEVENT_LOW_WATER</code></strong>
-and <strong><code>OUTEVENT_HIGH_WATER</code></strong> to signal that
+  <li>The output plug-in may raise the events <b><code>OUTEVENT_LOW_WATER</code></b>
+and <b><code>OUTEVENT_HIGH_WATER</code></b> to signal that
 the buffers are running low or the buffers are getting full
 respectively. This is used by PM123 to control the scheduling priority.</li>
   <li>The event handler may be called from any thread in any context.</li>
-
-<li>The URI parameter at the <code>OUTPUT_OPEN</code> call uses the
+  <li>The URI parameter at the <code>OUTPUT_OPEN</code> call uses the
 following syntax:<br>
-<samp>file:///D:/Music/my favorite song.mp3</samp><br>
-<samp>file://server/share/favorite song.mp3</samp> (UNC path)<br>
-<samp>http://</samp>... (as you would expect)<br>
-<samp>cdda:///H:/track02</samp><br>
-The URI may change during playback. This is signalled with a new <code>OUTPUT_OPEN</code>
+    <samp>file:///D:/Music/my favorite song.mp3</samp><br>
+    <samp>file://server/share/favorite song.mp3</samp> (UNC path)<br>
+    <samp>http://</samp>... (as you would expect)<br>
+    <samp>cdda:///H:/track02</samp><br>
+The URI may change during playback. This is signaled with a new <code>OUTPUT_OPEN</code>
 call. You may ignore this.</li>
 </ol>
-
 <h4><a name="data_interface"></a>Data interface</h4>
-
 <p>The data interface is only used when the control interface is in
 activated state.</p>
-
 <p>The data interface does not need to be thread safe itself, but it is
 called from a different thread than the <a href="#control_interface">control
 interface</a>.</p>
-
-<p>The level 2 interface allocates the sample buffers by the plug-in
+<p>The level 3 interface allocates the sample buffers by the plug-in
 rather than the data source. This is known to cause less double
 buffering. The buffer size is no longer fixed. The functions <code>output_request_buffer</code>
 and <code>output_commit_buffer</code> have to be called alternatingly.
 Anything else is an error.
 </p>
-
 <p>All samples are passed as 16 bit signed integers regardless what
 type the input has been.</p>
-
-<pre>     int DLLENTRY <b>output_request_buffer</b>(void* a, TECH_INFO* format, short** buf)<br></pre>
-
+<pre>     int DLLENTRY <b>output_request_buffer</b>(void* <var>a</var>, <a
+ href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>format</var>, float** <var>buf</var>)</pre>
 <ul>
-
-  <li><var>format</var> - format of buf.<br>
-This may change during playback but not within a buffer.
-  </li>
-  <li><var>buf</var> [out] - pointer to a storage area where the
+  <li><tt><var>format</var></tt> - format of buf.<br>
+This may change during playback but not within a buffer. </li>
+  <li><tt><var>buf</var></tt> [out] - pointer to a storage area where
+the
 samples should be placed. A value of <code>NULL</code> indicates that
-there are no more samples to come (flush signal).
-  </li>
+there are no more samples to come (flush signal). </li>
   <li><var>return value</var> - the number of samples that fit in the
 returned buffer. The buffer size in bytes is this value multiplied by
-the number of channels and <code>sizeof(short)</code>. Return values
-&#8804;&nbsp;0 signals a fatal error, except for the flush signal which
-always returns zero.
-  </li>
+the number of channels and <code>sizeof(float)</code>. Return values
+&#8804;&nbsp;<tt>0</tt> signals a fatal error, except for the flush signal
+which
+always returns zero. </li>
 </ul>
-
 <p>This function is called by the decoder or last in chain filter
 plug-in to store samples for playing. The function call may block until
 enough buffer space is available.
 </p>
-
-<p>After a <em>flush request</em> (<var>buf</var> == <code>NULL</code>) there is
+<p>After a <em>flush request</em> (<tt><var>buf</var></tt> == <code>NULL</code>)
+there is
 no need to call <code>output_commit_buffer</code>. The flush signal
 should be used to play any internal buffers regardless if they are
 completely full or not.<br>
 Note that the flush signal is an implicit request for an <code>OUTEVENT_END_OF_DATA</code>
 event. The <code>output_request_buffer</code> call must not block
 until all buffers are played.</p>
-
-<pre>     void DLLENTRY <b>output_commit_buffer</b>(void* a, int len, PM123_TIME pos)<br></pre>
-
+<pre>     void DLLENTRY <b>output_commit_buffer</b>(void* <var>a</var>, int <var>len</var>, PM123_TIME <var>pos</var>)</pre>
 <ul>
-
-  <li><var>len</var> - used length of buffer in samples.<br>
+  <li><tt><var>len</var></tt> - used length of buffer in samples.<br>
 The length might be less than the length returned at <code>output_request_buffer</code>.
 This does not mean that it is a good advise to play a buffer smaller
 than usual unless you receive a flush signal. A length of 0 is not an
 error but an undo request to the previous <code>output_request_buffer</code>
-call.
-  </li>
-  <li><var>pos</var> = position marker to return with <code>output_playing_pos</code>.
-This is a time index of the starting point of this buffer in seconds. The time position marker may have a large offset far
-beyond the length of the current file.
-  </li>
+call. </li>
+  <li><tt><var>pos</var></tt> = position marker to return with <code>output_playing_pos</code>.
+This is a time index of the starting point of this buffer in seconds.
+The time position marker may have a large offset far
+beyond the length of the current file. </li>
 </ul>
-
 <p>This function is called by the decoder or last in chain filter
 plug-in to play the stored samples.
 </p>
-
 <h4><a name="status_interface"></a>Status interface</h4>
-
 <p>The status interface must be thread safe and reentrant.</p>
-
-<pre>     PM123_TIME DLLENTRY <b>output_playing_pos</b>(void* a)<br></pre>
-
-This function returns the <var>pos</var> from the buffer that
+<pre>     PM123_TIME DLLENTRY <b>output_playing_pos</b>(void* <var>a</var>)</pre>
+This function returns the <tt><var>pos</var></tt> from the buffer that
 the user currently hears.
 The return value is a time index in seconds.
-The plug-in may use this knowledge to calculate time indices with
+The plug-in may use its knowledge to calculate the time with
 higher resolution than one buffer.
-But you must not make any asumptions about the zero point.
-<pre>     BOOL  DLLENTRY <b>output_playing_data</b>(void* a)<br></pre>
-
-Returns TRUE if the output plug-in still has some buffers to play.
-<pre>     ULONG DLLENTRY <b>output_playing_samples</b>(void* a, FORMAT_INFO* info, char* buf, int len)<br></pre>
-
+But you must not make any assumptions about the zero point.
+<pre>     BOOL  DLLENTRY <b>output_playing_data</b>(void* <var>a</var>)</pre>
+Returns <tt>TRUE</tt> if the output plug-in still has some buffers to
+play.
+<pre>     ULONG DLLENTRY <b>output_playing_samples</b>(void* <var>a</var>, <a
+ href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>info</var>, float* <var>buf</var>, int <var>len</var>)</pre>
 <ul>
-
-  <li><var>info</var> - return the format of buf.
+  <li><tt><var>info</var></tt> - return the format of <var><tt>buf</tt></var>.
   </li>
-  <li><var>buf</var> - return len amount of data currently being
-played.
-  </li>
-  <li><var>len</var> - requested amount of data to be placed in buf.
-  </li>
+  <li><tt><var>buf</var></tt> - return data currently being
+played. </li>
+  <li><tt><var>len</var></tt> - requested number of data points to be
+placed in <var><tt>buf</tt></var>. Note that the resulting number of
+samples depends on the number of channels. </li>
 </ul>
-
 <p>
 This function is used by visual plug-ins so the user can visualize what
-is currently being played. <var>len</var> is usually in the order of
+is currently being played. <tt><var>len</var></tt> is usually in the
+order of
 2048 samples or less.
 So check that amount usually required by your visual plug-ins before
 making
 complicated buffering functions in your output plug-in.</p>
-
 <h3><a name="level_1"></a>Interface revision level 0 and 1 (deprecated)</h3>
-
 <p>This interface revisions should not be used for development because
 the impementations tends to modify the current thread's priority to
 boost the speed of the data source. This implies that the current
@@ -249,166 +204,129 @@ thread while calling <code>output_play_samples</code> is the
 bottleneck and that it is always the same thread. Both is not true in
 general (e.g. remote data sources).
 </p>
-
 <h4>Initialization interface</h4>
-
-<p>See <a href="#initialization_interface">level 2 interface</a>. This
+<p>See <a href="#initialization_interface">level 3 interface</a>. This
 part of the interface has not been changed.</p>
-
 <h4><a name="control_interface1"></a>Control interface</h4>
-
 <p>The control interface does not need to be thread safe itself, but it
 is called from a different thread than the <a href="#data_interface1">data
 interface</a>.</p>
-
 <blockquote>
-  <pre>ULONG DLLENTRY <b>output_command</b>(void *a, ULONG msg, OUTPUT_PARAMS *info)</pre>
+  <pre>ULONG DLLENTRY <b>output_command</b>(void *<var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS *<var>info</var>)</pre>
 </blockquote>
-
 <ul>
-
-  <li><var>msg</var> - one of the following:<br>
+  <li><tt><var>msg</var></tt> - one of the following:<br>
     <ul>
       <li><code>OUTPUT_OPEN</code> opens the device or file needed for
-output.
-      </li>
-      <li><code>OUTPUT_CLOSE</code> closes it.
-      </li>
+output. </li>
+      <li><code>OUTPUT_CLOSE</code> closes it. </li>
       <li><code>OUTPUT_VOLUME</code> changes the volume of an output
-device.
-      </li>
+device. </li>
       <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in
-output_playsamples()).
-      </li>
+output_playsamples()). </li>
       <li><code>OUTPUT_SETUP</code> setup the format that
 output_playsamples() will most likely
 receive, boost priority values, error_display functions and hwnd. </li>
       <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently
-awating to be played.
-      </li>
+awating to be played. </li>
       <li><code>OUTPUT_NOBUFFERMODE</code> forces the plug-in to not
 accumulate buffers for the time being.<br>
-Note: this command is <em>no longer used</em> since PM123 1.40.
-      </li>
+Note: this command is <em>no longer used</em> since PM123 1.40. </li>
     </ul>
   </li>
-  <li><var>info</var> - structure that contains the parameters needed
-by the preceding commands
-  </li>
+  <li><tt><var>info</var></tt> - structure that contains the parameters
+needed
+by the preceding commands </li>
   <li>return value:<br>
-0 -&gt; ok<br>
-others -&gt; MMOS/2 errors or anything else
-  </li>
+    <tt>0</tt> -&gt; O.K.<br>
+others -&gt; MMOS/2 errors or anything else </li>
 </ul>
-
 <p>There is a lot of commands to implement for this function.
 Parameters
 needed for each of them are described in the definition of the
 structure
 in the .h file.</p>
-
 <p>The status graph is as follows:
 </p>
-
 <ol>
-
   <li><code>OUTPUT_VOLUME</code></li>
   <li><code>OUTPUT_SETUP</code></li>
-  <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>. The <a href="#data_interface1">data interface</a> may be used.</li>
+  <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>. The <a
+ href="#data_interface1">data interface</a> may be used.</li>
   <li><code>OUTPUT_OPEN</code> - next song<br>
 ...</li>
   <li><code>OUTPUT_CLOSE</code> - now we are no longer active.</li>
 </ol>
-
-<p>The other funtion codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
+<p>The other function codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
 are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always
 allowed.</p>
-
-<p>The output plug-in MUST <i>WinPostMsg()</i> the following messages
-to <i>hwnd</i>:
+<p>The output plug-in MUST <tt>WinPostMsg()</tt> the following
+messages
+to <var><tt>hwnd</tt></var>:
 </p>
-
 <ul>
-
-  <li><code>WM_PLAYERROR</code> when a playback error occures.
-  </li>
+  <li><code>WM_PLAYERROR</code> when a playback error occures. </li>
   <li><code>WM_OUTPUT_OUTOFDATA</code> when the output plug-in has
 finished playing all.
-its buffers. Not needed when <tt> always_hungry </tt> flag is
-enabled.
-  </li>
+its buffers. Not needed when <tt> always_hungry</tt> flag is
+enabled. </li>
 </ul>
-
 <h4><a name="data_interface1"></a>Data interface</h4>
-
 <p>The data interface is only used when the control interface is in
 activated state.</p>
-
 <p>The data interface does not need to be thread safe itself, but it is
 called from a different thread than the <a href="#control_interface1">control
 interface</a>.</p>
-
-<pre>     int DLLENTRY <b>output_play_samples</b>(void* a, FORMAT_INFO* format, char* buf,int len, int posmarker)<br></pre>
-
+<pre>     int DLLENTRY <b>output_play_samples</b>(void* <var>a</var>, FORMAT_INFO* <var>format</var>, char* <var>buf</var>, int <var>len</var>, int <var>posmarker</var>)</pre>
 <ul>
-
-  <li><var>format</var> - format of buf. The format type is always <code>WAVE_FORMAT_PCM</code>
+  <li><tt><var>format</var></tt> - format of buf. The format type is
+always <code>WAVE_FORMAT_PCM</code>
 and from PM123 version 1.40 the number of bits per sample is always 16.
 The number of channels may change during playback but not within a
-buffer.
+buffer. </li>
+  <li><tt><var>buf</var></tt> - data to play. </li>
+  <li><tt><var>len</var></tt> - length of buf. </li>
+  <li><tt><var>posmarker</var></tt> = position marker to return with <code>output_playing_pos</code>.
   </li>
-  <li><var>buf</var> - data to play.
-  </li>
-  <li><var>len</var> - length of buf.
-  </li>
-  <li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
-  </li>
-  <li><var>return value</var> - the number of bytes from len processed.
-ie.: &lt; len = error.
-  </li>
+  <li><var>return value</var> - the number of bytes from <var><tt>len</tt></var>
+processed.
+ie.: &lt; <var><tt>len</tt></var> = error. </li>
 </ul>
-
 <p>This function is called by the decoder or last in chain filter
 plug-in to play samples.
 </p>
-
 <h4>Status interface</h4>
-
 <p>The status interface must be thread safe and reentrant.</p>
-
-
-<pre>     int DLLENTRY <b>output_playing_pos</b>(void* a)<br></pre>
-
-
+<pre>     int DLLENTRY <b>output_playing_pos</b>(void* <var>a</var>)</pre>
 This function returns the <var>posmarker</var> from the buffer that
 the user currently hears.
 The return value is a time index in milliseconds.
 The plug-in may use this knowledge to calculate time indices with
 higher resolution than one buffer.
-But you must not make any asumptions about the zero point.
-<pre>     BOOL  DLLENTRY <b>output_playing_data</b>(void* a)<br></pre>
-
-
+But you must not make any assumptions about the zero point.
+<pre>     BOOL  DLLENTRY <b>output_playing_data</b>(void* <var>a</var>)</pre>
 Returns TRUE if the output plug-in still has some buffers to play.
-<pre>     ULONG DLLENTRY <b>output_playing_samples</b>(void* a, FORMAT_INFO* info, char* buf, int len)<br></pre>
-
-
+<pre>     ULONG DLLENTRY <b>output_playing_samples</b>(void* <var>a</var>, FORMAT_INFO* <var>info</var>, char* <var>buf</var>, int <var>len</var>)</pre>
 <ul>
-<li><var>info</var> - return the format of buf.
-  </li><li><var>buf</var> - return len amount of data currently being
-played.
-  </li><li><var>len</var> - requested amount of data to be placed in buf.
+  <li><tt><var>info</var></tt> - return the format of <var><tt>buf</tt></var>.
+  </li>
+  <li><tt><var>buf</var></tt> - return <var><tt>len</tt></var> amount
+of data currently being
+played. </li>
+  <li><tt><var>len</var></tt> - requested amount of data to be placed
+in <var><tt>buf</tt></var>.</li>
+  <li><i>return value</i><br>
+    <tt>PLUGIN_OK</tt> (<tt>0</tt>) = O.K.<br>
+other = error<br>
   </li>
 </ul>
-
-
 <p>
 This function is used by visual plug-ins so the user can visualize what
-is currently being played. <var>len</var> is usually in the order of
+is currently being played. <tt><var>len</var></tt> is usually in the
+order of
 2048 samples or less.
 So check that amount usually required by your visual plug-ins before
 making
 complicated buffering functions in your output plug-in.</p>
-<p></p>
-
-</body></html>
+</body>
+</html>

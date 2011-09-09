@@ -9,9 +9,10 @@
 <p>Decoder plug-ins must implement and export the functions
 defined in <tt>decode_plug.h</tt>.</p>
 <p>There are two interface revision levels. For developing new
-plug-ins the <a href="#level_2">level 2</a>
-interface is recommended. But the <a href="decode_plug_1.html">level
-0/1 interface</a> is still supported.</p>
+plug-ins the <a href="#level_3">level 3
+interface</a> is recommended. But the <a href="decode_plug_1.html">level
+0/1 interface</a> is still supported. The level 2 of PM123 1.40 is no
+longer supported.</p>
 <p>Decoder plug-ins are used to <em>decode audio data</em>
 as well as to <em>examine playlists</em>. Each item is
 identified by an URI.<br>
@@ -22,11 +23,11 @@ enumerable. This applies to a playlist as well as to a file system
 folder or&nbsp;a compact disc containing tracks.<br>
 In theory an item could be enumerable as well as directly playable.
 E.g. index tracks of a CD or a CUE sheet. But this has not been well
-testet in the PM123 core so far.<br>
+testet in the PM123 core so far.
 </p>
-<h2><a name="level_2"></a>Interface revision
-level 2 (recommended)</h2>
-<p>The level 2 interface has the following components:</p>
+<h2><a name="level_3"></a>Interface revision
+level 3 (recommended)</h2>
+<p>The level 3 interface has the following components:</p>
 <ol>
   <li><a href="#initialization_interface">Playback
 interface</a>, <a href="#status_interface">status
@@ -44,7 +45,7 @@ interface</a></li>
 interface</h3>
 <h4>decoder_init, decoder_uninit</h4>
 <blockquote>
-  <pre>int DLLENTRY <b>decoder_init</b> ( void **<var>w</var> )</pre>
+  <pre>int DLLENTRY <b>decoder_init</b> (void **<var>w</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>w</var></tt> - Allocate
@@ -57,10 +58,10 @@ means success.<br>
 means the decoder was not initialized successfully.</li>
 </ul>
 <blockquote>
-  <pre>BOOL DLLENTRY <b>decoder_uninit</b>( void *<var>w</var> )</pre>
+  <pre>BOOL DLLENTRY <b>decoder_uninit</b>(void *<var>w</var>)</pre>
 </blockquote>
 <ul>
-  <li><tt><var>w</var></tt> - The pointer received by <tt>decoder_init</tt>.<br>
+  <li><tt><var>w</var></tt> - The pointer received by <tt>decoder_init</tt>.
   </li>
   <li>return value: <tt>TRUE</tt> = success</li>
 </ul>
@@ -73,7 +74,7 @@ than yours is needed, and should destroy the decoder's thread,
 semaphores, other opened handles and free allocated memory for <tt><var>w</var></tt>.</p>
 <h4><a name="decoder_command"></a>decoder_command</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_command</b>( void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_command</b>(void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>msg</var></tt> - one of
@@ -95,12 +96,12 @@ decoder to start saving the stream to HD.</li>
   <li><tt><var>params</var></tt> -
 structure that contains the parameters needed by the preceding commands.</li>
   <li>return value:<br>
-    <tt>PLUGIN_OK</tt> (0) -&gt; ok.<br>
-    <tt>PLUGIN_UNSUPPORTED</tt> (1) -&gt; command
+    <tt>PLUGIN_OK</tt> (<tt>0</tt>) -&gt; ok.<br>
+    <tt>PLUGIN_UNSUPPORTED</tt> (<tt>1</tt>) -&gt; command
 unsupported.<br>
     <tt>DECODER_PLAY</tt> and <tt>DECODER_STOP</tt>
-can return also <tt>PLUGIN_GO_ALREADY</tt> (101) and <tt>PLUGIN_GO_FAILED</tt>
-(102).</li>
+can return also <tt>PLUGIN_GO_ALREADY</tt> (<tt>101</tt>) and <tt>PLUGIN_GO_FAILED</tt>
+(<tt>102</tt>).</li>
 </ul>
 <p>There is a lot of commands to implement for this function.
 Parameters
@@ -109,7 +110,7 @@ in the decoder_plug.h file. The decoder necessarily should support
 following commands:
 <tt>DECODER_SETUP</tt>, <tt>DECODER_PLAY</tt>
 and <tt>DECODER_STOP</tt>.</p>
-<p><a name="url_samples"></a>In the level 2
+<p><a name="url_samples"></a>In the level 3
 interface the data source always passed as an URL. The URL parameter
 uses the following syntax:</p>
 <blockquote><samp>file:///D:/Music/my favorite song.mp3</samp><br>
@@ -123,10 +124,10 @@ interface</h3>
 <p>The status interface has to be <em>thread safe</em>.</p>
 <h4><a name="decoder_status"></a>decoder_status</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_status</b>( void *<var>w</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_status</b>(void *<var>w</var>)</pre>
 </blockquote>
 <ul>
-  <li>return value - One of the following:<br>
+  <li><i>return value</i> - One of the following:<br>
     <tt>DECODER_STOPPED<br>
 DECODER_PLAYING<br>
 DECODER_STARTING<br>
@@ -134,21 +135,22 @@ DECODER_PAUSED</tt></li>
 </ul>
 <h4><a name="decoder_length"></a>decoder_length</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_length</b>( void *w )</pre>
+  <pre>PM123_TIME DLLENTRY <b>decoder_length</b>(void *w)</pre>
 </blockquote>
 <ul>
-  <li>return value - number of milliseconds the stream lasts (you
+  <li><i>return value</i> - number of seconds the stream lasts (you
 can report <code>(ULONG)-1</code> if unknown).</li>
 </ul>
 <p>The call to this function must be valid even if <tt>DECODER_STARTING</tt>
 or <tt>DECODER_STOPPED</tt> is reported (when the stream
 plays
-too fast for example).</p>
+too fast for example). The function is used to follow increasing length
+of files that are written on the fly while playing.</p>
 <h3><a name="output_interface"></a>Output
 interface</h3>
 <p>The decoder must use this interface to pass the decoded
-samples to the output stage. The samples must be passed as 16 bit
-signed integers.</p>
+samples to the output stage. The samples must be passed as <em>32 bit
+floating point values</em>.</p>
 <p>Strictly speaking this is part of the <a href="#playback_interface">playback
 interface</a>, but
 the interface functions have to be called by the decoder in a separate
@@ -156,7 +158,7 @@ thread.&nbsp;The function entry points for these callbacks are
 passed in <code>DECODER_PARAMS2</code> at the <tt><a
  href="#decoder_command">DECODER_SETUP</a></tt>
 call.</p>
-<p>The level 2 interface allocates the buffers by the consumer.
+<p>The level 3 interface allocates the buffers by the consumer.
 This causes less double buffering and allows dynamic buffer sizes. In
 the optimal case the samples can be placed immediately in the output
 buffers of the audio device.</p>
@@ -165,8 +167,8 @@ and <code>output_commit_buffer</code> alternately to
 pass the samples to the next plug-in. Anything else is an error.</p>
 <h4><a name="output_request_buffer"></a>output_request_buffer</h4>
 <blockquote>
-  <pre>int (DLLENTRYP <b>output_request_buffer</b>)( void* <var>a</var>, const <a
- href="datatype.html#TECH_INFO">TECH_INFO</a>* <var>format</var>, short** <var>buf</var> )</pre>
+  <pre>int (DLLENTRYP <b>output_request_buffer</b>)(void* <var>a</var>, const <a
+ href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>format</var>, float** <var>buf</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>a</var></tt> - pointer
@@ -189,8 +191,8 @@ size of the buffer. You should not expect this to get very small
 buffers quite often.</p>
 <h4><a name="output_commit_buffer"></a>output_commit_buffer</h4>
 <blockquote>
-  <pre>void (DLLENTRY* <b>output_commit_buffer</b>)( void* <var>a</var>, int <var>len</var>, <a
- href="datatype.html#PM123_TIME">PM123_TIME</a> <var>posmarker</var> )</pre>
+  <pre>void (DLLENTRY* <b>output_commit_buffer</b>)(void* <var>a</var>, int <var>len</var>, <a
+ href="datatype.html#PM123_TIME">PM123_TIME</a> <var>posmarker</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>a</var></code> - pointer
@@ -207,7 +209,7 @@ it might be less than the requested length. This causes no significant
 performance impact as long as you do not always pass very few samples.</p>
 <h4><a name="output_event"></a>output_event</h4>
 <blockquote>
-  <pre>void (DLLENTRY* <b>output_event</b>)( void* <var>a</var>, DECEVENTTYPE <var>event</var>, void* <var>param</var> )</pre>
+  <pre>void (DLLENTRY* <b>output_event</b>)(void* <var>a</var>, DECEVENTTYPE <var>event</var>, void* <var>param</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>a</var></code> - pointer
@@ -241,15 +243,14 @@ stream (like song length). <var>param</var>
 must point to a <code>OBJ_INFO</code> structure. Note that you should
 not sent the bitrate of individual MPEG frames this way like the level
 1 interface supported by <tt>WM_CHANGEBR</tt>. The object information
-keeps the bitrate of the entire stream.<br>
-  </li>
+keeps the bitrate of the entire stream. </li>
   <li><code><b>DECEVENT_METADATA</b></code>
 is sent whenever streaming metadata is updated. <var>param</var>
 must point to a <code>META_INFO</code> structure.</li>
 </ul>
 <h4><a name="decoder_event"></a>decoder_event</h4>
 <blockquote>
-  <pre>void DLLENTRY <b>decoder_event</b>( void* <var>w</var>, OUTEVENTTYPE <var>event</var> );</pre>
+  <pre>void DLLENTRY <b>decoder_event</b>(void* <var>w</var>, OUTEVENTTYPE <var>event</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>w</var></code> - pointer
@@ -278,9 +279,9 @@ conditions.
 The functions must be <em>thread safe</em>.</p>
 <h4><a name="decoder_fileinfo"></a>decoder_fileinfo</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>( const char *<var>url</var>, int* <var>what</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,<br>                              &nbsp; &nbsp;<a
- href="#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, int* <var>what</var>, const <a
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,<br>                              &nbsp; <a
+ href="#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>url</var></tt> - URL to
@@ -330,16 +331,16 @@ this does not apply to songs.</li>
   <li><code><var>param</var></code> -
 This parameter is to be passed as first argument to each call to <code>*<var>cb</var></code>.</li>
   <li><var>return value</var> -<br>
-    <tt> PLUGIN_OK</tt> (0) = everything's perfect,
+    <tt> PLUGIN_OK</tt> (<tt>0</tt>) = everything's perfect,
 structure is set.<br>
-    <tt> PLUGIN_NO_READ</tt> (100) = error reading file. <em>This
+    <tt> PLUGIN_NO_READ</tt> (<tt>100</tt>) = error reading file. <em>This
 error should only be set if there is no chance that any
 other
 plug-in may read this URL.</em> E.g. if it is a file URI and the file
 does
 not exist or if it is a http URI and the domain does not exist or the
 server does not respond on the port.<br>
-    <tt> PLUGIN_NO_PLAY</tt> (200) = this decoder can't
+    <tt> PLUGIN_NO_PLAY</tt> (<tt>200</tt>) = this decoder can't
 play that. PM123 will try other decoders if available.</li>
 </ul>
 <table border="1" cellpadding="3" cellspacing="0">
@@ -400,7 +401,7 @@ Q = may be requested by the PM123<br>
 <em>C</em>&nbsp;= my be cached and returned by the decoder<br>
 O = may be overridden by a playlist item</p>
 <p style="float: right;"></p>
-<p style="float: right;"><br>
+<p style="float: right;">
 </p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
@@ -444,26 +445,26 @@ O = may be overridden by a playlist item</p>
       <td>children</td>
       <td align="center">Q</td>
       <td align="center"><strong>X</strong></td>
-      <td align="center"><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
       <td><code>rpl</code></td>
-      <td align="center">&nbsp;</td>
+      <td>&nbsp;</td>
       <td align="center"><em>C</em><em></em></td>
       <td align="center"><em>C</em></td>
     </tr>
     <tr>
       <td><tt>drpl</tt></td>
-      <td align="center">&nbsp;</td>
+      <td>&nbsp;</td>
       <td align="center"><em>C</em><em></em></td>
       <td align="center"><em>C</em></td>
     </tr>
     <tr>
       <td><tt>item</tt></td>
-      <td align="center"><br>
+      <td> <br>
       </td>
-      <td align="center"><br>
+      <td> <br>
       </td>
       <td align="center">O</td>
     </tr>
@@ -471,8 +472,8 @@ O = may be overridden by a playlist item</p>
 </table>
 <h5><a name="DECODER_INFO_ENUMERATION_CB"></a>DECODER_INFO_ENUMERATION_CB</h5>
 <blockquote>
-  <pre>void (DLLENTRY* <b>cb</b>) ( void* <var>param</var>, const char* <var>url</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>override</var> )</pre>
+  <pre>void (DLLENTRY* <b>cb</b>)(void* <var>param</var>, const char* <var>url</var>, const <a
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>override</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>param</var></code> -
@@ -513,7 +514,7 @@ information types that are neither set in <var><tt>cached</tt></var>
 nor in <var><tt>override</tt></var> may be <tt>NULL</tt>.
 <h4><a name="decoder_saveinfo"></a>decoder_saveinfo</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>( char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, xstring* <var>errortext</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>(char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, xstring* <var>errortext</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>url</var></code> - URI
@@ -525,8 +526,7 @@ set must be modified. The others should be left unchanged. </li>
   <li><code><var>haveinfo</var></code> -
 Components of info to modify.</li>
   <li><var><tt>errortext</tt></var> - place a descriptive error text
-here if the function fails.<var><br>
-    </var></li>
+here if the function fails.<var> </var></li>
   <li><var>return value</var><br>
     <code>PLUGIN_OK</code> (0) = everything is perfect,
 meta info is saved to <code><var>url</var></code>.<br>
@@ -537,7 +537,7 @@ Calling the function should succeed even if the file is currently
 playing.</p>
 <h4><a name="decoder_savefile"></a>decoder_savefile</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_savefile</b>( const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                DECODER_SAVE_ENUMERATION_CB <var>cb</var>, void* <var>param</var><var></var>, xstring* <var>errortext</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_savefile</b>(const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                DECODER_SAVE_ENUMERATION_CB <var>cb</var>, void* <var>param</var><var></var>, xstring* <var>errortext</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>url</var></code> - URI
@@ -562,8 +562,7 @@ format.<br>
 Furthermore the decoder may set the <tt>INFO_PHYS</tt> bit
 to indicate that <tt>*<var>info</var>-&gt;phys</tt> has been
 updated with recent informations after the update. (Of course, PM123
-will never request this on input.)<br>
-  </li>
+will never request this on input.) </li>
   <li><var><code>info</code></var>
 - Information of the playlist object itself. Usually playlists do not
 contain additional object information other than their content. So the
@@ -576,21 +575,19 @@ only if <tt>*<var>what</var></tt> contains <tt>INFO_CHILD</tt>.</li>
   <li><var><code>param</code></var> -
 Parameter to be passed as first argument to <code>*cb</code>.</li>
   <li><var><tt>errortext</tt></var> - place a descriptive error text
-here if the function fails.<var><br>
-    </var></li>
+here if the function fails.<var> </var></li>
   <li><var>return value</var><br>
     <code>PLUGIN_OK</code> (<tt>0</tt>) = everything is perfect,
 meta info is saved to <code><var>url</var></code>.<br>
-    <tt>PLIGIN_ERROR</tt> (<tt>500</tt>) = failed.<br>
-  </li>
+    <tt>PLIGIN_ERROR</tt> (<tt>500</tt>) = failed. </li>
 </ul>
 <p>The function is used to modify a file (or other object) in
 place. It is currently only used to save playlists.</p>
 <h5><a name="DECODER_SAVE_ENUMERATION_CB"></a>DECODER_SAVE_ENUMERATION_CB</h5>
 <blockquote>
-  <pre>int (DLLENTRY* <b>cb</b>)( void* <var>param</var>, <a
+  <pre>int (DLLENTRY* <b>cb</b>)(void* <var>param</var>, <a
  href="xstring_api.html">xstring</a>* <var>url</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>valid</var>, int* <var>override</var> )</pre>
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>valid</var>, int* <var>override</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>param</var></code> -
@@ -609,7 +606,7 @@ information in the playlist and return it when the list is read with <a
  href="#decoder_fileinfo"><tt>decoder_fileinfo</tt></a> to speed up
 large playlists.<br>
 The storage where <tt>*info</tt> points to is only valid until the
-next call to <tt>cb</tt> or until <tt>decoder_savefile</tt> returned.<br>
+next call to <tt>cb</tt> or until <tt>decoder_savefile</tt> returned.
   </li>
   <li><code><var>valid</var></code> (out) - Return <a
  href="datatype.html#INFO_TYPE"><code>INFOTYPE</code></a>
@@ -635,8 +632,8 @@ This function retrieves the next sub item from the currently saved
 playlist. PM123 will fill all fields according to the above rules.
 <h4><a name="decoder_support"></a>decoder_support</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_support</b>( const <a
- href="#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_support</b>(const <a
+ href="#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>types</var></code>&nbsp;(out)
@@ -705,8 +702,8 @@ file type.<br>
 with this file type.<br>
       <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items of
 this type.<br>
-      <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
-      </td>
+      <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta
+info. </td>
     </tr>
   </tbody>
 </table>
@@ -718,7 +715,7 @@ with plug-in specific content.<br>
 <em>All functions in this section are optional.</em></p>
 <h4><a name="decoder_editmeta"></a>decoder_editmeta</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_editmeta</b>( HWND <var>owner</var>, const char* <var>url</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_editmeta</b>(HWND <var>owner</var>, const char* <var>url</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>owner</var></code> -
@@ -741,15 +738,14 @@ raised a meaningful message using <tt>plugin_api-&gt;error_display</tt>.<br>
     <tt>PLUGIN_NO_SAVE</tt> (<tt>400</tt>) = can't edit tag of this
 stream. (PM123 raises an error dialog)<br>
     <tt>PLUGIN_ERROR &nbsp;</tt> (<tt>500</tt>) = error writing tag.
-(PM123 raises an error dialog)<br>
-  </li>
+(PM123 raises an error dialog) </li>
 </ul>
 <p>If <code>decoder_editmeta</code> is not
-implemented, the edit tag entry is always disabled.<br>
+implemented, the edit tag entry is always disabled.
 </p>
 <h4><a name="decoder_getwizard"></a>decoder_getwizard</h4>
 <blockquote>
-  <pre>const DECODER_WIZARD* DLLENTRY <b>decoder_getwizard</b>( )</pre>
+  <pre>const DECODER_WIZARD* DLLENTRY <b>decoder_getwizard</b>(void)</pre>
 </blockquote>
 <ul>
   <li><var>return value</var> - Zero or more <code>DECODER_WIZARD</code>
@@ -782,8 +778,8 @@ recommended.</p>
 <p>When the menu entry is selected the corresponding wizard
 function is called by PM123.</p>
 <blockquote>
-  <pre>ULONG (DLLENTRY* <b>wizard</b>)( HWND <var>owner</var>, const char* <var>title</var>,<br>                          <a
- href="#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>callback</var>, void* <var>param</var> );</pre>
+  <pre>ULONG (DLLENTRY* <b>wizard</b>)(HWND <var>owner</var>, const char* <var>title</var>,<br>                         <a
+ href="#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>callback</var>, void* <var>param</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>owner</var></code> -

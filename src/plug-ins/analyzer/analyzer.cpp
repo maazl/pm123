@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *           2005 Dmitry A.Steklenev <glass@ptv.ru>
- *           2006 Marcel Mueller
+ *           2006-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,7 +28,6 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * The very first PM123 visual plugin - the spectrum analyzer
  */
 
 #define  INCL_DOS
@@ -45,12 +44,14 @@
 #include <string.h>
 #include <malloc.h>
 
-#define PLUGIN_INTERFACE_LEVEL 1
+#define PLUGIN_INTERFACE_LEVEL 3
 
 #include <utilfct.h>
 #include <format.h>
 #include <visual_plug.h>
 #include <plugin.h>
+
+#include <limits.h>
 
 #ifndef M_PI
 #define M_PI    3.14159265358979323846
@@ -123,7 +124,7 @@ static  int*   scale;      // mapping FFT data -> destination channels
 static  BOOL   is_stopped;
 static  BOOL   needinit;
 static  BOOL   needclear;
-static  FORMAT_INFO lastformat;
+static  FORMAT_INFO2 lastformat;
 static  BOOL   destroy_pending = FALSE;
 
 
@@ -181,8 +182,7 @@ uncomment_slash( char *something )
 }
 
 /* Reads RGB colors from specified file. */
-static BOOL
-read_color( const char* line, RGB2* color )
+static BOOL read_color(const char* line, RGB2* color)
 {
   int  r,g,b;
 
@@ -445,7 +445,7 @@ static BOOL init_bands(int samplerate)
     bars_count = plug.cy;
    logcommon:
     step = log((double)highfreq / active_cfg.display_lowfreq) / bars_count; // limit range to the nyquist frequency
-    numsamples = samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode);
+    numsamples = (int)(samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode));
   }
   DEBUGLOG(("INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, bars_count, numsamples));
 
@@ -455,18 +455,18 @@ static BOOL init_bands(int samplerate)
 
   // initialize woring set
   amps_count = (numsamples >> 1) +1;
-  amps       = malloc(amps_count * sizeof *amps);
-  bars       = malloc(bars_count * sizeof *bars);
-  scale      = malloc((bars_count+1) * sizeof *scale);
+  amps       = (float*)malloc(amps_count * sizeof *amps);
+  bars       = (float*)malloc(bars_count * sizeof *bars);
+  scale      = (int*)malloc((bars_count+1) * sizeof *scale);
   memset(bars, 0, bars_count * sizeof *bars);
 
   if (step != 0)
   { // logarithmic frequency scale
     double factor = (double)active_cfg.display_lowfreq * numsamples / samplerate;
     int* sp = scale;
-    *sp++ = ceil(factor);
+    *sp++ = (int)ceil(factor);
     for (i = 1; i <= bars_count; i++)
-    { *sp = ceil(exp(step * i) * factor);
+    { *sp = (int)ceil(exp(step * i) * factor);
       if (sp[0] <= sp[-1])
       { if (i == 1 || sp[-2] < sp[0]-1)
           sp[-1] = sp[0] - 1;
@@ -480,9 +480,9 @@ static BOOL init_bands(int samplerate)
     double factor = (double)numsamples / samplerate;
     int* sp = scale;
     step = (highfreq - active_cfg.display_lowfreq) / bars_count;
-    *sp++ = ceil(active_cfg.display_lowfreq * factor);
+    *sp++ = (int)ceil(active_cfg.display_lowfreq * factor);
     for (i = 1; i <= bars_count; i++)
-    { *sp = ceil((i * step + active_cfg.display_lowfreq) * factor);
+    { *sp = (int)ceil((i * step + active_cfg.display_lowfreq) * factor);
       if (sp[0] <= sp[-1])
         sp[0] = sp[-1] +1;
       ++sp;
@@ -619,7 +619,7 @@ static void update_analyzer(void)
 
       for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-bars[x])) + CLR_ANA_BOTTOM;
+        int color = (int)(( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-bars[x]))) + CLR_ANA_BOTTOM;
         image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
       }
     }
@@ -657,7 +657,7 @@ static void update_analyzer(void)
 
       for( x = 0; x < plug.cx; x++ )
       { update_barvalue( bars+x, .4 + .4 * get_barvalue(scale + x) ); // 50dB range [-20dB..+30dB]
-        ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
+        ip[x] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x]) + CLR_SPC_BOTTOM;
       }
     }
     break;
@@ -673,46 +673,38 @@ static void update_analyzer(void)
 
       for( i = 0; i < bars_count; i++ )
       { update_barvalue( bars+i, .4 + .4 * get_barvalue(scale + i) ); // 50dB range [-20dB..+30dB]
-        ip[(plug.cy-i-1)*image_cx] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
+        ip[(plug.cy-i-1)*image_cx] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i]) + CLR_SPC_BOTTOM;
       }
     }
     break;
 
    case SHOW_OSCILLOSCOPE:
-    { int   len, maxval;
-      union // dirty hack to avoid lvalue cast tricks
-      { unsigned char* cp;
-        short*         sp;
-        long*          lp;
-      } sample;
+    { int   len, channels;
+      float* sample;
 
       memset( image, 0, image_cx * image_cy );
       draw_grid(image, image_cx);
 
      scope_redo:
-      len = (lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16));
-      maxval = lastformat.channels << lastformat.bits;
-      sample.cp = alloca( len );
-      decoderPlayingSamples( &lastformat, sample.cp, len );
-      if ((lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16)) != len) // check again...
+      channels = lastformat.channels;
+      len = (channels * plug.cx) << 1;
+      sample = (float*)alloca( len * sizeof(float) );
+      decoderPlayingSamples( &lastformat, sample, len );
+      if (lastformat.channels != channels ) // check again...
         goto scope_redo;
 
       for( x = 0; x < plug.cx; x++ )
       {
         int color;
         double z = 0;
-        for( i = lastformat.channels << 1; i; --i ) {
-          if( lastformat.bits <= 8 )
-            z += *sample.cp++ - 128;
-           else if( lastformat.bits <= 16 )
-            z += *sample.sp++;
-           else if( lastformat.bits <= 32 )
-            z += *sample.lp++;
-        }
+        for( i = lastformat.channels << 1; i; --i )
+          z += *sample++;
 
-        y = image_cy * (1 + z / maxval) / 2;
-        color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / maxval + CLR_OSC_DIMMEST;
-        image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
+        y = (long)(image_cy * (1 + z / channels) / 2);
+        if (y >= 0 && y < image_cy)
+        { color = (int)(( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * fabs(z) / channels) + CLR_OSC_DIMMEST;
+          image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
+        }
       }
     }
     break;
@@ -949,8 +941,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return 0;
 }
 
-HWND DLLENTRY
-vis_init( PVISPLUGININIT init )
+HWND DLLENTRY vis_init( const VISPLUGININIT* init )
 {
   FILE* dat;
   int   i;
@@ -1047,7 +1038,7 @@ vis_init( PVISPLUGININIT init )
                                plug.cy,
                                plug.hwnd,
                                HWND_TOP,
-                               plug.id,
+                               999,
                                NULL,
                                NULL  );
 

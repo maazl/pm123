@@ -32,6 +32,7 @@ OBJECTS = $(OBJECTS) modargs$(CO) modinfo$(CO) module$(CO) msgobject$(CO)
 OBJECTS = $(OBJECTS) mutex-os2$(CO) namereg$(CO) object$(CO) once$(CO) packet$(CO)
 OBJECTS = $(OBJECTS) parseaddr$(CO) pdispatch$(CO) pid$(CO) pipe$(CO) play-memblockq$(CO)
 OBJECTS = $(OBJECTS) play-memchunk$(CO) poll$(CO) prioq$(CO) proplist-util$(CO)
+# split into two packets because of command line length restrictions
 OBJECTS2 = protocol-cli$(CO) protocol-esound$(CO)
 OBJECTS2 = $(OBJECTS2) protocol-http$(CO) protocol-native$(CO) protocol-simple$(CO)
 OBJECTS2 = $(OBJECTS2) pstream-util$(CO) pstream$(CO) queue$(CO) random$(CO)

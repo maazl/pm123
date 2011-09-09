@@ -27,8 +27,8 @@
  */
 
 
-#ifndef URL_H
-#define URL_H
+#ifndef URL123_H
+#define URL123_H
 
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>

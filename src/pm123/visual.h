@@ -62,7 +62,7 @@ typedef struct
 
 /// Set of entry points related to visual plug-ins.
 struct VisualProcs
-{ HWND   DLLENTRYP(plugin_init  )(VISPLUGININIT* init);
+{ HWND   DLLENTRYP(plugin_init  )(const VISPLUGININIT* init);
   BOOL   DLLENTRYP(plugin_deinit)(int unload);
          VisualProcs()              { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
@@ -70,6 +70,7 @@ struct VisualProcs
 /// Specialized class for visual plug-ins
 class Visual : public Plugin, protected VisualProcs
 {protected:
+  static const PLUGIN_PROCS VisualCallbacks;
   /// Properties of this plug-in when it is part of a skin.
   VISUAL_PROPERTIES Props;
   /// Window handle of the visual plug-in.
