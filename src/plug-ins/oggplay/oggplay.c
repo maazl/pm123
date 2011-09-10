@@ -824,20 +824,17 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 }
 
 /* Returns information about specified track. */
-ULONG DLLENTRY
-decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
+ULONG DLLENTRY decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
   return PLUGIN_NO_PLAY;
 }
 
 /* Returns information about a disc inserted to the specified drive. */
-ULONG DLLENTRY
-decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
+ULONG DLLENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return PLUGIN_NO_READ;
 }
 
 /* What can be played via the decoder. */
-ULONG DLLENTRY
-decoder_support( char* ext[], int* size )
+ULONG DLLENTRY decoder_support( char* ext[], int* size )
 {
   if( size ) {
     if( ext != NULL && *size > 0 ) {
@@ -846,7 +843,7 @@ decoder_support( char* ext[], int* size )
     *size = 1;
   }
 
-  return DECODER_FILENAME | DECODER_URL | DECODER_METAINFO;
+  return DECODER_FILENAME | DECODER_URL;
 }
 
 /* Returns information about plug-in. */
