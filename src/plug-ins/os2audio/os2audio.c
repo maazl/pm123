@@ -1061,7 +1061,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_configure( HWND howner, HMODULE module )
 {
   HWND  hwnd;
@@ -1094,7 +1094,6 @@ plugin_configure( HWND howner, HMODULE module )
       free( dBList[i] );
     }
   }
-  return 0;
 }
 
 int DLLENTRY
