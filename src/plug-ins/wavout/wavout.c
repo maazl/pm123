@@ -153,10 +153,9 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, (PVOID)module );
-  return 0;
 }
 
 /* Closes a output file. */
