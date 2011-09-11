@@ -13,3 +13,4 @@ EXPORTS
    decoder_getwizard @10
 
    plugin_query     @20
+   plugin_init      @21

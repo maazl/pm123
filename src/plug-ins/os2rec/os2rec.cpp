@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,10 +31,11 @@
  * URL syntax:  record://device?[samplerate=44100][&channels=1|2][&shared=1]
  */
 
-#define PLUGIN_INTERFACE_LEVEL 1
+#define PLUGIN_INTERFACE_LEVEL 3
 #define INCL_OS2MM
 #define INCL_PM
 #define INCL_DOS
+#include "os2rec.h"
 #include <os2.h>
 #include <os2me.h>
 #include <stdlib.h>
@@ -48,10 +49,23 @@
 #include <format.h>
 #include <decoder_plug.h>
 #include <plugin.h>
-#include "os2rec.h"
 
 #include <debuglog.h>
 
+
+PLUGIN_CONTEXT Ctx;
+
+#define DO_8(p,x) \
+do \
+{ { const int p = 0; x; } \
+  { const int p = 1; x; } \
+  { const int p = 2; x; } \
+  { const int p = 3; x; } \
+  { const int p = 4; x; } \
+  { const int p = 5; x; } \
+  { const int p = 6; x; } \
+  { const int p = 7; x; } \
+} while (false)
 
 // TODO:
 //static void load_ini(void);
@@ -59,67 +73,62 @@
 
 // confinuration parameters
 typedef struct
-{  char        device[64];
-   BOOL        lockdevice;
-   FORMAT_INFO format;
-   ULONG       connector;
-   int         numbuffers;
-   int         buffersize;
+{ char         device[64];
+  BOOL         lockdevice;
+  FORMAT_INFO2 format;
+  ULONG        connector;
+  int          numbuffers;
+  int          buffersize;
 } PARAMETERS;
 
 static PARAMETERS defaults =
-{  MCI_DEVTYPE_AUDIO_AMPMIX_NAME"00",
-   FALSE,
-   { sizeof(FORMAT_INFO), 44100, 2, 16, WAVE_FORMAT_PCM },
-   MCI_LINE_IN_CONNECTOR,
-   0, // default
-   0  // default
+{ MCI_DEVTYPE_AUDIO_AMPMIX_NAME"00",
+  FALSE,
+  { 44100, 2 },
+  MCI_LINE_IN_CONNECTOR,
+  0, // default
+  0  // default
 };
 
 
 typedef struct
 {
-   // setup parameters
-   PARAMETERS          params;
+  // setup parameters
+  PARAMETERS          params;
 
-   int   DLLENTRYP(output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-   void* a;           /* only to be used with the precedent function */
-   int   audio_buffersize;
-   void  DLLENTRYP(error_display)( const char* );
-   void  DLLENTRYP(info_display )( const char* );
-   HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
-                         and is posted on stop */
-   HWND  hwnd;        /* commodity for PM interface, decoder must send a few
-                         messages to this handle */
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+  /* decoder events */
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void* A;           /* only to be used with the precedent function */
 
-   // MCI data
-   int                 device;
-   ULONG               MixHandle;
-   PMIXERPROC          pmixRead;
-   MCI_MIX_BUFFER*     MixBuffers;
-   MCI_BUFFER_PARMS    bpa;
+  // MCI data
+  int                 device;
+  ULONG               MixHandle;
+  PMIXERPROC          pmixRead;
+  MCI_MIX_BUFFER*     MixBuffers;
+  MCI_BUFFER_PARMS    bpa;
 
-   // buffer queue
-   MCI_MIX_BUFFER*     QHead;
-   MCI_MIX_BUFFER*     QTail;
-   HMTX                QMutex;
-   HEV                 QSignal;
+  // buffer queue
+  MCI_MIX_BUFFER*     QHead;
+  MCI_MIX_BUFFER*     QTail;
+  HMTX                QMutex;
+  HEV                 QSignal;
 
-   // decoder thread
-   ULONG               tid;
-   BOOL                terminate;
+  // decoder thread
+  ULONG               tid;
+  BOOL                terminate;
 
-   // status
-   BOOL                opened;
-   BOOL                mcibuffers;
-   BOOL                playing;
+  // status
+  BOOL                opened;
+  BOOL                mcibuffers;
+  BOOL                playing;
 
 } OS2RECORD;
 
 
 /* checks whether value is an abrevation of key with at least minlen characters length */
-static BOOL
-abbrev(const char* value, const char* key, int minlen)
+static BOOL abbrev(const char* value, const char* key, int minlen)
 { int len = strlen(value);
   if (len < minlen)
     return FALSE;
@@ -128,8 +137,7 @@ abbrev(const char* value, const char* key, int minlen)
 
 /* decompose record:/// url into params structure. Return FALSE on error.
  */
-static BOOL
-parseURL( const char* url, PARAMETERS* params )
+static BOOL parseURL(const char* url, PARAMETERS* params)
 { unsigned int i,j,k;
   const char* cp;
   if (strnicmp(url, "record:///", 10) != 0)
@@ -196,11 +204,6 @@ parseURL( const char* url, PARAMETERS* params )
     if (stricmp(key, "stereo") == 0)
     { params->format.channels = 2;
     } else
-    if (abbrev(key, "bits", 3))
-    { if (sscanf(value, "%i%n", &i, &j) != 1 || j != strlen(value) || i <= 0)
-        return FALSE; // syntax error
-      params->format.bits = i;
-    } else
     if (abbrev(key, "shared", 5))
     { if (abbrev(value, "no", 1) || strcmp(value, "0") == 0)
         params->lockdevice = TRUE;
@@ -225,47 +228,42 @@ parseURL( const char* url, PARAMETERS* params )
 }
 
 
-int DLLENTRY
-decoder_init( void **A )
+int DLLENTRY decoder_init(void **A)
 {
-   OS2RECORD* a = (OS2RECORD*)(*A = malloc(sizeof(OS2RECORD)));
-   DEBUGLOG(("os2rec:decoder_init(%p) - %p\n", A, *A));
+  OS2RECORD* a = (OS2RECORD*)(*A = malloc(sizeof(OS2RECORD)));
+  DEBUGLOG(("os2rec:decoder_init(%p) - %p\n", A, *A));
 
-   memset(a,0,sizeof(*a));
+  memset(a,0,sizeof(*a));
 
-   // load stuff
-   a->MixBuffers    = NULL;
-   a->QMutex        = NULLHANDLE;
-   a->QSignal       = NULLHANDLE;
-   a->tid           = (ULONG)-1;
-   a->terminate     = FALSE;
-   a->opened        = FALSE;
-   a->mcibuffers    = FALSE;
-   a->playing       = FALSE;
+  // load stuff
+  a->MixBuffers    = NULL;
+  a->QMutex        = NULLHANDLE;
+  a->QSignal       = NULLHANDLE;
+  a->tid           = (ULONG)-1;
+  a->terminate     = FALSE;
+  a->opened        = FALSE;
+  a->mcibuffers    = FALSE;
+  a->playing       = FALSE;
 
-   return 0;
+  return 0;
 }
 
-ULONG DLLENTRY
-decoder_uninit( void *a )
+ULONG DLLENTRY decoder_uninit(void *a)
 {
-   DEBUGLOG(("os2rec:decoder_uninit(%p)\n", a));
-   free(a);
+  DEBUGLOG(("os2rec:decoder_uninit(%p)\n", a));
+  free(a);
 
-   return 0;
+  return 0;
 }
 
-ULONG DLLENTRY
-decoder_support( char* ext[], int* size )
+ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
 {
-  if( size )
-    *size = 0;
-
+  if (count)
+    *count = NULL;
   return DECODER_OTHER;
 }
 
-static const char*
-get_connector_name(ULONG connector)
+static const char* get_connector_name(ULONG connector)
 { switch (connector)
   {case MCI_LINE_IN_CONNECTOR:
     return "line";
@@ -278,139 +276,152 @@ get_connector_name(ULONG connector)
   }
 }
 
-ULONG DLLENTRY
-decoder_fileinfo( const char* filename, DECODER_INFO* info )
-{ const char* cp;
-  PARAMETERS params  = defaults;
-  if (!parseURL( filename, &params ))
-    return 200;
-  info->format       = params.format;
-  info->songlength   = -1;
-  info->junklength   = 0;
-  info->mpeg         = 0;
-  info->layer        = 0;
-  info->mode         = params.format.channels > 1 ? DECODER_MODE_STEREO : DECODER_MODE_SINGLE_CHANNEL;
-  info->modext       = 0; // ??
-  info->bpf          = 0; // ??
-  info->bitrate      = params.format.bits * params.format.samplerate * params.format.channels / 1000;
-  info->extention    = 0; // ??
-  info->startsector  = 0; // no track
-  info->endsector    = 0; // no track
-  /*info->numchannels  = 0; // no MOD
-  info->numpatterns  = 0; // no MOD
-  info->numpositions = 0; // no MOD*/
-  sprintf(info->tech_info, "%d bit, %.1f kHz, %s", params.format.bits, params.format.samplerate/1000.,
-                                                 params.format.channels == 1 ? "mono" : "stereo");
-  cp = get_connector_name(params.connector);
+ULONG DLLENTRY decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
+  DECODER_INFO_ENUMERATION_CB, void*)
+{ // parse URL
+  PARAMETERS params = defaults;
+  if (!parseURL(url, &params))
+    return PLUGIN_NO_PLAY;
+  *what |= INFO_PHYS|INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR|INFO_CHILD;
+
+  // PHYS_INFO = default
+
+  { TECH_INFO& tech = *info->tech;
+    tech.samplerate = params.format.samplerate;
+    tech.channels   = params.format.channels;
+    tech.attributes = TATTR_SONG;
+    tech.info.sprintf("16 bit, %.1f kHz, %s",
+      params.format.samplerate/1000., params.format.channels == 1 ? "mono" : "stereo");
+  }
+
+  info->obj->bitrate = 16 * params.format.samplerate * params.format.channels;
+
+  const char* cp = get_connector_name(params.connector);
   if (cp == NULL)
-    sprintf(info->title, "Record: %.32s-%lu", params.device, params.connector);
+    info->meta->title.sprintf("Record: %.32s-%lu", params.device, params.connector);
    else
-    sprintf(info->title, "Record: %.32s-%s", params.device, cp);
-  info->artist[0]    = 0;
-  info->album[0]     = 0;
-  info->year[0]      = 0;
-  info->comment[0]   = 0;
-  info->genre[0]     = 0;
-  return 0;
+    info->meta->title.sprintf("Record: %.32s-%s", params.device, cp);
+
+  // ATTR_INFO = default
+
+  return PLUGIN_OK;
 }
 
 
 /********** MMOS2 stuff ****************************************************/
 
 static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULONG ulFlags)
-{  OS2RECORD *a = (OS2RECORD*)PlayedBuffer->ulUserParm;
-   DEBUGLOG(("os2rec:DARTEvent(%u, %p, %u)\n", ulStatus, PlayedBuffer, ulFlags));
+{ DEBUGLOG(("os2rec:DARTEvent(%u, %p, %u)\n", ulStatus, PlayedBuffer, ulFlags));
+  OS2RECORD *a = (OS2RECORD*)PlayedBuffer->ulUserParm;
 
-   switch(ulFlags)
-   {case MIX_STREAM_ERROR | MIX_READ_COMPLETE:  // error occur in device
-      DEBUGLOG(("os2rec:DARTEvent: error %u\n", ulStatus));
-      /*if ( ulStatus == ERROR_DEVICE_UNDERRUN)
-         // Write buffers to rekick off the amp mixer.
-         a->mmp.pmixWrite( a->mmp.ulMixHandle,
-                        a->MixBuffers,
-                        a->ulMCIBuffers );*/
-      break;
+  switch(ulFlags)
+  {case MIX_STREAM_ERROR | MIX_READ_COMPLETE:  // error occur in device
+    DEBUGLOG(("os2rec:DARTEvent: error %u\n", ulStatus));
+    /*if ( ulStatus == ERROR_DEVICE_UNDERRUN)
+       // Write buffers to rekick off the amp mixer.
+       a->mmp.pmixWrite( a->mmp.ulMixHandle,
+                      a->MixBuffers,
+                      a->ulMCIBuffers );*/
+    break;
 
-    case MIX_READ_COMPLETE:                     // for recording
-      // post buffer in the queue
-      PlayedBuffer->ulUserParm = 0; // Queue end marker
-      DosRequestMutexSem(a->QMutex, SEM_INDEFINITE_WAIT);
-      if (a->QHead == NULL)
-         a->QHead = a->QTail = PlayedBuffer;
-       else
-         a->QTail->ulUserParm = (ULONG)PlayedBuffer;
-      DosReleaseMutexSem(a->QMutex);
-      // notify decoder thread
-      DosPostEventSem(a->QSignal);
-      break;
-   } // end switch
-   return 0;
+  case MIX_READ_COMPLETE:                     // for recording
+    // post buffer in the queue
+    PlayedBuffer->ulUserParm = 0; // Queue end marker
+    DosRequestMutexSem(a->QMutex, SEM_INDEFINITE_WAIT);
+    if (a->QHead == NULL)
+       a->QHead = a->QTail = PlayedBuffer;
+     else
+       a->QTail->ulUserParm = (ULONG)PlayedBuffer;
+    DosReleaseMutexSem(a->QMutex);
+    // notify decoder thread
+    DosPostEventSem(a->QSignal);
+    break;
+  } // end switch
+  return 0;
+}
 
-} /* end DARTEvent */
+static void TFNENTRY DecoderThread( void* arg )
+{ OS2RECORD *a = (OS2RECORD*)arg;
+  ULONG rc;
+  MCI_MIX_BUFFER* current;
+  DEBUGLOG(("os2rec:DecoderThread(%p)\n", a));
 
-static void TFNENTRY
-DecoderThread( void* arg )
-{  OS2RECORD *a = (OS2RECORD*)arg;
-   ULONG rc;
-   MCI_MIX_BUFFER* current;
-   DEBUGLOG(("os2rec:DecoderThread(%p)\n", a));
-
-   for(;;)
-   {  // Wait for signal
-      {  ULONG ul;
-         DosWaitEventSem(a->QSignal, SEM_INDEFINITE_WAIT);
-         DEBUGLOG(("os2rec:DecoderThread: signal! - %d\n", a->terminate));
-         if (a->terminate)
-            return;
-         DosResetEventSem(a->QSignal, &ul);
-      }
-      // detach Queue
-      {  PTIB ptib;
-         ULONG priority;
-         // We have to switch to time critical priority before we can enter the mutex.
-         // Get old Priority
-         DosGetInfoBlocks(&ptib, NULL);
-         priority = ptib->tib_ptib2->tib2_ulpri;
-         DosSetPriority(PRTYS_THREAD, PRTYC_TIMECRITICAL, -31, 0);
-         DosRequestMutexSem(a->QMutex, SEM_INDEFINITE_WAIT);
-         current = a->QHead;
-         a->QHead = NULL;
-         a->QTail = NULL;
-         DosReleaseMutexSem(a->QMutex);
-         // restore priority
-         DosSetPriority(PRTYS_THREAD, (priority << 8 & 0xFF), priority & 0xFF, 0);
-      }
+  for(;;)
+  { // Wait for signal
+    { ULONG ul;
+      DosWaitEventSem(a->QSignal, SEM_INDEFINITE_WAIT);
+      DEBUGLOG(("os2rec:DecoderThread: signal! - %d\n", a->terminate));
       if (a->terminate)
-         return;
-      // pass queue content to output
-      while (current != NULL)
-      {  MCI_MIX_BUFFER* next;
-         ULONG done = 0;
-         int byterate = a->params.format.bits/8 * a->params.format.samplerate;
-         DEBUGLOG(("os2rec:DecoderThread: now at %p %u %u\n", current, current->ulBufferLength, current->ulTime));
-         // pass buffer content
-         while (done < current->ulBufferLength)
-         {  ULONG plen = current->ulBufferLength - done;
-            if (plen > (unsigned)a->audio_buffersize)
-               plen = a->audio_buffersize;
-            (*a->output_play_samples)( a->a, &a->params.format,
-              (char*)current->pBuffer + done, plen, current->ulTime + done*1000/byterate );
-            if (a->terminate)
-               return;
-            done += plen;
-         }
-
-         next = (MCI_MIX_BUFFER*)current->ulUserParm;
-         // pass buffer back to DART
-         current->ulUserParm = (ULONG)a;
-         rc = (USHORT)(*a->pmixRead)( a->MixHandle, current, 1 );
-         if (rc != NO_ERROR)
-            DEBUGLOG(("os2rec:DecoderThread: pmixRead failed %lu\n", rc));
-         // next buffer
-         current = next;
+        return;
+      DosResetEventSem(a->QSignal, &ul);
+    }
+    // detach Queue
+    { PTIB ptib;
+      ULONG priority;
+      // We have to switch to time critical priority before we can enter the mutex.
+      // Get old Priority
+      DosGetInfoBlocks(&ptib, NULL);
+      priority = ptib->tib_ptib2->tib2_ulpri;
+      DosSetPriority(PRTYS_THREAD, PRTYC_TIMECRITICAL, -31, 0);
+      DosRequestMutexSem(a->QMutex, SEM_INDEFINITE_WAIT);
+      current = a->QHead;
+      a->QHead = NULL;
+      a->QTail = NULL;
+      DosReleaseMutexSem(a->QMutex);
+      // restore priority
+      DosSetPriority(PRTYS_THREAD, (priority << 8 & 0xFF), priority & 0xFF, 0);
+    }
+    if (a->terminate)
+      return;
+    // pass queue content to output
+    while (current != NULL)
+    { MCI_MIX_BUFFER* next;
+      DEBUGLOG(("os2rec:DecoderThread: now at %p %u %u\n", current, current->ulBufferLength, current->ulTime));
+      short* sp = (short*)current->pBuffer;
+      short* spe = (short*)((char*)sp + current->ulBufferLength);
+      // pass buffer content
+      while (sp != spe)
+      { float* dp;
+        int count = (*a->OutRequestBuffer)(a->A, &a->params.format, &dp);
+        if (a->terminate)
+        { (*a->OutCommitBuffer)(a->A, 0, 0);
+          return;
+        }
+        if (count <= 0)
+          (a->DecEvent)(a->A, DECEVENT_PLAYERROR, NULL);
+        // Convert to float
+        count *= a->params.format.channels; // count is now number of floats
+        if (count > spe - sp)
+          count = spe - sp;
+        PM123_TIME time = current->ulTime / 1000.
+          + (double)(sp - (short*)current->pBuffer) / a->params.format.channels / a->params.format.samplerate;
+        // Convert to float
+        float* dpe = dp + (count & -8);
+        while (dp != dpe)
+        { DO_8(p, dp[p] = sp[p] / 32768.);
+          dp += 8;
+          sp += 8;
+        }
+        dpe += count & ~-8;
+        while (dp != dpe)
+          *dp++ = *sp++ / 32768.;
+        // Send data
+        (*a->OutCommitBuffer)(a->A, count / a->params.format.channels, time);
+        if (a->terminate)
+          return;
       }
-      DEBUGLOG(("os2rec:DecoderThread: done!\n"));
-   }
+
+      next = (MCI_MIX_BUFFER*)current->ulUserParm;
+      // pass buffer back to DART
+      current->ulUserParm = (ULONG)a;
+      rc = (USHORT)(*a->pmixRead)( a->MixHandle, current, 1 );
+      if (rc != NO_ERROR)
+        DEBUGLOG(("os2rec:DecoderThread: pmixRead failed %lu\n", rc));
+      // next buffer
+      current = next;
+    }
+    DEBUGLOG(("os2rec:DecoderThread: done!\n"));
+  }
 }
 
 static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
@@ -427,14 +438,14 @@ static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
    if (rc != MCIERR_SUCCESS)
       sprintf(mmerror+len, "Cannot query error message: %lu.\n", rc);
 
-   (*a->error_display)(mmerror);
+   (*Ctx.plugin_api->message_display)(MSG_ERROR, mmerror);
 
    return ulError;
 }
 
 static ULONG OS2Error(OS2RECORD *a, ULONG ulError, const char* location)
 {
-   char mmerror[1024];
+   char mmerror[512];
    int len;
 
    sprintf(mmerror, "OS/2 Error %lu at %.30s: ", ulError, location);
@@ -443,7 +454,7 @@ static ULONG OS2Error(OS2RECORD *a, ULONG ulError, const char* location)
    os2_strerror(ulError, mmerror+len, sizeof mmerror - len);
    mmerror[sizeof mmerror-1] = 0;
 
-   (*a->error_display)(mmerror);
+   (*Ctx.plugin_api->message_display)(MSG_ERROR, mmerror);
 
    return ulError;
 }
@@ -473,7 +484,7 @@ static ULONG output_close(OS2RECORD *a)
       DEBUGLOG(("os2rec:output_close: DosWaitThread - %d\n", rc));
 
    // release queue handles
-   if ( a->QSignal != NULLHANDLE );
+   if ( a->QSignal != NULLHANDLE )
    {  rc = DosCloseEventSem(a->QSignal);
       if (rc != NO_ERROR)
          DEBUGLOG(("os2rec:output_close: DosCloseEventSem QSignal - %d\n", rc));
@@ -544,8 +555,8 @@ static ULONG device_open(OS2RECORD *a)
    {  MCI_MIXSETUP_PARMS  mspa;
       memset(&mspa, 0, sizeof mspa);
 
-      mspa.ulBitsPerSample = a->params.format.bits;
-      mspa.ulFormatTag     = a->params.format.format; // MCI_WAVE_FORMAT_PCM, hopefully
+      mspa.ulBitsPerSample = 16; // Only 16bps supported
+      mspa.ulFormatTag     = MCI_WAVE_FORMAT_PCM;
       mspa.ulSamplesPerSec = a->params.format.samplerate;
       mspa.ulChannels      = a->params.format.channels;
       // Setup the mixer for playback of wave data
@@ -572,11 +583,8 @@ static ULONG device_open(OS2RECORD *a)
      a->params.numbuffers = 5;
    else if (a->params.numbuffers > 100)
      a->params.numbuffers = 100;
-   a->params.buffersize -= a->params.buffersize % a->audio_buffersize;
    if (a->params.buffersize >= 65536)
-     a->params.buffersize = 65535 - 65535 % a->audio_buffersize;
-   if (a->params.buffersize < a->audio_buffersize)
-     a->params.buffersize = a->audio_buffersize;
+     a->params.buffersize = 65536;
    // Set up the BufferParms data structure and allocate device buffers from the Amp-Mixer
    {  free(a->MixBuffers);
       a->MixBuffers = (MCI_MIX_BUFFER*)calloc(a->params.numbuffers, sizeof(*a->MixBuffers));
@@ -611,7 +619,7 @@ static ULONG device_open(OS2RECORD *a)
    // start decoder thread
    a->tid = _beginthread(&DecoderThread, NULL, 65536, a);
    if (a->tid == (ULONG)-1)
-   {  (*a->error_display)("Failed to create decoder thread.");
+   {  (*Ctx.plugin_api->message_display)(MSG_ERROR, "Failed to create decoder thread.");
       output_close(a);
       return errno;
    }
@@ -634,14 +642,14 @@ static ULONG device_open(OS2RECORD *a)
 }
 
 
-ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
+ULONG DLLENTRY decoder_command(void *A, DECMSGTYPE msg, const DECODER_PARAMS2 *info)
 {  OS2RECORD *a = (OS2RECORD *)A;
    DEBUGLOG(("os2rec:decoder_command(%p, %i, %p)\n", a, msg, info));
 
    switch(msg)
    {case DECODER_PLAY:
       a->params = defaults;
-      if (!parseURL(info->other == NULL ? info->URL : info->other, &a->params))
+      if (!parseURL(info->URL, &a->params))
       {  return 100;
       }
       return device_open(a);
@@ -650,13 +658,11 @@ ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
       return output_close(a);
 
     case DECODER_SETUP:
-      a->output_play_samples = info->output_play_samples;
-      a->a                   = info->a;
-      a->audio_buffersize    = info->audio_buffersize;
-      a->error_display       = info->error_display;
-      a->info_display        = info->info_display;
-      a->playsem             = info->playsem;
-      a->hwnd                = info->hwnd;
+      a->OutRequestBuffer = info->OutRequestBuffer;
+      a->OutCommitBuffer  = info->OutCommitBuffer;
+      a->DecEvent         = info->DecEvent;
+      a->A                = info->A;
+      //a->audio_buffersize    = info->audio_buffersize;
       return 0;
 
     default:
@@ -665,8 +671,7 @@ ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
 }
 
 // Status interface
-ULONG DLLENTRY
-decoder_status( void *A )
+ULONG DLLENTRY decoder_status( void *A )
 {  OS2RECORD *a = (OS2RECORD *)A;
 
    if (a->terminate)
@@ -678,21 +683,26 @@ decoder_status( void *A )
    return DECODER_STOPPED;
 }
 
-ULONG DLLENTRY
-decoder_length( void *w )
+PM123_TIME DLLENTRY decoder_length( void *w )
 {  return (ULONG)-1;
 }
 
 
+int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
+{
+  Ctx = *ctx;
+  return 0;
+}
+
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
-   param->type = PLUGIN_DECODER;
-   param->author = "Marcel Mueller";
-   param->desc = "OS2 recording plug-in 1.0";
-   param->configurable = FALSE;
-
-   //load_ini();
-   return 0;
+  param->type = PLUGIN_DECODER;
+  param->author = "Marcel Mueller";
+  param->desc = "OS2 recording plug-in 1.1";
+  param->configurable = FALSE;
+  param->interface = PLUGIN_INTERFACE_LEVEL;
+  //load_ini();
+  return 0;
 }
 
 
@@ -785,8 +795,6 @@ static MRESULT EXPENTRY WizardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
     }
     // Initialize number of channels
     WinCheckButton(hwnd, defaults.format.channels == 1 ? RB_MONO : RB_STEREO, TRUE);
-    // Initialize format
-    WinCheckButton(hwnd, defaults.format.bits == 8 ? RB_8BIT : defaults.format.bits == 24 ? RB_24BIT : RB_16BIT, TRUE);
     break;
 
    case WM_COMMAND:
@@ -797,11 +805,10 @@ static MRESULT EXPENTRY WizardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
       { char url[128];
         ULONG samp;
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&samp), 0);
-        sprintf(url, "record:///%u?samp=%lu&%s&bits=%u&in=%s&share=%s",
+        sprintf(url, "record:///%u?samp=%lu&%s&in=%s&share=%s",
           SHORT1FROMMR(WinSendDlgItemMsg(hwnd, CB_DEVICE, LM_QUERYSELECTION, MPFROMSHORT(LIT_FIRST), 0)),
           samp,
           WinQueryButtonCheckstate(hwnd, RB_MONO) ? "mono" : "stereo",
-          WinQueryButtonCheckstate(hwnd, RB_8BIT) ? 8      : WinQueryButtonCheckstate(hwnd, RB_24BIT)   ? 24        : 16,
           WinQueryButtonCheckstate(hwnd, RB_MIC)  ? "mic"  : WinQueryButtonCheckstate(hwnd, RB_DIGITAL) ? "digital" : "line",
           WinQueryButtonCheckstate(hwnd, RB_EXCL) ? "no"   : "yes");
         // store result

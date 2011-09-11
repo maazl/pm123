@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2006-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,9 +44,5 @@
 #define ST_CHANNELS   450
 #define RB_MONO       150
 #define RB_STEREO     151
-#define ST_FORMAT     460
-#define RB_8BIT       160
-#define RB_16BIT      161
-#define RB_24BIT      162
 
 #endif /* OS2REC_H */
