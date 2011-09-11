@@ -6,6 +6,7 @@ TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\include;..
 TARGET   = cpputil$(LBO) xstring$(LBO)
 SRCFIL   = *.cpp container/*.cpp
+CFLAGS_USR=-fcheck-new
 
 !include $(TOPDIR)\config\makerules
 

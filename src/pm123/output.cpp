@@ -38,7 +38,7 @@
 #include "output.h"
 #include "proxyhelper.h"
 #include "pm123.h" // for hab
-
+#include <cpp/vdelegate.h>
 #include <limits.h>
 
 #include <debuglog.h>

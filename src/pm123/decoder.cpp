@@ -39,7 +39,7 @@
 #include "configuration.h"
 #include "eventhandler.h"
 #include "proxyhelper.h"
-#include <vdelegate.h>
+#include <cpp/vdelegate.h>
 #include <charset.h>
 #include <fileutil.h>
 #include <wildcards.h>

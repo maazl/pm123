@@ -9,7 +9,7 @@
 <body>
 <h2>PM123's Remote command reference - Error codes</h2>
 <p>The commands of PM123's playback engine return one of the following
-result codes:<br>
+result codes:
 </p>
 <table border="1" cellpadding="5" cellspacing="0">
   <tbody>
@@ -70,7 +70,7 @@ playlist.</td>
     </tr>
   </tbody>
 </table>
-<h3><tt><a name="getlasterror"></a>getmessages</tt></h3>
+<h3><tt><a name="getmessages"></a>getmessages</tt></h3>
 <p>This command returns the messages that have been recorded since the
 last call to this command. The command is destructive. Each message is
 returned only once. </p>
@@ -78,13 +78,11 @@ returned only once. </p>
 severity level of the message:</p>
 <blockquote><tt>E </tt>- error<br>
   <tt>W </tt>- warning<br>
-  <tt>I </tt>- information<br>
+  <tt>I </tt>- information
 </blockquote>
 <p>Newlines in the message body are escaped by <tt><i>&lt;ESC&gt;</i>r</tt>
 and <tt><i>&lt;ESC&gt;</i>n</tt> to keep the messages within a single
 line. Escape characters itself are doubled (<i><tt>&lt;ESC&gt;&lt;ESC&gt;</tt></i>).
 As usual the list is terminated by an empty line.</p>
-<p><br>
-</p>
 </body>
 </html>

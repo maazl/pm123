@@ -44,7 +44,7 @@
 class EventHandler
 {public:
   /// Type for the event handlers that consume the messages.
-  typedef void (*Handler)(MESSAGE_TYPE type, const xstring& msg);
+  typedef void DLLENTRYP(Handler)(MESSAGE_TYPE type, const xstring& msg);
  private:
   struct DispatchTable : public Iref_count, public sco_arr<Handler>
   { DispatchTable(size_t size) : sco_arr<Handler>(size) {}
@@ -80,6 +80,15 @@ class EventHandler
   /// that the previous event handler is not currently called by another thread
   /// after the function returned.
   static Handler SetLocalHandler(Handler eh);
+
+ public:
+  /// Redirect events from the current thread until this class instance goes out of scope.
+  class LocalRedirect
+  { Handler Old;
+   public:
+    LocalRedirect(Handler eh) : Old(SetLocalHandler(eh)) {}
+    ~LocalRedirect() { SetLocalHandler(Old); }
+  };
 };
 
 

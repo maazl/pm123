@@ -38,8 +38,8 @@
 
 
 struct preamble
-{ size_t length;
-  int    magic;
+{ size_t   length;
+  unsigned magic;
 };
 
 
@@ -50,7 +50,7 @@ void* operator new(size_t len)
   storage->length = len;
   storage->magic = SCALAR_MAGIC;
   ++storage;
-  *(int*)(((char*)storage)+len) = SCALAR_MAGIC;
+  *(int*)((char*)storage+len) = SCALAR_MAGIC;
   return storage;
 }
 
@@ -59,9 +59,9 @@ void operator delete(void* ptr)
     return;
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == SCALAR_MAGIC);
-  ASSERT(*(int*)((char*)ptr)+storage->length == SCALAR_MAGIC);
+  ASSERT(*(unsigned*)((char*)ptr+storage->length) == SCALAR_MAGIC);
   storage->magic = FREE_MAGIC;
-  *(int*)((char*)ptr)+storage->length = FREE_MAGIC;
+  *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
   free(storage);
 }
 
@@ -72,7 +72,7 @@ void* operator new[](size_t len)
   storage->length = len;
   storage->magic = ARRAY_MAGIC;
   ++storage;
-  *(int*)(((char*)storage)+len) = ARRAY_MAGIC;
+  *(unsigned*)((char*)storage+len) = ARRAY_MAGIC;
   return storage;
 }
 
@@ -81,8 +81,8 @@ void operator delete[](void* ptr)
     return;
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == ARRAY_MAGIC);
-  ASSERT(*(int*)((char*)ptr)+storage->length == ARRAY_MAGIC);
+  ASSERT(*(unsigned*)((char*)ptr+storage->length) == ARRAY_MAGIC);
   storage->magic = FREE_MAGIC;
-  *(int*)((char*)ptr)+storage->length = FREE_MAGIC;
+  *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
   free(storage);
 }

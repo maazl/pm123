@@ -37,9 +37,11 @@
 #include "loadhelper.h"
 #include "configuration.h"
 #include "controller.h"
+#include "eventhandler.h"
 #include "123_util.h"
 #include "copyright.h"
 #include "plugman.h"
+#include <cpp/vdelegate.h>
 #include <fileutil.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>
@@ -149,8 +151,7 @@ class CommandProcessor : public ACommandProcessor
     , Arg((void*)option)
     {}
     void operator()(CommandProcessor& cp) const
-    { (cp.*Handler)(Arg);
-    }
+    { (cp.*Handler)(Arg); }
   };
 
  private: // state
@@ -160,8 +161,15 @@ class CommandProcessor : public ACommandProcessor
   int_ptr<PlayableInstance>   CurItem;
   /// current base URL
   url123                      CurDir;
+  /// Cummulated messages
+  xstringbuilder              Messages;
 
  private: // Helper functions
+  /// escape newline characters
+  static void EscapeNEL(xstringbuilder& target, size_t start);
+  static void DLLENTRY MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg);
+  vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message;
+
   /// Tag for Request: Query the default value of an option
   static char Cmd_QueryDefault[];
   /// Tag for Request: Set the default value of an option
@@ -197,9 +205,11 @@ class CommandProcessor : public ACommandProcessor
   void SendCtrlCommand(Ctrl::ControlCommand* cmd);
   /// Add a set of URLs to a LoadHelper object.
   bool FillLoadHelper(LoadHelper& lh, char* args);
- private:
-  // PLAYBACK
 
+ private:
+  void CmdGetMessages();
+
+  // PLAYBACK
   void CmdCd();
   void CmdLoad();
   void CmdPlay();
@@ -308,6 +318,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "float",          &CommandProcessor::CmdFloat         }
 , { "font",           &CommandProcessor::CmdFont          }
 , { "forward",        &CommandProcessor::CmdForward       }
+, { "getmessages",    &CommandProcessor::CmdGetMessages   }
 , { "hide",           &CommandProcessor::CmdHide          }
 , { "info format",    &CommandProcessor::CmdInfoFormat    }
 , { "info invalidate",&CommandProcessor::CmdInfoInvalidate}
@@ -416,8 +427,94 @@ static const strmap<5,cfg_disp> dispmap[] =
 
 CommandProcessor::CommandProcessor()
 : CurPlaylist(&GUI::GetDefaultPL())
+, vd_message(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
 {}
+
+void CommandProcessor::EscapeNEL(xstringbuilder& target, size_t start)
+{ while (true)
+  { start = target.find_any("\r\n\x1b", start);
+    if (start >= target.length())
+      break;
+    switch(target[start])
+    {case '\r':
+      target[start] = 'r'; break;
+     case '\n':
+       target[start] = 'n'; break;
+    }
+    target.insert(start, '\x1b');
+    start += 2;
+} }
+
+void DLLENTRY CommandProcessor::MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg)
+{ that->Messages.append(type < 2 ? "IWE"[type] : '?');
+  that->Messages.append(' ');
+  size_t start = that->Messages.length();
+  that->Messages.append(msg);
+  EscapeNEL(that->Messages, start);
+  that->Messages.append('\n');
+}
+
+void CommandProcessor::Exec()
+{ DEBUGLOG(("CommandProcessor::Exec() %s\n", Request));
+  // redirect error handler
+  EventHandler::LocalRedirect ehr(vd_message);
+
+  Request += strspn(Request, " \t"); // skip leading blanks
+  // remove trailing blanks
+  { char* ape = Request + strlen(Request);
+    while (ape != Request && (ape[-1] == ' ' || ape[-1] == '\t'))
+      --ape;
+    *ape = 0;
+  }
+  if (Request[0] != '*')
+    CmdLoad();
+  else
+  { ++Request;
+    Request += strspn(Request, " \t"); // skip leading blanks
+    // check for plug-in specific commands
+    size_t len = strcspn(Request, " \t:");
+    if (Request[len] == ':')
+    { // Plug-in option
+      Request[len] = 0;
+      int_ptr<Module> plugin(Module::FindByKey(Request));
+      if (!plugin)
+        return; // Plug-in not found.
+      Request += len+1;
+      Request += strspn(Request, " \t"); // skip leading blanks
+      // Call plug-in function
+      xstring result;
+      plugin->Command(Request, result);
+      Reply.append(result);
+      return;
+    }
+    // Search command handler ...
+    const CmdEntry* cep = mapsearcha(CmdList, Request);
+    DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
+    if (cep)
+    { size_t len = strlen(cep->Str);
+      len += strspn(Request + len, " \t");
+      Request += len;
+      DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
+      if (len || *Request == 0)
+        // ... and execute
+        (this->*cep->Val)();
+    }
+  }
+}
+
+const char* ACommandProcessor::Execute(const char* cmd)
+{ char* buffer = Request = strdup(cmd);
+  Reply.clear();
+  Exec();
+  free(buffer);
+  return Reply.cdata();
+}
+
+ACommandProcessor* ACommandProcessor::Create()
+{ return new CommandProcessor();
+}
+
 
 void CommandProcessor::DoOption(bool amp_cfg::* option)
 { Reply.append(ReadCfg().*option ? "on" : "off");
@@ -643,69 +740,16 @@ bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
 }
 
 
-const char* ACommandProcessor::Execute(const char* cmd)
-{ char* buffer = Request = strdup(cmd);
-  Reply.clear();
-  Exec();
-  free(buffer);
-  return Reply.cdata();
-}
-
-ACommandProcessor* ACommandProcessor::Create()
-{ return new CommandProcessor();
-}
-
-void CommandProcessor::Exec()
-{ DEBUGLOG(("CommandProcessor::Exec() %s\n", Request));
-  Request += strspn(Request, " \t"); // skip leading blanks
-  // remove trailing blanks
-  { char* ape = Request + strlen(Request);
-    while (ape != Request && (ape[-1] == ' ' || ape[-1] == '\t'))
-      --ape;
-    *ape = 0;
-  }
-  if (Request[0] != '*')
-    CmdLoad();
-  else
-  { ++Request;
-    Request += strspn(Request, " \t"); // skip leading blanks
-    // check for plug-in specific commands
-    size_t len = strcspn(Request, " \t:");
-    if (Request[len] == ':')
-    { // Plug-in option
-      Request[len] = 0;
-      int_ptr<Module> plugin(Module::FindByKey(Request));
-      if (!plugin)
-        return; // Plug-in not found.
-      Request += len+1;
-      Request += strspn(Request, " \t"); // skip leading blanks
-      // Call plug-in function
-      xstring result;
-      plugin->Command(Request, result);
-      Reply.append(result);
-      return;
-    }
-    // Search command handler ...
-    const CmdEntry* cep = mapsearcha(CmdList, Request);
-    DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
-    if (cep)
-    { size_t len = strlen(cep->Str);
-      len += strspn(Request + len, " \t");
-      Request += len;
-      DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
-      if (len || *Request == 0)
-        // ... and execute
-        (this->*cep->Val)();
-    }
-  }
-}
-
-
 /****************************************************************************
 *
 *  remote command handlers
 *
 ****************************************************************************/
+void CommandProcessor::CmdGetMessages()
+{ Reply.append(Messages, Messages.length());
+  Messages.clear();
+}
+
 // PLAY CONTROL
 
 void CommandProcessor::CmdCd()
@@ -1071,23 +1115,10 @@ void CommandProcessor::AppendStringAttribute(const char* name, xstring value)
   if (value)
   { Reply.append('=');
     if (value.length() != 0)
-    { size_t pos = Reply.length();
+    { size_t start = Reply.length();
       Reply.append(value);
-      // escape some special characters
-      while (true)
-      { pos = Reply.find_any("\r\n\x1b", pos);
-        if (pos >= Reply.length())
-          break;
-        switch(Reply[pos])
-        {case '\r':
-          Reply[pos] = 'r';
-          break;
-         case '\n':
-           Reply[pos] = 'n';
-        }
-        Reply.insert(pos, '\x1b');
-        pos += 2;
-    } }
+      EscapeNEL(Reply, start);
+    }
   }
   Reply.append('\n');
 }
