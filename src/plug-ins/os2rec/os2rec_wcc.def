@@ -12,3 +12,4 @@ EXPORT decoder_support   .7
 EXPORT decoder_getwizard .10
 
 EXPORT plugin_query      .20
+EXPORT plugin_init       .21
