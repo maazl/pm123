@@ -1,90 +1,98 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html level="3"><head>
+<html level="3">
+<head>
   <title>Recording Plug-in</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head><body>
-
+</head>
+<body>
 <h2>PM123's&nbsp;Recording Plug-in (OS2REC)</h2>
 <p>OS2REC supports playing of audio data just recorded from line-in.
-  You say it makes no sense? It makes sense!
-  E.g. if you want to use the <a href="realeq.html">Equalizer Plug-In</a> with an external audio source.</p>
+You say it makes no sense? It makes sense! E.g. if you want to use the <a
+ href="realeq.html">Equalizer Plug-In</a> with an external audio source.</p>
 <h3>Usage</h3>
 <blockquote>
-<p>To start the recording right click PM123, choose Load..., Record... and follow the dialog.
- Alternatively choose Load..., URL... and enter an URL of the following style:</p>
-<p><tt>record:///</tt>[<tt><var>sounddevice</var></tt>][<tt>?<var>param1</var>=<var>value1</var></tt>[<tt>&amp;<var>param2</var>=<var>value2</var></tt>[<tt>&amp;</tt>...]]]</p>
-<p><var><tt>sounddevice</tt></var> is either a device ID (integer number) or a name of a mixer device usually
-<tt>AMPMIX<var>xx</var></tt>. The Device ID <tt>0</tt>
+  <p>To start the recording right click PM123, choose Load...,
+Record... and follow the dialog. Alternatively choose Load..., URL...
+and enter an URL of the following style:</p>
+  <p><tt>record:///</tt>[<tt><var>sounddevice</var></tt>][<tt>?<var>param1</var>=<var>value1</var></tt>[<tt>&amp;<var>param2</var>=<var>value2</var></tt>[<tt>&amp;</tt>...]]]</p>
+  <p><var><tt>sounddevice</tt></var> is either a device ID (integer
+number) or a name of a mixer device usually
+  <tt>AMPMIX<var>xx</var></tt>. The Device ID <tt>0</tt>
 is the default MMOS2 sound device.<br>
 The parameters below may be used to control the recording parameters.</p>
-<table border="1" cellpadding="3" cellspacing="0"><tbody><tr>
-  <th>Parameter</th>
-  <th>Value</th>
-  <th>Default</th>
-  <th>Remarks</th>
-</tr><tr>
-  <td><tt>samp</tt>[<tt>lerate</tt>]</td>
-  <td>Sampling rate in kHz</td>
-  <td><tt>44100</tt></td>
-  <td>&nbsp;</td>
-</tr><tr>
-  <td><tt>ch</tt>[<tt>annels</tt>]</td>
-  <td>Number of channels (usually 1 or 2)</td>
-  <td><tt>2</tt></td>
-  <td>&nbsp;</td>
-</tr><tr>
-  <td><tt>mono</tt></td>
-  <td>- none -</td>
-  <td>&nbsp;</td>
-  <td>Alias for <tt>channels=1</tt></td>
-</tr><tr>
-  <td><tt>stereo</tt></td>
-  <td>- none -</td>
-  <td>&nbsp;</td>
-  <td>Alias for <tt>channels=2</tt></td>
-</tr><tr>
-  <td><tt>bit</tt>[<tt>s</tt>]</td>
-  <td>Number of pits per sample and channel</td>
-  <td><tt>16</tt></td>
-  <td>&nbsp;</td>
-</tr><tr>
-  <td><tt>share</tt>[<tt>d</tt>]</td>
-  <td><tt>y</tt>[<tt>es</tt>]|<tt>n</tt>[<tt>o</tt>], default: <tt>yes</tt></td>
-  <td><tt>yes</tt></td>
-  <td>Using the non-shared mode will also block other mixers from working.</td>
-</tr><tr>
-  <td><tt>in</tt>[<tt>put</tt>]</td>
-  <td><tt>l</tt>[<tt>ine</tt>]|<tt>m</tt>[<tt>ic</tt>]|<tt>d</tt>[<tt>igital</tt>]</td>
-  <td><tt>line</tt></td>
-  <td>&nbsp;</td>
-</tr></tbody></table>
+  <table border="1" cellpadding="3" cellspacing="0">
+    <tbody>
+      <tr>
+        <th>Parameter</th>
+        <th>Value</th>
+        <th>Default</th>
+        <th>Remarks</th>
+      </tr>
+      <tr>
+        <td><tt>samp</tt>[<tt>lerate</tt>]</td>
+        <td>Sampling rate in kHz</td>
+        <td><tt>44100</tt></td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td><tt>ch</tt>[<tt>annels</tt>]</td>
+        <td>Number of channels (usually 1 or 2)</td>
+        <td><tt>2</tt></td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td><tt>mono</tt></td>
+        <td>- none -</td>
+        <td>&nbsp;</td>
+        <td>Alias for <tt>channels=1</tt></td>
+      </tr>
+      <tr>
+        <td><tt>stereo</tt></td>
+        <td>- none -</td>
+        <td>&nbsp;</td>
+        <td>Alias for <tt>channels=2</tt></td>
+      </tr>
+      <tr>
+        <td><tt>share</tt>[<tt>d</tt>]</td>
+        <td><tt>y</tt>[<tt>es</tt>]|<tt>n</tt>[<tt>o</tt>], default: <tt>yes</tt></td>
+        <td><tt>yes</tt></td>
+        <td>Using the non-shared mode will also block other mixers from
+working.</td>
+      </tr>
+      <tr>
+        <td><tt>in</tt>[<tt>put</tt>]</td>
+        <td><tt>l</tt>[<tt>ine</tt>]|<tt>m</tt>[<tt>ic</tt>]|<tt>d</tt>[<tt>igital</tt>]</td>
+        <td><tt>line</tt></td>
+        <td>&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
 </blockquote>
-
 <h3>Examples</h3>
 <dl>
   <dt><samp>record:///</samp></dt>
-  <dd>Start recording from the default sound device with
-    default parameters: 44,1kHz, stereo, use line in</dd>
+  <dd>Start recording from the default sound device with default
+parameters: 44,1kHz, stereo, use line in</dd>
   <dt><samp>record:///ampmix01</samp></dt>
   <dd>Start recording from the specified sound device</dd>
   <dt><samp>record:///0?samplerate=48000&amp;mono</samp></dt>
-  <dd>Start recording from the default sound device with
-    48kHz sample rate and only 1 channel</dd>
+  <dd>Start recording from the default sound device with 48kHz sample
+rate and only 1 channel</dd>
   <dt><samp>record:///0?input=mic</samp></dt>
   <dd>Start recording from the default microphone input.</dd>
 </dl>
-
 <h3>Known issues</h3>
 <ul>
-<li>The plug-in should introduce a <strong>defined
-  latency</strong> before passing the buffers to the output.<br>
-  Since the playback is normally absolutely synchronous you may never
-  get the buffers filled. So drops in the sound are very likely to happen
-  at the beginning.</li>
-<li>When the recording and the playback is not done on same
-  physical sound device it may get out of sync with time because the two
-  sound devices do not use exactly the same sampling rate. This will
-  cause dropouts or jumps whichever is the&nbsp;faster device. Most
-  likely <em>this will never get fixed</em>.</li>
+  <li>The plug-in should introduce a <strong>defined latency</strong>
+before passing the buffers to the output.<br>
+Since the playback is normally absolutely synchronous you may never get
+the buffers filled. So drops in the sound are very likely to happen at
+the beginning.</li>
+  <li>When the recording and the playback is not done on same physical
+sound device it may get out of sync with time because the two sound
+devices do not use exactly the same sampling rate. This will cause
+dropouts or jumps whichever is the&nbsp;faster device. Most likely <em>this
+will never get fixed</em>.</li>
 </ul>
-</body></html>
+</body>
+</html>
