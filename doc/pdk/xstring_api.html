@@ -1,13 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
-  
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Dealing with dynamic strings in PM123 Plug-ins</title>
-
-  
-  
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-
 </head><body>
 <h2>Dealing with dynamic strings (<tt>xstring</tt>)
 in PM123 Plug-ins</h2>
@@ -21,7 +16,7 @@ can be <tt>NULL</tt>.</p>
 
 <p>The <tt>xstring</tt> API reference is accessible
 through the&nbsp;<tt>PLUGIN_CONTEXT</tt> parameter of
-the <a href="../pdk/plugin.html#plugin_init"><tt>plugin_init</tt></a>
+the <a href="index.html#plugin_init"><tt>plugin_init</tt></a>
 call. In case you have C++ there is a <a href="#cpp">more convenient
 implementation</a> available.
 </p>
@@ -495,7 +490,7 @@ enough memory automatically.</p>
 defined as a class rather than a structure. The <tt>xstring</tt> class
 ensures all of the above guidelines automatically. For this to work a
 global variable <tt>PLUGIN_CONTEXT Ctx;</tt> must exist and
-initialized by the argument <tt>ctx</tt> of <tt><a href="plugin.html#plugin_init">plugin_init</a></tt>.</p>
+initialized by the argument <tt>ctx</tt> of <tt><a href="index.html#plugin_init">plugin_init</a></tt>.</p>
 <p>There is one restriction with the C++ API of <tt>xstring</tt>: <strong>You must not assign anything to a <tt>xstring</tt> instance in a static initializer</strong>, more precisely before the <tt>plugin_init</tt> call. Only calling the default constructor is valid.</p>
 <p>The <tt>xstring</tt> objects are binary compatible in C and C++. So <tt>xstring</tt> instances may be shared between C and C++ code.</p>
 

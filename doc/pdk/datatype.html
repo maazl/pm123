@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
+<html sublinks="*">
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Common plug-in data types</title>
@@ -161,10 +161,10 @@ decoder.</td>
       <td><tt>format </tt></td>
       <td>This is an arbitrary format string that can be used by
 a decoder that supports different file formats. It is reflected to the
-decoder at <a href="decode_plug.html#decoder_savefile"><tt>decoder_savefile</tt></a>
+decoder at <a href="decoder_plug.html#decoder_savefile"><tt>decoder_savefile</tt></a>
 when saving content to retain the current file format.<br>
 It can contain for instance an EA type
-returned by <a href="decode_plug.html#decoder_support"><code>decoder_support</code></a>
+returned by <a href="decoder_plug.html#decoder_support"><code>decoder_support</code></a>
 to identify the
 format to save. If the parameter is missing, the plug-in should try to
 use a
@@ -175,7 +175,7 @@ default format. </td>
       <td><tt>decoder</tt></td>
       <td>Name of the decoder. This field need not be set by a
 decoder plug-in because PM123 automatically fills the right name when <a
- href="decode_plug.html#decoder_fileinfo"><tt>decoder_fileinfo</tt></a>
+ href="decoder_plug.html#decoder_fileinfo"><tt>decoder_fileinfo</tt></a>
 returned <tt>PLUGIN_OK</tt>.</td>
       <td><tt>""</tt></td>
     </tr>
@@ -194,11 +194,11 @@ identify combinations.</p>
 -&nbsp;The item can have sub entries (playlist).</li>
   <li><b><tt>TATTR_WRITABLE</tt></b>
 -&nbsp;This item is writable. E.g. <a
- href="decode_plug.html#decoder_saveinfo"><tt>decoder_saveinfo</tt></a>
+ href="decoder_plug.html#decoder_saveinfo"><tt>decoder_saveinfo</tt></a>
 can be used.</li>
   <li><b><tt>TATTR_SAVEABLE</tt></b>
 -&nbsp;This stream is saveable (<a
- href="decode_plug.html#decoder_command"><tt>DECODER_SAVEDATA</tt></a>
+ href="decoder_plug.html#decoder_command"><tt>DECODER_SAVEDATA</tt></a>
 is supported).</li>
 </ul>
 <tt>TATTR_SONG</tt> and <tt>TATTR_PLAYLIST</tt>

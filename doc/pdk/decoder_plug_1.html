@@ -6,7 +6,7 @@
 <meta content="Marcel M&uuml;ller" name="author"></head>
 <body>
 <h1>PM123 Decoder Plug-ins (1)</h1>
-<p>This is the description for the decoder interface before revision 2. For new developments you should have a look at the recent <a href="decode_plug.html#level_2">level 2 interface</a>.</p>
+<p>This is the description for the decoder interface before revision 2. For new developments you should have a look at the recent <a href="decoder_plug.html#level_3">level 3 interface</a>.</p>
 <h2><a name="level_1"></a>Interface revision
 level 0 and 1</h2>
 <p>Decoder plug-ins must implement and export the functions
@@ -232,14 +232,14 @@ returns the DECODER_TRACK flag. </p>
   DECODER_URL (2) - decoder can play URLs (http, ftp, etc.)<br>
   DECODER_TRACK (4) - decoder can play CD tracks<br>
   DECODER_OTHER (8) - decoder can play other URLs<br>
-  DECODER_METAINFO (0x8000) - decoder supports <code>decode_saveinfo</code>.<br>
+  DECODER_METAINFO (0x8000) - decoder supports <code>decoder_saveinfo</code>.<br>
   The values may be ored.</li>
 </ul>
 <p>This is used by PM123 to suggest to the user what he can play with the
 decoder and what features are supported. Extensions can be for example
 "*.MOD".</p>
 <h3>GUI enhancement interface</h3>
-<p>See <a href="decode_plug.html#GUI_interface">level 2 GUI
+<p>See <a href="decoder_plug.html#GUI_interface">level 3 GUI
 enhancement interface</a>. This part of the interface is new with
 PM123 1.40, but since all of the functions are optional it is
 compatible anyway.</p>

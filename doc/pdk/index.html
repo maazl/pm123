@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
+<html sublinks="decoder_plug.html" sublinks="filter_plug.html" sublinks="output_plug.html" sublinks="visual_plug.html" sublinks="datatype.html" sublinks="xstring_api.html">
 <head>
   <title>PM123 Plug-in Developer's Guide</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
@@ -96,7 +96,7 @@ returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt>
 on success and <tt>FALSE</tt> on error.</p>
 <p>The <a href="xstring_api.html"><b><tt>xstring_</tt>*</b> API
 functions</a>
-are used to manipulate dynamic strings of type <a href="xstring.html"><b><tt>xstring</tt></b></a>.</p>
+are used to manipulate dynamic strings of type <a href="xstring_api.html"><b><tt>xstring</tt></b></a>.</p>
 <h4>Configuration</h4>
 <p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable
 = TRUE</tt>
@@ -117,7 +117,7 @@ optional. If the symbol is exported, the
 plug-in can receive <a href="../manual/remote.html">remote commands</a>.</p>
 <blockquote>
   <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
- href="xstring.html">xstring</a>* <var>result</var>);</pre>
+ href="xstring_api.html">xstring</a>* <var>result</var>);</pre>
 </blockquote>
 <p>The <var><tt>command</tt></var> parameter receives the command
 passed to the remote interface without the astrisk and plug-in name

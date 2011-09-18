@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="options.html">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1">
+  <title>Plug-in control commands</title>
+  <link type="text/css" href="../../common/infstyle.css" rel="stylesheet">
+</head>
+<body>
+<h2>PM123's Remote command reference - Plug-in control</h2>
+<h3><tt><a name="plugin_load"></a>plugin load <var>&lt;types&gt;</var><var></var>
+</tt><tt><var> &lt;plug-in&gt;</var></tt><tt><var></var></tt>[<tt>?</tt><var><tt>&lt;param1&gt;</tt></var><tt>=</tt><var><tt>&lt;value1&gt;</tt></var>[<tt>&amp;</tt><var><tt>&lt;param2&gt;</tt></var><tt>=</tt><var><tt>&lt;value2&gt;</tt></var>
+...]]</h3>
+<p>Load the DLL <var><tt>&lt;plug-in&gt;</tt></var> into
+the player. The path should be full qualified or relative to the
+players executable.<br>
+If the plug-in implements more than one interface only the listed <var><tt>&lt;types&gt;</tt></var>
+are used. Plug-in types are <tt>decoder</tt>, <tt>filter</tt>, <tt>output</tt>
+and <tt>visual</tt>. More than one type can be
+specified separated by comma but without spaces. The keyword <tt>all</tt>
+is equivalent
+to all of the types mentioned.</p>
+<p>Optionally the DLL name could be followed by <tt>?<var>param1</var>=<var>value1</var>&amp;<var>param2</var>=<var>value2</var></tt>...
+to specify non-default <a href="#parameters">parameters</a>.</p>
+<p>The command returns a comma separated list of interfaces that have
+been loaded. This might be less than requested. In case of an error the
+command returns an empty line.</p>
+<h4>Example:</h4>
+<blockquote>
+  <pre>plugin load decoder D:\PM123\mpg123.dll?enabled=false&amp;filetypes=MP1;MP2;MP3</pre>
+</blockquote>
+<h3><tt><a name="plugin_unload"></a>plugin unload <var>&lt;types&gt;</var><var></var>
+</tt><tt><var> &lt;plug-in&gt;</var></tt></h3>
+<p>Unload <var><tt>&lt;plug-in&gt;</tt></var> from
+the player. The module name (e.g. <tt>mpg123.dll</tt>) is sufficient.
+The
+execution may be rejected because of an active playback. Only the
+listed <var><tt>&lt;types&gt;</tt></var> are unloaded, so the plug-in
+might stay in memory with an interface not in the list.</p>
+<p>The command returns a comma separated list of interfaces that have
+been unloaded. This might be less than requested. In case of an error
+the command returns an empty line.</p>
+<h4>Example</h4>
+<blockquote>
+  <pre>plugin unload all mpg123  </pre>
+</blockquote>
+<h3><tt><a name="plugin_enable"></a>plugin params <var>&lt;type&gt;
+&lt;plug-in&gt;</var></tt><tt><var></var></tt>[<tt>?</tt><var><tt>&lt;param1&gt;</tt></var><tt>=</tt><var><tt>&lt;value1&gt;</tt></var>[<tt>&amp;</tt><var><tt>&lt;param2&gt;</tt></var><tt>=</tt><var><tt>&lt;value2&gt;</tt></var>
+...]]</h3>
+<p>Query or set plug-in parameters of <var><tt>&lt;plug-in&gt;</tt></var>.
+The module name (e.g. <tt>mpg123.dll</tt>) is sufficient. The
+execution
+may be delayed until the playback is stopped the next time. <var><tt>&lt;type&gt;</tt></var>
+must be one of <tt>decoder</tt>, <tt>filter</tt>, <tt>output</tt> or
+<tt>visual</tt>. Only one type can be used by this command.</p>
+<p>The command returns the previous plug-in parameters or an empty line
+on error.</p>
+<p>If parameters are specified their values are changed as specified.
+Otherwise only the current parameter values are returned.</p>
+<h4><a name="parameters"></a>Known parameters</h4>
+<table border="1" cellpadding="5" cellspacing="0">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td valign="top"><tt>enabled=</tt>{<tt>true</tt>|<tt>false</tt>}<br>
+(all types but output)</td>
+      <td valign="top">Enable or disable a plug-in.<br>
+Enabling an output plug-in activates it and implicitly disables all
+other outputs.<br>
+      </td>
+    </tr>
+    <tr>
+      <td valign="top"><tt>filetypes=<var>type1</var></tt>[<tt>;<var>type2</var></tt>...]<br>
+(decoder only)</td>
+      <td valign="top">List of extended attribute types that the
+decoder plug-in can handle. The list my be empty. </td>
+    </tr>
+    <tr>
+      <td valign="top"><tt>tryothers=</tt>{<tt>true</tt>|<tt>false</tt>}<br>
+(decoder only)</td>
+      <td valign="top">Try unsupported file types also if no other
+plug-in can handle the file (slow).</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt>serializeinfo=</tt>{<tt>true</tt>|<tt>false</tt>}<br>
+(decoder only)</td>
+      <td valign="top">Serialize access to <tt>decoder_fileinfo</tt>
+for level 1 plug-ins. This is a work-around for some old plug-ins that
+are not thread safe.</td>
+    </tr>
+  </tbody>
+</table>
+<h4>Example</h4>
+<blockquote>
+  <pre>plugin params filter realeq enabled=true</pre>
+</blockquote>
+<h3><a name="plugin_list"></a><tt>plugin list <tt><var>&lt;type&gt;</var>
+</tt></tt>[<var><tt>&lt;new_list&gt;</tt></var>]</h3>
+<p>Query or replace the currently loaded list of
+plug-ins of a certain type. <var><tt>&lt;type&gt;</tt></var> must be
+one of <tt>decoder</tt>, <tt>filter</tt>, <tt>output</tt> or <tt>visual</tt>.</p>
+<p><var><tt>&lt;new_list&gt;</tt></var> must be a tab separated list of
+plug-in DLL names. The path should be full qualified or relative to the
+players executable. Each DLL name can optionally be followed by <tt>?<var>param1</var>=<var>value1</var>&amp;<var>param2</var>=<var>value2</var></tt>...
+to specify additional plug-in <a href="#parameters">parameters</a>.
+This command is the only way to change the sequence of the plug-ins by
+the remote interface.</p>
+<p>The special string <tt>@default</tt> can be used as <tt>&lt;new_list&gt;</tt>
+to load the default configuration for the desired plug-in type.<br>
+</p>
+<p>The returned list of plug-ins uses nearly the same syntax than <var><tt>&lt;new_list&gt;</tt></var>,
+but uses new lines as separators instead of tabs.<var></var></p>
+<h4>Example</h4>
+<blockquote>
+  <pre>plugin list filter realeq.dll	logvolum.dll?enabled=false</pre>
+</blockquote>
+<p>possibly returns (note the different sequence and parameters)</p>
+<blockquote>
+  <pre>logvolum.dll?enabled=true<br>realeq.dll?enabled=true</pre>
+</blockquote>
+</body>
+</html>

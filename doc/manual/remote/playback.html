@@ -3,7 +3,7 @@
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Playback control commands</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Remote command reference - Playback control</h2>
@@ -31,7 +31,7 @@ line if none. </td>
     <tr>
       <td><tt><a name="load"></a>load&nbsp;<var>&lt;url&gt;&nbsp;</var></tt>[<tt><var>&lt;url&gt;</var></tt>
 [...]]</td>
-      <td>Loads one or more <a href="urlformat.html">file
+      <td>Loads one or more <a href="../urlformat.html">file
 or URL</a>
 into the player. Any currently playing item will be aborted. Starts
 playing it too, if <i>auto play on load</i>'
@@ -40,22 +40,22 @@ Specifying
 more than one file is equivalent to dropping multiple items on the
 player. This implicitly modifies the default playlist. The file names
 may be enclosed in double quotes (<tt>"</tt>).</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="play"></a>play </tt>[<tt><var>&lt;url&gt;&nbsp;</var></tt>[<tt><var>&lt;url&gt;</var></tt>
 [...]]]</td>
       <td>Starts playing.<br>
-If at least one <a href="urlformat.html">file or URL</a>
+If at least one <a href="../urlformat.html">file or URL</a>
 was specified, it will be first loaded and playback will be started.
 See <a href="#load"><tt>load</tt></a> for details.
 Any currently playing item will be aborted.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="stop"></a>stop</tt></td>
       <td>Stops playback.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="stopat"></a>stopat
@@ -68,7 +68,7 @@ for the syntax.<br>
       <tt>stopat</tt> without an argument removes the explicit stop
 location.</td>
       <td colspan="1" rowspan="2">Result code,
-non-zero = <a href="remotereferror.html">error</a>.</td>
+non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt>stopat path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub&nbsp;item&gt;</var></tt>[<tt>;</tt>...]]
@@ -78,14 +78,14 @@ non-zero = <a href="remotereferror.html">error</a>.</td>
       <td><tt><a name="pause"></a>pause </tt>[<tt>on</tt>|<tt>off</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Pauses or resumes the playback.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="rewind"></a>rewind </tt>[<tt>on</tt>|<tt>off</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Toggles or (re)sets rewind of the currently playing
 file. If rewind is activated fast forward is implicitly deactivated.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="forward"></a>forward </tt>[<tt>on</tt>|<tt>off</tt>]
@@ -93,20 +93,20 @@ file. If rewind is activated fast forward is implicitly deactivated.</td>
       <td>Toggles or (re)sets fast forward of the currently
 playing file. If fast forward is activated rewind is implicitly
 deactivated.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="next"></a>next </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
       <td>Selects the next song in playlist. If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one song at once.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="previous"></a>prev </tt>[<var><tt>&lt;count&gt;</tt></var>]<br>
       <tt>previous </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
       <td>Selects the previous song in playlist. If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one song at once.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="navigate"></a>navigate
@@ -117,12 +117,12 @@ the currently loaded playlist. Examples:<br>
 '<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
 the start of the song within the currently loaded playlist. If the file
 is referenced twice, the first instance s taken. <tt>navigate</tt>
-uses the <a href="location.html">location string</a>
+uses the <a href="../location.html">location string</a>
 syntax.<br>
 '<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
 navigates to location 62.7 seconds within the next occurrence of .</td>
       <td colspan="1" rowspan="2">Result code,
-non-zero = <a href="remotereferror.html">error</a>.</td>
+non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt>navigate path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub&nbsp;item&gt;</var></tt>[<tt>;</tt>...]]
@@ -138,14 +138,14 @@ is not reliable in playlist mode, because the currently playing song
 may change just before jump is executed. You should prefer <a
  href="#navigate"><tt>navigate</tt></a> in this case. This will restore
 the previous song in doubt.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="savestream"></a>savestream </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
       <td>Save stream to the specified file (if the decoder
 supports that). <tt>savestream</tt> without a file
 argument stops saving a stream.</td>
-      <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="volume"></a>volume </tt>[[<tt>+</tt>|<tt>-</tt>]<tt><var>&lt;n&gt;</var></tt>]</td>
@@ -160,14 +160,14 @@ is omitted the volume is unchanged.</td>
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Toggles or (re)sets shuffling.</td>
       <td>Result code,
-non-zero = <a href="remotereferror.html">error</a>.</td>
+non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="repeat"></a>repeat </tt>[<tt>on</tt>|<tt>off</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Toggles or (re)sets repeat.</td>
       <td>Result code,
-non-zero = <a href="remotereferror.html">error</a>.</td>
+non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="query"></a>query play</tt> | <tt>pause</tt> | <tt>rewind</tt>
@@ -199,7 +199,7 @@ scroller or returns nothing if "no file loaded".&nbsp; <small><sup><a
       <td>Query the current playing location (default).<br>
       <tt>location&nbsp;stopat</tt> return the current stop location if
 any.</td>
-      <td>Location as <a href="location.html">PM123
+      <td>Location as <a href="../location.html">PM123
 location string</a> or empty line if none.</td>
     </tr>
   </tbody>
@@ -216,7 +216,7 @@ to flip the current setting.</p>
   </li>
   <li><a name="note2"></a>You should not use this command to access
 meta informations about the current song. Use the <tt><a
- href="remoterefinfo.html">info</a></tt>
+ href="meta.html#info">info</a></tt>
 commands for this purpose. </li>
 </ol>
 </body>

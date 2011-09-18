@@ -20,18 +20,19 @@ MANLST = $(MANLST) manual\playlistformat.html manual\plug-ins.html manual\logvol
 MANLST = $(MANLST) manual\plug-ins_dec-cfg.html manual\plug-ins_fil-cfg.html 
 MANLST = $(MANLST) manual\plug-ins_out-cfg.html manual\plug-ins_vis-cfg.html 
 MANLST = $(MANLST) manual\properties.html manual\realeq.html manual\remote.html 
-MANLST = $(MANLST) manual\remoterefconfig.html manual\remotereferror.html manual\remoterefgui.html
-MANLST = $(MANLST) manual\remoterefplayback.html manual\remoterefplaylist.html
+MANLST = $(MANLST) manual\remote\reference.html manual\remote\config.html manual\remote\error.html
+MANLST = $(MANLST) manual\remote\gui.html manual\remote\meta.html manual\remote\metawrite.html
+MANLST = $(MANLST) manual\remote\options.html manual\remote\playback.html manual\remote\playlist.html
+MANLST = $(MANLST) manual\remote\plugin.html
 MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\sguide.html 
 MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html 
 MANLST = $(MANLST) manual\urlformat.html manual\bookmark.html manual\playlist_cm.html 
 MANLST = $(MANLST) manual\playlist_cmi.html manual\os2rec.html manual\bugreport.html
 MANLST = $(MANLST) manual\logfiles.html manual\opentodo.html manual\mpg123.html
 
-
-PDKLST = pdk\index.html pdk\decode_plug.html pdk\decode_plug_1.html pdk\filter_plug.html
+PDKLST = pdk\index.html pdk\decoder_plug.html pdk\decoder_plug_1.html pdk\filter_plug.html
 PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html
-PDKLST = $(PDKLST) pdk\datatype.html pdk\dstring.html
+PDKLST = $(PDKLST) pdk\datatype.html pdk\xstring_api.html
 
 
 pm123.inf: pm123.ipf

@@ -1,16 +1,16 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="remoterefmetawrite.html">
+<html sublinks="metawrite.html">
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Meta data access commands</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Remote command reference - Meta data access
 </h2>
 <p>PM123 currently understands the following
 commands for accessing meta information of songs, playlists or folders.
-See <a href="remoterefmetawrite.html">writing meta data</a> to modify
+See <a href="metawrite.html">writing meta data</a> to modify
 the meta data of a song.
 Optional parameters are
 enclosed in square brackets.
@@ -31,7 +31,7 @@ information has to
 be obtained first and maybe this causes a network time out.</p>
 <h3><tt><a name="info_format"></a>info format </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
 <p>Returns technical and physical format information for the given <a
- href="urlformat.html">file
+ href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the information about the
 current song is returned.</p>
@@ -82,16 +82,16 @@ number of immediate sub items in a playlist or folder regardless if
 they
 are playlists, songs or whatever. It does not include nested songs. If
 you want to know how many playable song a playlist contains, use <tt><a
- href="remoterefmeta.html#info_playlist">info playlist</a></tt>.</p>
+ href="meta.html#info_playlist">info playlist</a></tt>.</p>
 <h3><tt><a name="info_meta"></a>info meta </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
-<p>Returns meta information of the given <a href="urlformat.html">file
+<p>Returns meta information of the given <a href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the information about the
 current song is returned.</p>
 <p>
 In case of an error or if no meta information is available only an
 empty line is returned. You may use <tt><a
- href="remoterefmeta.html#info_format">info format</a></tt> to check
+ href="meta.html#info_format">info format</a></tt> to check
 what is going on.</p>
 <h4>Reply</h4>
 <blockquote><tt>TITLE=<var>Fragile</var></tt><br>
@@ -121,13 +121,13 @@ If some of the gain values are undefined/missing, their values are
 empty strings.<br>
 <h3><tt><a name="info_playlist"></a>info playlist </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
 <p>Returns aggregated information for the given <a
- href="urlformat.html">file
+ href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt>
 is specified, the information about the current playlist is returned.
 Note that this is not the currently loaded playlist but the one
 selected
-by <a href="remoterefplaylist.html#playlist"><tt>playlist</tt></a>.</p>
+by <a href="playlist.html#playlist"><tt>playlist</tt></a>.</p>
 <p>
 The request may take a while because hundreds of items may be required
 to calculate the aggregate information.</p>
@@ -142,16 +142,16 @@ returned.</p>
 <p> The list is terminated by an empty line.</p>
 <h3><tt><a name="info_playlist"></a>info pl_item</tt></h3>
 <p>Returns information on the current playlist item. Use the <a
- href="remoterefplaylist.html">playlist navigation commands</a> to
+ href="playlist.html">playlist navigation commands</a> to
 select the current item. If no current item is selected, only an empty
 line is returned.</p>
 <h4>Reply</h4>
 <blockquote><tt>ALIAS=<var>Radio Chromanova: Ambient</var></tt><br>
   <tt>START=<var>&lt;start_location&gt;</var></tt> (<a
- href="location.html">location string</a>)<tt><br>
-STOP=<var>&lt;stop_location&gt;</var></tt> (<a href="location.html">location
+ href="../location.html">location string</a>)<tt><br>
+STOP=<var>&lt;stop_location&gt;</var></tt> (<a href="../location.html">location
 string</a>)<br>
-  <tt>AT=<var>&lt;last_play_pos&gt;</var></tt> (<a href="location.html">location
+  <tt>AT=<var>&lt;last_play_pos&gt;</var></tt> (<a href="../location.html">location
 string</a>)<tt><var></var></tt><br>
   <tt>PREGAP=<var>2.0</var></tt> (seconds)<br>
   <tt>POSTGAP=<var>1.0</var></tt> (seconds)<tt><var></var></tt><br>
@@ -172,7 +172,7 @@ playlist even when not enabled globally.</li>
 nested playlist even when enabled globally.</li>
 </ul>
 <h3><tt><a name="info_refresh"></a>info refresh </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
-<p>Refresh all meta information for the given <a href="urlformat.html">file
+<p>Refresh all meta information for the given <a href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the current song is refreshed.
 This will not impact any playback.<br>
@@ -183,7 +183,7 @@ playlists.
 </p>
 <h3><tt><a name="info_invalidate"></a>info invalidate </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
 <p>Invalidates all meta information for the given <a
- href="urlformat.html">file
+ href="../urlformat.html">file
 or URL</a>. This is similar to <a href="#info_refresh"><tt>info refresh</tt></a>,
 but it does not reload any information unless it is really needed and
 it does not wait for that.
