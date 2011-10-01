@@ -90,6 +90,8 @@ DoTest: PROCEDURE EXPOSE summary.
   IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN DO
     SAY "failed: "result
     summary.failed = summary.failed + 1
+    CALL 'pipecmd' 'getmessages'
+    CALL CHAROUT , result
     END
   ELSE DO
     SAY "passed"
@@ -124,7 +126,7 @@ QSort:
     END
   ELSE IF ARG(3,'e') THEN
     CALL DoQSort 1, ARG(3)
-  ELSE    
+  ELSE
     CALL DoQSort 1, VALUE(stem'.'0)
   RETURN
 
@@ -158,3 +160,4 @@ DoQSort: PROCEDURE EXPOSE stem (stem)
 Error: PROCEDURE
   CALL LINEOUT STDERR, ARG(2)
   EXIT ARG(1)
+

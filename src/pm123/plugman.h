@@ -45,29 +45,15 @@
 * Module
 *  <- Plugin              (n Plugins share the same Module instance)
 *      +- Decoder
-*      |   +- DecoderImp  (private implementation)
-*      |       +- proxy classes ...
+*      |   +- proxy classes ...
 *      +- Output
-*      |   +- OutputImp   (private implementation)
-*      |       +- proxy classes ...
+*      |   +- proxy classes ...
 *      +- Filter
-*      |   +- FilterImp   (private implementation)
-*      |       +- proxy classes ...
+*      |   +- proxy classes ...
 *      +- Visual
-*          +- VisualImp   (private implementation)
-*              +- proxy classes ...
+*          +- proxy classes ...
 *
 ****************************************************************************/
-
-/* Buffer size for compatibility interface */
-#define BUFSIZE 16384
-
-/* thread priorities for decoder thread */
-#define DECODER_HIGH_PRIORITY_CLASS PRTYC_TIMECRITICAL
-#define DECODER_HIGH_PRIORITY_DELTA 0
-#define DECODER_LOW_PRIORITY_CLASS  PRTYC_FOREGROUNDSERVER
-#define DECODER_LOW_PRIORITY_DELTA  0
-
 
 class Plugin;
 class PluginList;
@@ -80,7 +66,7 @@ class ModuleException
 { xstring Error;
  public:
   ModuleException(const char* fmt, ...);
-  const xstring GetErrorText() const { return Error; }
+  const xstring& GetErrorText() const { return Error; }
 };
 
 // Hack to selectively grant access rights to the plug-in classes.

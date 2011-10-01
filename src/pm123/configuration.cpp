@@ -97,10 +97,10 @@ const amp_cfg Cfg::Default =
 , 500
 , true
 
-, "oggplay.dll?enabled=true&filetypes=OGG\n"
-  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3\n"
-  "wavplay.dll?enabled=true&filetypes=Digital Audio\n"
-  "plist123.dll?enabled=true&filetypes=Playlist\n"
+, "oggplay.dll?enabled=true&filetypes=OGG&tryothers=0\n"
+  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3&tryothers=0\n"
+  "wavplay.dll?enabled=true&filetypes=Digital Audio&tryothers=0\n"
+  "plist123.dll?enabled=true&filetypes=Playlist&tryothers=0\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n"
 , "realeq.dll?enabled=true\n"
@@ -488,14 +488,16 @@ void Cfg::MigrateIni(const char* inipath, const char* app)
   close_ini(hini);
 }
 
-bool Cfg::Set(amp_cfg& settings, xstring* error)
+bool Cfg::Set(amp_cfg& settings)
 { Mutex::Lock lock(Mtx);
   { CfgValidateArgs val(settings, Current);
     Validate(val);
-    if (error)
-      *error = val.Message;
     if (val.Fail)
+    { if (val.Message)
+        EventHandler::Post(MSG_ERROR, val.Message);
       return false;
+    } else if (val.Message)
+      EventHandler::Post(MSG_WARNING, val.Message);
   }
   { amp_cfg old = Current;
     Current = settings;

@@ -51,7 +51,7 @@ class SongIterator;
 
 Command    StrArg              NumArg/PtrArg       Flags               Meaning
 ===============================================================================================================
-Nop                                                                    No operation (used to raies events)
+Nop                                                                    No operation (used to raise events)
 ---------------------------------------------------------------------------------------------------------------
 Load       URL                                     0x01  continue      Load an URL
                                                          playing       The URL must be well formed.
@@ -92,7 +92,8 @@ Scan                                               0x01  scan on       Set/reset
                                                    0x04  rewind        automatically stops rewinding and vice
                                                                        versa.
 ---------------------------------------------------------------------------------------------------------------
-Volume                         Volume [0..1]       0x01  relative      Set volume to level.
+Volume                         Volume [0..+-1]     0x01 relative      Set volume to level.
+                               out: Volume [0..1]
 ---------------------------------------------------------------------------------------------------------------
 Shuffle                                            0x01  enable        Enable/disable random play.
                                                    0x02  disable
@@ -104,12 +105,15 @@ Repeat                                             0x01  on            Set/reset
 ---------------------------------------------------------------------------------------------------------------
 Save       Filename                                                    Save stream of current decoder.
 ---------------------------------------------------------------------------------------------------------------
-Location                       out SongIterator*   0x01  stopat        Set the iterator to the current location.
+Location                       out: SongIterator*  0x01  stopat        Set the iterator to the current location.
 ---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
 ---------------------------------------------------------------------------------------------------------------
 OutStop                                                                The output finished playback.
 ---------------------------------------------------------------------------------------------------------------
+
+All commands return a success code in Flags.
+If a command failed StrArg may point to a descriptive error text.
 
 Commands can have an optional callback function which is called when the command is executed completely.
 The callback function must at least delete the ControlCommand instance.
@@ -117,7 +121,7 @@ The callback function should not block.
 If a ControlCommand has no callback function, it is deleted by the Queue processor.
 
 Commands can be linked by the Link field. Linked commands are executed without interruption by other command sources.
-If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too. 
+If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too.
 */
 class Ctrl
 {public:
@@ -145,7 +149,7 @@ class Ctrl
     Cmd_OutStop
   };
 
-  // Flags for setter commands 
+  /// Flags for setter commands
   enum Op
   { Op_Reset  = 0,
     Op_Set    = 1,
@@ -154,39 +158,39 @@ class Ctrl
     Op_Rewind = 4  // PM123_Scan only
   };
 
-  // return codes in Flags
+  /// return codes in Flags
   enum RC
-  { RC_OK,                  // Everything OK.
-    RC_SubseqError,         // The command is not processed because an earlier command in the current set of linked commands has failed.
-    RC_BadArg,              // Invalid command.
-    RC_NoSong,              // The command requires a current song.
-    RC_NoList,              // The command is only valid for enumerable objects like playlists.
-    RC_EndOfList,           // The navigation tried to move beyond the limits of the current playlist.
-    RC_NotPlaying,          // The command is only allowed while playing.
-    RC_OutPlugErr,          // The output plug-in returned an error.
-    RC_DecPlugErr,          // The decoder plug-in returned an error.
-    RC_InvalidItem,         // Cannot load or play invalid object.
-    RC_BadIterator          // Bad location string.
+  { RC_OK,                  /// Everything OK.
+    RC_SubseqError,         /// The command is not processed because an earlier command in the current set of linked commands has failed.
+    RC_BadArg,              /// Invalid command.
+    RC_NoSong,              /// The command requires a current song.
+    RC_NoList,              /// The command is only valid for enumerable objects like playlists.
+    RC_EndOfList,           /// The navigation tried to move beyond the limits of the current playlist.
+    RC_NotPlaying,          /// The command is only allowed while playing.
+    RC_OutPlugErr,          /// The output plug-in returned an error.
+    RC_DecPlugErr,          /// The decoder plug-in returned an error.
+    RC_InvalidItem,         /// Cannot load or play invalid object.
+    RC_BadIterator          /// Bad location string.
   };
 
   struct ControlCommand;
   typedef void (*CbComplete)(ControlCommand* cmd);
   struct ControlCommand
-  { Command         Cmd;    // Basic command. See PM123Command for details. 
-    xstring         StrArg; // String argument (command dependent)
+  { Command         Cmd;    /// Basic command. See PM123Command for details.
+    xstring         StrArg; /// String argument (command dependent)
     union
-    { double        NumArg; // Integer argument (command dependent)
-      void*         PtrArg; // Pointer argument (command dependent)
+    { double        NumArg; /// Integer argument (command dependent)
+      void*         PtrArg; /// Pointer argument (command dependent)
     };
-    int             Flags;  // Flags argument (command dependent)
-    CbComplete      Callback;// Notification on completion, this function must ensure that the control command is deleted.
-    void*           User;   // Unused, for user purposes only 
-    ControlCommand* Link;   // Linked commands. They are executed atomically.
+    int             Flags;  /// Flags argument (command dependent)
+    CbComplete      Callback;/// Notification on completion, this function must ensure that the control command is deleted.
+    void*           User;   /// Unused, for user purposes only
+    ControlCommand* Link;   /// Linked commands. They are executed atomically.
     ControlCommand(Command cmd, const xstring& str, double num, int flags, CbComplete cb = NULL, void* user = NULL)
                     : Cmd(cmd), StrArg(str), NumArg(num), Flags(flags), Callback(cb), User(user), Link(NULL) {}
     ControlCommand(Command cmd, const xstring& str, void* ptr, int flags, CbComplete cb = NULL, void* user = NULL)
                     : Cmd(cmd), StrArg(str), PtrArg(ptr), Flags(flags), Callback(cb), User(user), Link(NULL) {}
-    void            Destroy();// Deletes the entire command queue including this.
+    void            Destroy();/// Deletes the entire command queue including this.
   };
 
   enum EventFlags
@@ -224,55 +228,57 @@ class Ctrl
   static event<const EventFlags> ChangeEvent;
 
  public: // management interface, not thread safe
-  // initialize controller
+  /// initialize controller
   static void          Init();
-  // uninitialize controller
+  /// uninitialize controller
   static void          Uninit();
 
  public: // properties, thread safe
   // While the functions below are atomic their return values are not reliable because they can change everytime.
   // So be careful.
 
-  // Check whether we are currently playing.
+  /// Check whether we are currently playing.
   static bool          IsPlaying()            { return Playing; }
-  // Check whether the current play status is paused.
+  /// Check whether the current play status is paused.
   static bool          IsPaused()             { return Paused; }
-  // Return the current scanmode.
+  /// Return the current scanmode.
   static DECFASTMODE   GetScan()              { return Scan; }
-  // Return the current volume. This does not return a decreased value in scan mode.
+  /// Return the current volume. This does not return a decreased value in scan mode.
   static double        GetVolume()            { return Volume; }
-  // Return the current shuffle status.
+  /// Return the current shuffle status.
   static bool          IsShuffle()            { return Shuffle; }
-  // Return the current repeat status.
+  /// Return the current repeat status.
   static bool          IsRepeat()             { return Repeat; }
-  // Return the current savefile name.
+  /// Return the current savefile name.
   static xstring       GetSavename()          { return Savename; }
-  // Return the current song (whether playing or not).
-  // If nothing is attached or if a playlist recently completed the function returns NULL.
+  /// Return the current song (whether playing or not).
+  /// If nothing is attached or if a playlist recently completed the function returns NULL.
   static int_ptr<APlayable> GetCurrentSong();
-  // Return the currently loaded root object. This might be enumerable or not.
+  /// Return the currently loaded root object. This might be enumerable or not.
   static int_ptr<APlayable> GetRoot();
 
  public: //message interface, thread safe
-  // post a command to the controller Queue
+  /// post a command to the controller Queue
   static void PostCommand(ControlCommand* cmd)
   { DEBUGLOG(("Ctrl::PostCommand(%p{%i, ...})\n", cmd, cmd ? cmd->Cmd : -1));
     Queue.Write(new QEntry(cmd));
   }
+  /// post a command with a callback function to the controller Queue
   static void PostCommand(ControlCommand* cmd, CbComplete callback)
   { cmd->Callback = callback;
     PostCommand(cmd);
   }
+  /// post a command with a callback function and a user parameter to the controller Queue
   static void PostCommand(ControlCommand* cmd, CbComplete callback, void* user)
   { cmd->User = user;
     PostCommand(cmd, callback);
   }
-  // Post a command to the controller queue and wait for completion.
-  // The function returns the control command queue which usually must be deleted.
-  // Calling cmd->Destroy() will do the job.
-  // The function must not be called from a thread which receives PM messages.
+  /// Post a command to the controller queue and wait for completion.
+  /// The function returns the control command queue which usually must be deleted.
+  /// Calling \c cmd->Destroy() will do the job.
+  /// The function must not be called from a thread which receives PM messages.
   static ControlCommand* SendCommand(ControlCommand* cmd);
-  // Empty control callback, may be used to avoid the deletion of a ControlCommand.
+  /// Empty control callback, may be used to avoid the deletion of a ControlCommand.
   static void            CbNop(ControlCommand* cmd);
 
   // Short cuts for message creation, side-effect free.
@@ -312,15 +318,13 @@ class Ctrl
   { return new ControlCommand(Cmd_OutStop, xstring(), (void*)NULL, 0); }
 
  public: // notifications
-  // Notify about any changes. See EventFlags for details.
-  // The events are not synchronous, i.e. they are not called before the things happen.
+  /// Notify about any changes. See EventFlags for details.
+  /// The events are not synchronous, i.e. they are not called before the things happen.
   static event_pub<const EventFlags>& GetChangeEvent() { return ChangeEvent; }
   
  public: // debug interface
   static void QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), void* arg);
-  //{ Queue.ForEach(action, arg); }
 };
 FLAGSATTRIBUTE(Ctrl::EventFlags);
-
 
 #endif

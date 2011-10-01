@@ -202,7 +202,7 @@ class Cfg
   static volatile const amp_cfg& Get()         { return Current; }
   /// Change the configuration.
   /// @remarks It is recommended to call this function from synchronized context.
-  static bool Set(amp_cfg& settings, xstring* error = NULL);
+  static bool Set(amp_cfg& settings);
 
   /// Configuration change event, fires when the configuration changes (call to \c Set).
   static event_pub<CfgValidateArgs>& GetValidate()   { return Validate; }
@@ -232,13 +232,8 @@ class Cfg
   };
   struct ChangeAccess : private Access, public amp_cfg
   { ChangeAccess()                             : amp_cfg(**this) {}
-    bool Commit(xstring* error = NULL)         { return Cfg::Set(*this, error); }
-    //~ChangeAccess()                            { Cfg::Set(*this); }
+    ~ChangeAccess()                            { Cfg::Set(*this); }
   };
-  /*struct EasyChangeAccess : private Access, public amp_cfg
-  { EasyChangeAccess()                         : amp_cfg(**this) {}
-    ~EasyChangeAccess()                        { Cfg::Set(*this); }
-  };*/
 };
 
 

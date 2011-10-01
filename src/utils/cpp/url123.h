@@ -71,6 +71,7 @@ class url123 : public xstring
   static bool   isPathDelimiter(char c) { return c == '/' || c == '\\'; }
   static bool   hasScheme(const char* str);
   static bool   isAbsolute(const char* str);
+  /// Parse URL parameters into a key-value map.
   static void   parseParameter(stringmap& dest, const char* params);
   static void   appendParameter(xstringbuilder& target, const stringmap& params);
   static const xstring makeParameter(const stringmap& params) { xstringbuilder ret; appendParameter(ret, params); return ret; }

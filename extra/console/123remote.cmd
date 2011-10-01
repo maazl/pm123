@@ -1,6 +1,7 @@
 /**/
 pipe = '\pipe\pm123'
 
+CALL STREAM pipe, 'c', 'close'
 rc = STREAM(pipe, 'c', 'open')
 IF \ABBREV(rc, 'READY') THEN
   CALL Error 21, 'Cannot open pipe 'pipe': 'rc

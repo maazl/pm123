@@ -154,6 +154,11 @@ class CommandProcessor : public ACommandProcessor
     { (cp.*Handler)(Arg); }
   };
 
+  struct SyntaxException
+  { const xstring Text;
+    SyntaxException(const xstring& text) : Text(text) {}
+  };
+
  private: // state
   /// playlist where we currently operate
   int_ptr<Playable>           CurPlaylist;
@@ -163,12 +168,19 @@ class CommandProcessor : public ACommandProcessor
   url123                      CurDir;
   /// Cummulated messages
   xstringbuilder              Messages;
+  /// Current command in service
+  const char*                 Command;
+  bool                        CommandType;
 
  private: // Helper functions
   /// escape newline characters
   static void EscapeNEL(xstringbuilder& target, size_t start);
+  //void PostMessage(MESSAGE_TYPE type, const char* fmt, ...);
   static void DLLENTRY MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg);
   vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message;
+  //void ThrowSyntaxException(const char* msg, ...);
+  //static void ThrowArgumentException(const char* arg)
+  //{ throw SyntaxException(xstring::sprintf("Invalid argument \"%s\".", arg)); }
 
   /// Tag for Request: Query the default value of an option
   static char Cmd_QueryDefault[];
@@ -176,15 +188,6 @@ class CommandProcessor : public ACommandProcessor
   static char Cmd_SetDefault[];
   static const strmap<16,Option> OptionMap[];
 
-  const volatile amp_cfg& ReadCfg() { return Request == Cmd_QueryDefault ? Cfg::Default : Cfg::Get(); }
-  void DoOption(bool amp_cfg::* option);
-  void DoOption(int amp_cfg::* option);
-  void DoOption(xstring amp_cfg::* option);
-  void DoOption(cfg_anav amp_cfg::* option);
-  void DoOption(cfg_disp amp_cfg::* option);
-  void DoOption(cfg_scroll amp_cfg::* option);
-  void DoOption(cfg_mode amp_cfg::* option);
-  void DoFontOption(void*);
   /*// Capture and convert the next string at \c Request.
   /// The Parser will either stop at
   /// <ul><li>the next tab ('\t'),</li>
@@ -196,11 +199,47 @@ class CommandProcessor : public ACommandProcessor
   /// When there is nothing to capture, The function returns NULL.
   /// When the function returned non NULL, \c Request is advanced behind the string.
   char* ParseQuotedString();*/
+  /// Parse argument as integer.
+  /// @param arg argument as string
+  /// @return boolean operator
+  /// @exception SyntaxException The argument is not an boolean operator.
+  static Ctrl::Op ParseBool(const char* arg);
+  /// Parse argument as integer.
+  /// @param arg argument as string
+  /// @return integer value
+  /// @exception SyntaxException The argument is not an integer.
+  static int ParseInt(const char* arg);
+  /// Parse argument as double.
+  /// @param arg argument as string
+  /// @return value
+  /// @exception SyntaxException The argument is not an number.
+  static double ParseDouble(const char* arg);
+  /// Parse argument as display type.
+  /// @param arg argument as string
+  /// @return CFG_DISP_...
+  /// @exception SyntaxException The argument is not valid.
+  cfg_disp ParseDisp(const char* arg);
   /// Parse and normalize one URL according to CurDir.
+  /// @exception SyntaxException The URL is invalid.
   url123 ParseURL(const char* url);
   /// Parse the optional string as URL and return the playable object.
   /// If \a url is empty the current song is returned.
+  /// @exception SyntaxException The URL is invalid.
   int_ptr<APlayable> ParseAPlayable(const char* url);
+  /// Find plug-in module matching arg.
+  /// @return Module or NULL if not found.
+  int_ptr<Module> ParsePlugin(const char* arg);
+
+  const volatile amp_cfg& ReadCfg() { return Request == Cmd_QueryDefault ? Cfg::Default : Cfg::Get(); }
+  void DoOption(bool amp_cfg::* option);
+  void DoOption(int amp_cfg::* option);
+  void DoOption(xstring amp_cfg::* option);
+  void DoOption(cfg_anav amp_cfg::* option);
+  void DoOption(cfg_disp amp_cfg::* option);
+  void DoOption(cfg_scroll amp_cfg::* option);
+  void DoOption(cfg_mode amp_cfg::* option);
+  void DoFontOption(void*);
+
   /// Execute a controller command and return the reply as string.
   void SendCtrlCommand(Ctrl::ControlCommand* cmd);
   /// Add a set of URLs to a LoadHelper object.
@@ -290,9 +329,11 @@ class CommandProcessor : public ACommandProcessor
   void CmdPlayonload();
 
   static const strmap<8,PLUGIN_TYPE> PluginTypeMap[];
-  bool ParseTypeList(PLUGIN_TYPE& type);
+  PLUGIN_TYPE ParseTypeList();
+  PLUGIN_TYPE ParseType();
   void ReplyType(PLUGIN_TYPE type);
   void AppendPluginType(PLUGIN_TYPE type);
+  PLUGIN_TYPE InstantiatePlugin(Module& module, const char* params, PLUGIN_TYPE type);
 
   void CmdPluginLoad();
   void CmdPluginUnload();
@@ -376,57 +417,10 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 char CommandProcessor::Cmd_QueryDefault[] = ""; // This object is identified by instance
 char CommandProcessor::Cmd_SetDefault[] = ""; // This object is identified by instance
 
-static bool parse_int(const char* arg, int& val)
-{ int v;
-  size_t n;
-  if (sscanf(arg, "%i%n", &v, &n) == 1 && n == strlen(arg))
-  { val = v;
-    return true;
-  } else
-    return false;
-}
-
-static bool parse_double(const char* arg, double& val)
-{ double v;
-  size_t n;
-  if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
-  { val = v;
-    return true;
-  } else
-    return false;
-}
-
-static const strmap<7,Ctrl::Op> opmap[] =
-{ { "",       Ctrl::Op_Toggle },
-  { "0",      Ctrl::Op_Clear },
-  { "1",      Ctrl::Op_Set },
-  { "false",  Ctrl::Op_Clear },
-  { "no",     Ctrl::Op_Clear },
-  { "off",    Ctrl::Op_Clear },
-  { "on",     Ctrl::Op_Set },
-  { "toggle", Ctrl::Op_Toggle },
-  { "true",   Ctrl::Op_Set },
-  { "yes",    Ctrl::Op_Set }
-};
-
-/* parse operator with default toggle */
-inline static const strmap<7, Ctrl::Op>* parse_op1(const char* arg)
-{ return mapsearch(opmap, arg);
-}
-/* parse operator without default */
-inline static const strmap<7,Ctrl::Op>* parse_op2(const char* arg)
-{ return mapsearch2(opmap+1, (sizeof opmap / sizeof *opmap)-1, arg);
-}
-
-static const strmap<5,cfg_disp> dispmap[] =
-{ { "file", CFG_DISP_FILENAME }
-, { "info", CFG_DISP_FILEINFO }
-, { "tag",  CFG_DISP_ID3TAG   }
-, { "url",  CFG_DISP_FILENAME }
-};
 
 CommandProcessor::CommandProcessor()
 : CurPlaylist(&GUI::GetDefaultPL())
+, Command(NULL)
 , vd_message(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
 {}
@@ -446,8 +440,20 @@ void CommandProcessor::EscapeNEL(xstringbuilder& target, size_t start)
     start += 2;
 } }
 
+/*void CommandProcessor::PostMessage(MESSAGE_TYPE type, const char* fmt, ...)
+{ Messages.append(type < 2 ? "IWE"[type] : '?');
+  Messages.append(' ');
+  size_t start = Messages.length();
+  va_list va;
+  va_start(va, fmt);
+  Messages.vappendf(fmt, va);
+  va_end(va);
+  EscapeNEL(Messages, start);
+  Messages.append('\n');
+}*/
+
 void DLLENTRY CommandProcessor::MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg)
-{ that->Messages.append(type < 2 ? "IWE"[type] : '?');
+{ that->Messages.append(type < 3 ? "IWE"[type] : '?');
   that->Messages.append(' ');
   size_t start = that->Messages.length();
   that->Messages.append(msg);
@@ -467,39 +473,56 @@ void CommandProcessor::Exec()
       --ape;
     *ape = 0;
   }
-  if (Request[0] != '*')
-    CmdLoad();
-  else
-  { ++Request;
-    Request += strspn(Request, " \t"); // skip leading blanks
-    // check for plug-in specific commands
-    size_t len = strcspn(Request, " \t:");
-    if (Request[len] == ':')
-    { // Plug-in option
-      Request[len] = 0;
-      int_ptr<Module> plugin(Module::FindByKey(Request));
-      if (!plugin)
-        return; // Plug-in not found.
-      Request += len+1;
+  try
+  { if (Request[0] != '*')
+    { Command = "(load)";
+      CommandType = false;
+      CmdLoad();
+      Command = NULL;
+    } else
+    { ++Request;
       Request += strspn(Request, " \t"); // skip leading blanks
-      // Call plug-in function
-      xstring result;
-      plugin->Command(Request, result);
-      Reply.append(result);
-      return;
+      // check for plug-in specific commands
+      size_t len = strcspn(Request, " \t:");
+      if (Request[len] == ':')
+      { // Plug-in option
+        Request[len] = 0;
+        int_ptr<Module> plugin(ParsePlugin(Request));
+        if (!plugin)
+          return; // Plug-in not found.
+        Request += len+1;
+        Request += strspn(Request, " \t"); // skip leading blanks
+        // Call plug-in function
+        xstring result;
+        plugin->Command(Request, result);
+        Reply.append(result);
+      } else
+      { // Search command handler ...
+        const CmdEntry* cep = mapsearcha(CmdList, Request);
+        Command = Request;
+        CommandType = false;
+        DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
+        if (cep)
+        { size_t len = strlen(cep->Str);
+          len += strspn(Request + len, " \t");
+          Request += len;
+          DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
+          if (len || *Request == 0)
+            // ... and execute
+            (this->*cep->Val)();
+        }
+        Command = NULL;
+      }
     }
-    // Search command handler ...
-    const CmdEntry* cep = mapsearcha(CmdList, Request);
-    DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
-    if (cep)
-    { size_t len = strlen(cep->Str);
-      len += strspn(Request + len, " \t");
-      Request += len;
-      DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
-      if (len || *Request == 0)
-        // ... and execute
-        (this->*cep->Val)();
-    }
+  } catch (const SyntaxException& ex)
+  { Reply.clear();
+    if (CommandType)
+      Reply.append(Ctrl::RC_BadArg);
+    Messages.append("E Syntax error: ");
+    size_t start = Messages.length();
+    Messages.append(ex.Text);
+    EscapeNEL(Messages, start);
+    Messages.append('\n');
   }
 }
 
@@ -516,27 +539,123 @@ ACommandProcessor* ACommandProcessor::Create()
 }
 
 
+/*char* CommandProcessor::ParseQuotedString()
+{ char* result;
+  switch (*Request)
+  {case 0:
+    return NULL;
+
+   default: // unquoted string
+    result = Request;
+    Request += strcspn(Request, " \t");
+    *Request = 0;
+    break;
+
+   case '\'': // quoted string
+   case '\"':
+    char quotechar = *Request++;
+    result = Request;
+
+  }
+  return result;
+}*/
+
+/* parse operator with default toggle */
+Ctrl::Op CommandProcessor::ParseBool(const char* arg)
+{ static const strmap<7,Ctrl::Op> opmap[] =
+  { { "0",      Ctrl::Op_Clear },
+    { "1",      Ctrl::Op_Set },
+    { "false",  Ctrl::Op_Clear },
+    { "no",     Ctrl::Op_Clear },
+    { "off",    Ctrl::Op_Clear },
+    { "on",     Ctrl::Op_Set },
+    { "toggle", Ctrl::Op_Toggle },
+    { "true",   Ctrl::Op_Set },
+    { "yes",    Ctrl::Op_Set }
+  };
+  const strmap<7,Ctrl::Op>* op = mapsearch(opmap, arg);
+  if (!op)
+    throw SyntaxException(xstring::sprintf("Expected boolean value {0|1|on|off|true|false|yes|no|toggle} but found \"%s\".", arg));
+  return op->Val;
+}
+
+int CommandProcessor::ParseInt(const char* arg)
+{ int v;
+  size_t n;
+  if (sscanf(arg, "%i%n", &v, &n) != 1 || n != strlen(arg))
+    throw SyntaxException(xstring::sprintf("Argument \"%s\" is not an integer.", arg));
+  return v;
+}
+
+double CommandProcessor::ParseDouble(const char* arg)
+{ double v;
+  size_t n;
+  if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
+    return v;
+  throw SyntaxException(xstring::sprintf("Argument \"%s\" is not an floating point number.", arg));
+}
+
+static const strmap<5,cfg_disp> dispmap[] =
+{ { "file", CFG_DISP_FILENAME }
+, { "info", CFG_DISP_FILEINFO }
+, { "tag",  CFG_DISP_ID3TAG   }
+, { "url",  CFG_DISP_FILENAME }
+};
+cfg_disp CommandProcessor::ParseDisp(const char* arg)
+{ const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
+  if (!mp)
+    throw SyntaxException(xstring::sprintf("Expected {file|info|tag|url} but found \"%s\".", arg));
+  return mp->Val;
+}
+
+url123 CommandProcessor::ParseURL(const char* url)
+{ url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
+  if (!ret)
+    throw SyntaxException(xstring::sprintf("Argument \"%s\" is no valid URL or file name.", url));
+  // Directory?
+  if (ret[ret.length()-1] != '/' && is_dir(ret))
+    ret = ret + "/";
+  return ret;
+}
+
+int_ptr<APlayable> CommandProcessor::ParseAPlayable(const char* url)
+{ if (*url == 0)
+    return Ctrl::GetCurrentSong();
+  return Playable::GetByURL(ParseURL(url)).get();
+};
+
+int_ptr<Module> CommandProcessor::ParsePlugin(const char* arg)
+{ size_t len = strlen(arg);
+  if (len <= 4 || stricmp(arg+len-4, ".dll") != 0)
+  { char* cp = (char*)alloca(len+4);
+    memcpy(cp, arg, len);
+    strcpy(cp+len, ".dll");
+    arg = cp;
+  }
+  int_ptr<Module> mp = Module::FindByKey(arg);
+  if (!mp)
+    MessageHandler(this, MSG_ERROR, xstring::sprintf("Plug-in module \"%s\" not found.", arg));
+  return mp;
+}
+
 void CommandProcessor::DoOption(bool amp_cfg::* option)
 { Reply.append(ReadCfg().*option ? "on" : "off");
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
-  { const strmap<7,Ctrl::Op>* op = parse_op2(Request);
-    if (op)
-    { Cfg::ChangeAccess cfg;
-      switch (op->Val)
-      {case Ctrl::Op_Set:
-        cfg.*option = true;
-        break;
-       case Ctrl::Op_Toggle:
-        cfg.*option = !(cfg.*option);
-        break;
-       default: // Op_Clear
-        cfg.*option = false;
-        break;
-      }
-    } else
-      Reply.clear(); // error
+  { Ctrl::Op op = ParseBool(Request);
+    Cfg::ChangeAccess cfg;
+    switch (op)
+    {case Ctrl::Op_Set:
+      cfg.*option = true;
+      break;
+     case Ctrl::Op_Toggle:
+      cfg.*option = !(cfg.*option);
+      break;
+     default: // Op_Clear
+      cfg.*option = false;
+      break;
+    }
   }
 }
 void CommandProcessor::DoOption(int amp_cfg::* option)
@@ -544,14 +663,7 @@ void CommandProcessor::DoOption(int amp_cfg::* option)
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
-  { int val;
-    size_t n = 0;
-    sscanf(Request, "%i%n", &val, &n);
-    if (n == strlen(Request))
-      Cfg::ChangeAccess().*option = val;
-    else
-      Reply.clear();
-  }
+    Cfg::ChangeAccess().*option = ParseInt(Request);
 }
 void CommandProcessor::DoOption(xstring amp_cfg::* option)
 { Reply.append(xstring(ReadCfg().*option));
@@ -572,10 +684,9 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
   { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
-    if (mp)
-      Cfg::ChangeAccess().*option = mp->Val;
-    else
-      Reply.clear(); // Error
+    if (!mp)
+      throw SyntaxException(xstring::sprintf("Expected {song|song,time|time} but found \"%s\".", Request));
+    Cfg::ChangeAccess().*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
@@ -583,12 +694,7 @@ void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
-  { const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
-    if (mp)
-      Cfg::ChangeAccess().*option = mp->Val;
-    else
-      Reply.clear(); // Error
-  }
+    Cfg::ChangeAccess().*option = ParseDisp(Request);
 }
 void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
 { static const strmap<9,cfg_scroll> map[] =
@@ -601,10 +707,9 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
   { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
-    if (mp)
-      Cfg::ChangeAccess().*option = mp->Val;
-    else
-      Reply.clear(); // Error
+    if (!mp)
+      throw SyntaxException(xstring::sprintf("Expected {none|once|infinite} but found \"%s\".", Request));
+    Cfg::ChangeAccess().*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
@@ -623,10 +728,9 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
   { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
-    if (mp)
-      Cfg::ChangeAccess().*option = mp->Val;
-    else
-      Reply.clear(); // error
+    if (!mp)
+      throw SyntaxException(xstring::sprintf("Expected {0|1|2|normal|regular|small|tiny} but found \"%s\".", Request));
+    Cfg::ChangeAccess().*option = mp->Val;
   }
 };
 
@@ -651,79 +755,31 @@ void CommandProcessor::DoFontOption(void*)
     char* cp = strchr(Request, '.');
     if (!cp)
     { // Skinned font
-      int font = 0;
-      if (!parse_int(Request, font))
-        Reply.clear(); // error
-      else
-        switch (font)
-        {case 1:
-         case 2:
-          { Cfg::ChangeAccess cfg;
-            cfg.font_skinned = true;
-            cfg.font         = font;
-            break;
-          }
-         default:
-          Reply.clear(); // error
-        }
+      if ((Request[0] != '1' && Request[0] != '2') || Request[1])
+        throw SyntaxException(xstring::sprintf("Expected skinned font number {1|2} but found \"%s\".", Request));
+      Cfg::ChangeAccess cfg;
+      cfg.font_skinned = true;
+      cfg.font         = Request[0] & 0xf;
     } else
     { // non skinned font
       FATTRS fattrs = { sizeof(FATTRS), 0, 0, "", 0, 0, 16, 7, 0, 0 };
       unsigned size;
       if (!amp_string_to_font_attrs(fattrs, size, Request))
-        Reply.clear(); // error
-      else
-      { Cfg::ChangeAccess cfg;
-        cfg.font_skinned = false;
-        cfg.font_attrs   = fattrs;
-        cfg.font_size    = size;
-        // TODO: we should validate the font here.
-      }
+        throw SyntaxException(xstring::sprintf("Expected font in the format <size>.<fontname>[.bold][.italic] but found \"%s\".", Request));
+      Cfg::ChangeAccess cfg;
+      cfg.font_skinned = false;
+      cfg.font_attrs   = fattrs;
+      cfg.font_size    = size;
+      // TODO: we should validate the font here.
     }
   }
 }
 
-/*char* CommandProcessor::ParseQuotedString()
-{ char* result;
-  switch (*Request)
-  {case 0:
-    return NULL;
-
-   default: // unquoted string
-    result = Request;
-    Request += strcspn(Request, " \t");
-    *Request = 0;
-    break;
-
-   case '\'': // quoted string
-   case '\"':
-    char quotechar = *Request++;
-    result = Request;
-
-  }
-  return result;
-}*/
-
-url123 CommandProcessor::ParseURL(const char* url)
-{ url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
-  // Directory?
-  if (ret && ret[ret.length()-1] != '/' && is_dir(ret))
-    ret = ret + "/";
-  return ret;
-}
-
-int_ptr<APlayable> CommandProcessor::ParseAPlayable(const char* url)
-{ if (*url == 0)
-    return Ctrl::GetCurrentSong();
-  const url123& parsed_url = ParseURL(url);
-  if (url)
-    return Playable::GetByURL(parsed_url).get();
-  return NULL;
-};
-
 void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
 { cmd = Ctrl::SendCommand(cmd);
   Reply.append(cmd->Flags);
+  if (cmd->StrArg)
+    MessageHandler(this, MSG_ERROR, cmd->StrArg);
   cmd->Destroy();
 }
 
@@ -778,51 +834,39 @@ void CommandProcessor::CmdStop()
 }
 
 void CommandProcessor::CmdPause()
-{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
-  if (!op)
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkPause(op->Val));
+{ CommandType = true;
+  Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
+  SendCtrlCommand(Ctrl::MkPause(op));
 }
 
 void CommandProcessor::CmdNext()
-{ int count = 1;
-  if (*Request && !parse_int(Request, count))
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkSkip(count, true));
+{ CommandType = true;
+  int count = *Request ? ParseInt(Request) : 1;
+  SendCtrlCommand(Ctrl::MkSkip(count, true));
 }
 
 void CommandProcessor::CmdPrev()
-{ int count = 1;
-  if (*Request && !parse_int(Request, count))
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkSkip(-count, true));
+{ CommandType = true;
+  int count = *Request ? ParseInt(Request) : 1;
+  SendCtrlCommand(Ctrl::MkSkip(-count, true));
 }
 
 void CommandProcessor::CmdRewind()
-{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
-  if (!op)
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind));
+{ CommandType = true;
+  Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
+  SendCtrlCommand(Ctrl::MkScan(op|Ctrl::Op_Rewind));
 }
 
 void CommandProcessor::CmdForward()
-{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
-  if (!op)
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkScan(op->Val));
+{ CommandType = true;
+  Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
+  SendCtrlCommand(Ctrl::MkScan(op));
 }
 
 void CommandProcessor::CmdJump()
-{ double pos;
-  if (!parse_double(Request, pos))
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
+{ CommandType = true;
+  double pos = ParseDouble(Request);
+  SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
 }
 
 void CommandProcessor::CmdSavestream()
@@ -832,32 +876,25 @@ void CommandProcessor::CmdSavestream()
 void CommandProcessor::CmdVolume()
 { Reply.appendf("%f", Ctrl::GetVolume());
   if (*Request)
-  { double vol;
-    bool sign = *Request == '+' || *Request == '-';
-    if (parse_double(Request, vol))
-    { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkVolume(vol, sign));
-      if (cmd->Flags != 0)
-        Reply.clear(); //error
-      cmd->Destroy();
-    } else
+  { bool   sign = *Request == '+' || *Request == '-';
+    double vol  = ParseDouble(Request);
+    Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkVolume(vol, sign));
+    if (cmd->Flags != 0)
       Reply.clear(); //error
+    cmd->Destroy();
   }
 }
 
 void CommandProcessor::CmdShuffle()
-{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
-  if (!op)
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkShuffle(op->Val));
+{ CommandType = true;
+  Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
+  SendCtrlCommand(Ctrl::MkShuffle(op));
 }
 
 void CommandProcessor::CmdRepeat()
-{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
-  if (!op)
-    Reply.append(Ctrl::RC_BadArg);
-  else
-    SendCtrlCommand(Ctrl::MkRepeat(op->Val));
+{ CommandType = true;
+  Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
+  SendCtrlCommand(Ctrl::MkRepeat(op));
 }
 
 static bool IsRewind()
@@ -876,8 +913,9 @@ void CommandProcessor::CmdQuery()
     { "shuffle", &Ctrl::IsShuffle }
   };
   const strmap<8, bool (*)()>* op = mapsearch(map, Request);
-  if (op)
-    Reply.append((*op->Val)());
+  if (!op)
+    throw SyntaxException(xstring::sprintf("Expected {forward|pause|play|repeat|rewind|shuffle} but found \"%s\".", Request));
+  Reply.append((*op->Val)());
 }
 
 void CommandProcessor::CmdCurrent()
@@ -887,40 +925,37 @@ void CommandProcessor::CmdCurrent()
     { "song", 0 }
   };
   const strmap<5,char>* op = mapsearch(map, Request);
-  if (op)
-  { int_ptr<APlayable> cur;
-    switch (op->Val)
-    {case 0: // current song
-      cur = Ctrl::GetCurrentSong();
-      break;
-     case 1:
-      cur = Ctrl::GetRoot();
-      break;
-    }
-    if (cur)
-      Reply.append(cur->GetPlayable().URL);
+  if (!op)
+    throw SyntaxException(xstring::sprintf("Expected [root|song] but found \"%s\".", Request));
+  int_ptr<APlayable> cur;
+  switch (op->Val)
+  {case 0: // current song
+    cur = Ctrl::GetCurrentSong();
+    break;
+   case 1:
+    cur = Ctrl::GetRoot();
+    break;
   }
+  if (cur)
+    Reply.append(cur->GetPlayable().URL);
 }
 
 void CommandProcessor::CmdStatus()
-{ const strmap<5,cfg_disp>* op = mapsearch(dispmap, Request);
-  if (op)
-  { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
-    if (song)
-    { switch (op->Val)
-      {case CFG_DISP_ID3TAG:
-        Reply.append(amp_construct_tag_string(&song->GetInfo()));
-        if (Reply.length())
-          break;
-        // if tag is empty - use filename instead of it.
-       case CFG_DISP_FILENAME:
-        Reply.append(song->GetPlayable().URL.getShortName());
+{ int_ptr<APlayable> song = Ctrl::GetCurrentSong();
+  if (song)
+  { switch (ParseDisp(Request))
+    {case CFG_DISP_ID3TAG:
+      Reply.append(amp_construct_tag_string(&song->GetInfo()));
+      if (Reply.length())
         break;
+      // if tag is empty - use filename instead of it.
+     case CFG_DISP_FILENAME:
+      Reply.append(song->GetPlayable().URL.getShortName());
+      break;
 
-       case CFG_DISP_FILEINFO:
-        Reply.append(xstring(song->GetInfo().tech->info));
-        break;
-      }
+     case CFG_DISP_FILEINFO:
+      Reply.append(xstring(song->GetInfo().tech->info));
+      break;
     }
   }
 }
@@ -932,13 +967,13 @@ void CommandProcessor::CmdLocation()
     { "stopat", 1 }
   };
   const strmap<7, char>* op = mapsearch(map, Request);
-  if (op)
-  { SongIterator loc;
-    Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val));
-    if (cmd->Flags == Ctrl::RC_OK)
-      Reply.append(loc.Serialize());
-    cmd->Destroy();
-  }
+  if (!op)
+    throw SyntaxException(xstring::sprintf("Expected [play|stopat] but found \"%s\".", Request));
+  SongIterator loc;
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val));
+  if (cmd->Flags == Ctrl::RC_OK)
+    Reply.append(loc.Serialize());
+  cmd->Destroy();
 }
 
 // PLAYLIST
@@ -968,19 +1003,19 @@ void CommandProcessor::PlSkip(int count)
 }
 
 void CommandProcessor::CmdPlNext()
-{ int count = 1;
-  if (CurPlaylist && (*Request == 0 || parse_int(Request, count)))
-  { PlSkip(count);
-    CmdPlItem();
-  }
+{ if (!CurPlaylist)
+    return;
+  int count = *Request ? ParseInt(Request) : 1;
+  PlSkip(count);
+  CmdPlItem();
 }
 
 void CommandProcessor::CmdPlPrev()
-{ int count = 1;
-  if (CurPlaylist && (*Request == 0 || parse_int(Request, count)))
-  { PlSkip(-count);
-    CmdPlItem();
-  }
+{ if (!CurPlaylist)
+    return;
+  int count = *Request ? ParseInt(Request) : 1;
+  PlSkip(-count);
+  CmdPlItem();
 }
 
 void CommandProcessor::CmdPlReset()
@@ -1050,7 +1085,7 @@ void CommandProcessor::CmdDir()
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
     while (tok.Next(curl))
     { url123 url = ParseURL(curl);
-      if (!url || strchr(url, '?'))
+      if (strchr(url, '?'))
       { Reply.append(tok.Current());
         break; // Bad URL
       }
@@ -1068,7 +1103,7 @@ void CommandProcessor::CmdRdir()
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
     while (tok.Next(curl))
     { url123 url = ParseURL(curl);
-      if (!url || strchr(url, '?'))
+      if (strchr(url, '?'))
       { Reply.append(tok.Current());
         break; // Bad URL
       }
@@ -1234,15 +1269,11 @@ void CommandProcessor::CmdInfoMeta()
 }
 
 void CommandProcessor::CmdInfoPlaylist()
-{
-  int_ptr<Playable> list;
+{ int_ptr<Playable> list;
   if (*Request == 0)
     list = CurPlaylist;
   else
-  { const url123& url = ParseURL(Request);
-    if (url)
-      list = Playable::GetByURL(url);
-  }
+    list = Playable::GetByURL(ParseURL(Request));
   if (list == NULL)
     return;
   // get info
@@ -1351,8 +1382,6 @@ void CommandProcessor::CmdWriteMetaTo()
 { if (*Request == 0)
     return;
   const url123& url = ParseURL(Request);
-  if (!url)
-    return;
   int_ptr<Playable> song = Playable::GetByURL(url);
   // Write meta
   song->RequestInfo(IF_Tech, PRI_Sync);
@@ -1428,7 +1457,7 @@ void CommandProcessor::CmdOpen()
     } else
     { // properties
       if (*arg2)
-      { int_ptr<Module> mod = Module::FindByKey(arg2);
+      { int_ptr<Module> mod = ParsePlugin(arg2);
         if (mod)
           GUI::ShowConfig(*mod);
       } else
@@ -1485,8 +1514,7 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 };
 
 void CommandProcessor::CmdOption()
-{
-  char* cp = strchr(Request, '=');
+{ char* cp = strchr(Request, '=');
   if (cp)
     *cp++ = 0;
 
@@ -1556,14 +1584,22 @@ const strmap<8,PLUGIN_TYPE> CommandProcessor::PluginTypeMap[] =
 , { "visual",  PLUGIN_VISUAL }
 };
 
-bool CommandProcessor::ParseTypeList(PLUGIN_TYPE& type)
-{ for (const char* cp = strtok(Request, ",|"); cp; cp = strtok(NULL, ",|"))
+PLUGIN_TYPE CommandProcessor::ParseTypeList()
+{ PLUGIN_TYPE type = PLUGIN_NULL;
+  for (const char* cp = strtok(Request, ",|"); cp; cp = strtok(NULL, ",|"))
   { const strmap<8,PLUGIN_TYPE>* op = mapsearch(PluginTypeMap, cp);
     if (op == NULL)
-      return false;
+      throw SyntaxException(xstring::sprintf("Unknown plug-in type %s.", cp));
     type |= op->Val;
   }
-  return true;
+  return type;
+}
+
+PLUGIN_TYPE CommandProcessor::ParseType()
+{ const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
+  if (op == NULL)
+    throw SyntaxException(xstring::sprintf("Unknown plug-in type %s.", Request));
+  return op->Val;
 }
 
 void CommandProcessor::ReplyType(PLUGIN_TYPE type)
@@ -1595,13 +1631,21 @@ void CommandProcessor::AppendPluginType(PLUGIN_TYPE type)
     Reply.erase(Reply.length()-1);
 }
 
-static PLUGIN_TYPE DoDeserialize(const char* str, PLUGIN_TYPE type)
+PLUGIN_TYPE CommandProcessor::InstantiatePlugin(Module& module, const char* params, PLUGIN_TYPE type)
 { if (type)
     try
-    { Plugin::AppendPlugin(Plugin::Deserialize(str, type));
+    { int_ptr<Plugin> pp = Plugin::GetInstance(module, type);
+      if (params)
+      { stringmap_own sm(20);
+        url123::parseParameter(sm, params);
+        pp->SetParams(sm);
+        for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
+          MessageHandler(this, MSG_WARNING, xstring::sprintf("Ignored unknown plug-in parameter %s", (*p)->Key.cdata()));
+      }
+      Plugin::AppendPlugin(pp);
       return type;
     } catch (const ModuleException& ex)
-    { // TODO: log exception
+    { MessageHandler(this, MSG_ERROR, ex.GetErrorText().cdata());
     }
   return PLUGIN_NULL;
 }
@@ -1613,20 +1657,40 @@ void CommandProcessor::CmdPluginLoad()
     return; // Plug-in name missing
   Request[len] = 0;
 
-  PLUGIN_TYPE type = PLUGIN_NULL;
-  if (!ParseTypeList(type))
-    return; // Syntax error
+  PLUGIN_TYPE type = ParseTypeList();
 
-  Request += len;
+  Request += len+1;
   Request += strspn(Request, " \t");
   // TODO: AppendPluginType(Plugin::Deserialize(Request, op->Val));
 
-  type = DoDeserialize(Request, type & PLUGIN_DECODER)
-       | DoDeserialize(Request, type & PLUGIN_FILTER)
-       | DoDeserialize(Request, type & PLUGIN_OUTPUT)
-       | DoDeserialize(Request, type & PLUGIN_VISUAL);
+  const char* params = strchr(Request, '?');
+  if (params)
+  { Request[params-Request] = 0;
+    ++params;
+  }
+  // append .dll?
+  len = strlen(Request);
+  if (len <= 4 || stricmp(Request+len-4, ".dll") != 0)
+  { char* cp = (char*)alloca(len+4);
+    memcpy(cp, Request, len);
+    strcpy(cp+len, ".dll");
+    Request = cp;
+  }
 
-  ReplyType(type);
+  try
+  { int_ptr<Module> pm = Module::GetByKey(Request);
+    if (type == PLUGIN_DECODER|PLUGIN_FILTER|PLUGIN_OUTPUT|PLUGIN_VISUAL)
+      type &= (PLUGIN_TYPE)pm->GetParams().type;
+
+    type = InstantiatePlugin(*pm, params, type & PLUGIN_DECODER)
+         | InstantiatePlugin(*pm, params, type & PLUGIN_FILTER)
+         | InstantiatePlugin(*pm, params, type & PLUGIN_OUTPUT)
+         | InstantiatePlugin(*pm, params, type & PLUGIN_VISUAL);
+
+    ReplyType(type);
+  } catch (const ModuleException& ex)
+  { MessageHandler(this, MSG_ERROR, ex.GetErrorText().cdata());
+  }
 }
 
 static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
@@ -1652,13 +1716,11 @@ void CommandProcessor::CmdPluginUnload()
     return; // Plug-in name missing
   Request[len] = 0;
 
-  PLUGIN_TYPE type = PLUGIN_NULL;
-  if (!ParseTypeList(type))
-    return; // Syntax error
+  PLUGIN_TYPE type = ParseTypeList();
 
   Request += len;
   Request += strspn(Request, " \t");
-  int_ptr<Module> module(Module::FindByKey(Request));
+  int_ptr<Module> module(ParsePlugin(Request));
   if (module == NULL)
     return;
 
@@ -1678,58 +1740,69 @@ void CommandProcessor::CmdPluginList()
     np += strspn(np, " \t");
   }
   // requested plug-in type
-  const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
-  if (op == NULL)
-    return;
+  PLUGIN_TYPE type = ParseType();
   // Current state
-  PluginList list(op->Val);
+  PluginList list(type);
+  Plugin::GetPlugins(list, false);
+  Reply.append(list.Serialize());
   if (*np)
   { // set plug-in list
     try
-    { list.Deserialize(np);
+    { if (stricmp(np, "@default") == 0)
+        list.LoadDefaults();
+      else if (stricmp(np, "@empty") == 0)
+        list.clear();
+      else
+      { // Replace \t by \n
+        char* cp = np;
+        while ((cp = strchr(cp, '\t')) != NULL)
+        { *cp = '\n';
+          while (*++cp == '\t');
+        }
+        list.Deserialize(np);
+      }
       Plugin::SetPluginList(list);
-    } catch (const ModuleException& ex)
-    { // TODO: log error
-      return;
     }
-  } else
-  { // get plug-in list
-    Plugin::GetPlugins(list, false);
+    catch (const ModuleException& ex)
+    { MessageHandler(this, MSG_ERROR, ex.GetErrorText());
+      Reply.clear();
+    }
   }
-  Reply.append(list.Serialize());
 }
 
 void CommandProcessor::CmdPluginParams()
 { size_t len = strcspn(Request, " \t");
   if (!Request[len])
     return; // missing plug-in name
+  Request[len] = 0;
   // requested plug-in type
-  const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
-  if (op == NULL)
-    return; // invalid plug-in type
-  Request += len;
+  PLUGIN_TYPE type = ParseType();
+  Request += len+1;
   Request += strspn(Request, " \t");
 
   char* params = strchr(Request, '?');
   if (params)
     *params++ = 0;
   // find plug-in
-  int_ptr<Module> pm = Module::FindByKey(Request);
+  int_ptr<Module> pm = ParsePlugin(Request);
   if (!pm)
     return;
-  int_ptr<Plugin> pp = Plugin::FindInstance(*pm, op->Val);
+  int_ptr<Plugin> pp = Plugin::FindInstance(*pm, type);
   if (!pp)
+  { MessageHandler(this, MSG_ERROR, xstring::sprintf("Plug-in module \"%s\" is not initialized as the requested type.", Request));
     return;
+  }
   // return current parameters
   pp->Serialize(Reply);
   // Set new parameters
   if (params)
   { stringmap_own sm(20);
-    url123::parseParameter(sm, params+1);
+    url123::parseParameter(sm, params);
     try
     { pp->SetParams(sm);
     } catch (const ModuleException& ex)
-    { // TODO: log exception
+    { MessageHandler(this, MSG_ERROR, ex.GetErrorText());
+      Reply.clear();
     }
     #ifdef DEBUG_LOG
     for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)

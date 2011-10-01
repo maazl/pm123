@@ -65,7 +65,9 @@ struct ctrl_state
 ****************************************************************************/
 
 /// Private implementation of class \c Ctrl.
-class CtrlImp : public Ctrl
+class CtrlImp
+: public Ctrl::ControlCommand // Derive to access command arguments directly
+, public Ctrl                 // Derive to access protected members only
 { friend class Ctrl;
  private:
   struct PrefetchEntry
@@ -76,18 +78,18 @@ class CtrlImp : public Ctrl
   };
 
  private: // extended working set
-  // List of prefetched iterators.
-  // The first entry is always the current iterator if a enumerable object is loaded.
-  // Write access to this list is only done by the controller thread.
+  /// List of prefetched iterators.
+  /// The first entry is always the current iterator if a enumerable object is loaded.
+  /// Write access to this list is only done by the controller thread.
   static vector<PrefetchEntry> PrefetchList;
   static Mutex                PLMtx;                 // Mutex to protect the above list.
 
   static TID                  WorkerTID;             // Thread ID of the worker
-  static ControlCommand*      CurCmd;                // Currently processed ControlCommand, protected by Queue.Mtx
+  static Ctrl::ControlCommand* CurCmd;               // Currently processed ControlCommand, protected by Queue.Mtx
 
-  // These events are set atomically from any thread.
-  // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
-  static AtomicUnsigned       Pending;               // Pending events
+  /// Pending Events. These events are set atomically from any thread.
+  /// After each last message of a queued set of messages the events are raised and Pending is atomically reset.
+  static AtomicUnsigned       Pending;
 
   // Delegates for the tracked events of the decoder, the output and the current song.
   static delegate<void, const dec_event_args>        DecEventDelegate;
@@ -96,18 +98,28 @@ class CtrlImp : public Ctrl
   static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
   //static delegate<void, const CallstackEntry>        SongIteratorDelegate;
 
-  // Occasionally used constants.
+  // Occasionally used constant.
   static const vector_int<PlayableInstance> EmptyStack;
 
  private: // internal functions, not thread safe
-  // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
-  // Precondition: an object must have been loaded.
+  /// Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
+  /// Precondition: an object must have been loaded.
   static PrefetchEntry* Current() { return PrefetchList[0]; }
   /// Raise any pending controller events.
   static void  RaiseControlEvents();
 
-  // Applies the operator op to flag and returns true if the flag has been changed.
-  static bool  SetFlag(bool& flag, Op op);
+ private: // Helper functions for command handlers
+  /// Reply a result code and clear the error text.
+         void  Reply(RC rc) { Flags = rc; StrArg.reset(); }
+  /// Reply a argument error
+         void  ReplyBadArg(const char* fmt, ...);
+  /// Reply a decoder error
+         void  ReplyDecoderError(ULONG err);
+  /// Reply a decoder error
+         void  ReplyOutputError(ULONG err);
+  /// Applies the operator op to flag and returns true if the flag has been changed.
+  /// Implicitly updates the reply fields \c Flags and \c StrVal.
+         bool  SetFlag(bool& flag);
   // Sets the volume according to this->Volume and the scan mode.
   static void  SetVolume();
   // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
@@ -133,12 +145,11 @@ class CtrlImp : public Ctrl
   // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
   // If we try to move the current song pointer out of the range of the that that si relies on,
   // the function returns false and si is in reset state.
-  // The function is side effect free and only operates on si.
-  static bool  SkipCore(Location& si, int count, bool relative);
+         bool  SkipCore(Location& si, int count);
   // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
   static bool  AdjustNext(Location& si);
   // Jump to the location si. The function will destroy the content of si.
-  static RC    NavigateCore(Location& si);
+         void  NavigateCore(Location& si);
   // Register events to a new current song and request some information if not yet known.
   //static void  AttachCurrentSong(APlayable& ps);
   // Clears the prefetch list and keep the first element if keep is true.
@@ -163,26 +174,34 @@ class CtrlImp : public Ctrl
   static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
   // Event handler for tracking modifications of the currently loaded object.
   static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
-  // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
+  // Event handler for asynchronous changes to the SongIterator (not any prefetched one).
   //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
 
  private: // messages handlers, not thread safe
-  // The messages are descibed above before the class header.
-  static RC    MsgPause(Op op);
-  static RC    MsgScan(Op op);
-  static RC    MsgVolume(double volume, bool relative);
-  static RC    MsgNavigate(const xstring& iter, PM123_TIME loc, int flags);
-  static RC    MsgJump(Location& iter);
-  static RC    MsgStopAt(const xstring& iter, PM123_TIME loc, int flags);
-  static RC    MsgPlayStop(Op op);
-  static RC    MsgSkip(int count, bool relative);
-  static RC    MsgLoad(const xstring& url, int flags);
-  static RC    MsgSave(const xstring& filename);
-  static RC    MsgShuffle(Op op);
-  static RC    MsgRepeat(Op op);
-  static RC    MsgLocation(SongIterator* sip, int flags);
-  static RC    MsgDecStop();
-  static RC    MsgOutStop();
+  // The messages are described before the class header.
+  void  MsgNop     ();
+  void  MsgPause   ();
+  void  MsgScan    ();
+  void  MsgVolume  ();
+  void  MsgNavigate();
+  void  MsgJump    ();
+  void  MsgStopAt  ();
+  void  MsgPlayStop();
+  void  MsgSkip    ();
+  void  MsgLoad    ();
+  void  MsgSave    ();
+  void  MsgShuffle ();
+  void  MsgRepeat  ();
+  void  MsgLocation();
+  void  MsgDecStop ();
+  void  MsgOutStop ();
+
+ private: // non-constructable, non-copyable
+  CtrlImp();
+  CtrlImp(const CtrlImp&);
+  void  operator=(const CtrlImp&);
+ public:
+  static void Execute(Ctrl::ControlCommand& cc);
 
  private:
   struct QueueTraverseProxyData
@@ -252,23 +271,46 @@ void CtrlImp::RaiseControlEvents()
 }
 
 
-bool CtrlImp::SetFlag(bool& flag, Op op)
-{ switch (op)
+void CtrlImp::ReplyBadArg(const char* fmt, ...)
+{ Flags = RC_BadArg;
+  va_list va;
+  va_start(va, fmt);
+  StrArg = xstring::vsprintf(fmt, va);
+  va_end(va);
+}
+void CtrlImp::ReplyDecoderError(ULONG err)
+{ Flags = RC_DecPlugErr;
+  NumArg = err;
+  StrArg = xstring::sprintf("Decoder plug-in failed with error code %li.", err);
+}
+void CtrlImp::ReplyOutputError(ULONG err)
+{ Flags = RC_DecPlugErr;
+  NumArg = err;
+  StrArg = xstring::sprintf("Output plug-in failed with error code %li.", err);
+}
+
+bool CtrlImp::SetFlag(bool& flag)
+{ switch (Flags)
   {default:
+    ReplyBadArg("Invalid boolean operator %x.", Flags);
     return false;
 
    case Op_Set:
     if (flag)
-      return false;
-    break;
+      break;
+    goto toggle;
    case Op_Clear:
    case Op_Reset:
     if (!flag)
-      return false;
-   case Op_Toggle:;
+      break;
+   case Op_Toggle:
+   toggle:
+    flag = !flag;
+    Reply(RC_OK);
+    return true;
   }
-  flag = !flag;
-  return true;
+  Reply(RC_OK);
+  return false;
 }
 
 void CtrlImp::SetVolume()
@@ -373,13 +415,15 @@ void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const v
   SetStackUsage(newppi, newstack.end(), true);
 }
 
-bool CtrlImp::SkipCore(Location& si, int count, bool relative)
-{ DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize().cdata(), count, relative));
-  if (!relative)
-    si.Reset();
+bool CtrlImp::SkipCore(Location& si, int count)
+{ DEBUGLOG(("Ctrl::SkipCore({%s}, %i)\n", si.Serialize().cdata(), count));
   const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, JobSet::SyncJob);
-  DEBUGLOG(("Ctrl::SkipCore: %s\n", rc.cdata()));
-  return !rc;
+  if (rc)
+  { StrArg = rc;
+    Flags = RC_BadIterator;
+    return false;
+  }
+  return true;
 }
 
 bool CtrlImp::AdjustNext(Location& si)
@@ -393,24 +437,29 @@ bool CtrlImp::AdjustNext(Location& si)
   return !rc;  
 }
 
-Ctrl::RC CtrlImp::NavigateCore(Location& si)
+void CtrlImp::NavigateCore(Location& si)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Loc);
   DEBUGLOG(("Ctrl::NavigateCore - %i\n", level));
   if (level == 0)
-    return RC_OK; // song and location identical => no-op
+  { Reply(RC_OK); // song and location identical => no-op
+    return;
+  }
   ASSERT(level != INT_MIN);
   if (abs(level) > max(si.GetLevel(), Current()->Loc.GetLevel()))
   { DEBUGLOG(("Ctrl::NavigateCore - seek to %f\n", Current()->Loc.GetPosition()));
     // only location is different => seek only
     if (Playing)
-    { if (dec_jump(si.GetPosition()) != 0)
-        return RC_DecPlugErr;
-    }
+    { ULONG rc = dec_jump(si.GetPosition());
+      if (rc)
+      { ReplyDecoderError(rc);
+        return;
+    } }
     Mutex::Lock lock(PLMtx);
     Current()->Loc.Swap(si);
-    return RC_OK;
+    Reply(RC_OK);
+    return;
   }
   DEBUGLOG(("Ctrl::NavigateCore - Navigate - %u\n", Playing));
   // Navigate to another item
@@ -436,14 +485,16 @@ Ctrl::RC CtrlImp::NavigateCore(Location& si)
 
   // restart decoder immediately?
   if (Playing)
-  { if (DecoderStart(ps, 0) != 0)
+  { ULONG rc = DecoderStart(ps, 0);
+    if (rc)
     { OutputStop();
       Playing = false;
       Pending |= EV_PlayStop;
-      return RC_DecPlugErr;
+      ReplyDecoderError(rc);
+      return;
     }
   }
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 /*void Ctrl::AttachCurrentSong(APlayable& ps)
@@ -594,25 +645,31 @@ void CtrlImp::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
   }
 }*/
 
-/* Suspends or resumes playback of the currently played file. */
-Ctrl::RC CtrlImp::MsgPause(Op op)
-{ DEBUGLOG(("Ctrl::MsgPause(%x) - %u\n", op, Scan));
-  if (!Playing)
-    return op & Op_Set ? RC_NotPlaying : RC_OK;
 
-  if (SetFlag(Paused, op))
+void CtrlImp::MsgNop()
+{ Flags = RC_OK;
+}
+
+/* Suspends or resumes playback of the currently played file. */
+void CtrlImp::MsgPause()
+{ DEBUGLOG(("Ctrl::MsgPause() {%x} - %u\n", Flags, Scan));
+  if (!Playing)
+  { Reply(Flags & Op_Set ? RC_NotPlaying : RC_OK);
+    return;
+  }
+  if (SetFlag(Paused))
   { out_pause(Paused);
     Pending |= EV_Pause;
   }
-  return RC_OK;
 }
 
 /* change scan mode logically */
-Ctrl::RC CtrlImp::MsgScan(Op op)
-{ DEBUGLOG(("Ctrl::MsgScan(%x) - %u\n", op, Scan));
-  if (op & ~7)
-    return RC_BadArg;
-
+void CtrlImp::MsgScan()
+{ DEBUGLOG(("Ctrl::MsgScan() {%x} - %u\n", Flags, Scan));
+  if (Flags & ~7)
+  { ReplyBadArg("Invalid scan argument %x", Flags);
+    return;
+  }
   static const DECFASTMODE opmatrix[8][3] =
   { {DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY},
     {DECFAST_FORWARD,     DECFAST_FORWARD,     DECFAST_FORWARD    },
@@ -623,57 +680,60 @@ Ctrl::RC CtrlImp::MsgScan(Op op)
     {DECFAST_NORMAL_PLAY, DECFAST_FORWARD,     DECFAST_NORMAL_PLAY},
     {DECFAST_REWIND,      DECFAST_REWIND,      DECFAST_NORMAL_PLAY}
   };
-  DECFASTMODE newscan = opmatrix[op][Scan];
+  DECFASTMODE newscan = opmatrix[Flags][Scan];
   // Check for NOP.
-  if (Scan == newscan)
-    return RC_OK;
+  if (Scan != newscan)
+  { if (Playing)
+    { // => Decoder
+      // TODO: discard prefetch buffer.
+      ULONG rc = dec_fast(newscan);
+      if (rc)
+      { ReplyDecoderError(rc);
+        return;
+      } else // if (cfg.trash)
+        // Going back in the stream to what is currently playing.
+        dec_jump(FetchCurrentSongTime());
 
-  if (Playing)
-  { // => Decoder
-    // TODO: discard prefetch buffer.
-    if (dec_fast(newscan) != 0)
-      return RC_DecPlugErr;
-    else // if (cfg.trash)
-      // Going back in the stream to what is currently playing.
-      dec_jump(FetchCurrentSongTime());
-
-  } else if (op & Op_Set)
-    return RC_NotPlaying;
-
-  // Update event flags
-  if ((Scan & DECFAST_FORWARD) != (newscan & DECFAST_FORWARD))
-    Pending |= EV_Forward;
-  if ((Scan & DECFAST_REWIND) != (newscan & DECFAST_REWIND))
-    Pending |= EV_Rewind;
-  Scan = newscan;
-  SetVolume();
-  return RC_OK;
+    } else if (Flags & Op_Set)
+    { Reply(RC_NotPlaying);
+      return;
+    }
+    // Update event flags
+    if ((Scan & DECFAST_FORWARD) != (newscan & DECFAST_FORWARD))
+      Pending |= EV_Forward;
+    if ((Scan & DECFAST_REWIND) != (newscan & DECFAST_REWIND))
+      Pending |= EV_Rewind;
+    Scan = newscan;
+    SetVolume();
+  }
+  Reply(RC_OK);
 }
 
-Ctrl::RC CtrlImp::MsgVolume(double volume, bool relative)
-{ DEBUGLOG(("Ctrl::MsgVolume(%g, %u) - %g\n", volume, relative, Volume));
-  volume += Volume * relative;
+void CtrlImp::MsgVolume()
+{ DEBUGLOG(("Ctrl::MsgVolume() {%g, %u} - %g\n", NumArg, Flags, Volume));
+  if (Flags)
+    NumArg += Volume;
   // Limits
-  if (volume < 0)
-    volume = 0;
-  else if (volume > 1)
-    volume = 1;
+  if (NumArg < 0)
+    NumArg = 0;
+  else if (NumArg > 1)
+    NumArg = 1;
 
-  if (volume != Volume)
-  { Volume = volume;
+  if (NumArg != Volume)
+  { Volume = NumArg;
     SetVolume();
     Pending |= EV_Volume;
   }
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 /* change play/stop status */
-Ctrl::RC CtrlImp::MsgPlayStop(Op op)
-{ DEBUGLOG(("Ctrl::MsgPlayStop(%x) - %u\n", op, Playing));
+void CtrlImp::MsgPlayStop()
+{ DEBUGLOG(("Ctrl::MsgPlayStop() {%x} - %u\n", Flags, Playing));
 
   if (Playing)
   { // Set new playing position
-    if ( Cfg::Get().retainonstop && op != Op_Reset
+    if ( Cfg::Get().retainonstop && Flags != Op_Reset
       && Current()->Loc.GetCurrent().GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
       Current()->Loc.Navigate(time, JobSet::SyncJob);
@@ -683,33 +743,39 @@ Ctrl::RC CtrlImp::MsgPlayStop(Op op)
     }
   }
 
-  if (!SetFlag(Playing, op))
-    return RC_OK;
+  if (!SetFlag(Playing))
+    return;
 
   if (Playing)
   { // start playback
     APlayable* pp = GetCurrentSong();
     if (pp == NULL)
     { Playing = false;
-      return RC_NoSong;
+      Reply(RC_NoSong);
+      return;
     }
 
     pp->RequestInfo(IF_Decoder|IF_Tech|IF_Obj|IF_Slice, PRI_Sync);
     if (!(pp->GetInfo().tech->attributes & TATTR_SONG))
     { Playing = false;
-      return RC_NoSong;
+      Reply(RC_NoSong);
+      return;
     }
 
-    if (OutputStart(*pp) != 0)
+    ULONG rc = OutputStart(*pp);
+    if (rc)
     { Playing = false;
-      return RC_OutPlugErr;
+      ReplyOutputError(rc);
+      return;
     }
 
     Current()->Offset = 0;
-    if (DecoderStart(Current()->Loc.GetCurrent(), 0) != 0)
+    rc = DecoderStart(Current()->Loc.GetCurrent(), 0);
+    if (rc)
     { OutputStop();
       Playing = false;
-      return RC_DecPlugErr;
+      ReplyOutputError(rc);
+      return;
     }
 
   } else
@@ -717,9 +783,11 @@ Ctrl::RC CtrlImp::MsgPlayStop(Op op)
     DecoderStop();
     OutputStop();
 
-    if (SetFlag(Paused, Op_Clear))
+    Flags = Op_Clear;
+    if (SetFlag(Paused))
       Pending |= EV_Pause;
-    MsgScan(Op_Reset);
+    Flags = Op_Reset;
+    MsgScan();
 
     while (out_playing_data())
     { DEBUGLOG(("Ctrl::MsgPlayStop - Spinlock\n"));
@@ -728,15 +796,17 @@ Ctrl::RC CtrlImp::MsgPlayStop(Op op)
   }
   Pending |= EV_PlayStop;
 
-  return RC_OK;
+  Reply(RC_OK);
 }
 
-Ctrl::RC CtrlImp::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
-{ DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter ? iter.cdata() : "<null>", loc, flags));
+void CtrlImp::MsgNavigate()
+{ DEBUGLOG(("Ctrl::MsgNavigate() {%s, %g, %x}\n", StrArg.cdata(), NumArg, Flags));
   if (!GetCurrentSong())
-    return RC_NoSong;
+  { Reply(RC_NoSong);
+    return;
+  }
   sco_ptr<Location> sip;
-  if (flags & 0x02)
+  if (Flags & 0x02)
   { // Reset location
     sip = new Location(&GetRoot()->GetPlayable());
   } else
@@ -746,45 +816,69 @@ Ctrl::RC CtrlImp::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
     sip = new Location(Current()->Loc);
     sip->Navigate(time, JobSet::SyncJob);
   }
-  if (iter && iter.length())
-  { const char* cp = iter.cdata();
-    if (sip->Deserialize(cp, JobSet::SyncJob) && !(flags & 0x04))
-      return RC_BadIterator;
+  if (StrArg && StrArg.length())
+  { const char* cp = StrArg.cdata();
+    const Location::NavigationResult rc = sip->Deserialize(cp, JobSet::SyncJob);
+    if (rc && !(Flags & 0x04))
+    { StrArg = rc;
+      NumArg = cp - StrArg.cdata();
+      Flags = RC_BadIterator;
+      return;
+    }
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
   } else
-    sip->Navigate(flags & 0x01 ? sip->GetPosition() + loc : loc, JobSet::SyncJob);
+  { if (Flags & 0x01)
+      NumArg += sip->GetPosition();
+    const Location::NavigationResult rc = sip->Navigate(NumArg, JobSet::SyncJob);
+    if (rc && !(Flags & 0x04))
+    { StrArg = rc;
+      NumArg = -1;
+      Flags = RC_BadIterator;
+      return;
+    }
+  }
   // TODO: extend total playing time when leaving bounds of parent iterator?
 
   // commit
-  return NavigateCore(*sip);
+  NavigateCore(*sip);
 }
 
-Ctrl::RC CtrlImp::MsgJump(Location& iter)
-{ DEBUGLOG(("Ctrl::MsgJump(...)\n"));
+void CtrlImp::MsgJump()
+{ DEBUGLOG(("Ctrl::MsgJump() {%p}\n", PtrArg));
   APlayable* ps = GetRoot();
   if (!ps)
-    return RC_NoSong;
-  if (&ps->GetPlayable() != iter.GetRoot())
-    return RC_InvalidItem;
-
-  return NavigateCore(iter);
+    Reply(RC_NoSong);
+  else if (&ps->GetPlayable() != ((Location*)PtrArg)->GetRoot())
+    Reply(RC_InvalidItem);
+  else
+    NavigateCore(*(Location*)PtrArg);
 }
 
-Ctrl::RC CtrlImp::MsgSkip(int count, bool relative)
-{ DEBUGLOG(("Ctrl::MsgSkip(%i, %u) - %u\n", count, relative, IsPlaying));
+void CtrlImp::MsgSkip()
+{ DEBUGLOG(("Ctrl::MsgSkip() {%g, %x} - %u\n", NumArg, Flags, IsPlaying));
   APlayable* pp = GetRoot();
+  if (!pp)
+  { Reply(RC_NoSong);
+    return;
+  }
   pp->RequestInfo(IF_Tech, PRI_Sync);
   if (!(pp->GetInfo().tech->attributes & TATTR_PLAYLIST))
-    return RC_NoList;
+  { Reply(RC_NoList);
+    return;
+  }
   // some checks
-  if (relative)
-  { if (count == 0)
-      return RC_OK;
+  if (Flags)
+  { if (NumArg == 0)
+    { Reply(RC_OK);
+      return;
+    }
   } else
   { // absolute mode
-    if (count < 0)
-      return RC_BadArg;
+    if (NumArg < 0)
+    { ReplyBadArg("Negative index %g in playlist???", NumArg);
+      return;
+    }
     /* TODO: ...
     if (Current.GetStatus().CurrentItem == count)
       return RC_OK;*/
@@ -792,29 +886,35 @@ Ctrl::RC CtrlImp::MsgSkip(int count, bool relative)
 
   // Navigation
   Location si = Current()->Loc; // work on a temporary object => copy constructor
-  if (!SkipCore(si, count, relative))
+  if (!Flags)
+    si.Reset();
+  if (!SkipCore(si, (int)NumArg))
   { if (Cfg::Get().autoturnaround)
     { si.Reset();
-      switch (count)
+      switch ((int)NumArg)
       {case 1:
        case -1:
-        if (!si.NavigateCount(count, TATTR_SONG, JobSet::SyncJob))
+        if (!si.NavigateCount((int)NumArg, TATTR_SONG, JobSet::SyncJob))
           goto ok;
       }
     }
-    return RC_EndOfList;
+    Reply(RC_EndOfList);
+    return;
   }
  ok:
   // commit
-  return NavigateCore(si);
+  NavigateCore(si);
 }
 
 /* Loads Playable object to player. */
-Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
-{ DEBUGLOG(("Ctrl::MsgLoad(%s, %x)\n", url.cdata(), flags));
+void CtrlImp::MsgLoad()
+{ DEBUGLOG(("Ctrl::MsgLoad() {%s, %x}\n", StrArg.cdata(), Flags));
+  int flags = Flags;
 
   // always stop
-  MsgPlayStop(Op_Reset);
+  // TODO: continue flag
+  Flags = Op_Reset;
+  MsgPlayStop();
 
   // detach
   //CurrentSongDelegate.detach();
@@ -825,8 +925,8 @@ Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
     PrefetchClear(false);
   }
 
-  if (url)
-  { int_ptr<Playable> play = Playable::GetByURL(url);
+  if (StrArg)
+  { int_ptr<Playable> play = Playable::GetByURL(StrArg);
     { Mutex::Lock lock(PLMtx);
       PrefetchList.append() = new PrefetchEntry(0, SongIterator(play));
       // assign change event handler
@@ -842,7 +942,8 @@ Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
     play->RequestInfo(IF_Tech, PRI_Sync);
     if (play->GetInfo().tech->attributes & TATTR_INVALID)
     { play->SetInUse(false);
-      return RC_InvalidItem;
+      Reply(RC_InvalidItem);
+      return;
     }
     // Load the required information as fast as possible
     play->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Child, PRI_Normal);
@@ -860,66 +961,75 @@ Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
   Pending |= EV_Song;
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
-  return RC_OK;
+  Reply(RC_OK);
 }
 
-Ctrl::RC CtrlImp::MsgStopAt(const xstring& iter, PM123_TIME loc, int flags)
+void CtrlImp::MsgStopAt()//const xstring& iter, PM123_TIME loc, int flags)
 { // TODO: !!!
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 /* saving the currently played stream. */
-Ctrl::RC CtrlImp::MsgSave(const xstring& filename)
-{ DEBUGLOG(("Ctrl::MsgSave(%s)\n", filename.cdata()));
+void CtrlImp::MsgSave()
+{ DEBUGLOG(("Ctrl::MsgSave() {%s}\n", StrArg.cdata()));
 
-  if (Savename == filename)
-    return RC_OK;
+  if (Savename == StrArg)
+  { Reply(RC_OK);
+    return;
+  }
   Pending |= EV_Savename;
-  Savename = filename;
+  Savename = StrArg;
 
   if (Playing)
-    dec_save(Savename);
+  { ULONG rc = dec_save(Savename);
+    if (rc)
+    { ReplyDecoderError(rc);
+      return;
+  } }
   // TODO: is it really a good idea to save different streams into the same file???
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 /* Adjusts shuffle flag. */
-Ctrl::RC CtrlImp::MsgShuffle(Op op)
-{ DEBUGLOG(("Ctrl::MsgShuffle(%x) - %u\n", op, Scan));
-  if (SetFlag(Shuffle, op))
+void CtrlImp::MsgShuffle()
+{ DEBUGLOG(("Ctrl::MsgShuffle() {%x} - %u\n", Flags, Scan));
+  if (SetFlag(Shuffle))
     Pending |= EV_Shuffle;
-  return RC_OK;
 }
 
 /* Adjusts repeat flag. */
-Ctrl::RC CtrlImp::MsgRepeat(Op op)
-{ DEBUGLOG(("Ctrl::MsgRepeat(%x) - %u\n", op, Scan));
-  if (SetFlag(Repeat, op))
+void CtrlImp::MsgRepeat()
+{ DEBUGLOG(("Ctrl::MsgRepeat() {%x} - %u\n", Flags, Scan));
+  if (SetFlag(Repeat))
     Pending |= EV_Repeat;
-  return RC_OK;
 }
 
-Ctrl::RC CtrlImp::MsgLocation(SongIterator* sip, int flags)
-{ DEBUGLOG(("Ctrl::MsgLocation(%p, %x)\n", sip, flags));
+void CtrlImp::MsgLocation()
+{ DEBUGLOG(("Ctrl::MsgLocation() {%p, %x}\n", PtrArg, Flags));
   if (!PrefetchList.size())
-    return RC_NoSong; // no root
-  if (flags & 1)
+  { Reply(RC_NoSong); // no root
+    return;
+  }
+  if (Flags & 1)
   { // stopat location
     // TODO: not yet implemented
   } else
   { // Fetch time first because that may change Current().
+    Location*& sip = (Location*&)PtrArg;
     PM123_TIME pos = FetchCurrentSongTime();
     *sip = Current()->Loc; // copy
     sip->Navigate(pos, JobSet::SyncJob);
   }
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 // The decoder completed decoding...
-Ctrl::RC CtrlImp::MsgDecStop()
+void CtrlImp::MsgDecStop()
 { DEBUGLOG(("Ctrl::MsgDecStop()\n"));
   if (!Playing)
-    return RC_NotPlaying;
+  { Reply(RC_NotPlaying);
+    return;
+  }
 
   if ((GetRoot()->GetInfo().tech->attributes & TATTR_SONG) && !Repeat)
   { // Song, no repeat => stop
@@ -928,7 +1038,8 @@ Ctrl::RC CtrlImp::MsgDecStop()
     DecoderStop();
     out_flush();
     // Continue at OUTEVENT_END_OF_DATA
-    return RC_OK;
+    Reply(RC_OK);
+    return;
   }
 
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + dec_maxpos(), Current()->Loc);
@@ -938,8 +1049,8 @@ Ctrl::RC CtrlImp::MsgDecStop()
 
   // Navigation
   if (!(GetRoot()->GetInfo().tech->attributes & TATTR_SONG))
-  { if ( ( !SkipCore(pep->Loc, dir, true)
-        && (!Repeat || !SkipCore(pep->Loc, dir, true)) )
+  { if ( ( !SkipCore(pep->Loc, dir)
+        && (!Repeat || !SkipCore(pep->Loc, dir)) )
       || (Repeat && pep->Loc.CompareTo(Current()->Loc, 0, false) == 0) ) // no infinite loop
     { delete pep;
       goto eol; // end of list => same as end of song
@@ -952,12 +1063,14 @@ Ctrl::RC CtrlImp::MsgDecStop()
 
   // start decoder for the prefetched item
   DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", ps.GetPlayable().URL.cdata(), pep->Offset));
-  if (DecoderStart(ps, pep->Offset) != 0)
+  ULONG rc = DecoderStart(ps, pep->Offset);
+  if (rc)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
     Playing = false;
     Pending |= EV_PlayStop;
-    return RC_DecPlugErr;
+    ReplyDecoderError(rc);
+    return;
   }
 
   // Once the player arrives the prefetched item it requests some information.
@@ -966,18 +1079,19 @@ Ctrl::RC CtrlImp::MsgDecStop()
 
   // In rewind mode we continue to rewind from the end of the prevois song.
   // TODO: Location problem.
-  return RC_OK;
+  Reply(RC_OK);
 }
 
 // The output completed playing
-Ctrl::RC CtrlImp::MsgOutStop()
+void CtrlImp::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
   // Check whether we have to remove items in queue mode
   Playable& plp = *Current()->Loc.GetRoot();
   if (Cfg::Get().queue_mode && PrefetchList.size() && &plp == &GUI::GetDefaultPL())
     plp.RemoveItem(Current()->Loc.GetCallstack()[0]);
   // In any case stop the engine
-  return MsgPlayStop(Op_Reset);
+  Flags = Op_Reset;
+  MsgPlayStop();
 }
 
 void TFNENTRY ControllerWorkerStub(void*)
@@ -997,81 +1111,37 @@ void CtrlImp::Worker()
 
     bool fail = false;
     do
-    { register ControlCommand* ccp = CurCmd; // Create a local copy
+    { register Ctrl::ControlCommand* ccp = CurCmd; // Create a local copy
       DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %08x%08x, %x, %p, %p} - %u\n",
-      ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->PtrArg, (&ccp->PtrArg)[1], ccp->Flags, ccp->Callback, ccp->Link, fail));
+        ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->PtrArg, (&ccp->PtrArg)[1], ccp->Flags, ccp->Callback, ccp->Link, fail));
+      static void (CtrlImp::*const cmds[])() =
+      { &CtrlImp::MsgNop
+      , &CtrlImp::MsgLoad
+      , &CtrlImp::MsgSkip
+      , &CtrlImp::MsgNavigate
+      , &CtrlImp::MsgJump
+      , &CtrlImp::MsgStopAt
+      , &CtrlImp::MsgPlayStop
+      , &CtrlImp::MsgPause
+      , &CtrlImp::MsgScan
+      , &CtrlImp::MsgVolume
+      , &CtrlImp::MsgShuffle
+      , &CtrlImp::MsgRepeat
+      , &CtrlImp::MsgSave
+      , &CtrlImp::MsgLocation
+      , &CtrlImp::MsgDecStop
+      , &CtrlImp::MsgOutStop
+      };
       if (fail)
+      { ccp->StrArg.reset();
         ccp->Flags = RC_SubseqError;
-      else
-        // Do the work
-        switch (ccp->Cmd)
-        {default:
-          ccp->Flags = RC_BadArg;
-          break;
-
-         case Cmd_Load:
-          ccp->Flags = MsgLoad(ccp->StrArg, ccp->Flags);
-          break;
-
-         case Cmd_Skip:
-          ccp->Flags = MsgSkip((int)ccp->NumArg, ccp->Flags & 0x01);
-          break;
-
-         case Cmd_Navigate:
-          ccp->Flags = MsgNavigate(ccp->StrArg, ccp->NumArg, ccp->Flags);
-          break;
-
-         case Cmd_Jump:
-          ccp->Flags = MsgJump(*(Location*)ccp->PtrArg);
-          break;
-
-         case Cmd_StopAt:
-          ccp->Flags = MsgStopAt(ccp->StrArg, ccp->NumArg, ccp->Flags);
-          break;
-
-         case Cmd_PlayStop:
-          ccp->Flags = MsgPlayStop((Op)ccp->Flags);
-          break;
-
-         case Cmd_Pause:
-          ccp->Flags = MsgPause((Op)ccp->Flags);
-          break;
-
-         case Cmd_Scan:
-          ccp->Flags = MsgScan((Op)ccp->Flags);
-          break;
-
-         case Cmd_Volume:
-          ccp->Flags = MsgVolume(ccp->NumArg, ccp->Flags & 0x01);
-          break;
-
-         case Cmd_Shuffle:
-          ccp->Flags = MsgShuffle((Op)ccp->Flags);
-          break;
-
-         case Cmd_Repeat:
-          ccp->Flags = MsgRepeat((Op)ccp->Flags);
-          break;
-
-         case Cmd_Save:
-          ccp->Flags = MsgSave(ccp->StrArg);
-          break;
-
-         case Cmd_Location:
-          ccp->Flags = MsgLocation((SongIterator*)ccp->PtrArg, ccp->Flags);
-          break;
-
-         case Cmd_DecStop:
-          ccp->Flags = MsgDecStop();
-          break;
-
-         case Cmd_OutStop:
-          ccp->Flags = MsgOutStop();
-          break;
-
-         case Cmd_Nop:
-          break;
-        }
+      } else if (ccp->Cmd >= sizeof cmds / sizeof *cmds)
+      { ccp->StrArg = xstring::sprintf("Invalid control command %i", ccp->Cmd);
+        ccp->Flags = RC_BadArg;
+      } else
+      { // Do the work
+        (((CtrlImp*)ccp)->*cmds[ccp->Cmd])();
+      }
       DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", ccp->Cmd, ccp->Flags));
       fail = ccp->Flags != RC_OK;
 

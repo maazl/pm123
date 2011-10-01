@@ -83,23 +83,22 @@ EventHandler::Handler EventHandler::SetLocalHandler(Handler eh)
   ULONG tid = ptib->tib_ptib2->tib2_ultid;
 
   Mutex::Lock lock(LocalMtx);
-  int_ptr<DispatchTable> odp(LocalHandlers);
-  DispatchTable* ndp;
+  int_ptr<DispatchTable> dp(LocalHandlers);
   Handler oh = NULL;
   if (!eh)
   { // remove a local handler
-    if (!odp || odp->size() < tid)
+    if (!dp || dp->size() < tid)
       return NULL;
-  } else if (!odp || odp->size() < tid)
-  { ndp = new DispatchTable(tid);
-    memcpy(ndp->get(), odp->get(), odp->size());
-    memset(ndp->get() + odp->size(), 0, (tid - odp->size()) * sizeof(Handler));
-  } else
-  { ndp = new DispatchTable(tid);
-    memset(ndp->get(), 0, tid * sizeof(Handler));
+  } else if (!dp)
+  { dp = new DispatchTable(tid);
+    memset(dp->get(), 0, tid * sizeof(Handler));
+  } else if (dp->size() < tid)
+  { DispatchTable* ndp = new DispatchTable(tid);
+    memcpy(ndp->get(), dp->get(), dp->size());
+    memset(ndp->get() + dp->size(), 0, (tid - dp->size()) * sizeof(Handler));
+    dp = ndp;
   }
-  swap(oh, (*odp)[tid-1]);
-  if (ndp)
-    LocalHandlers = ndp;
+  swap(oh, (*dp)[tid-1]);
+  LocalHandlers = dp;
   return oh;
 }
