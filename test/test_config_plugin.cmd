@@ -34,16 +34,21 @@ CALL VAssert 'RESULT'
 CALL CallPipe 'getmessages'
 CALL CallPipe 'plugin load decoder oggplay'
 CALL VAssert 'RESULT', 'decoder'
-
-CALL CallPipe 'plugin list decoder @default'
+CALL CallPipe 'plugin list decoder'
 list = result
-CALL Assert 'LENGTH(list)', '> 10'
-CALL Assert 'SUBSTR(list,1,10)', '= "mpg123.dll"'
+CALL Assert 'LEFT(list,10)', '= "mpg123.dll"'
 p = POS('0a'x, list)
 CALL Assert 'p' '> 0'
-CALL Assert 'SUBSTR(list,p+1,11)', '= "oggplay.dll"'
+CALL Assert 'LEFT(SUBSTR(list,p+1),11)', '= "oggplay.dll"'
+CALL CallPipe 'plugin unload all mpg123'
+CALL VAssert 'RESULT', 'decoder'
+CALL CallPipe 'plugin list decoder @default'
+list = result
+CALL Assert 'LEFT(list,11)', '= "oggplay.dll"'
+CALL CallPipe 'plugin list decoder 'ConvertList(list)
 
-CALL CallPipe 'plugin list decoder 'TRANSLATE(last, '09'x, '0a'x)
+CALL CallPipe 'plugin list decoder 'ConvertList(last)
+CALL VAssert 'RESULT', list
 
 EXIT
 
@@ -74,6 +79,16 @@ ParsePlugin: PROCEDURE EXPOSE plugin params.
     END
   RETURN
 
+ConvertList: PROCEDURE
+  result = TRANSLATE(ARG(1), '09'x, '0a'x)
+  p = 1
+  DO FOREVER
+    p = POS('0d'x, result, p)
+    IF p = 0 THEN
+      RETURN result
+    result = LEFT(result, p-1)SUBSTR(result, p+1)
+    END
+
 CallPipe: PROCEDURE EXPOSE lastcmd
   lastcmd = ARG(1)
   CALL 'pipecmd' ARG(1)
@@ -98,5 +113,3 @@ VAssert:
       EXIT 'Expected "'ARG(2)'", found "'VALUE(ARG(1))'", last command: "'lastcmd'"'
     END
   RETURN
-
-

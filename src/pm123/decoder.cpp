@@ -230,6 +230,18 @@ bool Decoder::SetParam(const char* param, const xstring& value)
   return Plugin::SetParam(param, value);
 }
 
+ULONG Decoder::SaveInfo(const char* url, const META_INFO* info, int haveinfo)
+{ if (!decoder_saveinfo)
+  { EventHandler::PostFormat(MSG_ERROR, "The plug-in %s cannot save meta information.", ModRef.Key.cdata());
+    return PLUGIN_NO_USABLE;
+  }
+  xstring errortxt;
+  ULONG rc = decoder_saveinfo(url, info, haveinfo, &errortxt);
+  if (errortxt)
+    EventHandler::Post(rc ? MSG_ERROR : MSG_WARNING, errortxt);
+  return rc;
+}
+
 
 // Proxy for level 1 decoder interface
 class DecoderProxy1 : public Decoder, protected ProxyHelper

@@ -143,10 +143,7 @@ class Decoder : public Plugin, protected DecoderProcs
   ULONG        Fileinfo(const char* url, int* what, const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
                { return decoder_fileinfo(url, what, info, cb, param); }
 
-  ULONG        SaveInfo(const char* url, const META_INFO* info, int haveinfo, xstring& errortxt)
-               { if (decoder_saveinfo) return decoder_saveinfo(url, info, haveinfo, &errortxt);
-                 errortxt = xstring::sprintf("The plug-in %s cannot save meta information.", ModRef.Key.cdata());
-                 return PLUGIN_NO_USABLE; }
+  ULONG        SaveInfo(const char* url, const META_INFO* info, int haveinfo);
 
   ULONG        EditMeta(HWND owner, const char* url) { return decoder_editmeta ? decoder_editmeta(owner, url) : 400; }
 

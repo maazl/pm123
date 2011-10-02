@@ -26,6 +26,7 @@ CALL CallPipe 'autouse no'
 CALL Assert result, 'on'
 CALL CallPipe 'autouse xxx'
 CALL Assert result
+CALL CallPipe 'getmessages'
 CALL CallPipe 'autouse 'last
 CALL Assert result, 'off'
 
@@ -51,11 +52,12 @@ CALL CallPipe 'option playonload=no'
 CALL Assert result, 'on'
 CALL CallPipe 'option playonload=xxx'
 CALL Assert result
+CALL CallPipe 'getmessages'
 CALL CallPipe 'option playonload='
 CALL Assert result
+CALL CallPipe 'getmessages'
 CALL CallPipe 'option playonload='last
 CALL Assert result, 'off'
-
 
 EXIT
 
@@ -74,5 +76,3 @@ Assert: PROCEDURE EXPOSE lastcmd
   ELSE IF ARG(1) \= ARG(2) THEN
     EXIT 'Expected "'ARG(2)'", found "'ARG(1)'", last command: "'lastcmd'"'
   RETURN
-
-

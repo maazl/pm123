@@ -8,13 +8,13 @@
 </head>
 <body>
 <h2>PM123's Remote command reference - Plug-in control</h2>
-<h3><tt><a name="plugin_load"></a>plugin load <var>&lt;types&gt;</var><var></var>
+<h3><tt><a name="plugin_load"></a>plugin load <var>&lt;type&gt;</var><var></var>
 </tt><tt><var> &lt;plug-in&gt;</var></tt><tt><var></var></tt>[<tt>?</tt><var><tt>&lt;param1&gt;</tt></var><tt>=</tt><var><tt>&lt;value1&gt;</tt></var>[<tt>&amp;</tt><var><tt>&lt;param2&gt;</tt></var><tt>=</tt><var><tt>&lt;value2&gt;</tt></var>
 ...]]</h3>
 <p>Load the DLL <var><tt>&lt;plug-in&gt;</tt></var> into
 the player. The path should be full qualified or relative to the
 players executable.<br>
-If the plug-in implements more than one interface only the listed <var><tt>&lt;types&gt;</tt></var>
+If the plug-in implements more than one interface only the listed <var><tt>&lt;type&gt;</tt></var>
 are used. Plug-in types are <tt>decoder</tt>, <tt>filter</tt>, <tt>output</tt>
 and <tt>visual</tt>. More than one type can be
 specified separated by comma but without spaces. The keyword <tt>all</tt>
@@ -29,13 +29,13 @@ command returns an empty line.</p>
 <blockquote>
   <pre>plugin load decoder D:\PM123\mpg123.dll?enabled=false&amp;filetypes=MP1;MP2;MP3</pre>
 </blockquote>
-<h3><tt><a name="plugin_unload"></a>plugin unload <var>&lt;types&gt;</var><var></var>
+<h3><tt><a name="plugin_unload"></a>plugin unload <var>&lt;type&gt;</var><var></var>
 </tt><tt><var> &lt;plug-in&gt;</var></tt></h3>
 <p>Unload <var><tt>&lt;plug-in&gt;</tt></var> from
 the player. The module name (e.g. <tt>mpg123.dll</tt>) is sufficient.
 The
-execution may be rejected because of an active playback. Only the
-listed <var><tt>&lt;types&gt;</tt></var> are unloaded, so the plug-in
+execution may be delayed because of an active playback. Only the
+listed <var><tt>&lt;type&gt;</tt></var> are unloaded, so the plug-in
 might stay in memory with an interface not in the list.</p>
 <p>The command returns a comma separated list of interfaces that have
 been unloaded. This might be less than requested. In case of an error

@@ -3,7 +3,8 @@
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Writing meta data commands</title>
-  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
 </head>
 <body>
 <h2>PM123's Remote command reference - Writing meta data
@@ -57,16 +58,15 @@ unchanged. They are not removed from the meta info tag.</p>
 <p><tt>write meta to</tt> might be used multiple times on different
 targets, to change multiple files, e.g to write the album name of
 several files in a folder. But you must not use wildcards.</p>
-<p>The command returns a success indicator, optionally followed by a
-human readable error text.<br>
+<p>The command returns a success indicator.<br>
 </p>
 <blockquote>
   <p><tt>0</tt> - OK, meta data changed<br>
   <tt>400</tt> - Cannot modify meta data of this object, because it
 does not exist or is not writable.<br>
-  <tt>500</tt> - Plug-in faild to write meta data.</p>
+  <tt>500</tt> - Plug-in failed to write meta data.</p>
 </blockquote>
-<h3><tt><a name="write_meta_rst"></a>wrire meta rst </tt>[<tt>purge</tt>]<tt><br>
+<h3><tt><a name="write_meta_rst"></a>write meta rst </tt>[<tt>purge</tt>]<tt><br>
 </tt></h3>
 <p>This command clears all meta data values in the internal buffer and
 resets all keys to 'do not change'. This is the only way to turn a key

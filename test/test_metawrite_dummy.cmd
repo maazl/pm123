@@ -101,4 +101,3 @@ Check: PROCEDURE EXPOSE data. step
   ELSE IF data.field \= ARG(2) THEN
     EXIT 'Step 'step': Expected 'field ARG(2)': 'data.field' 'C2X(data.field)
   RETURN
-

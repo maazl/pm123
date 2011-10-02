@@ -997,16 +997,19 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
   return dest;
 }
 
-int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo, xstring& errortxt)
+int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo)
 { DEBUGLOG(("Playable(%p)::SaveMetaInfo({...}, %x,)\n", this, haveinfo));
+  // Check state
+  if (!Info.Tech.decoder || (Info.Tech.attributes & TATTR_INVALID))
+    return PLUGIN_NO_SAVE;
   // Write meta Info by plugin
   try
   { int_ptr<Decoder> dp = Decoder::GetDecoder(Info.Tech.decoder);
-    ULONG rc = dp->SaveInfo(URL, &meta, haveinfo, errortxt);
+    ULONG rc = dp->SaveInfo(URL, &meta, haveinfo);
     if (rc != 0)
       return rc;
   } catch (const ModuleException& ex)
-  { errortxt = ex.GetErrorText();
+  { EventHandler::Post(MSG_ERROR, ex.GetErrorText());
     return PLUGIN_FAILED;
   }
 

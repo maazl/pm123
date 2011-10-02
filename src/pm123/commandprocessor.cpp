@@ -1385,12 +1385,7 @@ void CommandProcessor::CmdWriteMetaTo()
   int_ptr<Playable> song = Playable::GetByURL(url);
   // Write meta
   song->RequestInfo(IF_Tech, PRI_Sync);
-  xstring errortxt;
-  Reply.appendf("%i", song->SaveMetaInfo(Meta, MetaFlags, errortxt));
-  if (errortxt)
-  { Reply.append(' ');
-    Reply.append(errortxt);
-  }
+  Reply.appendf("%i", song->SaveMetaInfo(Meta, MetaFlags));
 }
 
 void CommandProcessor::CmdWriteMetaRst()
@@ -1654,7 +1649,7 @@ void CommandProcessor::CmdPluginLoad()
 {
   size_t len = strcspn(Request, " \t");
   if (Request[len] == 0)
-    return; // Plug-in name missing
+    throw SyntaxException("Plug-in name missing.");
   Request[len] = 0;
 
   PLUGIN_TYPE type = ParseTypeList();
@@ -1713,12 +1708,12 @@ static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
 void CommandProcessor::CmdPluginUnload()
 { size_t len = strcspn(Request, " \t");
   if (Request[len] == 0)
-    return; // Plug-in name missing
+    throw SyntaxException("Plug-in name missing.");
   Request[len] = 0;
 
   PLUGIN_TYPE type = ParseTypeList();
 
-  Request += len;
+  Request += len+1;
   Request += strspn(Request, " \t");
   int_ptr<Module> module(ParsePlugin(Request));
   if (module == NULL)

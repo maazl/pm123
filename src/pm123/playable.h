@@ -262,7 +262,7 @@ class Playable
   /// Change meta information of an object.
   /// @param meta Calling this function with NULL deletes the meta information.
   /// @return returns 0 on success.
-  int                       SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo, xstring& errortxt);
+  int                       SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo);
 
   /// Insert a new item before the item \a before.
   /// @param before If the parameter before is \c NULL the item is appended.

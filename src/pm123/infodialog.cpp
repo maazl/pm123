@@ -40,12 +40,14 @@
 #include "dialog.h"
 #include "glue.h"
 #include "configuration.h"
+#include "eventhandler.h"
 #include <decoder_plug.h>
 #include <plugin.h>
 #include <utilfct.h>
 
 #include <cpp/container/inst_index.h>
 #include <cpp/pmutils.h>
+#include <cpp/vdelegate.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -208,7 +210,17 @@ class InfoDialog
     struct StatusReport
     { int           RC;
       xstring       Text;
+     private:
+      EventHandler::Handler OldHandler;
+      VDELEGATE     VDErrorHandler;
+      friend void DLLENTRY InfoDialogMetaWriteErrorHandler(StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
+     public:
+      StatusReport() : OldHandler(EventHandler::SetLocalHandler(vdelegate(&VDErrorHandler, &InfoDialogMetaWriteErrorHandler, this))) {}
+      ~StatusReport() { EventHandler::SetLocalHandler(OldHandler); }
     };
+    // Friend nightmare because InfoDialogMetaWriteErrorHandler can't be a static member function.
+    friend class InfoDialog;
+    friend void DLLENTRY InfoDialogMetaWriteErrorHandler(StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
     enum
     { UM_START = WM_USER+1,     // Start the worker thread
       UM_STATUS                 // Worker thread reports: at item #(ULONG)mp1, status (StatusReport)mp2
@@ -231,6 +243,7 @@ class InfoDialog
     ULONG           DoDialog(HWND owner);
   };
   friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
+  friend void DLLENTRY InfoDialogMetaWriteErrorHandler(MetaWriteDlg::StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
 
  public:
   const   KeyType   Key;
@@ -774,13 +787,17 @@ ULONG InfoDialog::MetaWriteDlg::DoDialog(HWND owner)
   return WinProcessDlg(GetHwnd());
 }
 
+void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg::StatusReport* that, MESSAGE_TYPE type, const xstring& msg)
+{ that->Text = msg;
+}
+
 void InfoDialog::MetaWriteDlg::Worker()
 { while (!Cancel && CurrentItem < Dest.size())
   { Playable& song = Dest[CurrentItem]->GetPlayable();
     DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker - %u %s\n", this, CurrentItem, song.URL.cdata()));
     // Write info
     StatusReport rep;
-    rep.RC = song.SaveMetaInfo(MetaData, MetaFlags, rep.Text);
+    rep.RC = song.SaveMetaInfo(MetaData, MetaFlags);
     // Notify dialog
     PostMsg(UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(&rep));
     if (Cancel)

@@ -113,5 +113,3 @@ Equal: PROCEDURE EXPOSE step
   IF ARG(1) \= ARG(2) THEN
     EXIT 'Step 'step': expected 'ARG(2)' found 'ARG(1)' 'C2X(ARG(1))
   RETURN
-
-

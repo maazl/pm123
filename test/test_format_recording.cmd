@@ -1,21 +1,14 @@
 /**/
-dir = DIRECTORY()
-
-CALL 'pipecmd' 'info format 'dir'\data\test.mp3'
+CALL 'pipecmd' 'info format record:///0?samp=48000&stereo&in=line&share=yes'
 reply = result
-CALL Parse result
-CALL Assert 'VERIFY(data.filesize, '0123456789')', '= 0'
-PARSE VAR data.filetime year'-'month'-'day' 'hour':'min':'sec
-CALL Assert 'LENGTH(year)', '= 4', data.filetime
-CALL Assert 'LENGTH(sec)', '>= 2', data.filetime
-CALL Assert 'data.samplerate', '= 44100'
-CALL Assert 'data.channels' '= 1'
+CALL Parse reply
+CALL Assert 'data.filesize'
+CALL Assert 'data.samplerate', '= 48000'
+CALL Assert 'data.channels', '= 2'
 CALL Assert 'POS("song", data.flags)', '\= 0', data.flags
-CALL Assert 'TRANSLATE(LEFT(data.decoder, 6))' '= "MPG123"'
-IF FORMAT(data.songlength,,3) \= 17.777 & FORMAT(data.songlength*44100,,0) \= 783955 THEN
-  EXIT 'The song length should be equivalent to 783955 samples or approx. 17.777s: 'data.songlength
-CALL Assert 'data.bitrate', '>= 32000'
-CALL Assert 'data.bitrate', '< 32235'
+CALL Assert 'TRANSLATE(LEFT(data.decoder, 6))', '= "OS2REC"'
+CALL Assert 'data.songlength'
+CALL Assert 'data.bitrate', '= 1536000'
 
 EXIT
 
@@ -52,7 +45,12 @@ Parse: PROCEDURE EXPOSE data.
 
 Assert:
   INTERPRET 'result = 'ARG(1)
-  INTERPRET 'IF \(result 'ARG(2)') THEN CALL Fail ''Expected "''ARG(1) ARG(2)''", found "''result''" ARG(3)'''
+  IF ARG(2,'o') THEN DO
+    IF result \= TRANSLATE(ARG(1)) THEN
+      EXIT 'Did not expect the expression 'ARG(1)' to be defined: "'result'"'
+    END
+  ELSE
+    INTERPRET 'IF \(result 'ARG(2)') THEN CALL Fail ''Expected "''ARG(1) ARG(2)''", found "''result''" ARG(3)'''
   RETURN
 
 Fail:

@@ -50,4 +50,3 @@ Check: PROCEDURE EXPOSE data.
   IF data.field \= ARG(2) THEN
     EXIT 'Expected 'field ARG(2)': 'data.field
   RETURN
-
