@@ -941,7 +941,7 @@ const struct InfoDialog::Data& SingleInfoDialog::GetData()
       DataCache.Valid = F_URL
         | ((invalid & IF_Phys) == 0) * F_PHYS_INFO
         | ((invalid & IF_Tech) == 0) * F_TECH_INFO
-        | ((invalid & IF_Obj ) == 0) * (F_OBJ_INFO&F_songlength)
+        | ((invalid & IF_Obj ) == 0) * (F_OBJ_INFO&~F_songlength)
         | ((invalid & IF_Meta) == 0) * F_META_INFO
         | ((invalid & IF_Attr) == 0) * F_ATTR_INFO
         | ((invalid & IF_Rpl ) == 0) * F_RPL_INFO
