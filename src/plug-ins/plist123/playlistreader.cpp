@@ -35,15 +35,6 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/// Work-Around to avoid static initializers for xstring
-/*
-template <const char C[]>
-const xstring& xstringconst()
-{ static xstring value;
-  if (!value)
-    value = C;
-  return value;
-};*/
 
 /****************************************************************************
 *
@@ -122,6 +113,8 @@ bool PlaylistReader::Parse(DECODER_INFO_ENUMERATION_CB cb, void* param)
   { strchomp(line);
     ParseLine(line);
   }
+  // Create last item if any
+  Create();
   if (xio_ferror(Source) != 0)
     return false;
   return true;

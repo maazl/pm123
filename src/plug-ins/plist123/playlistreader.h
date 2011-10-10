@@ -75,7 +75,7 @@ class PlaylistReader
   virtual const xstring&    GetFormat() const = 0;
           int               GetCount() const  { return Count; }
   virtual bool              Parse(DECODER_INFO_ENUMERATION_CB cb, void* param);
-  virtual                   ~PlaylistReader() { Create(); }
+  virtual                   ~PlaylistReader() {}
 };
 
 
