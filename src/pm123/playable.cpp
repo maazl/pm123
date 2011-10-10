@@ -397,6 +397,12 @@ void Playable::DoLoadInfo(JobSet& job)
     if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
     { EnsurePlaylist();
       changed |= IF_Child * UpdateCollection(children.Children);
+      if (Modified)
+      { // Well, the playlist content is currently the only thing that can be modified.
+        // So reset the flag on reload.
+        Modified = false;
+        changed |= IF_Usage;
+      }
     }
     // Raise the first bunch of change events.
     RaiseInfoChange(upd.Commit((InfoFlags)what2 | ~IF_Aggreg), changed);

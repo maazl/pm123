@@ -200,9 +200,9 @@ void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p)::HandleRequest(%u)\n", this, pri));
   JobSet job(pri);
   if (pri == PRI_Low)
-    AsyncRequest.bitrst(1);
-  else
     AsyncRequest = 0;
+  else
+    AsyncRequest.bitrst(0);
   DoLoadInfo(job);
   // reschedule required later?
   if (job.AllDepends.Size())
