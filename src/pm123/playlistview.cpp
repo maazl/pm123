@@ -127,7 +127,7 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
-    "Song",
+    "Title",
     offsetof(PlaylistView::Record, Song)
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING | CFA_RIGHT,
@@ -526,11 +526,11 @@ bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
     break;
    case TATTR_PLAYLIST:
     if (flags & IF_Drpl)
-      ret |= UpdateColumnText(rec->Time, FormatSize(info.drpl->totallength));
+      ret |= UpdateColumnText(rec->Time, FormatTime(info.drpl->totallength));
     break;
    default:
     if (flags & IF_Obj)
-      ret |= UpdateColumnText(rec->Time, FormatSize(info.obj->songlength));
+      ret |= UpdateColumnText(rec->Time, FormatTime(info.obj->songlength));
   }
   // Columns that only depend on attribute info changes
   if (flags & IF_Attr)
