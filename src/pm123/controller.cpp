@@ -909,6 +909,7 @@ void CtrlImp::MsgSkip()
 /* Loads Playable object to player. */
 void CtrlImp::MsgLoad()
 { DEBUGLOG(("Ctrl::MsgLoad() {%s, %x}\n", StrArg.cdata(), Flags));
+  xstring url = StrArg;
   int flags = Flags;
 
   // always stop
@@ -925,8 +926,8 @@ void CtrlImp::MsgLoad()
     PrefetchClear(false);
   }
 
-  if (StrArg)
-  { int_ptr<Playable> play = Playable::GetByURL(StrArg);
+  if (url)
+  { int_ptr<Playable> play = Playable::GetByURL(url);
     { Mutex::Lock lock(PLMtx);
       PrefetchList.append() = new PrefetchEntry(0, SongIterator(play));
       // assign change event handler
