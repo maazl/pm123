@@ -1,88 +1,96 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1027" level="3" sublinks="id3edit.html"><head><title>Inspector Window</title>
-
-  
+<html resid="1027" level="3" sublinks="id3edit.html">
+<head>
+  <title>Inspector Window</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-<meta content="Marcel Müller" name="author"></head><body>
+  <meta content="Marcel Müller" name="author">
+</head>
+<body>
 <h2>PM123's Inspector Window</h2>
 <p>The Inspector Window tells you what is currently going on in
 the PM123 engine. Normally you should not need it. It is activated by
 pressing <em>Alt+Shift+I</em> in PM123's main window.<br>
 </p>
-<blockquote> <img alt="Inspector Window Screenshot" src="images/inspector.png" height="542" width="674">
+<blockquote> <img alt="Inspector Window Screenshot"
+ src="images/inspector.png" height="542" width="674">
 </blockquote>
 <h3>Controller Queue</h3>
 <p>The Controller Queue shows what commands are currently about
 to be executed. The Syntax is: <kbd><var>FCommand
 </var></kbd>[<kbd><var>arguments</var></kbd>].</p>
 <dl>
-<dt><kbd><var>F</var></kbd>
+  <dt><kbd><var>F</var></kbd>
 - flag</dt>
-<dd><kbd>*</kbd>&nbsp;- currently
+  <dd><kbd>*</kbd>&nbsp;- currently
 in work by a worker thread<br>
-<kbd>-</kbd>&nbsp;- to do later<br>
-<kbd>+</kbd>&nbsp;- adjacent
+    <kbd>-</kbd>&nbsp;- to do later<br>
+    <kbd>+</kbd>&nbsp;- adjacent
 to the previous command, executed only if the previous command succeeded</dd>
-<dt><kbd><var>Command</var>&nbsp;</kbd>[<kbd><var>arguments</var></kbd>]</dt>
-<dd>control commands like <kbd>PlayStop</kbd>, <kbd>Navigate</kbd>
+  <dt><kbd><var>Command</var>&nbsp;</kbd>[<kbd><var>arguments</var></kbd>]</dt>
+  <dd>control commands like <kbd>PlayStop</kbd>, <kbd>Navigate</kbd>
 (e.g.
 Seek), <kbd>Load</kbd> or <kbd>LocationQuery</kbd>
 (GUI updates of the current playing time)</dd>
 </dl>
 <p>The controller queue is always executed strictly in order.</p>
 <h3>Worker Queue</h3>
-<p>The Worker Queue is used to obtain certain informations about
-any kind of playable objects. The Syntax is: <kbd><var>F</var>[<var>QQQQQQQQQQ</var>
+<p>The worker queue is used to obtain certain informations about
+any kind of playable objects. The syntax is: <kbd><var>F</var>[<var>QQQQQQQQQQ</var>
 -&gt; <var>WWWWWWWWWW</var>] <var>URL</var></kbd>.</p>
 <dl>
-<dt><kbd><var>F</var></kbd>&nbsp;-
+  <dt><kbd><var>F</var></kbd>&nbsp;-
 flag</dt>
-<dd><kbd>*</kbd>&nbsp;- currently in work by a
-worker thread</dd><dd><kbd>+</kbd> - The item depends on other items and is rescheduled later.<br>
-<kbd>-</kbd>&nbsp;- No worker is currently available. To do later.<br>
+  <dd><kbd>*</kbd>&nbsp;- currently in work by a
+worker thread</dd>
+  <dd><kbd>+</kbd> - Low priority request: the item depends on other
+items and is rescheduled later.<br>
+    <kbd>-</kbd>&nbsp;- Low priority request: no worker is currently
+available. To do later.<br>
+    <kbd>#</kbd> - High priority request: the item depends on other
+items and is rescheduled later.<br>
+    <kbd>=</kbd> - High priority request: no worker is currently
+available. To do later.<br>
   </dd>
-
-<dt><kbd><var>QQQQQQQQQQ</var></kbd>&nbsp;-
+  <dt><kbd><var>QQQQQQQQQQ</var></kbd>&nbsp;-
 request flags</dt>
-<dd>Kind of information that is requested: <kbd>ptomacrdis</kbd><br>
-
+  <dd>Kind of information that is requested: <kbd>ptomacrdis</kbd><br>
     <kbd>p</kbd>&nbsp;- physical
 information&nbsp;like file size<br>
     <kbd>t</kbd>&nbsp;- technical information like bit
 rate and number of channels<br>
-
-
     <kbd>o</kbd> - object information like playing time<br>
-
-
-
     <kbd></kbd><kbd>m</kbd>&nbsp;- meta information like artist
-and title</dd><dd><kbd></kbd><kbd>a</kbd> - attribute information like last playing position</dd>
-  <dd>
-
-
-    <kbd></kbd><kbd>c</kbd> - children (playlist content)<br><kbd>r</kbd>&nbsp;- recursive playlist information like total number of songs<br>
+and title</dd>
+  <dd><kbd></kbd><kbd>a</kbd> - attribute information like last playing
+position</dd>
+  <dd> <kbd></kbd><kbd>c</kbd> - children (playlist content)<br>
+    <kbd>r</kbd>&nbsp;- recursive playlist information like total
+number of songs<br>
   </dd>
-  <dd><kbd>d</kbd> - detailed recursive playlist information like total playing time<br>
-<kbd>i</kbd> - playlist item information like start position and alias name</dd>
-  <dd><kbd>s</kbd> - slice information (effective start and stop position)<br>
-<em>Uppercase</em> letters are <em>high priority
+  <dd><kbd>d</kbd> - detailed recursive playlist information like total
+playing time<br>
+    <kbd>i</kbd> - playlist item information like start position and
+alias name</dd>
+  <dd><kbd>s</kbd> - slice information (effective start and stop
+position)<br>
+    <em>Uppercase</em> letters are <em>high priority
 requests</em> where a user is likely to be waiting for. E.g. when
 an item is loaded into the player.</dd>
-
-<dt><kbd><var>WWWWWWWWWW</var></kbd>&nbsp;-
+  <dt><kbd><var>WWWWWWWWWW</var></kbd>&nbsp;-
 in work flags</dt>
-<dd>The second block identifies the kind of information that is
+  <dd>The second block identifies the kind of information that is
 currently in work. It uses the same format <kbd>PTOMACRDIS</kbd>
 as the request flags. Sometimes the information in work is more than
 requested. E.g. it might be cheap to return format information if only
 the total playing time is requested.</dd>
-<dt><kbd><var>URL</var></kbd></dt>
-<dd>This is the object for which the information is requested.</dd>
+  <dt><kbd><var>URL</var></kbd></dt>
+  <dd>This is the object for which the information is requested.</dd>
 </dl>
 <h3>Refresh</h3>
 The Inspector dialog is not automatically
-refreshed when the information in the queues changes. Instead the refresh
+refreshed when the information in the queues changes. Instead the
+refresh
 is done either manual or timer based. Be careful not to set the auto
 refresh rate too high to avoid a performance impact.
-</body></html>
+</body>
+</html>

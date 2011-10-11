@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>General commands</title>
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
+</head>
+<body>
+<h2>PM123's Remote command reference - General commands</h2>
+<h3><tt><a name="getmessages"></a>getmessages</tt></h3>
+<p>This command <b>returns</b> the <b>messages</b> that have been
+recorded since the
+last call to this command. The command is destructive. Each message is
+returned only once. </p>
+<p>Each message come in a single line. Each line is preceded with the
+severity level of the message:</p>
+<blockquote><tt>E </tt>- error<br>
+  <tt>W </tt>- warning<br>
+  <tt>I </tt>- information
+</blockquote>
+<p>Newlines in the message body are escaped by <tt><i>&lt;ESC&gt;</i>r</tt>
+and <tt><i>&lt;ESC&gt;</i>n</tt> to keep the messages within a single
+line. Escape characters itself are doubled (<i><tt>&lt;ESC&gt;&lt;ESC&gt;</tt></i>).
+As usual the list is terminated by an empty line.</p>
+<h3><tt><a name="cd"></a>cd </tt>[<tt><var>&lt;base-url&gt;</var></tt>]</h3>
+<p>
+Set base directory for URL and
+file lookups. This will be used to resolve not full qualified URLs or
+file names. The URL will not be validated.<br>
+<br>
+The command <b>returns</b> the <b>previous base directory</b> or
+empty
+line if none. If <tt><var>&lt;base-url&gt;</var></tt>
+is
+omitted only the current value is returned.</p>
+<h3><tt><a name="reset"></a>reset</tt></h3>
+<tt></tt>
+<p>Reset the remote interface to its initial state. This will <b>clear</b>
+the
+<b>base URL</b> set by the <a href="general.html#cd"><tt>cd</tt></a>
+command, any the recorded <b>messages</b> returned by <a
+ href="#getmessages"><tt>getmessages</tt></a> and resets the <b>current
+playlist</b> selected by <a href="#playlist"><tt>playlist</tt></a> to
+PM123's default playlist.</p>
+<p>The command has no reply.</p>
+</body>
+</html>

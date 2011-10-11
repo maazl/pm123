@@ -2,12 +2,15 @@
 <html sublinks="*">
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>Playlist manipulation commands</title>
-  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  <title>Playlist commands</title>
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
   <meta content="Marcel Müller" name="author">
 </head>
 <body>
-<h2>PM123's Remote command reference - Playlist manipulation</h2>
+<h2>PM123's Remote command reference - Playlist commands</h2>
+<p>See also <a href="playlistmodify.html">playlist manipulation
+commands</a>.</p>
 <table border="1" cellpadding="5" cellspacing="0">
   <tbody>
     <tr>
@@ -16,35 +19,35 @@
       <th>Reply</th>
     </tr>
     <tr>
-      <td><tt><a name="playlist"></a>playlist <var>&lt;url&gt;</var></tt></td>
+      <td><tt><a name="playlist"></a>playlist <var>&lt;url&gt;</var></tt>
+      <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Select a playlist or a folder. This setting only
 affects the pipe
-interface. To play a playlist use the <a
- href="playback.html#load"><tt>load</tt></a> command.interface.
-To play a playlist use the <a href="playback.html#load"><tt>load</tt></a>
+interface. To play a playlist use the <a href="playback.html#load"><tt>load</tt></a>
 command. </td>
-      <td>URL or empty string on error.</td>
+      <td>URL or empty line on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_next"></a>pl next </tt>[<var><tt>&lt;count&gt;</tt></var>]<sup><a
- href="#note2">(2)</a></sup></td>
+      <td><tt><a name="pl_next"></a>pl next </tt>[<var><tt>&lt;count&gt;</tt></var>]
+      <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td>Navigate to the next item in the current
 playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one item at once.</td>
-      <td>URL of the item or an empty string at the end of the
-list.</td>
+      <td>URL of the item or an empty line at the end of the
+playlist.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_previous"></a>pl previous</tt>
-[<var><tt>&lt;count&gt;</tt></var>]<sup><a href="#note2">(2)</a></sup></td>
+[<var><tt>&lt;count&gt;</tt></var>] <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td>Navigate to the previous item in the current
 playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one item at once.</td>
-      <td>URL of the item or an empty string at the end of the
-list.</td>
+      <td>URL of the item or an empty line at the start of the
+playlist.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_reset"></a>pl reset</tt><sup><a href="#note2">(2)</a></sup></td>
+      <td><tt><a name="pl_reset"></a>pl reset</tt> <small><sup><a
+ href="#note2">(2.)</a></sup></small></td>
       <td>Reset the current item of the playlist. The current
 location is now before the start or past the end respectively.</td>
       <td>&nbsp;</td>
@@ -52,12 +55,12 @@ location is now before the start or past the end respectively.</td>
     <tr>
       <td><tt><a name="pl_current"></a>pl current</tt></td>
       <td>Query the current playlist.</td>
-      <td>URL of the item or an empty string if none.</td>
+      <td>URL of the item or an empty line if none.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_current"></a>pl item</tt></td>
       <td>Query the current item in the current playlist.</td>
-      <td>URL of the item or an empty string if none.</td>
+      <td>URL of the item or an empty line if none.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_index"></a>pl index</tt></td>
@@ -65,7 +68,7 @@ location is now before the start or past the end respectively.</td>
 playlist.<br>
 Be careful, because the index changes when the playlist is modified and
 you might be not the only one that modifies a playlist.</td>
-      <td>Index starting from 1 or 0 in case of no current item.</td>
+      <td>Index starting from 1 or empty in case of no current item.</td>
     </tr>
     <tr>
       <td><tt><a name="use"></a>use</tt></td>
@@ -73,78 +76,24 @@ you might be not the only one that modifies a playlist.</td>
 to current playlist&gt;</var></tt>'.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
-    <tr>
-      <td><tt><a name="clear"></a>clear</tt></td>
-      <td>Clears the current playlist.</td>
-      <td>&nbsp;</td>
-    </tr>
-    <tr>
-      <td><tt><a name="add"></a>add&nbsp;<var>&lt;url&gt;</var></tt>&nbsp;[<tt><var>&lt;url&gt;</var></tt>
-[...]]</td>
-      <td>Adds <a href="../urlformat.html">URLs or files</a> to the
-current playlist. The items are
-added before the current item. If the current item is past the end the
-new items are appended.<br>
-The names
-or URLs can be enclosed with double quotes. The operation is not atomic
-in case of an error.</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
-    </tr>
-    <tr>
-      <td><tt><a name="dir"></a>dir <var>&lt;directory&gt;</var></tt><sup><a
- href="#note1">(1)</a></sup></td>
-      <td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (non-recursive).<br>
-      <i>Deprecated</i>, use <a href="#add"><tt>add</tt></a> instead.</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
-    </tr>
-    <tr>
-      <td><tt><a name="rdir"></a>rdir <var>&lt;directory&gt;</var></tt><sup><a
- href="#note1">(1)</a></sup></td>
-      <td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (recursive).<br>
-      <i>Deprecated</i>, use <a href="playlist.html#add"><tt>add</tt></a><tt>&nbsp;<var>&lt;directory&gt;</var>?recursive</tt>
-instead.</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
-    </tr>
-    <tr>
-      <td><tt><a name="remove"></a>remove</tt></td>
-      <td>Removes currently selected item from the current
-playlist.</td>
-      <td>URL of the removed item or empty string
-on error.</td>
-    </tr>
-    <tr>
-      <td><tt><a name="save"></a>save </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
-      <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>.
-If <var><tt>&lt;file&gt;</tt></var> is
-omitted the playlist is saved in place. This only works on mutable
-lists.</td>
-      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
-    </tr>
   </tbody>
 </table>
 <h3>Notes</h3>
 <ol>
   <li>
-    <p><a name="note1"></a>The behavior of the
-directory commands has significantly
-changed with PM123 1.40. The content of the directories is no longer
-expanded inline into the playlist. A reference to the directory is
-added
-to the playlist instead. This has several side effects. Unplayable
-items appear in the navigation. The directory is rescanned every time
-the playlist is loaded.</p>
+    <p><a name="note1"></a>If you pass relative URLs the path set with
+the <a href="general.html#cd">cd</a> command is used as root. Note
+that this does not apply to location string.</p>
   </li>
-  <li><a name="note2"></a>In PM123 before
+  <li>
+    <p><a name="note2"></a>In PM123 before
 version 1.40 the playlist manipulation
 commands always operate on the currently playing item. Now the new
-commands <a href="#pl_prev"><tt>pl_prev</tt></a>, <a href="#pl_next"><tt>pl_next</tt></a>
-and <a href="#pl_reset"><tt>pl_reset</tt></a> are dedicated to
-playlist operations.</li>
+commands <a href="#pl_prev"><tt>pl prev</tt></a>, <a href="#pl_next"><tt>pl
+next</tt></a>
+and <a href="#pl_reset"><tt>pl reset</tt></a> are dedicated to
+playlist operations.</p>
+  </li>
 </ol>
 </body>
 </html>

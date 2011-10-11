@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Playlist manipulation commands</title>
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
+  <meta content="Marcel Müller" name="author">
+</head>
+<body>
+<h2>PM123's Remote command reference - Playlist manipulation</h2>
+<table border="1" cellpadding="5" cellspacing="0">
+  <tbody>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+      <th>Reply</th>
+    </tr>
+    <tr>
+      <td><a name="pl_clear"><tt>pl clear </tt>or<tt> </tt></a><tt><a
+ name="clear"></a>clear</tt><tt> </tt></td>
+      <td>Clears the current playlist.</td>
+      <td>&nbsp;</td>
+    </tr>
+    <tr>
+      <td><tt><a name="pl_add"></a>pl add&nbsp;<var>&lt;url&gt;</var></tt>&nbsp;[<tt><var>&lt;url&gt;</var></tt>
+[...]] or<br>
+      <tt><a name="add"></a>add</tt> ... </td>
+      <td>Adds <a href="../urlformat.html">URLs or files</a> to the
+current playlist. The items are
+added before the current item. If the current item is past the end the
+new items are appended.<br>
+The names
+or URLs can be enclosed with double quotes. The operation is not atomic
+in case of an error.</td>
+      <td>Empty = OK,<br>
+Failed URL on error.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="dir"></a>dir <var>&lt;directory&gt;</var></tt> <small><sup><a
+ href="#note1">(1.)</a></sup></small></td>
+      <td>Add <tt><var>&lt;directory&gt;</var></tt>
+to the playlist (non-recursive).<br>
+      <i>Deprecated</i>, use <a href="#add"><tt>add</tt></a><tt> <var>&lt;directory&gt;</var>/</tt>
+instead.</td>
+      <td>Empty = OK,<br>
+Failed URL on error.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="rdir"></a>rdir <var>&lt;directory&gt;</var></tt><a
+ href="#note1"> </a><small><sup><a href="#note1">(1.)</a></sup></small></td>
+      <td>Add <tt><var>&lt;directory&gt;</var></tt>
+to the playlist (recursive).<br>
+      <i>Deprecated</i>, use <a href="playlist.html#add"><tt>add</tt></a><tt>&nbsp;<var>&lt;directory&gt;</var>/?recursive</tt>
+instead.</td>
+      <td>Empty = OK,<br>
+Failed URL on error.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="pl_remove"></a>pl remove </tt>or<tt> </tt><tt><a
+ name="remove"></a>remove</tt> </td>
+      <td>Removes currently selected item from the current
+playlist.</td>
+      <td>URL of the removed item or empty line
+on error.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="pl_save"></a>pl save </tt>[<var><tt>&lt;file&gt;</tt></var>]
+or<br>
+      <tt><a name="save"></a>save</tt> ... </td>
+      <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>.
+If <var><tt>&lt;file&gt;</tt></var> is
+omitted the playlist is saved in place. This only works on mutable
+lists.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Notes</h3>
+<ol>
+  <li>
+    <p><a name="note1"></a>The behavior of the
+directory commands has significantly
+changed with PM123 1.40. The content of the directories is no longer
+expanded inline into the playlist. A reference to the directory is
+added
+to the playlist instead. This has several side effects. Unplayable
+items appear in the navigation. The directory is rescanned every time
+the playlist is loaded.</p>
+  </li>
+</ol>
+</body>
+</html>

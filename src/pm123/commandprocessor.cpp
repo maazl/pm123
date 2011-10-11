@@ -248,10 +248,13 @@ class CommandProcessor : public ACommandProcessor
  private:
   void CmdGetMessages();
 
-  // PLAYBACK
   void CmdCd();
+  void CmdReset();
+
+  // PLAYBACK
   void CmdLoad();
   void CmdPlay();
+  void CmdEnqueue();
   void CmdStop();
   void CmdPause();
   void CmdNext();
@@ -280,12 +283,12 @@ class CommandProcessor : public ACommandProcessor
   void CmdPlItem();
   void CmdPlIndex();
   void CmdUse();
-  void CmdClear();
-  void CmdRemove();
-  void CmdAdd();
+  void CmdPlClear();
+  void CmdPlRemove();
+  void CmdPlAdd();
   void CmdDir();
   void CmdRdir();
-  void CmdSave();
+  void CmdPlSave();
 
   // METADATA
   void AppendIntAttribute(const char* fmt, int value);
@@ -349,13 +352,14 @@ class CommandProcessor : public ACommandProcessor
 };
 
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
-{ { "add",            &CommandProcessor::CmdAdd           }
+{ { "add",            &CommandProcessor::CmdPlAdd         }
 , { "autouse",        &CommandProcessor::CmdAutouse       }
 , { "cd",             &CommandProcessor::CmdCd            }
-, { "clear",          &CommandProcessor::CmdClear         }
+, { "clear",          &CommandProcessor::CmdPlClear       }
 , { "current",        &CommandProcessor::CmdCurrent       }
 , { "default",        &CommandProcessor::CmdDefault       }
 , { "dir",            &CommandProcessor::CmdDir           }
+, { "enqueue",        &CommandProcessor::CmdEnqueue       }
 , { "float",          &CommandProcessor::CmdFloat         }
 , { "font",           &CommandProcessor::CmdFont          }
 , { "forward",        &CommandProcessor::CmdForward       }
@@ -374,12 +378,18 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "open",           &CommandProcessor::CmdOpen          }
 , { "option",         &CommandProcessor::CmdOption        }
 , { "pause",          &CommandProcessor::CmdPause         }
+, { "pl add",         &CommandProcessor::CmdPlAdd         }
+, { "pl clear",       &CommandProcessor::CmdPlClear       }
 , { "pl current",     &CommandProcessor::CmdPlCurrent     }
+, { "pl index",       &CommandProcessor::CmdPlIndex       }
 , { "pl item",        &CommandProcessor::CmdPlItem        }
 , { "pl next",        &CommandProcessor::CmdPlNext        }
 , { "pl prev",        &CommandProcessor::CmdPlPrev        }
+, { "pl remove",      &CommandProcessor::CmdPlRemove      }
 , { "pl reset",       &CommandProcessor::CmdPlReset       }
+, { "pl save",        &CommandProcessor::CmdPlSave        }
 , { "pl_current",     &CommandProcessor::CmdPlCurrent     }
+, { "pl_index",       &CommandProcessor::CmdPlIndex       }
 , { "pl_item",        &CommandProcessor::CmdPlItem        }
 , { "pl_next",        &CommandProcessor::CmdPlNext        }
 , { "pl_prev",        &CommandProcessor::CmdPlPrev        }
@@ -395,10 +405,11 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "previous",       &CommandProcessor::CmdPrev          }
 , { "query",          &CommandProcessor::CmdQuery         }
 , { "rdir",           &CommandProcessor::CmdRdir          }
-, { "remove",         &CommandProcessor::CmdRemove        }
+, { "remove",         &CommandProcessor::CmdPlRemove      }
 , { "repeat",         &CommandProcessor::CmdRepeat        }
+, { "reset",          &CommandProcessor::CmdReset         }
 , { "rewind",         &CommandProcessor::CmdRewind        }
-, { "save",           &CommandProcessor::CmdSave          }
+, { "save",           &CommandProcessor::CmdPlSave        }
 , { "savestream",     &CommandProcessor::CmdSavestream    }
 , { "show",           &CommandProcessor::CmdShow          }
 , { "shuffle",        &CommandProcessor::CmdShuffle       }
@@ -434,7 +445,7 @@ void CommandProcessor::EscapeNEL(xstringbuilder& target, size_t start)
     {case '\r':
       target[start] = 'r'; break;
      case '\n':
-       target[start] = 'n'; break;
+      target[start] = 'n'; break;
     }
     target.insert(start, '\x1b');
     start += 2;
@@ -499,19 +510,34 @@ void CommandProcessor::Exec()
       } else
       { // Search command handler ...
         const CmdEntry* cep = mapsearcha(CmdList, Request);
-        Command = Request;
-        CommandType = false;
         DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
         if (cep)
-        { size_t len = strlen(cep->Str);
-          len += strspn(Request + len, " \t");
-          Request += len;
-          DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
-          if (len || *Request == 0)
-            // ... and execute
-            (this->*cep->Val)();
+        { char* cp;
+          // Check for non-alpha
+          while (isgraph(*(cp = Request + strlen(cep->Str))))
+          { // Try next entry
+            if ( ++cep == CmdList + sizeof(CmdList)/sizeof(*CmdList)
+              || strabbrevicmp(Request, cep->Str) != 0 )
+              goto fail;
+          }
+          if (*cp)
+            *cp++ = 0;
+          Command = Request;
+          CommandType = false;
+          Request = cp + strspn(cp, " \t");
+          DEBUGLOG(("CommandProcessor::Exec: %s\n", Request));
+          // ... and execute
+          (this->*cep->Val)();
+          Command = NULL;
+        } else
+        {fail:
+          // Invalid command
+          Messages.append("E Syntax error: unknown command \"");
+          size_t start = Messages.length();
+          Messages.append(Request, strnlen(Request, sizeof(cep->Str)));
+          EscapeNEL(Messages, start);
+          Messages.append("\"\n");
         }
-        Command = NULL;
       }
     }
   } catch (const SyntaxException& ex)
@@ -806,8 +832,6 @@ void CommandProcessor::CmdGetMessages()
   Messages.clear();
 }
 
-// PLAY CONTROL
-
 void CommandProcessor::CmdCd()
 { // return current value
   if (CurDir)
@@ -817,6 +841,14 @@ void CommandProcessor::CmdCd()
     CurDir = ParseURL(Request);
 }
 
+void CommandProcessor::CmdReset()
+{ CurItem.reset();
+  CurPlaylist = &GUI::GetDefaultPL();
+  CurDir.reset();
+  Messages.clear();
+}
+
+// PLAY CONTROL
 
 void CommandProcessor::CmdLoad()
 { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
@@ -827,6 +859,11 @@ void CommandProcessor::CmdPlay()
 { ExtLoadHelper lh( Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
   Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+}
+
+void CommandProcessor::CmdEnqueue()
+{
+  // TODO:
 }
 
 void CommandProcessor::CmdStop()
@@ -1033,13 +1070,17 @@ void CommandProcessor::CmdPlItem()
 }
 
 void CommandProcessor::CmdPlIndex()
-{ int ix = 0;
-  int_ptr<PlayableInstance> cur = CurItem;
-  while (cur)
-  { ++ix;
-    cur = CurPlaylist->GetPrev(CurItem);
+{ if (CurPlaylist)
+  { int ix = 0;
+    int_ptr<PlayableInstance> cur = CurItem;
+    // TODO: Full table scan should be replaced
+    while (cur)
+    { ++ix;
+      cur = CurPlaylist->GetPrev(cur);
+    }
+    if (ix)
+      Reply.append(ix);
   }
-  Reply.append(ix);
 }
 
 void CommandProcessor::CmdUse()
@@ -1051,19 +1092,19 @@ void CommandProcessor::CmdUse()
     Reply.append(Ctrl::RC_NoList);
 };
 
-void CommandProcessor::CmdClear()
+void CommandProcessor::CmdPlClear()
 { if (CurPlaylist)
     CurPlaylist->Clear();
 }
 
-void CommandProcessor::CmdRemove()
+void CommandProcessor::CmdPlRemove()
 { if (CurItem)
   { CurPlaylist->RemoveItem(CurItem);
     Reply.append(CurItem->GetPlayable().URL);
   }
 }
 
-void CommandProcessor::CmdAdd()
+void CommandProcessor::CmdPlAdd()
 { if (CurPlaylist)
   { URLTokenizer tok(Request);
     const char* url;
@@ -1114,7 +1155,7 @@ void CommandProcessor::CmdRdir()
   }
 }
 
-void CommandProcessor::CmdSave()
+void CommandProcessor::CmdPlSave()
 { int rc = Ctrl::RC_NoList;
   if (CurPlaylist)
   { const char* savename = Request;

@@ -3,12 +3,13 @@
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Remote control error codes</title>
-  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
   <meta content="Marcel Müller" name="author">
 </head>
 <body>
 <h2>PM123's Remote command reference - Error codes</h2>
-<p>The commands of PM123's playback engine return one of the following
+<p>Some commands of PM123's playback engine return one of the following
 result codes:
 </p>
 <table border="1" cellpadding="5" cellspacing="0">
@@ -70,19 +71,5 @@ playlist.</td>
     </tr>
   </tbody>
 </table>
-<h3><tt><a name="getmessages"></a>getmessages</tt></h3>
-<p>This command returns the messages that have been recorded since the
-last call to this command. The command is destructive. Each message is
-returned only once. </p>
-<p>Each message come in a single line. Each line is preceded with the
-severity level of the message:</p>
-<blockquote><tt>E </tt>- error<br>
-  <tt>W </tt>- warning<br>
-  <tt>I </tt>- information
-</blockquote>
-<p>Newlines in the message body are escaped by <tt><i>&lt;ESC&gt;</i>r</tt>
-and <tt><i>&lt;ESC&gt;</i>n</tt> to keep the messages within a single
-line. Escape characters itself are doubled (<i><tt>&lt;ESC&gt;&lt;ESC&gt;</tt></i>).
-As usual the list is terminated by an empty line.</p>
 </body>
 </html>

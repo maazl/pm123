@@ -45,12 +45,10 @@ Parse: PROCEDURE EXPOSE data.
 
 Assert:
   INTERPRET 'result = 'ARG(1)
-  IF ARG(2,'o') THEN DO
-    IF result \= TRANSLATE(ARG(1)) THEN
-      EXIT 'Did not expect the expression 'ARG(1)' to be defined: "'result'"'
-    END
-  ELSE
+  IF ARG(2,'e') THEN
     INTERPRET 'IF \(result 'ARG(2)') THEN CALL Fail ''Expected "''ARG(1) ARG(2)''", found "''result''" ARG(3)'''
+  ELSE IF result \= TRANSLATE(ARG(1)) THEN
+    EXIT 'Did not expect the expression 'ARG(1)' to be defined: "'result'"'
   RETURN
 
 Fail:

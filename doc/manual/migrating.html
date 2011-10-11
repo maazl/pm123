@@ -1,25 +1,29 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1021" sublinks="*"><head>
+<html resid="1021" sublinks="*">
+<head>
   <title>Migrating to PM123 1.40</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
 <body>
 <h2>Migrating to PM123 1.40</h2>
 <p>There are some major changes in the GUI that you should be
 aware of when moving from an earlier version. The most important ones
-are listed below. For further information see the <a href="../History.txt">change log</a>. See also the <a href="compatibility.html">compatibility issues</a> if
+are listed below. For further information see the <a
+ href="../History.txt">change log</a>. See also the <a
+ href="compatibility.html">compatibility issues</a> if
 you want to continue using earlier PM123 versions.</p>
 <h3>Main window</h3>
 <h4>Song title</h4>
-<p>You must use a <strong>double click</strong> to
+<p>You must use a <em>double click</em> to
 change the title display. This prevents from switching the style
 accidentally.</p>
 <h4>Visual plug-in</h4>
-<p>You must use a <strong>double click</strong> to
+<p>You must use a <em>double click</em> to
 change the visual plug-in style. This prevents from switching the style
 accidentally.</p>
 <h4>Alternate navigation</h4>
 <blockquote>
-<img src="images/altslider.png"></blockquote>
+  <img src="images/altslider.png"></blockquote>
 <p>While playing a playlist you can navigate with the slider
 through the entire list by pressing the <em>Alt key</em>.
 The exact behavior is controlled by the <a href="settings1.html">navigation
@@ -44,58 +48,62 @@ work with any source although. However, one must do the job.</p>
 basically the same thing. Furthermore you can <em>open
 multiple playlists</em>. That means:</p>
 <ul>
-<li>The <a href="playlist.html">Playlist
+  <li>The <a href="playlist.html">Playlist
 Window</a> is now nothing more than a <em>detailed
 view</em> of a playlist.</li>
-<li>The <em>playlist button</em> will open
+  <li>The <em>playlist button</em> will open
 the <em>default playlist</em>.</li>
-<li>The default playlist is used if you drop more than one
+  <li>The default playlist is used if you drop more than one
 object on the player.<br>
-So, <strong>do not use the default playlist for anything that you want to keep</strong>.</li>
-<li>The <a href="manager.html">Playlist
+So, <strong>do not use the default playlist for anything that you want
+to keep</strong>.</li>
+  <li>The <a href="manager.html">Playlist
 Manager</a> is a <em>tree view</em>
 of another default playlist, which usually contains other playlists, of
 course.</li>
-<li>The <a href="bookmark.html" herf="bookmark.html">bookmark
+  <li>The <a href="bookmark.html" herf="bookmark.html">bookmark
 editor</a> is now a detailed view of a special
 playlist that is visualized in the player's context menu.</li>
-<li>You can use drag &amp; drop and direct manipulation to modify
+  <li>You can use drag &amp; drop and direct manipulation to modify
 all of the above.</li>
-<li>Different views of the same content are immediately
+  <li>Different views of the same content are immediately
 synchronized as long they are part of the same PM123 instance.</li>
 </ul>
 <h4>Nested playlists</h4>
 <p>Playlists may contain other playlists and they may contain
 further playlists and so on. This has the following effects:</p>
 <ul>
-<li>All items of a child playlist are played when the playback
+  <li>All items of a child playlist are played when the playback
 reaches the sublist and before PM123 continues in the parent list.</li>
-<li>In shuffle mode items in different sublists are not
+  <li>In shuffle mode items in different sublists are not
 interchanged.</li>
-<li>The PM123 main window flattens the nested lists and shows
+  <li>The PM123 main window flattens the nested lists and shows
 always the index and the time offsets within all Song items in the
 nested list structure. To see what's going on open a tree view of the
 currently played list ('<a href="mainmenu.html">Context
 menu</a>/Current Playlist/Show tree view' or simply 'Ctrl+T').</li>
-<li>Nested playlists in the bookmark list cause sub menus.</li>
-<li>When the playlists are nested recursively the player will
+  <li>Nested playlists in the bookmark list create sub menus. Use this
+to structure your bookmarks.<br>
+  </li>
+  <li>When the playlists are nested recursively the player will
 ignore sublists that are already in the call stack. This avoids an
 infinite recursion.</li>
 </ul>
 <h4>File system folders</h4>
-<p>PM123 is able to play the content of <a href="urlformat.html#file_folder">file system folders</a>
+<p>PM123 is able to play the content of <a
+ href="urlformat.html#file_folder">file system folders</a>
 directly without the need to load all files into a playlist. This works
 as follows:</p>
 <ul>
-<li>The content of a folder is handled as a <em>virtual
+  <li>The content of a folder is handled as a <em>virtual
 playlist</em>.</li>
-<li>Optionally sub folders are virtualized as nested playlists
+  <li>Optionally sub folders are virtualized as nested playlists
 too.</li>
-<li>Unplayable files are skipped during playback but shown in
+  <li>Unplayable files are skipped during playback but shown in
 the folder views.</li>
-<li>Changes in the file system are reflected to PM123 when
+  <li>Changes in the file system are reflected to PM123 when
 PM123 is restarted or a folder is manually refreshed.</li>
-<li>If a folder is selected in the open dialog or by drag and
+  <li>If a folder is selected in the open dialog or by drag and
 drop the content is no longer copied into a real playlist.</li>
 </ul>
 <p>This feature also changed the behavior when <em>dropping
@@ -107,4 +115,5 @@ for further details.<br>
 To get the old behavior add the folder to a <a href="playlist.html">playlist</a>
 and choose 'Flatten' from the <a href="playlist_cmi.html">context
 menu</a> of the folder.</p>
-</body></html>
+</body>
+</html>
