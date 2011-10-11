@@ -1,8 +1,8 @@
 /*
+ * Copyright 2007-2011 Marcel Mueller
+ * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -971,12 +971,12 @@ const struct InfoDialog::Data& SingleInfoDialog::GetData()
 void SingleInfoDialog::ContentChangeEvent(const PlayableChangeArgs& args)
 { DEBUGLOG(("SingleInfoDialog(%p)::ContentChangeEvent({&%p, %x, %x})\n",
     this, &args.Instance, args.Changed, args.Loaded));
-  for (AInfoDialog::PageBase** pp = Pages.begin(); pp != Pages.end(); ++pp)
-  { PageBase* p = (PageBase*)pp;
+  for (AInfoDialog::PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
+  { PageBase* p = (PageBase*)*pp;
     if (p && (args.Changed & p->GetRequestFlags()))
-      { DataCacheValid = false;
-        WinPostMsg((*pp)->GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
-      }
+    { DataCacheValid = false;
+      WinPostMsg((*pp)->GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
+    }
   }
 }
 
