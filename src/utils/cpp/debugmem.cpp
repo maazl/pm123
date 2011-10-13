@@ -62,6 +62,7 @@ void operator delete(void* ptr)
   ASSERT(*(unsigned*)((char*)ptr+storage->length) == SCALAR_MAGIC);
   storage->magic = FREE_MAGIC;
   *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
+  memset(ptr, 0xbb, storage->length);
   free(storage);
 }
 
@@ -84,5 +85,6 @@ void operator delete[](void* ptr)
   ASSERT(*(unsigned*)((char*)ptr+storage->length) == ARRAY_MAGIC);
   storage->magic = FREE_MAGIC;
   *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
+  memset(ptr, 0xbb, storage->length);
   free(storage);
 }
