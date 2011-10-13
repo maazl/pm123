@@ -3,7 +3,8 @@
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Meta data access commands</title>
-  <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
 </head>
 <body>
 <h2>PM123's Remote command reference - Meta data access
@@ -90,8 +91,8 @@ no <tt>&lt;url&gt;</tt> is specified, the information about the
 current song is returned.</p>
 <p>
 In case of an error or if no meta information is available only an
-empty line is returned. You may use <tt><a
- href="meta.html#info_format">info format</a></tt> to check
+empty line is returned. You may use <tt><a href="meta.html#info_format">info
+format</a></tt> to check
 what is going on.</p>
 <h4>Reply</h4>
 <blockquote><tt>TITLE=<var>Fragile</var></tt><br>
@@ -135,9 +136,9 @@ to calculate the aggregate information.</p>
 returned.</p>
 <h4>Reply</h4>
 <blockquote><tt>SONGS=<var>253</var></tt><br>
-  <tt>PLAYLISTS=<var>7</var></tt><br>
+  <tt>LISTS=<var>7</var></tt><br>
   <tt>INVALID=<var>0</var></tt><br>
-  <tt>TOTALTIME=<var>51367.753</var></tt> (seconds)<tt><var></var></tt><br>
+  <tt>TOTALLENGTH=<var>51367.753</var></tt> (seconds)<tt><var></var></tt><br>
   <tt>TOTALSIZE=<var>1291768215</var></tt> (bytes)</blockquote>
 <p> The list is terminated by an empty line.</p>
 <h3><tt><a name="info_playlist"></a>info pl_item</tt></h3>
@@ -151,7 +152,8 @@ line is returned.</p>
  href="../location.html">location string</a>)<tt><br>
 STOP=<var>&lt;stop_location&gt;</var></tt> (<a href="../location.html">location
 string</a>)<br>
-  <tt>AT=<var>&lt;last_play_pos&gt;</var></tt> (<a href="../location.html">location
+  <tt>AT=<var>&lt;last_play_pos&gt;</var></tt> (<a
+ href="../location.html">location
 string</a>)<tt><var></var></tt><br>
   <tt>PREGAP=<var>2.0</var></tt> (seconds)<br>
   <tt>POSTGAP=<var>1.0</var></tt> (seconds)<tt><var></var></tt><br>
@@ -172,7 +174,8 @@ playlist even when not enabled globally.</li>
 nested playlist even when enabled globally.</li>
 </ul>
 <h3><tt><a name="info_refresh"></a>info refresh </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
-<p>Refresh all meta information for the given <a href="../urlformat.html">file
+<p>Refresh all meta information for the given <a
+ href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the current song is refreshed.
 This will not impact any playback.<br>

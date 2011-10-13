@@ -167,7 +167,6 @@ struct RplInfo : public RPL_INFO
   int  GetSongs() const                           { return unknown ? -1 : songs; }
   int  GetLists() const                           { return unknown ? -1 : lists; }
   int  GetInvalid() const                         { return unknown ? -1 : invalid; }
-  void Clear()                                    { memset(this, 0, sizeof *this); }
   RplInfo& operator+=(const volatile RPL_INFO& r);
   RplInfo& operator-=(const volatile RPL_INFO& r);
 };
@@ -188,7 +187,6 @@ struct DrplInfo : public DRPL_INFO
   bool      CmpAssign(const DRPL_INFO& r)         { return memcmpcpy(this, &r, sizeof *this) != ~0U; }
   PM123_TIME GetTotalLength() const               { return unk_length ? -1. : totallength; }
   PM123_SIZE GetTotalSize() const                 { return unk_size   ? -1. : totalsize; }
-  void      Clear()                               { memset(this, 0, sizeof *this); }
   DrplInfo& operator+=(const volatile DRPL_INFO& r);
   DrplInfo& operator-=(const volatile DRPL_INFO& r);
 };
@@ -236,7 +234,6 @@ struct AggregateInfo
   AggregateInfo&         operator=(const AggregateInfo& r);
   AggregateInfo&         operator=(const volatile AggregateInfo& r);
   // reset all fields to their initial state
-  void                   Clear()                  { Rpl.Clear(); Drpl.Clear(); }
   AggregateInfo&         operator+=(const AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
   AggregateInfo&         operator+=(const volatile AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
   AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }

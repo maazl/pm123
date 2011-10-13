@@ -322,7 +322,13 @@ InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri
 { DEBUGLOG(("Playable(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
 
-  return ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+  InfoFlags what2 = IF_None;
+  if (what & IF_Drpl)
+    what2 = IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
+  else if (what & IF_Rpl)
+    what2 = IF_Tech|IF_Child; // required for RPL_INFO aggregate
+  what2 = DoRequestInfo(what2, pri, rel);
+  return what2 | ((CollectionInfo&)ai).RequestAI(what, pri, rel);
 }
 
 void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
@@ -330,9 +336,9 @@ void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, Playable
   // The entire implementation of this function is basically lock-free.
   // This means that the result may not be valid after the function finished.
   // This is addressed by invalidating the rpl bits of cie.InfoStat by other threads.
-  // When this happens the commit after the function completes will not set the state to valid
+  // When this happens the commit at the end of the function will not set the state to valid
   // and the function will be called again when the rpl information is requested again.
-  // The calculation must not be done in place to avoid visibility of intermediate results.
+  // The calculation is not done in place to avoid visibility of intermediate results.
   InfoFlags whatok = upd & IF_Aggreg;
   if (whatok == IF_None)
     return; // Nothing to do
@@ -343,7 +349,7 @@ void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, Playable
   while ((pi = GetNext(pi)) != NULL)
   { // Skip exclusion list entries to avoid recursion.
     if (&pi->GetPlayable() == this || cie.Exclude.contains(pi->GetPlayable()))
-    { DEBUGLOG(("CollectionInfoCache::CalcRplInfo - recursive: %p->%p!\n", pi.get(), &pi->GetPlayable()));
+    { DEBUGLOG(("Playable::CalcRplInfo - recursive: %p->%p!\n", pi.get(), &pi->GetPlayable()));
       continue;
     }
     InfoFlags what2 = upd & IF_Aggreg;
@@ -356,8 +362,12 @@ void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, Playable
       drpl += ai.Drpl;
   }
   job.Commit();
+  DEBUGLOG(("Playable::CalcRplInfo: %x, RPL{%i, %i, %i, %i}, DRPL{%f, %i, %f, %i}\n", whatok,
+    rpl.songs, rpl.lists, rpl.invalid, rpl.unknown, drpl.totallength, drpl.unk_length, drpl.totalsize, drpl.unk_size));
   // Update results
   upd.Rollback(~whatok & IF_Aggreg);
+  if (whatok == IF_None)
+    return; // All updates deferred
   Mutex::Lock lock(Mtx);
   if (whatok & IF_Rpl)
     events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
@@ -405,7 +415,7 @@ void Playable::DoLoadInfo(JobSet& job)
       }
     }
     // Raise the first bunch of change events.
-    RaiseInfoChange(upd.Commit((InfoFlags)what2 | ~IF_Aggreg), changed);
+    RaiseInfoChange(upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed);
   }
 
   // Calculate RPL_INFO if not already done by dec_fileinfo.
@@ -431,9 +441,9 @@ void Playable::DoLoadInfo(JobSet& job)
     }
 
   } else if (upd & IF_Aggreg)
-  { if (Info.Tech.attributes & TATTR_INVALID)
+  { if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
     { info.Rpl.invalid = 1;
-    } else if (Info.Tech.attributes & TATTR_SONG)
+    } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
     { info.Rpl.songs   = 1;
       info.Drpl.totallength = Info.Obj.songlength;
       if (info.Drpl.totallength < 0)
@@ -445,6 +455,11 @@ void Playable::DoLoadInfo(JobSet& job)
       { info.Drpl.totallength = 0;
         info.Drpl.unk_size    = 1;
       }
+    } else
+    { // Cannot automatically calculate RPL info of hybrid items.
+      info.Rpl.unknown = 1;
+      info.Drpl.unk_length = 1;
+      info.Drpl.unk_size = 1;
     }
     // update information
     Mutex::Lock lock(Mtx);
@@ -890,8 +905,9 @@ bool Playable::Clear()
     what &= ~IF_Child;
   Info.Obj.num_items = 0;
   // TODO: no event if RPL/DRPL is not modified.
-  Info.Rpl.Clear();
-  Info.Drpl.Clear();
+  Info.Rpl.Reset();
+  Info.Drpl.Reset();
+  Info.Rpl.lists = 1;
 
   upd.Commit();
   // TODO: join invalidate events

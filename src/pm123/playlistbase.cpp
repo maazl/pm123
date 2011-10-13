@@ -518,7 +518,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_PL_INFO:
         { AInfoDialog::KeyType set;
           PopulateSetFromSource(set);
-          UserOpenInfoView(set, AInfoDialog::Page_MetaInfo);
+          UserOpenInfoView(set, AInfoDialog::Page_TechInfo);
         }
         break;
 
@@ -936,7 +936,7 @@ void PlaylistBase::PopulateSetFromSource(AInfoDialog::KeyType& dest)
 { const RecordBase* parent = NULL;
   int state = 0; // 0 = virgin, 1 = assigned, 2 = non-unique
   for (const RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
-  { Playable& p = (*rpp)->Data->Content->GetPlayable();
+  { PlayableInstance& p = *(*rpp)->Data->Content;
     dest.get(p) = &p;
     const RecordBase* prec = GetParent(*rpp);
     if (!state)
@@ -1239,7 +1239,7 @@ void PlaylistBase::UserReload(Playable& p)
 { if ( !(p.GetInfo().tech->attributes & TATTR_PLAYLIST)
     || !p.IsModified()
     || amp_query(GetHwnd(), "The current list is modified. Discard changes?") )
-    p.RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
+    p.RequestInfo(IF_Decoder|IF_Aggreg, PRI_Normal, REL_Reload);
 }
 
 void PlaylistBase::UserEditMeta()

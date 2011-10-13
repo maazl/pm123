@@ -18,10 +18,11 @@ CALL CallPipe 'info playlist 'dir'\data\list.lst'
 reply = result
 CALL Parse result
 CALL Assert 'data.songs', '= 3', reply
-CALL Assert 'data.playlists', '= 0', reply
+CALL Assert 'data.lists', '= 0', reply
 CALL Assert 'data.invalid', '= 1', reply
 CALL Assert 'data.totalsize', '= 60222', reply
-CALL Assert 'data.totaltime', '= "?"', reply
+CALL Assert 'data.totallength', '>= 31.099', reply
+CALL Assert 'data.totallength', '< 31.112', reply
 
 EXIT
 

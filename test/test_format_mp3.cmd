@@ -4,18 +4,28 @@ dir = DIRECTORY()
 CALL 'pipecmd' 'info format 'dir'\data\test.mp3'
 reply = result
 CALL Parse result
-CALL Assert 'VERIFY(data.filesize, '0123456789')', '= 0'
+CALL Assert 'data.filesize', '= 72514'
 PARSE VAR data.filetime year'-'month'-'day' 'hour':'min':'sec
 CALL Assert 'LENGTH(year)', '= 4', data.filetime
 CALL Assert 'LENGTH(sec)', '>= 2', data.filetime
 CALL Assert 'data.samplerate', '= 44100'
-CALL Assert 'data.channels' '= 1'
+CALL Assert 'data.channels', '= 1'
 CALL Assert 'POS("song", data.flags)', '\= 0', data.flags
 CALL Assert 'TRANSLATE(LEFT(data.decoder, 6))' '= "MPG123"'
 IF FORMAT(data.songlength,,3) \= 17.777 & FORMAT(data.songlength*44100,,0) \= 783955 THEN
   EXIT 'The song length should be equivalent to 783955 samples or approx. 17.777s: 'data.songlength
 CALL Assert 'data.bitrate', '>= 32000'
 CALL Assert 'data.bitrate', '< 32235'
+
+CALL 'pipecmd' 'info playlist 'dir'\data\test.mp3'
+reply = result
+CALL Parse result
+CALL Assert 'data.songs', '= 1'
+CALL Assert 'data.lists', '= 0'
+CALL Assert 'data.invalid', '= 0'
+CALL Assert 'data.totalsize', '= 72514'
+IF FORMAT(data.totallength,,3) \= 17.777 & FORMAT(data.totallength*44100,,0) \= 783955 THEN
+  EXIT 'The total length should be equivalent to 783955 samples or approx. 17.777s: 'data.songlength
 
 EXIT
 

@@ -973,10 +973,16 @@ void SingleInfoDialog::ContentChangeEvent(const PlayableChangeArgs& args)
     this, &args.Instance, args.Changed, args.Loaded));
   for (AInfoDialog::PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
   { PageBase* p = (PageBase*)*pp;
-    if (p && (args.Changed & p->GetRequestFlags()))
+    if (p == NULL)
+      continue;
+    InfoFlags relevant = p->GetRequestFlags();
+    if (args.Changed & relevant)
     { DataCacheValid = false;
       WinPostMsg((*pp)->GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
     }
+    // automatically request invalidated infos
+    if (args.Invalidated & relevant)
+      args.Instance.RequestInfo(args.Invalidated & relevant, PRI_Low);
   }
 }
 

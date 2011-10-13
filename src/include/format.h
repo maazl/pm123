@@ -136,7 +136,7 @@ typedef struct
   int        invalid;    /* Number of invalid items */
   int        unknown;    /* Number of items with unknown counters. */
 } RPL_INFO;
-#define RPL_INFO_INIT { 0, 0, 0, 1 }
+#define RPL_INFO_INIT { 0, 0, 0, 0 }
 
 /** @brief Detailed aggregate information on recursive playlist items
  * @details This information is not an aggregate of information of the immediate subitems,
@@ -147,7 +147,7 @@ typedef struct
   PM123_SIZE totalsize;  /* Physical size of all included files, 0 -> unknown */
   int        unk_size;   /* Number of items with unknown size. */
 } DRPL_INFO;
-#define DRPL_INFO_INIT { 0, 1, 0, 1 }
+#define DRPL_INFO_INIT { 0, 0, 0, 0 }
 
 /** @brief Info about a referenced item in a playlist.
  * @details This kind of information is only used in conjunction with DECODER_INFO_ENUMERATION_CB / DECODER_SAVE_ENUMERATION_CB. */

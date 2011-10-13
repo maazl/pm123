@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2009 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -312,6 +312,13 @@ InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priorit
     // from *RefTo
     return CallDoRequestAI(*RefTo, ai, what, pri, rel);
 
+  InfoFlags what2 = IF_None;
+  if (what & IF_Drpl)
+    what2 = IF_Phys|IF_Tech|IF_Obj|IF_Child|IF_Slice; // required for DRPL_INFO aggregate
+  else if (what & IF_Rpl)
+    what2 = IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
+  DoRequestInfo(what2, pri, rel);
+
   return ((CollectionInfo&)ai).RequestAI(what, pri, rel);
 }
 
@@ -436,7 +443,7 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
   if (job.RequestInfo(cur, IF_Child))
     return IF_None;
   Playable& pc = cur.GetPlayable();
-  while (psp = pc.GetNext(psp))
+  while ((psp = pc.GetNext(psp)) != NULL)
   { InfoFlags what2 = what;
     const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
     whatok &= ~what2;
