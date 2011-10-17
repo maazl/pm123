@@ -148,7 +148,8 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 void InspectorDialog::OnDestroy()
-{ Instance = NULL;
+{ int_ptr<InspectorDialog> keepalive;
+  keepalive.swap(Instance);
   DialogBase::OnDestroy();
 }
 
