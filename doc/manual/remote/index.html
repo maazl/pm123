@@ -30,7 +30,7 @@ compatibility with older PM123 versions.<strong>
 </strong></p>
 <h3>Alphabetical list of all commands</h3>
 <ul>
-  <li><a href="playlistmodify.html#add"><tt>add</tt></a>
+  <li><a href="playlistmodify.html#add"><tt>add</tt> ...</a>
 - add item to playlist</li>
   <li><a href="config.html#autouse"><tt>autouse</tt></a>
 - auto use playlist on add</li>
@@ -40,11 +40,10 @@ compatibility with older PM123 versions.<strong>
 - clear playlist</li>
   <li><a href="playback.html#current"><tt>current</tt></a>
 - query current song or playlist</li>
-  <li><a href="config.html#option"><tt>default</tt></a> -
-reset an option to its default value. </li>
-  <li><a href="playlistmodify.html#dir"><tt>dir</tt></a>
-- add directory to playlist (<i>deprecated</i>, use <a
- href="playlistmodify.html#add"><tt>add</tt></a>)</li>
+  <li><a href="config.html#option"><tt>default</tt> ...</a> -
+reset an option to its default value.</li>
+  <li><a href="playlistmodify.html#dir"><tt>dir</tt> ...</a>
+- add directory to playlist</li>
   <li><a href="config.html#float"><tt>float</tt></a>
 - float window on top</li>
   <li><a href="gui.html#font"><tt>font</tt></a>
@@ -52,52 +51,57 @@ reset an option to its default value. </li>
   <li><a href="playback.html#forward"><tt>forward</tt></a>
 - forward scan</li>
   <li><a href="general.html#getmessages"><tt>getmessages</tt></a>
-- return descriptive (error) messages </li>
+- return descriptive (error) messages</li>
   <li><a href="gui.html#hide"><tt>hide</tt></a>
 - hide player window</li>
   <li><a href="meta.html#info_format"><tt>info format</tt></a>
 - query file and format information</li>
   <li><a href="meta.html#info_invalidate"><tt>info invalidate</tt></a>
-- invalidate all meta information on the specified object </li>
+- invalidate all meta information on the specified object</li>
   <li><a href="meta.html#info_meta"><tt>info meta</tt></a>
 - query meta information</li>
-  <li><a href="meta.html#info_pl_item"><tt>info pl_item</tt></a>
+  <li><a href="meta.html#info_item"><tt>info item</tt></a>
 - query information about the current playlist item</li>
   <li><a href="meta.html#info_playlist"><tt>info playlist</tt></a>
 - query information about a (nested) playlist</li>
   <li><a href="meta.html#info_refresh"><tt>info refresh</tt></a>
 - refresh all meta information on the specified object </li>
-  <li><a href="playback.html#jump"><tt>jump</tt></a>
+  <li><a href="playback.html#jump"><tt>jump</tt> ...</a>
 - jump to location</li>
-  <li><a href="playback.html#load"><tt>load</tt></a>
-- load file/URL&nbsp;</li>
+  <li><a href="playback.html#load"><tt>load</tt> ...</a>
+- load file/URL</li>
   <li><a href="playback.html#location"><tt>location</tt></a>
 - query current location</li>
-  <li><a href="playback.html#navigate"><tt>navigate</tt></a>
+  <li><a href="playback.html#navigate"><tt>navigate</tt> ...</a>
 - navigate to item</li>
   <li><a href="playback.html#next"><tt>next</tt></a>
 - skip next</li>
-  <li><a href="gui.html#open"><tt>open</tt></a>
+  <li><a href="gui.html#open"><tt>open</tt> ...</a>
 - open dialog window</li>
-  <li><a href="config.html#option"><tt>option</tt></a>
+  <li><a href="config.html#option"><tt>option</tt> ...</a>
 - set/query configuration options</li>
   <li><a href="playback.html#pause"><tt>pause</tt></a>
 - pause</li>
-  <li><a href="playlistmodify.html#pl_add"><tt>pl_add</tt></a>
+  <li><a href="playlistmodify.html#pl_add"><tt>pl add</tt> ...</a>
 - add item to playlist</li>
   <li><a href="playlist.html#pl_current"><tt>pl current</tt></a>
-- query current playlist item</li>
+- query current playlist<br>
+  </li>
   <li><a href="playlist.html#pl_index"><tt>pl index</tt></a>
--&nbsp;query current playlist item index</li>
+- query current playlist item index</li>
+  <li><a href="playlist.html#pl_item"><tt>pl item</tt></a> - query the
+current playlist item</li>
+  <li><a href="playlistmodify.html#pl_item"><tt>pl item</tt> ...</a> -
+query the current playlist item</li>
   <li><a href="playlist.html#pl_next"><tt>pl next</tt></a>
 - next playlist item</li>
   <li><a href="playlist.html#pl_prev"><tt>pl prev</tt></a>
 - previous playlist item</li>
-  <li><a href="playlistmodify.html#pl_remove"><tt>pl_remove</tt></a>
+  <li><a href="playlistmodify.html#pl_remove"><tt>pl remove</tt></a>
 - remove item from playlist</li>
   <li><a href="playlist.html#pl_reset"><tt>pl reset</tt></a>
 - reset playlist iterator</li>
-  <li><a href="playlistmodify.html#pl_save"><tt>pl_save</tt></a>
+  <li><a href="playlistmodify.html#pl_save"><tt>pl save</tt></a>
 - save playlist</li>
   <li><a href="playback.html#play"><tt>play</tt></a>
 - play item</li>
@@ -105,15 +109,13 @@ reset an option to its default value. </li>
 - select playlist</li>
   <li><a href="config.html#playonload"><tt>playonload</tt></a>
 - start playing on load</li>
-  <li><a href="plugin.html#plugin_active"><tt>plugin active
-decoder</tt></a> - activate a decoder plug-in</li>
-  <li><a href="plugin.html#plugin_list"><tt>plugin list</tt></a>
+  <li><a href="plugin.html#plugin_list"><tt>plugin list</tt> ...</a>
 - query or set the list of loaded plug-ins</li>
-  <li><a href="plugin.html#plugin_load"><tt>plugin load</tt></a>
+  <li><a href="plugin.html#plugin_load"><tt>plugin load</tt> ...</a>
 - load a plug-in into the player</li>
-  <li><a href="plugin.html#plugin_params"><tt>plugin params</tt></a>
+  <li><a href="plugin.html#plugin_params"><tt>plugin params</tt> ...</a>
 - query or set plug-in parameters</li>
-  <li><a href="plugin.html#plugin_unload"><tt>plugin unload</tt></a>
+  <li><a href="plugin.html#plugin_unload"><tt>plugin unload</tt> ...</a>
 - unload a plug-in</li>
   <li><a href="playback.html#prev"><tt>prev</tt>, <tt>previous</tt></a>
 - skip previous</li>
@@ -121,9 +123,8 @@ decoder</tt></a> - activate a decoder plug-in</li>
 playback mode (like playing, auto repeat and so on)</li>
   <li><a href="gui.html#quit"><tt>quit</tt></a>
 - quit player</li>
-  <li><a href="playlistmodify.html#rdir"><tt>rdir</tt></a>
-- recursive add directory to playlist (<i>deprecated</i>,
-use <a href="playlistmodify.html#add"><tt>add</tt></a>)</li>
+  <li><a href="playlistmodify.html#rdir"><tt>rdir</tt> ...</a>
+- recursive add directory to playlist</li>
   <li><a href="playlistmodify.html#remove"><tt>remove</tt></a>
 - remove item from playlist</li>
   <li><a href="playback.html#repeat"><tt>repeat</tt></a>

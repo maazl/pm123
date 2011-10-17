@@ -15,10 +15,10 @@
  href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
 <a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a
  href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a> </tt><a
- href="#TECH_ATTRIBUTES"><tt><a href="xstring_api.html">xstring</a></tt></a>
+ href="#TECH_ATTRIBUTES"><tt></tt></a><tt><a href="xstring.html">xstring</a></tt>
 </p>
 <h3><a name="xstring"></a>xstring</h3>
-<a href="xstring_api.html">See separate document</a>.
+<a href="xstring.html">See separate document</a>.
 <h3><tt><a name="INFOTYPE"></a></tt>INFOTYPE</h3>
 <p><code>INFOTYPE</code> is an enumeration type. It
 is bit vector with flags
@@ -117,12 +117,12 @@ about an
 object.</h3>
 <blockquote>
   <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a
- href="xstring_api.html">xstring</a>    info;<br>  <a
- href="xstring_api.html">xstring</a>    format;<br>  <a
- href="xstring_api.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
+ href="xstring.html">xstring</a>    info;<br>  <a
+ href="xstring.html">xstring</a>    format;<br>  <a
+ href="xstring.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type <tt>TECH_INFO</tt> should not be copied
-binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>s.</p>
+binary by value because of the embedded <tt><a href="xstring.html">xstring</a></tt>s.</p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
@@ -242,18 +242,18 @@ for an 128kbps MP3.</td>
 <h3><a name="META_INFO"></a>META_INFO - Meta
 information</h3>
 <blockquote>
-  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    title;<br>  <a
- href="xstring_api.html">xstring</a>    artist;<br>  <a
- href="xstring_api.html">xstring</a>    album;<br>  <a
- href="xstring_api.html">xstring</a>    year;<br>  <a
- href="xstring_api.html">xstring</a>    comment;<br>  <a
- href="xstring_api.html">xstring</a>    genre;<br>  <a
- href="xstring_api.html">xstring</a>    track;<br>  <a
- href="xstring_api.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring.html">xstring</a>    title;<br>  <a
+ href="xstring.html">xstring</a>    artist;<br>  <a
+ href="xstring.html">xstring</a>    album;<br>  <a
+ href="xstring.html">xstring</a>    year;<br>  <a
+ href="xstring.html">xstring</a>    comment;<br>  <a
+ href="xstring.html">xstring</a>    genre;<br>  <a
+ href="xstring.html">xstring</a>    track;<br>  <a
+ href="xstring.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type META_INFO should not be copied
 binary by value because of the embedded&nbsp;<tt><a
- href="xstring_api.html">xstring</a></tt>.</p>
+ href="xstring.html">xstring</a></tt>.</p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
@@ -326,10 +326,10 @@ explicitly set to blank. In fact this will rarely make a difference.
 -&nbsp;Object attributes.</h3>
 <blockquote>
   <pre>typedef struct<br>{ unsigned   ploptions;<br>  <a
- href="xstring_api.html">xstring</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
+ href="xstring.html">xstring</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
 </blockquote>
 Note that objects of type ATTR_INFO should not be copied
-binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>.
+binary by value because of the embedded <tt><a href="xstring.html">xstring</a></tt>.
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
@@ -481,13 +481,13 @@ size. If this is non-zero the <tt>totalsize</tt> is incomplete. </td>
 -&nbsp;Playlist
 item information.</h3>
 <blockquote>
-  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    alias;<br>  <a
- href="xstring_api.html">xstring</a>    start;<br>  <a
- href="xstring_api.html">xstring</a>    stop;<br>  float      pregap;<br>  float      postgap;<br>  float      gain;<br>} <b>ITEM_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring.html">xstring</a>    alias;<br>  <a
+ href="xstring.html">xstring</a>    start;<br>  <a
+ href="xstring.html">xstring</a>    stop;<br>  float      pregap;<br>  float      postgap;<br>  float      gain;<br>} <b>ITEM_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type ITEM_INFO should not be copied
 binary by value because of the embedded&nbsp;<tt><a
- href="xstring_api.html">xstring</a></tt>s.</p>
+ href="xstring.html">xstring</a></tt>s.</p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
@@ -539,7 +539,7 @@ postgap</tt></td>
 <p>The <tt>INFO_BUNDLE</tt> structure is a
 collection of <em>all available information about an object</em>.
 Depending on the usage context the relevance of the sub structures may
-be masked either by a <a href="#INFO_TYPE"><tt>INFOTYPE</tt></a>
+be masked either by a <a href="#INFOTYPE"><tt>INFOTYPE</tt></a>
 bit vector passed
 as separate parameter or by setting some of the pointers to <tt>NULL</tt>.</p>
 <h3><a name="FORMAT_INFO2"></a>FORMAT_INFO2</h3>

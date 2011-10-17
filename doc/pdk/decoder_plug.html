@@ -23,13 +23,13 @@ enumerable. This applies to a playlist as well as to a file system
 folder or&nbsp;a compact disc containing tracks.<br>
 In theory an item could be enumerable as well as directly playable.
 E.g. index tracks of a CD or a CUE sheet. But this has not been well
-testet in the PM123 core so far.
+tested in the PM123 core so far.
 </p>
 <h2><a name="level_3"></a>Interface revision
 level 3 (recommended)</h2>
 <p>The level 3 interface has the following components:</p>
 <ol>
-  <li><a href="#initialization_interface">Playback
+  <li><a href="#playback_interface">Playback
 interface</a>, <a href="#status_interface">status
 interface</a> and <a href="#output_interface">output
 interface</a><br>
@@ -586,7 +586,7 @@ place. It is currently only used to save playlists.</p>
 <h5><a name="DECODER_SAVE_ENUMERATION_CB"></a>DECODER_SAVE_ENUMERATION_CB</h5>
 <blockquote>
   <pre>int (DLLENTRY* <b>cb</b>)(void* <var>param</var>, <a
- href="xstring_api.html">xstring</a>* <var>url</var>, const <a
+ href="xstring.html">xstring</a>* <var>url</var>, const <a
  href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>valid</var>, int* <var>override</var>)</pre>
 </blockquote>
 <ul>
@@ -596,7 +596,7 @@ Arbitrary parameter from&nbsp;<code>decoder_savelist</code>.</li>
 Return URI
 of the sub item. The URI may be absolute or relative. In case of
 relative URIs the context of the enclosing playlist is used for URI
-resolution. <em>Note that the <a href="xstring_api.html"><tt>xstring</tt>
+resolution. <em>Note that the <a href="xstring.html"><tt>xstring</tt>
 structure</a> must be initialized</em> when the function is called.</li>
   <li><code><var>info</var></code>
 (out)
@@ -609,12 +609,12 @@ The storage where <tt>*info</tt> points to is only valid until the
 next call to <tt>cb</tt> or until <tt>decoder_savefile</tt> returned.
   </li>
   <li><code><var>valid</var></code> (out) - Return <a
- href="datatype.html#INFO_TYPE"><code>INFOTYPE</code></a>
+ href="datatype.html#INFOTYPE"><code>INFOTYPE</code></a>
 bit vector. Set bits in this vector indicate that the specified
 type of information in <code>**<var>info</var></code>
 is known. The decoder should not store information that is not valid.</li>
   <li><code><var>override</var></code>&nbsp;(out) - Return <a
- href="datatype.html#INFO_TYPE"><code>INFOTYPE</code></a>
+ href="datatype.html#INFOTYPE"><code>INFOTYPE</code></a>
 bit vector. Set bits in this vector indicate that the specified
 type of information in <code>**<var>info</var></code>
 is overridden by

@@ -16,13 +16,13 @@ commands. Once you have done this, you can apply the changes to one or
 more songs using the <tt><a href="#write_meta_to">write meta to</a></tt>
 command. Only fields that have been set using <tt><a
  href="#write_meta_set">write meta set</a></tt> are overwritten. All
-other fields are unchanged. Use <tt><a href="#meta_write_rst">meta
-write rst</a></tt> to start over.</p>
-<h3><tt><a name="meta_write_set"></a>write meta set <var>&lt;key&gt;</var></tt>[<tt>=</tt><tt><var>&lt;value&gt;</var></tt>]</h3>
+other fields are unchanged. Use <tt><a href="#write_meta_rst">write
+meta rst</a></tt> to start over.</p>
+<h3><tt><a name="write_meta_set"></a>write meta set <var>&lt;key&gt;</var></tt>[<tt>=</tt><tt><var>&lt;value&gt;</var></tt>]</h3>
 <p>Transfers a meta data field value to the internal buffer of the
 remote command engine. This field value will be applied at the next <tt><a
- href="#write_meta_to">write meta to</a></tt> command. If you ommit the
-value, the field will be set to an empty string; if you ommit the value
+ href="#write_meta_to">write meta to</a></tt> command. If you omit the
+value, the field will be set to an empty string; if you omit the value
 and the equal sign, the tag component key will be removed. This might
 be something different on e.g. ID3V2 tags.</p>
 <p><var><tt>key</tt></var> must be one of</p>
@@ -51,7 +51,7 @@ you intend to overwrite all meta data keys, because future PM123
 releases might support additional tags.</p>
 <h3><tt><a name="write_meta_to"></a>write meta to <var>&lt;url&gt;</var></tt></h3>
 <p>Apply the meta data changes previously prepared using <a
- href="#wrrite_meta_set"><tt>write meta set</tt></a> to <var><tt>&lt;url&gt;</tt></var>.
+ href="#write_meta_set"><tt>write meta set</tt></a> to <var><tt>&lt;url&gt;</tt></var>.
 Keys that have not been set so far or since the last <a
  href="#write_meta_rst"><tt>write meta rst</tt></a> command are left
 unchanged. They are not removed from the meta info tag.</p>

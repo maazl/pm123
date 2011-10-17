@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="decoder_plug.html" sublinks="filter_plug.html" sublinks="output_plug.html" sublinks="visual_plug.html" sublinks="datatype.html" sublinks="xstring_api.html">
+<html>
 <head>
   <title>PM123 Plug-in Developer's Guide</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
@@ -7,27 +7,24 @@
 <body>
 <h2>Developing PM123 Plug-ins</h2>
 <p>PM123 supports four kinds of plug-ins: visual, decoder,
-output and filter. Visual plug-ins are used to peek at the data
+output and filter. Plug-ins are Dynamic Linked
+Libraries
+(DLLs) which PM123 loads on start up.</p>
+<p><a href="visual_plug.html">Visual plug-ins</a> are used to peek at
+the data
 currently being heard (or not) by the user through the output plug-in
-and visually produce data from it back to the user. Decoder plug-ins
+and visually produce data from it back to the user.<br>
+</p>
+<p><a href="decoder_plug.html">Decoder plug-ins</a>
 are used to decode different types of files, tracks or streams the user
-can play. Output plug-ins is the final destination of the decoded data.
+can play.</p>
+<p><a href="output_plug.html">Output plug-ins</a> is the final
+destination of the decoded data.
 It can be rerouted to a sound card, to the hard disk or anywhere else
-appropriate. The data is in standard PCM format. Filter plug-ins are
+appropriate. The data is in standard PCM format.</p>
+<p><a href="filter_plug.html">Filter plug-ins</a> are
 chained between the decoder and the output plug-in to modify the PCM
 data before getting to the output plug-in.</p>
-<p>Visual plug-in interface has not been changed since version
-1.0,
-eventhough they could be ameliorated in the future. Currently, Visual
-plug-ins allow the creation of internal or external windows and they
-can
-tap into PM123 in several ways: they can retrieve currently playing
-samples, control PM123 and so on. Plug-ins are Dynamic Linked
-Libraries,
-DLLs, which PM123 loads on use.</p>
-<p>Note that visual plug-ins cannot be
-loaded via PM123's properties dialog because they are skin specific.
-They can of course be loaded when loading a new skin.</p>
 <h3>Common interface</h3>
 <p><tt>plugin.h</tt> contains the necessary structures
 for all PM123 plug-ins.
@@ -94,9 +91,10 @@ If you pass <tt>NULL</tt> as <var><tt>key</tt></var>,
 a list of <tt>'\0'</tt> delimited keys is
 returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt>
 on success and <tt>FALSE</tt> on error.</p>
-<p>The <a href="xstring_api.html"><b><tt>xstring_</tt>*</b> API
+<p>The <a href="xstring.html"><b><tt>xstring_</tt>*</b> API
 functions</a>
-are used to manipulate dynamic strings of type <a href="xstring_api.html"><b><tt>xstring</tt></b></a>.</p>
+are used to manipulate dynamic strings of type <a
+ href="xstring.html"><b><tt>xstring</tt></b></a>.</p>
 <h4>Configuration</h4>
 <p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable
 = TRUE</tt>
@@ -117,7 +115,7 @@ optional. If the symbol is exported, the
 plug-in can receive <a href="../manual/remote.html">remote commands</a>.</p>
 <blockquote>
   <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
- href="xstring_api.html">xstring</a>* <var>result</var>);</pre>
+ href="xstring.html">xstring</a>* <var>result</var>);</pre>
 </blockquote>
 <p>The <var><tt>command</tt></var> parameter receives the command
 passed to the remote interface without the astrisk and plug-in name
@@ -137,14 +135,6 @@ memory when receiving a</p>
 </blockquote>
 <p>It can also be used to save settings in your INI file for
 other sort of plug-ins.</p>
-<h3>Plugin types</h3>
-<p>Now, which type of plug-in to you want to program?</p>
-<ul>
-  <li><a href="source_plug.html">Visual Plug-ins</a></li>
-  <li><a href="decoder_plug.html">Decoder Plug-ins</a></li>
-  <li><a href="output_plug.html">Output Plug-ins</a></li>
-  <li><a href="filter_plug.html">Filter Plug-ins</a></li>
-</ul>
 <h3><a name="interface_level"></a>Interface
 levels</h3>
 <p>The interface level is used to ensure compatibility of

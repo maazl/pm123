@@ -1,0 +1,14 @@
+[checking]
+anchors=1
+#checkhtml=1
+checkcss=1
+timeout=20
+
+[output]
+verbose=1
+complete=1
+fileoutput=csv
+
+[text]
+parts=id,parenturl,url,info,warning,result
+

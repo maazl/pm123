@@ -1,126 +1,160 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="*"><head>
-<title>ID3 Tag Editor</title>
-<link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head>
+<html sublinks="*">
+<head>
+  <title>ID3 Tag Editor</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
 <body>
 <h2>MPG123's ID3 Tag Editor</h2>
 <p>If you edit the tag of an <em>MP3 file</em> the
-dialog below is shown instead of the <a href="infodialog.html#metainfo">built-in tag editor</a>
+dialog below is shown instead of the <a href="infodialog.html#metainfo">built-in
+tag editor</a>
 of PM123. This editor provides ID3 related enhancements, like
 explicit&nbsp;support for ID3v1 and ID3v2 tags and for the genre
 list.</p>
 <h3>All Tags</h3>
 <blockquote>
-<img alt="ID3 Tag Editor" src="images/id3edit.png" height="547" width="546"></blockquote>
+  <img alt="ID3 Tag Editor" src="images/id3edit.png" height="547"
+ width="546"></blockquote>
 <p>The first Tab lets you edit ID3v1 and ID3v2 tags
 simultaneously like with the built-in tag editor of PM123.
 &nbsp;But additionally you can explicitely contol which tags are
 written.</p>
 <dl>
-<dt><b>Write ID3v1</b>, <b>Write ID3v2</b></dt>
-<dd>
-<p><b>Clean</b>ing an ID3v2 tag means that all
+  <dt><b>Write ID3v1</b>, <b>Write ID3v2</b></dt>
+  <dd>
+    <p><b>Clean</b>ing an ID3v2 tag means that all
 frames related to this dialog are removed and if there remain no other
 frames, the entire tag is deleted when you press 'OK'. In contrast,
 when you choose '<b>delete</b>' the ID3v2 tag is deleted
 anyway. So be careful with delete, because it may destroy information
 that you do not see in this dialog.</p>
-</dd>
-<dt>'<b>automatic</b>' checkboxes</dt>
-<dd>
-<p>The 'automatic' checkboxes activate the behavior selected
+  </dd>
+  <dt>'<b>automatic</b>' check boxes</dt>
+  <dd>
+    <p>The 'automatic' check boxes activate the behavior selected
 by the <a href="mpg123.html#configuration">configuration
 dialog</a>.</p>
-</dd>
-<dt><b>Track no.</b></dt>
-<dd>
-<p>The Track number may optionally specified as '<kbd>2/13</kbd>'
+  </dd>
+  <dt><b>Track no.</b></dt>
+  <dd>
+    <p>The Track number may optionally specified as '<kbd>2/13</kbd>'
 meaning track 2 of 13.&nbsp;Note that only ID3v2 tags can store this
 additional information.</p>
-</dd>
-<dt><b>Release date</b></dt>
-<dd>
-<p>The release date must be in ID3v2-compatible format. I.e.:
+  </dd>
+  <dt><b>Release date</b></dt>
+  <dd>
+    <p>The release date must be in ID3v2-compatible format. I.e.:
 either only a year like '<kbd>2008</kbd>' or year and month
 like '<kbd>2008-10</kbd>' or a
 complete date like '<kbd>2008-10-21</kbd>'. Note that ID3v1
 tags only get the year component.</p>
-</dd>
-<dt><b>Genre</b></dt>
-<dd>
-<p>The genre may or may not be one of the predefined genres
+  </dd>
+  <dt><b>Genre</b></dt>
+  <dd>
+    <p>The genre may or may not be one of the predefined genres
 of ID3v1, but if not the genre field of the ID3v1 tag will not be
 filled.</p>
-</dd>
+  </dd>
 </dl>
 <h3>ID3v1.x</h3>
-<blockquote><img alt="ID3V1.x editor page" src="images/id3v1edit.png" height="547" width="546"></blockquote>
+<blockquote><img alt="ID3V1.x editor page" src="images/id3v1edit.png"
+ height="547" width="546"></blockquote>
 <p>This page lets you edit all information in the ID3v1 tag.
 Whether it write an ID3v1.0 or ID3v1.1 tag is chosen automatically.</p>
 <dl>
-<dt><b>Encoding</b></dt>
-<dd>
-<p>This is the encoding used for reading and writing the
+  <dt><b>Encoding</b></dt>
+  <dd>
+    <p>This is the encoding used for reading and writing the
 ID3v1 tag. Initially is shows the encoding used while filling the
-dialog fields. If automatic encoding detection is enabled in the <a href="mpg123.html#configuration">configuration dialog</a>,
+dialog fields. If automatic encoding detection is enabled in the <a
+ href="mpg123.html#configuration">configuration dialog</a>,
 the encoding may vary from file to file.<br>
 If you think that this <em>encoding is not suitable</em>,
 change the setting and press the <i>Undo</i> button to reload the
 information. If you want to <em>save</em> the tag in <em>another
 encoding</em>, change the selected encoding before you press OK.</p>
-</dd>
-<dt><b>Copy from ID3v2</b></dt>
-<dd>
-<p>When you press this button the current information of the
+  </dd>
+  <dt><b>Copy from ID3v2</b></dt>
+  <dd>
+    <p>When you press this button the current information of the
 ID3v2 tag is filled into the ID3v1 tag. Things that do not fit into an
 ID3v1 tag like long strings or other genres are discarded.</p>
-</dd>
-<dt><b>Write mode</b></dt>
-<dd>
+  </dd>
+  <dt><b>Write mode</b></dt>
+  <dd>
+    <dl>
+      <dt><b>update</b></dt>
+      <dd>Update the ID3v1 tag with the information from this dialog.<br>
+Note that updating with completely empty information will also delete
+the tag.</dd>
+      <dt><b>leave</b></dt>
+      <dd>Do not touch the ID3v1 tag.</dd>
+      <dt><b>delete</b></dt>
+      <dd>Remove the ID3v1 tag.</dd>
+    </dl>
+  </dd>
+</dl>
+<h3>ID3v2.x</h3>
+<blockquote><img alt="ID3v2.x editor page" src="images/id3v2edit.png"
+ height="547" width="546"></blockquote>
 <dl>
-<dt><b>update</b></dt>
-<dd>Update the ID3v1 tag with the information from this dialog.<br>
-Note that updating with completely empty information will also delete the tag.</dd>
-<dt><b>leave</b></dt>
-<dd>Do not touch the ID3v1 tag.</dd>
-<dt><b>delete</b></dt>
-<dd>Remove the ID3v1 tag.</dd>
-</dl></dd>
-</dl><h3>ID3v2.x</h3>
-<blockquote><img alt="ID3v2.x editor page" src="images/id3v2edit.png" height="547" width="546"></blockquote><dl>
-<dt><b>Track no.</b></dt>
-<dd><p>The Track number may optionally specified as '<kbd>2/13</kbd>'
-meaning track 2 of 13.</p></dd>
-<dt><b>Release date</b></dt>
-<dd><p>The release date must be in ID3v2-compatible format. I.e.:
+  <dt><b>Track no.</b></dt>
+  <dd>
+    <p>The Track number may optionally specified as '<kbd>2/13</kbd>'
+meaning track 2 of 13.</p>
+  </dd>
+  <dt><b>Release date</b></dt>
+  <dd>
+    <p>The release date must be in ID3v2-compatible format. I.e.:
 either only a year like '<kbd>2008</kbd>' or year and month
 like '<kbd>2008-10</kbd>' or a
-complete date like '<kbd>2008-10-21</kbd>'. The definite format '<kbd>21.10.2008</kbd>' common in some countries is automatically converted to&nbsp;'<kbd>2008-10-21</kbd>'.</p></dd>
-<dt><b>Comment</b></dt>
-<dd><p>There may be different comments in ID3v2 tags. This field corresponds only to
-the comment frame with the frame description 'Comments'.</p></dd>
-<dt><b>Read encoding</b></dt>
-<dd><p>Use this field overwrite the encoding used to read ID3v2 tags encoded with
+complete date like '<kbd>2008-10-21</kbd>'. The definite format '<kbd>21.10.2008</kbd>'
+common in some countries is automatically converted to&nbsp;'<kbd>2008-10-21</kbd>'.</p>
+  </dd>
+  <dt><b>Comment</b></dt>
+  <dd>
+    <p>There may be different comments in ID3v2 tags. This field
+corresponds only to
+the comment frame with the frame description 'Comments'.</p>
+  </dd>
+  <dt><b>Read encoding</b></dt>
+  <dd>
+    <p>Use this field overwrite the encoding used to read ID3v2 tags
+encoded with
 type 0, which normally means ISO-8859-1. This enables you to read tags
-with wrong encodings. Simply select the appropriate encoding and press <i>Undo</i> to reload the tag.<br>
-This has no meaning for writing ID3v2 tags. They are always written with the encoding from the <a href="mpg123.html#configuration">configuration dialog</a>. You cannot write ID3v2 tags with non-standard encodings.</p></dd>
-<dt><b>Copy from ID3v1</b></dt>
-<dd><p>This button replaces the current information by the information from the
-ID3v1 tag. Note that since ID3v1 tags in general contain less
+with broken encodings. Simply select the appropriate encoding and press
+    <i>Undo</i> to reload the tag.<br>
+This has no meaning for writing ID3v2 tags. They are always written
+with the encoding from the <a href="mpg123.html#configuration">configuration
+dialog</a>. You cannot write ID3v2 tags with non-standard encodings.</p>
+  </dd>
+  <dt><b>Copy from ID3v1</b></dt>
+  <dd>
+    <p>This button replaces the current information by the information
+from the
+ID3v1 tag. Note that since ID3v1 tags generally contain less
 information than ID3v2 tags, pressing this button may lose information
-even when the tags are currently synchronized.</p></dd>
-<dt><b>Write mode</b></dt>
-<dd>
-<dl><dt><b>update</b></dt>
-<dd>Update the ID3v2 tag with the information from this dialog.</dd>
-<dt><b>leave</b></dt>
-<dd>Do not touch the ID3v2 tag.</dd>
-<dt><b>clean</b></dt>
-<dd>Removes the meta infos shown in this dialog from the ID3v2 tag. If the tag does
+even when the tags are currently synchronized.</p>
+  </dd>
+  <dt><b>Write mode</b></dt>
+  <dd>
+    <dl>
+      <dt><b>update</b></dt>
+      <dd>Update the ID3v2 tag with the information from this dialog.</dd>
+      <dt><b>leave</b></dt>
+      <dd>Do not touch the ID3v2 tag.</dd>
+      <dt><b>clean</b></dt>
+      <dd>Removes the meta infos shown in this dialog from the ID3v2
+tag. If the tag does
 not contain any other frames, the tag is deleted.</dd>
-<dt><b>delete</b></dt>
-<dd>Remove
+      <dt><b>delete</b></dt>
+      <dd>Remove
 the ID3v2 tag unconditionally. This might destroy other information
-like Replay Gain values or lyrics. If in doubt, chose <i>clean</i> instead.</dd>
-</dl></dd></dl>
-</body></html>
+like Replay Gain values, cover art or lyrics. If in doubt, chose <i>clean</i>
+instead.</dd>
+    </dl>
+  </dd>
+</dl>
+</body>
+</html>
