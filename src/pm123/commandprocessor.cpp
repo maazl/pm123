@@ -304,7 +304,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdInfoFormat();
   void CmdInfoMeta();
   void CmdInfoPlaylist();
-  void CmdInfoPlItem();
+  void CmdInfoItem();
   void CmdInfoRefresh();
   void CmdInfoInvalidate();
 
@@ -367,8 +367,8 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "hide",           &CommandProcessor::CmdHide          }
 , { "info format",    &CommandProcessor::CmdInfoFormat    }
 , { "info invalidate",&CommandProcessor::CmdInfoInvalidate}
+, { "info item",      &CommandProcessor::CmdInfoItem    }
 , { "info meta",      &CommandProcessor::CmdInfoMeta      }
-, { "info pl_item",   &CommandProcessor::CmdInfoPlItem    }
 , { "info playlist",  &CommandProcessor::CmdInfoPlaylist  }
 , { "info refresh" ,  &CommandProcessor::CmdInfoRefresh   }
 , { "jump",           &CommandProcessor::CmdJump          }
@@ -1330,7 +1330,7 @@ void CommandProcessor::CmdInfoPlaylist()
   }
 }
 
-void CommandProcessor::CmdInfoPlItem()
+void CommandProcessor::CmdInfoItem()
 { if (CurItem == NULL)
     return;
   CurItem->RequestInfo(IF_Item|IF_Attr, PRI_Sync);
