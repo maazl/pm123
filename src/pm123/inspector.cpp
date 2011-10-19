@@ -149,8 +149,9 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void InspectorDialog::OnDestroy()
 { int_ptr<InspectorDialog> keepalive;
-  keepalive.swap(Instance);
+  Instance.swap(keepalive);
   DialogBase::OnDestroy();
+  // this may get invalid here
 }
 
 static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)

@@ -181,8 +181,10 @@ void ManagedDialog<BASE>::OnInit()
 template <class BASE>
 void ManagedDialog<BASE>::OnDestroy()
 { DEBUGLOG(("ManagedDialog(%p)::OnDestroy()\n", this));
+  int_ptr<IVref_count> keepalive;
+  Self.swap(keepalive);
   DialogBase::OnDestroy();
-  Self = NULL; // this may get invalid here
+  // this may get invalid here
 }
 
 
