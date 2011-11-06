@@ -14,8 +14,7 @@
  name="playableclasses">
 </map>
 </p>
-<h3>Class Overview</h3>
-<h4><tt><b><b><a name="APlayable"></a>class APlayable</b></b></tt></h4>
+<h3><tt><b><b><a name="APlayable"></a>class APlayable</b></b></tt></h3>
 <p>This abstract base class is used as least common denominator
 of all objects that can be played with PM123 in any way.</p>
 <p>The <em>concept</em> behind all of these objects is
@@ -27,7 +26,7 @@ Failing to do so will cause undefined results like initial structures
 or outdated content, but it will <i>not</i> cause
 undefined behavior like an
 application crash.</p>
-<h5>Services</h5>
+<h4>Services</h4>
 <ul>
   <li>The only service that is directly provided by this class is
 the <a href="playableasync.html"><em>asynchronous request service</em></a>.</li>
@@ -35,7 +34,7 @@ the <a href="playableasync.html"><em>asynchronous request service</em></a>.</li>
 event is included as class member. It is required by any deriving class
 anyway.</li>
 </ul>
-<h5>Properties</h5>
+<h4>Properties</h4>
 <ul>
   <li>The objects are <em>reference countable</em>,
 i.e. they implement <tt>Iref_count</tt>. This belongs to
@@ -44,20 +43,25 @@ holding a strong reference to it with an <tt>int_ptr&lt;&gt;</tt>
 instance. However, this does not imply that all access have been done
 through <tt>int_ptr&lt;&gt;</tt>.
 E.g. in case of a function argument it is guaranteed that the callee
-has a strong reference too, as long as you do not keep a reference
+has a strong reference too, as long as you do not keep the reference
 after the function returns.</li>
   <li>The objects are <em>non-copyable</em>. This
 may be overridden in derived classes by taking the appropriate actions.</li>
 </ul>
-<h4><tt><b><b><tt><b><b><a name="Playable"></a>class
-</b></b></tt></b></b>Playable</tt></h4>
-<p>A Playable object is the <em>1:1 representation of a URL</em>
-in PM123. At most one Playable instance may exist for each URL. This is
-ensured by a private constructor and an instance repository.</p>
+<h3><tt><b><b><tt><b><b><a name="Playable"></a>class
+</b></b></tt></b></b>Playable</tt></h3>
+<p>A <tt>Playable</tt> object is the <em>1:1 representation of a URL</em>
+in PM123. At most one <tt>Playable</tt> instance may exist for each
+URL. This is
+ensured by a private constructor and an instance repository. Use
+<tt>GetByUrl</tt> to access or create instances of <tt>Playable</tt>.<br>
+</p>
 <p>If a playable object is enumerable (e.g. a playlist) it has an
-additional extension object called <tt>PlayableCollection</tt>.
-This can be accessed by <tt>GetCollection()</tt>.</p>
-<h5>Services<b></b></h5>
+additional extension object called <tt>PlaylistData</tt>. You cannot
+access this data directly. It is only used internally to keep the
+memory footprint of non-playlist objects small.<br>
+</p>
+<h4>Services</h4>
 <ul>
   <li>The <a href="pm123internal.html#object_repository"><em>object
 repository</em></a>,</li>
@@ -65,37 +69,42 @@ repository</em></a>,</li>
   <li>the <em>object state</em> and</li>
   <li>the <em>tracking of</em> property <em>changes</em>.</li>
 </ul>
-<h5>Properties</h5>
+<h4>Properties</h4>
 <ul>
   <li><tt>Playable</tt> objects are <em>unique</em>
 in the way that for each (equivalent) URL only one object exists. This
 causes all related information to be consistent in the whole
 application.</li>
 </ul>
-<h4><tt><b><b><tt><b><b><a name="PlayableSlice"></a>class
-</b></b></tt></b></b>PlayableSlice</tt></h4>
+<h3><tt><b><b><tt><b><b><a name="PlayableSlice"></a>class
+</b></b></tt></b></b>PlayableSlice</tt></h3>
 <p>A <tt>PlayableSlice</tt> is a <em>reference
-to an <tt>APlayable</tt></em> object which
-only addresses a slice of the referenced object. It overrides the
-optional <em>start and a stop location</em> and the
+to an <a href="#APlayable"><tt>APlayable</tt></a></em> object which
+only addresses a slice of the referenced object. It overrides the <a
+ href="../pdk/datatype.html#ITEM_INFO">ITEM_INFO</a> containing an
+optional alias name optional <em>start and a stop locations</em> and
+the
 aggregate properties that depend on this values.</p>
 <p>The locations are originally stored as <a
  href="../manual/location.html">PM123 location strings</a>.
 This causes a delayed verification of their values and allows to set
-them while the content of the referenced is not yet available.</p>
+them while the referenced content is not yet available.</p>
 <p><tt>PlayableSlice</tt> objects may be <em>nested</em>.
 In this case the outer <tt>PlayableSlice</tt> represents
 the intersection of the two slices. </p>
-<h5>Services</h5>
+<h4>Services</h4>
 <ul>
-  <li>Methods to <em>read and write the start and stop
+  <li>Methods to <em>read the start and stop
 location</em>.</li>
   <li><em>Validation</em> of the start and stop
 position and</li>
   <li>calculation of the recursive playlist information based on
 the slice.</li>
+  <li>The <tt>PlayableSlice</tt> has an <em>in-use
+flag</em> that implies that the underlying playable is in use but
+not the other way around.</li>
 </ul>
-<h5>Properties</h5>
+<h4>Properties</h4>
 <ul>
   <li>In contrast to <tt>Playable</tt> a <tt>PlayableSlice</tt>
 is <em>non-unique</em> and</li>
@@ -103,53 +112,87 @@ is <em>non-unique</em> and</li>
 copying does not affect the <tt>InfoChange</tt> event
 consumers.</li>
 </ul>
-<h4><tt><b><b><tt><b><b><a name="PlayableRef"></a>class
-</b></b></tt></b></b>PlayableRef</tt></h4>
-<p>This is a generic <em>reference to a <tt>APlayable</tt></em>
-object that may <em>override properties</em> of the
-referenced object. In fact you may override anything but aggregate type
-information.</p>
-<h5>Services</h5>
+<h3><tt><b><b><tt><b><b><a name="PlayableRef"></a>class
+</b></b></tt></b></b>PlayableRef</tt></h3>
+<p>This is a refinement of <a href="#PlayableSlice"><tt>PlayableSlice</tt></a>
+that allows to <em>override attribute and meta information</em> too.<br>
+</p>
+<h4>Services</h4>
 <ul>
   <li>Methods to override properties.</li>
   <li>Notification logic that takes care of the overridden
 information.</li>
 </ul>
-<h4><tt><b><b><tt><b><b><a name="PlayableInstance"></a>class
-</b></b></tt></b></b>PlayableInstance</tt></h4>
+<h3><tt><b><b><tt><b><b><a name="PlayableInstance"></a>class
+</b></b></tt></b></b>PlayableInstance</tt></h3>
 <p>A <tt>PlayableInstance</tt> is playlist item, no
-more, no less. It is mainly the same than <tt>PlayableRef</tt>.</p>
-<h5>Services</h5>
+more, no less. It is mainly the same than <a href="#PlayableRef"><tt>PlayableRef</tt></a>,
+but it keep track of the location in the playlist. A <tt>PlayableInstance</tt>
+belongs to exactly one <tt>Playable</tt> of playlist type or it is
+orphaned, i.e. removed from the playlist but still alive because of
+strong references. This causes defined behavior when
+removing a currently playing object from a playlist. Orphaned items
+never can be reattached to a playlist.<br>
+</p>
+<h4>Services</h4>
 <ul>
-  <li>The <tt>PlayableInstance</tt> has a private <em>in-use
-flag</em> that implies that the underlying playable is in use but
-not the other way around.</li>
   <li>Keep track of the <em>index</em> within the
 surrounding collection.</li>
 </ul>
-<h5>Properties</h5>
+<h4>Properties</h4>
 <ul>
   <li>It is <em>non-copyable</em>.</li>
-  <li>It weakly <em>depends on a <tt>PlayableCollection</tt></em>
+  <li>It weakly <em>depends on a <tt>Playable</tt></em>
 (playlist). You cannot get a strong reference to the enclosing
 collection from that.</li>
   <li>A <tt>PlayableInstance</tt> may only be
-created by a <tt>PlayableCollection</tt>,
+created by a <tt>Playable</tt>,
 but it may be removed from the collection and stay alive as long as
-there are active referenced to it. This causes defined behavior when
-removing a currently playing object from a playlist. Note that a
-detached <tt>PlayableInstance</tt> can never be attached
-to a collection. It is only waiting to die.</li>
+there are active referenced to it.</li>
 </ul>
-<h4><tt>class CallstackEntry</tt></h4>
+<h3><tt><a name="Location"></a>class Location</tt></h3>
+<p>A <tt>Location</tt> is a <em>pointer to a particular position
+within any playable</em> object. It may point to a time offset within a
+song as well as to a deep location inside a nested playlist structure
+and keep track of the navigation path.</p>
+<h4>Services</h4>
+<ul>
+  <li>A <tt>Location</tt> provides methods to <em>navigate</em> in
+various ways.</li>
+  <li>A <tt>Location</tt> can be (de)<em>serialized from/to a </em><em>string</em>.</li>
+  <li>It provides methods to calculate <em>partial aggregate
+information</em> of its root that covers either the part before the
+location or the part after the location.<br>
+  </li>
+</ul>
+<h4>Properties</h4>
+<ul>
+  <li>A <tt>Location</tt> always belongs to some <em>Playable as root
+object</em>.</li>
+  <li>It keeps only a <em>weak reference to its root</em>. This
+reference is unchecked, so a location<em> must not exceed the lifetime
+of its root</em>.</li>
+  <li>Locations that belong to the same root are <em>comparable</em>.<br>
+  </li>
+</ul>
+<h3><tt><a name="SongIterator"></a>class SongIterator</tt></h3>
+<p>A <tt>SongIterator</tt> is a refinement of a <a href="#Location"><tt>Location</tt></a>
+that provides additional Methods to keep track of the flattened
+playlist offsets.</p>
+<h4>Services</h4>
+<ul>
+  <li>Calculate the offsets (songs and time) within the current root.<br>
+  </li>
+</ul>
+<h3><tt>class CallstackEntry</tt></h3>
 <p>This is only used by <a href="songiterator.html"><tt>SongIterator</tt></a>
 instances to keep track of the current call stack.</p>
-<h5>Services</h5>
+<h4>Services</h4>
 <ul>
   <li>Provide <em>offset information</em> within the
 current item.</li>
 </ul>
-<h5>Properties</h5>
+<h4>Properties</h4>
 <ul>
   <li>It is <em>non-copyable</em>.</li>
 </ul>
