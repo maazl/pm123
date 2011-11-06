@@ -63,7 +63,7 @@ vio_seek( void* w, ogg_int64_t offset, int whence )
 {
   int    pos = 0;
   XFILE* x   = ((DECODER_STRUCT*)w)->file;
-  DEBUGLOG(("oggplay:vio_seek(%p, %li, %i)\n", w, offset, whence));
+  DEBUGLOG2(("oggplay:vio_seek(%p, %li, %i)\n", w, offset, whence));
 
   if( xio_can_seek(x) < XIO_CAN_SEEK_FAST ) {
     return -1;
@@ -99,7 +99,7 @@ vio_tell( void* w ) {
    or if the end-of-file is met before reaching count. */
 static size_t DLLENTRY
 vio_read( void* ptr, size_t size, size_t count, void* w ) {
-  DEBUGLOG(("oggplay:vio_read(%p, %i, %i, %p)\n", ptr, size, count, w));
+  DEBUGLOG2(("oggplay:vio_read(%p, %i, %i, %p)\n", ptr, size, count, w));
   return xio_fread( ptr, size, count, ((DECODER_STRUCT*)w)->file );
 }
 
