@@ -83,8 +83,15 @@ extern "C" {
  
     XASSERT(expression, condition)
    
-  The condition is only checked in debug builds, but the expresion is always evaluated.
-  If "expression condition" evaluates false the programm is aborted with an error message.
+  The condition is only checked in debug builds, but the expression is always evaluated.
+  If "expression condition" evaluates false the program is aborted with an error message.
+
+- Pointer validation (roughly)
+
+    PASSERT(pointer)
+
+  Asserts if the passed pointer is definitely invalid, i.e. points to bad memory.
+  NULL pointers are valid.
 
 - C runtime assertion
  
@@ -135,6 +142,7 @@ extern "C" {
   #define ASSERT(expr) ((expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
   #define RASSERT(expr) (!!(expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
   #define XASSERT(expr, cond) (((expr) cond) ? (void)0 : dassert(__FILE__, __LINE__, #expr" "#cond))
+  #define PASSERT(expr) ASSERT(!(expr) || ((unsigned)(expr) >= 0x10000 && (unsigned)(expr) < 0x40000000))
 
   void cassert(const char* file, int line, const char* msg);
   #define CASSERT(expr) ((expr) ? (void)0 : cassert(__FILE__, __LINE__, #expr))
@@ -153,6 +161,7 @@ extern "C" {
   #define ASSERT(erpr)
   #define RASSERT(expr) (expr)
   #define XASSERT(expr, cond) (expr)
+  #define PASSERT(expr)
 
   #define CASSERT(expr)
   #define CXASSERT(expr, cond) (expr)

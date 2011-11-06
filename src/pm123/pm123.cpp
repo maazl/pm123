@@ -240,12 +240,12 @@ int main(int argc, char** argv)
     // Pipe command
     xstring pipe_name(Cfg::Get().pipe_name);
     if (amp_pipe_open_and_write(pipe_name, cmd.cdata(), cmd.length()))
-      return 0;
+      goto exit;
     if (command && !start)
       amp_fail("Cannot write command to pipe %s.", pipe_name.cdata());
   }
   else if (start && amp_pipe_check())
-    return 0;
+    goto exit;
 
   // prepare plug-in manager
   plugman_init();
@@ -313,6 +313,8 @@ int main(int argc, char** argv)
   ///////////////////////////////////////////////////////////////////////////
   Playable::Uninit();
   plugman_uninit();
+ exit:
+  config_deleg.detach();
   Cfg::Uninit();
 
   WinDestroyMsgQueue(hmq);

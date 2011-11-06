@@ -111,6 +111,18 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
   }
 }
 
+#ifdef DEBUG_LOG
+xstring PlayableSetBase::DebugDump() const
+{ xstringbuilder sb;
+  for (size_t i = 0; i < size(); ++i)
+  { if (i)
+      sb.append(',');
+    sb.appendf("%p", (*this)[i]);
+  }
+  return sb;
+}
+#endif
+
 
 PlayableSet::PlayableSet(size_t size)
 : sorted_vector<Playable, Playable, &CompareInstance<Playable> >(size)

@@ -210,10 +210,9 @@ class APlayable
   /// @brief Place a request for the kind informations identified by the bit vector \a what
   /// at the priority level \a pri. But only if the current reliability (according to CheckInfo)
   /// is less than \a rel.
-  /// @details The Information will be loaded at the next call to DoLoadInfo with less or same or priority.
   /// @param what DoRequestInfo resets the bits in \a what that already have the requested reliability.
   /// @return The function returns the bits in what that did not cause a no-op with respect to placing the request.
-  ///
+  /// @details The Information will be loaded at the next call to DoLoadInfo with less or same or priority.
   /// If DoRequestInfo is called with \c PRI_None the call should not change anything and
   /// the return value must always be \c IF_None. This is used to check for information availability.
   /// Any implementing class must ensure that all returned bits cause an InfoChange event
@@ -243,6 +242,8 @@ class APlayable
   virtual AggregateInfo&      DoAILookup(const PlayableSetBase& exclude) = 0;
   /// DoRequestAI is the context sensitive variant of DoRequestInfo to request aggregate information.
   /// The AggregateInfo reference MUST have been returned by DoAILookup of the same object.
+  /// @remarks Note that DoRequestAI may return more bits than requested. It may even return bits
+  /// that are not valid for an aggregate info request, if they are required to compute the result.
   virtual InfoFlags           DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel) = 0;
 
   //virtual InfoFlags           DoGetOutstanding(Priority pri) = 0;

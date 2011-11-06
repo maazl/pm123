@@ -239,7 +239,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 }
 
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p)::DoRequestInfo(%x, %d, %d)\n", this, what, pri, rel));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
 
   if (!IsItemOverridden())
     return CallDoRequestInfo(*RefTo, what, pri, rel);
@@ -305,7 +305,7 @@ AggregateInfo& PlayableSlice::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), &ai, what, pri, rel));
 
   // We have to check whether the supplied AggregateInfo is mine or from *RefTo.
   if (!CIC || !CIC->IsMine(ai))
@@ -456,7 +456,7 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
 }
 
 void PlayableSlice::DoLoadInfo(JobSet& job)
-{ DEBUGLOG(("PlayableSlice(%p)::DoLoadInfo({%u,})\n", this, job.Pri));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoLoadInfo({%u,})\n", this, GetPlayable().URL.getShortName().cdata(), job.Pri));
   // Load base info first.
   CallDoLoadInfo(*RefTo, job);
 

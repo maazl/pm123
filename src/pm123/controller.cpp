@@ -100,6 +100,7 @@ class CtrlImp
 
   // Occasionally used constant.
   static const vector_int<PlayableInstance> EmptyStack;
+  static JobSet SyncJob;
 
  private: // internal functions, not thread safe
   /// Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
@@ -240,7 +241,7 @@ delegate<void, const OUTEVENTTYPE>          CtrlImp::OutEventDelegate(&CtrlImp::
 delegate<void, const PlayableChangeArgs>    CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
 
 const vector_int<PlayableInstance> CtrlImp::EmptyStack;
-
+JobSet CtrlImp::SyncJob(PRI_Sync);
 
 int_ptr<APlayable> Ctrl::GetCurrentSong()
 { DEBUGLOG(("Ctrl::GetCurrentSong() - %u\n", CtrlImp::PrefetchList.size()));
@@ -417,7 +418,7 @@ void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const v
 
 bool CtrlImp::SkipCore(Location& si, int count)
 { DEBUGLOG(("Ctrl::SkipCore({%s}, %i)\n", si.Serialize().cdata(), count));
-  const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, JobSet::SyncJob);
+  const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, SyncJob);
   if (rc)
   { StrArg = rc;
     Flags = RC_BadIterator;
@@ -432,7 +433,7 @@ bool CtrlImp::AdjustNext(Location& si)
   ps.RequestInfo(IF_Tech, PRI_Sync);
   if (ps.GetInfo().tech->attributes & TATTR_SONG)
     return true;
-  const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, JobSet::SyncJob);
+  const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, SyncJob);
   DEBUGLOG(("Ctrl::AdjustNext: %s\n", rc.cdata()));
   return !rc;  
 }
@@ -554,7 +555,7 @@ void CtrlImp::CheckPrefetch(double pos)
       { PrefetchEntry& pe = *ped[--n]; 
         if (plp && pe.Loc.GetLevel() >= 1)
         { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
-          if (pe.Loc.NavigateCount(1, TATTR_SONG, JobSet::SyncJob, 1))// we played the last item of a top level entry
+          if (pe.Loc.NavigateCount(1, TATTR_SONG, SyncJob, 1))// we played the last item of a top level entry
             plp->RemoveItem(pip);
         }
         delete &pe;
@@ -736,10 +737,10 @@ void CtrlImp::MsgPlayStop()
     if ( Cfg::Get().retainonstop && Flags != Op_Reset
       && Current()->Loc.GetCurrent().GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
-      Current()->Loc.Navigate(time, JobSet::SyncJob);
+      Current()->Loc.Navigate(time, SyncJob);
     } else
     { int_ptr<Location> start = Current()->Loc.GetCurrent().GetStartLoc();
-      Current()->Loc.Navigate(start ? start->GetPosition() : 0, JobSet::SyncJob);
+      Current()->Loc.Navigate(start ? start->GetPosition() : 0, SyncJob);
     }
   }
 
@@ -814,11 +815,11 @@ void CtrlImp::MsgNavigate()
     // We must fetch the current playing time first, because this may change Current().
     PM123_TIME time = FetchCurrentSongTime();
     sip = new Location(Current()->Loc);
-    sip->Navigate(time, JobSet::SyncJob);
+    sip->Navigate(time, SyncJob);
   }
   if (StrArg && StrArg.length())
   { const char* cp = StrArg.cdata();
-    const Location::NavigationResult rc = sip->Deserialize(cp, JobSet::SyncJob);
+    const Location::NavigationResult rc = sip->Deserialize(cp, SyncJob);
     if (rc && !(Flags & 0x04))
     { StrArg = rc;
       NumArg = cp - StrArg.cdata();
@@ -830,7 +831,7 @@ void CtrlImp::MsgNavigate()
   } else
   { if (Flags & 0x01)
       NumArg += sip->GetPosition();
-    const Location::NavigationResult rc = sip->Navigate(NumArg, JobSet::SyncJob);
+    const Location::NavigationResult rc = sip->Navigate(NumArg, SyncJob);
     if (rc && !(Flags & 0x04))
     { StrArg = rc;
       NumArg = -1;
@@ -894,7 +895,7 @@ void CtrlImp::MsgSkip()
       switch ((int)NumArg)
       {case 1:
        case -1:
-        if (!si.NavigateCount((int)NumArg, TATTR_SONG, JobSet::SyncJob))
+        if (!si.NavigateCount((int)NumArg, TATTR_SONG, SyncJob))
           goto ok;
       }
     }
@@ -1019,7 +1020,7 @@ void CtrlImp::MsgLocation()
     Location*& sip = (Location*&)PtrArg;
     PM123_TIME pos = FetchCurrentSongTime();
     *sip = Current()->Loc; // copy
-    sip->Navigate(pos, JobSet::SyncJob);
+    sip->Navigate(pos, SyncJob);
   }
   Reply(RC_OK);
 }
@@ -1142,6 +1143,8 @@ void CtrlImp::Worker()
       } else
       { // Do the work
         (((CtrlImp*)ccp)->*cmds[ccp->Cmd])();
+        // Always clear dependencies - they make no sense anyway.
+        SyncJob.Rollback();
       }
       DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", ccp->Cmd, ccp->Flags));
       fail = ccp->Flags != RC_OK;

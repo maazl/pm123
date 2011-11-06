@@ -43,6 +43,7 @@
 #ifdef DEBUG
 void Location::RootChange(const PlayableChangeArgs& args)
 { DEBUGLOG(("Location(%p)::RootChange({%p,...})\n", this, &args.Instance));
+  // Check whether the root dies before this instance.
   ASSERT((args.Changed|args.Loaded|args.Invalidated) || Root != &args.Instance);
 }
 

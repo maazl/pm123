@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,82 +30,169 @@
 #define INCL_BASE
 #include "event.h"
 #include "cpputil.h"
+
+#include <cpp/interlockedptr.h>
 #include <os2.h>
 
 #include <debuglog.h>
 
 
+Mutex event_base::Mtx;
+
+event_base::delegate_iterator::delegate_iterator(event_base& root)
+: Next(NULL)
+, Root(root)
+{ DEBUGLOG(("delegate_iterator(%p)::delegate_iterator(&%p)\n", this, &root));
+  // register iterator
+  register delegate_iterator* old_root = root.Iter;
+  do
+  { Link = old_root;
+    old_root = InterlockedCxc(&root.Iter, old_root, this);
+  } while (old_root != Link);
+  // Start iteration
+  Next = root.Deleg;
+}
+
+event_base::delegate_iterator::~delegate_iterator()
+{ DEBUGLOG(("delegate_iterator(%p{%p})::~delegate_iterator()\n", this, &Root));
+  // cancel iterator registration
+  Mutex::Lock lock(Mtx);
+  delegate_iterator** ipp = &Root.Iter;
+  for (;;)
+  { delegate_iterator* ip = *ipp;
+    if (!ip)
+      break;
+    if (ip == this)
+    { *ipp = ip->Link;
+      return;
+    }
+    ipp = &ip->Link;
+  }
+  ASSERT(false);
+}
+
+delegate_base* event_base::delegate_iterator::next()
+{ delegate_base* mp;
+  // next
+  Mutex::Lock lock(Mtx);
+  do
+  { mp = Next;
+    if (!mp)
+      break; // done
+    Next = mp->Link;
+  } while (mp->Ev != &Root); // skip if detached
+  return mp;
+}
+
 void event_base::operator+=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator+=(&%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count.Peek()));
-  ASSERT(d.Ev == NULL);
-  ASSERT((unsigned)&d >= 0x10000); // OS/2 trick to validate pointer roughly.
-  CritSect cs;
+{ DEBUGLOG(("event_base(%p)::operator+=(&%p{%p}) - %p\n", this, &d, d.Rcv, Deleg));
+  ASSERT(!d.Ev);
+  PASSERT(&d);
   d.Ev = this;
-  d.Link = Root;
-  Root = &d;
+  register delegate_base* old_root = Deleg;
+  do
+  { d.Link = old_root;
+    old_root = InterlockedCxc(&Deleg, old_root, &d);
+  } while (old_root != d.Link);
 }
 
 bool event_base::operator-=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator-=(&%p{%p}) - %u\n", this, &d, d.Rcv, Count.Peek()));
-  event_base* ev = NULL; // removed event, must not be dereferenced
-  delegate_base** mpp = &Root;
-  { CritSect cs;
-    while (*mpp != NULL)
-    { if (*mpp == &d)
-      { ev = d.Ev; // do not assert in crtitical section (see below)
-        d.Ev = NULL;
-        *mpp = d.Link;
+{ DEBUGLOG(("event_base(%p)::operator-=(&%p{%p})\n", this, &d, d.Rcv));
+  PASSERT(&d);
+  // 1. logical detach atomically
+  event_base* ev = InterlockedXch(&d.Ev, (event_base*)NULL);
+  if (ev != this)
+    return false;
+  ASSERT(ev == this);
+
+  { Mutex::Lock lock(Mtx);
+    // check iterators
+    delegate_iterator* ip = Iter;
+    while (ip)
+    { if (ip->Next == &d)
+        ip->Next = d.Link;
+      ip = ip->Link;
+    }
+    // remove from list
+    delegate_base** mpp = &Deleg;
+    for (;;)
+    { delegate_base* mp = *mpp;
+      if (!mp)
         break;
+      if (mp == &d)
+      { PASSERT(d.Link);
+        *mpp = d.Link;
+        mp->Link = NULL;
+        goto ok;
       }
-      mpp = &(*mpp)->Link;
+      mpp = &mp->Link;
     }
   }
+  ASSERT(false);
+ ok:
   DEBUGLOG(("event_base::operator-= %p\n", ev));
-  ASSERT(ev == NULL || ev == this);
-  return ev != NULL;
+  return true;
 }
 
 void event_base::operator()(dummy& param)
-{ DEBUGLOG(("event_base(%p)::operator()(%p) - %p\n", this, &param, Root));
-  SpinLock::Use useev(Count);
-  // Fetch and lock delegate
-  delegate_base* mp;
-  { CritSect cs;
-    mp = Root;
-    if (mp == NULL)
-      return;
-    mp->Count.Inc();
-  }
-  for(;;)
-  { DEBUGLOG(("event_base::operator() - %p{%p,%p,%p,%p,%u} &%p{%p}\n",
-      mp, mp->Fn, mp->Rcv, mp->Ev, mp->Link, mp->Count.Peek(), &param, param.dummy));
-    (*mp->Fn)(mp->Rcv, param); // callback
-    // unlock delegate and fetch and lock next
-    do
-    { CritSect cs;
-      mp->Count.Dec();
-      mp = mp->Link;
-      if (mp == NULL)
-        return; // no more
-      mp->Count.Inc();
-      // Skip detached delegates (unlikely, but may happen because of threading)
-    } while (mp->Ev == NULL);
-  }
+{ DEBUGLOG(("event_base(%p)::operator()(%p) - %p, %p\n", this, &param, Deleg, Iter));
+  delegate_iterator iter(*this);
+  do
+  { delegate_base* mp = iter.next();
+    if (!mp)
+      break; // done
+    PASSERT(mp);
+    // invoke observer
+    DEBUGLOG(("event_base::operator() - %p{%p,%p,%p,%p} &%p{%p}\n",
+      mp, mp->Fn, mp->Rcv, mp->Ev, mp->Link, &param, param.dummy));
+    if (mp->Ev == this)
+      (*mp->Fn)(mp->Rcv, param);
+  } while (true);
 }
 
 void event_base::reset()
-{ DEBUGLOG(("event_base(%p)::reset() %p\n", this, Root));
-  { CritSect cs;
-    delegate_base* mp = Root;
-    Root = NULL;
-    while (mp != NULL)
-    { mp->Ev = NULL;
-      delegate_base* mp2 = mp->Link;
-      mp->Link = NULL; // Abort any currently working operator() after this item.
-      mp = mp2;
-    }
+{ DEBUGLOG(("event_base(%p)::reset() %p, %p\n", this, Deleg, Iter));
+  if (!Deleg && !Iter)
+    return; // fast path
+  Mutex::Lock lock(Mtx);
+  // Cancel iterators
+  delegate_iterator** ipp = &Iter;
+  for (;;)
+  { delegate_iterator* ip = *ipp;
+    if (!ip)
+      break;
+    *ipp = NULL;
+    ipp = &ip->Link;
   }
-  sync();
+  // Cancel registrations
+  delegate_base** mpp = &Deleg;
+  for (;;)
+  { delegate_base* mp = *mpp;
+    if (!mp)
+      break;
+    event_base* ev = InterlockedXch(&mp->Ev, (event_base*)NULL);
+    if (ev)
+    { ASSERT(ev == this);
+      *mpp = mp->Link;
+      mp->Link = NULL;
+    } else
+      mpp = &mp->Link;
+  }
+}
+
+void event_base::sync()
+{ DEBUGLOG(("event_base(%p)::Wait() - %p\n", this, Iter));
+  unsigned i = 5; // fast cycles
+  do
+  { if (!Iter)
+      return;
+    DosSleep(0);
+  } while (--i);
+  // slow cycles
+  while (!Iter)
+  { DEBUGLOG(("event_base::Wait loop %p\n", Iter));
+    DosSleep(1);
+  }
 }
 
 
@@ -114,12 +201,20 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
   Rcv(rcv),
   Ev(&ev)
 { DEBUGLOG(("delegate_base(%p)::delegate_base(&%p, %p, %p)\n", this, &ev, fn, rcv));
-  CritSect cs;
-  Link = ev.Root;
-  ev.Root = this;
+  register delegate_base* old_root = ev.Deleg;
+  do
+  { Link = old_root;
+    old_root = InterlockedCxc(&ev.Deleg, old_root, this);
+  } while (old_root != Link);
 } 
 
-void delegate_base::rebind(func_type fn, const void* rcv)
+delegate_base::~delegate_base()
+{ DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev));
+  detach();
+  sync();
+}
+
+/*void delegate_base::rebind(func_type fn, const void* rcv)
 { DEBUGLOG(("delegate_base(%p)::rebind(%p, %p)\n", this, fn, rcv));
   sync();
   CritSect cs;
@@ -133,18 +228,24 @@ void delegate_base::swap_rcv(delegate_base& r)
   CritSect cs;
   swap(Fn,  r.Fn);
   swap(Rcv, r.Rcv);
-}
+}*/
 
 bool delegate_base::detach()
 { DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
   bool ret = false;
   if (Ev)
   { ret = (*Ev) -= *this;
-    ASSERT(Ev == NULL);
+    ASSERT(!Ev);
   }
-  sync();
   return ret;
-} 
+}
+
+void delegate_base::sync()
+{ DEBUGLOG(("delegate_base(%p)::sync() - %p\n", this, Ev));
+  // Hmm, not that nice
+  if (Ev)
+    Ev->sync();
+}
 
 /*void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
 { WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), receiver->MP2);

@@ -123,6 +123,7 @@ Playable::~Playable()
   InfoChange(PlayableChangeArgs(*this));
   // No more events.
   InfoChange.reset();
+  InfoChange.sync();
 }
 
 void Playable::SetAlias(const xstring& alias)
@@ -286,7 +287,7 @@ void Playable::RaiseInfoChange(InfoFlags loaded, InfoFlags changed)
 }
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %u, %u)\n", this, what, pri, rel));
+{ DEBUGLOG(("Playable(%p{%s})::DoRequestInfo(%x&, %u, %u)\n", this, URL.getShortName().cdata(), what, pri, rel));
   // Mask info's that are always available
   what &= IF_Decoder|IF_Aggreg;
 
@@ -303,8 +304,8 @@ InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel
 }
 
 AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
-{ DEBUGLOG(("Playable(%p{%s})::DoAILookup({%u,})\n", this, URL.getDisplayName().cdata(), exclude.size()));
-  if (Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID) == TATTR_PLAYLIST)
+{ DEBUGLOG(("Playable(%p{%s})::DoAILookup({%u,})\n", this, URL.getShortName().cdata(), exclude.size()));
+  if ((Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // Playlist
     if (!Playlist) // Fastpath
     { Mutex::Lock lock(Mtx);
@@ -319,7 +320,8 @@ AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
+{ DEBUGLOG(("Playable(%p{%s})::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this,
+    URL.getShortName().cdata(), &ai, ai.Exclude.DebugDump().cdata(), what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
 
   InfoFlags what2 = IF_None;
@@ -328,10 +330,12 @@ InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri
   else if (what & IF_Rpl)
     what2 = IF_Tech|IF_Child; // required for RPL_INFO aggregate
   what2 = DoRequestInfo(what2, pri, rel);
-  return what2 | ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+  what2 |= ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+  DEBUGLOG(("Playable::DoRequestAI(,%x&,) : %x\n", what, what2));
+  return what2;
 }
 
-void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
+void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
 { DEBUGLOG(("Playable(%p)::CalcRplInfo(, {%x}, , {%u,})\n", this, upd.GetWhat(), job.Pri));
   // The entire implementation of this function is basically lock-free.
   // This means that the result may not be valid after the function finished.
@@ -342,18 +346,27 @@ void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, Playable
   InfoFlags whatok = upd & IF_Aggreg;
   if (whatok == IF_None)
     return; // Nothing to do
+
+  // Calculate exclusion list including this
+  PlayableSet excluding(cie.Exclude.size() + 1);
+  for (size_t i = 0; i < cie.Exclude.size(); ++i)
+    excluding.append() = cie.Exclude[i]; // At this point the sort order is implied.
+  excluding.add(*this);
+
   RplInfo rpl;
   DrplInfo drpl;
+  rpl.lists = 1; // At least one list: our own.
+
   // Iterate over children
   int_ptr<PlayableInstance> pi;
   while ((pi = GetNext(pi)) != NULL)
   { // Skip exclusion list entries to avoid recursion.
-    if (&pi->GetPlayable() == this || cie.Exclude.contains(pi->GetPlayable()))
+    if (excluding.contains(pi->GetPlayable()))
     { DEBUGLOG(("Playable::CalcRplInfo - recursive: %p->%p!\n", pi.get(), &pi->GetPlayable()));
       continue;
     }
     InfoFlags what2 = upd & IF_Aggreg;
-    const volatile AggregateInfo& ai = job.RequestAggregateInfo(*pi, cie.Exclude, what2);
+    const volatile AggregateInfo& ai = job.RequestAggregateInfo(*pi, excluding, what2);
     whatok &= ~what2;
     // TODO: Increment unk_* counters instead of ignoring incomplete subitems?
     if (whatok & IF_Rpl)
@@ -418,8 +431,12 @@ void Playable::DoLoadInfo(JobSet& job)
     RaiseInfoChange(upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed);
   }
 
-  // Calculate RPL_INFO if not already done by dec_fileinfo.
-  if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
+  if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
+  { // Always render aggregate info of invalid items, because this is cheap.
+    info.Rpl.invalid = 1;
+    upd.Extend(IF_Aggreg);
+
+  } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
   { ASSERT(Playlist != NULL);
     // For the event below
     PlayableChangeArgs args(*this);
@@ -441,9 +458,8 @@ void Playable::DoLoadInfo(JobSet& job)
     }
 
   } else if (upd & IF_Aggreg)
-  { if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
-    { info.Rpl.invalid = 1;
-    } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
+  { // Calculate RPL_INFO if not already done by dec_fileinfo.
+    if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
     { info.Rpl.songs   = 1;
       info.Drpl.totallength = Info.Obj.songlength;
       if (info.Drpl.totallength < 0)

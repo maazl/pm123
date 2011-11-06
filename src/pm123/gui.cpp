@@ -1896,8 +1896,10 @@ void GUIImp::Uninit()
   PlaylistView::DestroyAll();
   InspectorDialog::UnInit();
 
+  CurrentDeleg.detach();
   ControllerDeleg.detach();
   PluginDeleg.detach();
+  ConfigDeleg.detach();
   // deinitialize all visual plug-ins
   vis_UninitAll();
 

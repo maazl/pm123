@@ -285,10 +285,4 @@ class InfoBundle
   //static InfoFlags       ContainsInfo(const INFO_BUNDLE& info);
 };
 
-/* Facade that sets all info types not in mask to NULL. */
-/*class MaskedInfoBundle : public INFO_BUNDLE
-{public:
-  MaskInfoBundle(const INFO_BUNDLE& info, InfoFlags mask);
-};*/
-
 #endif

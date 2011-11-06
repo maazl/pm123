@@ -34,6 +34,7 @@
 
 #define SCALAR_MAGIC 0xdddddddd
 #define ARRAY_MAGIC 0xeeeeeeee
+#define NEW_MAGIC 0xbbbbbbbb
 #define FREE_MAGIC 0xcccccccc
 
 
@@ -50,6 +51,7 @@ void* operator new(size_t len)
   storage->length = len;
   storage->magic = SCALAR_MAGIC;
   ++storage;
+  memset(storage, NEW_MAGIC, len);
   *(int*)((char*)storage+len) = SCALAR_MAGIC;
   return storage;
 }

@@ -29,6 +29,7 @@
 
 #include "waitinfo.h"
 #include "playableset.h"
+#include "playable.h"
 
 #include <debuglog.h>
 
@@ -98,6 +99,23 @@ void DependencyInfoPath::Add(APlayable& inst, InfoFlags what)
     ep = new Entry(inst, what);
 }
 
+#ifdef DEBUG_LOG
+void DependencyInfoPath::DumpSet(xstringbuilder& dest, const SetType& set)
+{ for (Entry*const* epp = set.begin(); epp != set.end(); ++epp)
+  { if (epp != set.begin())
+      dest.append(", ");
+    const Entry& entry = **epp;
+    dest.appendf("%p{%s} : %x", &entry.Inst, entry.Inst->GetPlayable().URL.getShortName().cdata(), entry.What);
+  }
+}
+
+xstring DependencyInfoPath::DebugDump() const
+{ xstringbuilder sb;
+  sb.append("MandatorySet = ");
+  DumpSet(sb, MandatorySet);
+  return sb;
+}
+#endif
 
 /****************************************************************************
 *
@@ -202,6 +220,16 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
   r.Clear();
 }
 
+#ifdef DEBUG_LOG
+xstring DependencyInfoSet::DebugDump() const
+{ xstringbuilder sb;
+  sb.append("MandatorySet = ");
+  DumpSet(sb, MandatorySet);
+  sb.append("; OptionalSet = ");
+  DumpSet(sb, OptionalSet);
+  return sb;
+}
+#endif
 
 /****************************************************************************
 *
@@ -228,34 +256,41 @@ void DependencyInfoWorker::Start()
       DelegList.reserve(Data.OptionalSet.size());
       size_t i = 0;
       while (i < Data.OptionalSet.size())
-      { DependencyInfoSet::Entry* ep = Data.OptionalSet[i];
-        DelegList.append() = new DelegType(ep->Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
-        ep->What = ep->Inst->RequestInfo(ep->What, PRI_None);
-        if (ep->What == IF_None)
+      { DependencyInfoSet::Entry* ep2 = Data.OptionalSet[i];
+        DEBUGLOG(("DependencyInfoWorker::Start checking optional entry %p{%s} : %x\n",
+          &ep2->Inst, ep2->Inst->GetPlayable().URL.getShortName().cdata(), ep2->What));
+        DelegList.append() = new DelegType(ep2->Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
+        ep2->What = ep2->Inst->RequestInfo(ep2->What, PRI_None);
+        if (ep2->What == IF_None)
         { DelegList.clear();
           goto completed;
         }
       }
       // Now wait for optional entry.
-      return;
+      goto wait;
     }
     ep = Data.MandatorySet.erase(Data.MandatorySet.size()-1);
-
+    DEBUGLOG(("DependencyInfoWorker::Start checking mandatory dependency %p{%s} : %x\n",
+      &ep->Inst, ep->Inst->GetPlayable().URL.getShortName().cdata(), ep->What));
     ep->What = ep->Inst->RequestInfo(ep->What, PRI_None);
     if (ep->What)
-    { NowWaitingFor = ep->What;
+    { DEBUGLOG(("DependencyInfoWorker::Start still waiting for %x\n", ep->What));
+      NowWaitingFor = ep->What;
       ep->Inst->GetInfoChange() += Deleg;
       // double check
       ep->What = ep->Inst->RequestInfo(ep->What, PRI_None);
       if ( ep->What != IF_None // no double check hit
-        && !Deleg.detach() )   // or /we/ did not deregister ourself
-        return;                // => wait for other thread
+        || !Deleg.detach() )   // or /we/ did not deregister ourself
+        goto wait;             // => wait for other thread
       // else move on with the next queue item
     }
+    DEBUGLOG(("DependencyInfoWorker::Start item has already completed.\n"));
   }
  completed:
   // Completed (handled outside the mutex)
   OnCompleted();
+ wait:
+  DEBUGLOG(("DependencyInfoWorker::Start done\n"));
 }
 
 void DependencyInfoWorker::Cancel()
@@ -314,18 +349,16 @@ void WaitDependencyInfo::OnCompleted()
 *
 ****************************************************************************/
 
-JobSet JobSet::SyncJob(PRI_Sync);
-
 InfoFlags JobSet::RequestInfo(APlayable& target, InfoFlags what)
 { DEBUGLOG(("JobSet::RequestInfo(&%p, %x)\n", &target, what));
-  what = target.RequestInfo(what, Pri);
+  InfoFlags what2 = target.RequestInfo(what, Pri);
   if (what)
     Depends.Add(target, what);
-  return what;
+  return what2;
 }
 
 volatile const AggregateInfo& JobSet::RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what)
-{ DEBUGLOG(("RequestAggregateInfo(&%p, {%u,}, %x)\n", &target, excluding.size(), what));
+{ DEBUGLOG(("JobSet::RequestAggregateInfo(&%p, {%u,}, %x)\n", &target, excluding.size(), what));
   volatile const AggregateInfo& ret = target.RequestAggregateInfo(excluding, what, Pri);
   if (what)
     Depends.Add(target, what);

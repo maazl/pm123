@@ -82,6 +82,9 @@ class DependencyInfoPath
 
  protected:
   static SetType&           AccessMandatorySet(DependencyInfoPath& that) { return that.MandatorySet; }
+  #ifdef DEBUG_LOG
+  static void               DumpSet(xstringbuilder& dest, const SetType& set);
+  #endif
  public:
   /// Swap two instances.
   void                      Swap(DependencyInfoPath& r) { MandatorySet.swap(r.MandatorySet); }
@@ -96,6 +99,9 @@ class DependencyInfoPath
   void                      Add(APlayable& inst, InfoFlags what);
   /// Reinitialize
   void                      Clear()             { MandatorySet.clear(); }
+  #ifdef DEBUG_LOG
+  xstring                   DebugDump() const;
+  #endif
 };
 /** @brief Set of required dependencies to complete a request.
  * @details This set consists of two parts: a list of mandatory dependencies and a list of
@@ -128,6 +134,9 @@ class DependencyInfoSet : private DependencyInfoPath
   /// which makes the optional condition always true. So in fact the optional list will contain
   /// either no or at least two entries.
   void                      Join(DependencyInfoPath& r);
+  #ifdef DEBUG_LOG
+  xstring                   DebugDump() const;
+  #endif
 };
 
 
@@ -142,7 +151,7 @@ class DependencyInfoWorker
   typedef class_delegate<DependencyInfoWorker, const PlayableChangeArgs> DelegType;
  protected:
   /// @brief Mutex to protect the instance data.
-  /// @remarks The mutex is static to save resources. However, threads should not own it for long.
+  /// @remarks The mutex is static to save resources. Threads should not own it for long.
   static Mutex              Mtx;
   /// Remaining dependencies. Must be initialized before \c Start().
   DependencyInfoSet         Data;
@@ -197,9 +206,7 @@ class DependencyInfoWorker
 /// The methods \c RequestInfo and \c RequestAggregateInfo provide a convenient way
 /// to ensure this.
 class JobSet
-{public:
-  static JobSet             SyncJob;
- private:
+{private:
   /// Next dependency set.
   DependencyInfoPath        Depends;
  public:
@@ -217,8 +224,10 @@ class JobSet
   /// Request aggregate information for \a target and if unsuccessful
   /// store \a target in the dependency list.
   volatile const AggregateInfo& RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what);
-  /// Commit partial Job
+  /// Commit partial job.
   void                      Commit()            { AllDepends.Join(Depends); }
+  /// Discard partial job.
+  void                      Rollback()          { Depends.Clear(); }
 };
 
 
