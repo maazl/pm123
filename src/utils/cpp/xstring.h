@@ -35,7 +35,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <cpp/smartptr.h>
@@ -391,7 +390,7 @@ class xstringbuilder
   /// Create string builder with initial capacity. (The length is still 0.)
   xstringbuilder(size_t cap);
   /// Destroy xstringbuilder and it's data.
-  ~xstringbuilder()                         { if (Cap) free(Data); }
+  ~xstringbuilder()                         { if (Cap) delete[] Data; }
 
   /// Current length of the string.
   size_t      length() const                { return Len; }
@@ -403,6 +402,9 @@ class xstringbuilder
   xstring     get() const                   { return xstring(Data, Len); }
   /// @brief Implicit conversion to \c xstring, never NULL.
   operator    xstring() const               { return xstring(Data, Len); }
+  /// Return a C style string that must be freed with \c delete[].
+  /// This function implicitly resets the \c xstringbuilder to its initial state.
+  char*       detach_array();
 
   /// Read the \a at's character.
   char        operator[](size_t at) const   { ASSERT(at <= Len); return Data[at]; }
@@ -423,7 +425,7 @@ class xstringbuilder
   /// Adjust capacity. This never modifies the logical content.
   void        reserve(size_t cap);
 
-  /// Reset the \c xstringbuilder to its initial state. The frees the buffer.
+  /// Reset the \c xstringbuilder to its initial state. This frees the buffer.
   void        reset();
   /// Clear the \c xstringbuilder and adjust it's capacity to cap.
   void        reset(size_t cap)             { Len = 0; reserve(cap); }
@@ -560,7 +562,7 @@ class xstringbuilder
 inline void xstringbuilder::reset()
 { Len = 0;
   if (Cap)
-    free(Data);
+    delete[] Data;
   Cap = 0;
   Data = Empty;
 }

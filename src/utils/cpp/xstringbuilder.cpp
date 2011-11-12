@@ -43,16 +43,14 @@ char* xstringbuilder::auto_alloc_raw(size_t& cap)
   if (newcap > cap)
     cap = newcap;
   // allocate new storage preserving content
-  char* newdata = (char*)malloc(cap+1);
-  ASSERT(newdata);
-  return newdata;
+  return new char[cap+1];
 }
 
 void xstringbuilder::auto_alloc(size_t cap)
 { char* newdata = auto_alloc_raw(cap);
   if (Cap)
   { memcpy(newdata, Data, Len);
-    free(Data);
+    delete[] Data;
   }
   // done
   Data = newdata;
@@ -72,7 +70,7 @@ char* xstringbuilder::replace_core(size_t at, size_t len1, size_t len2)
       if (Cap)
       { memcpy(newdata, Data, at);
         memcpy(newdata+at+len2, start, Len-end+1);
-        free(Data);
+        delete[] Data;
       }
       Cap = newcap;
       Data = newdata;
@@ -88,11 +86,23 @@ xstringbuilder::xstringbuilder(size_t cap)
 : Cap(cap),
   Len(0)
 { if (cap)
-  { Data = (char*)malloc(cap+1);
-    ASSERT(Data);
+  { Data = new char[cap+1];
     Data[0] = 0;
   } else
     Data = Empty;
+}
+
+char* xstringbuilder::detach_array()
+{ char* ret;
+  Len = 0;
+  if (Cap)
+  { ret = Data;
+    delete[] Data;
+  } else
+    ret = strdup(Empty);
+  Cap = 0;
+  Data = Empty;
+  return ret;
 }
 
 void xstringbuilder::resize(size_t len)
@@ -119,14 +129,13 @@ void xstringbuilder::reserve(size_t cap)
     return; // no-op
   // adjust capacity
   if (cap == 0)
-  { free(Data);
+  { delete[] Data;
     Data = Empty;
   } else
-  { char* newdata = (char*)malloc(cap+1);
-    ASSERT(newdata);
+  { char* newdata = new char[cap+1];
     if (Cap)
     { memcpy(newdata, Data, Len+1);
-      free(Data);
+      delete[] Data;
     } else
       newdata[0] = 0;
     Data = newdata;
@@ -145,7 +154,7 @@ void xstringbuilder::append(const char* str, size_t len)
     memcpy(newdata+Len, str, len); // append first to support in place operation.
     if (Cap)
     { memcpy(newdata, Data, Len);
-      free(Data);
+      delete[] Data;
     }
     Data = newdata;
     Cap = newcap;
@@ -191,7 +200,7 @@ void xstringbuilder::insert(size_t at, char c)
     if (Cap)
     { memcpy(newdata, Data, at);
       memcpy(newdata+at+1, Data+at, Len-at);
-      free(Data);
+      delete[] Data;
     }
     Data = newdata;
     Cap = newcap;
