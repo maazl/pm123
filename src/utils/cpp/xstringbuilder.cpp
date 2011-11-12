@@ -97,7 +97,6 @@ char* xstringbuilder::detach_array()
   Len = 0;
   if (Cap)
   { ret = Data;
-    delete[] Data;
   } else
   { ret = new char[1];
     *ret = 0;
