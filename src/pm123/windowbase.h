@@ -49,8 +49,7 @@ class DialogBase
 {public:
   enum DlgFlags
   { DF_None           = 0x00,
-    DF_AutoResize     = 0x01,
-    DF_AutoSizeConstr = 0x02
+    DF_AutoResize     = 0x01
   };
  private:
   // wrap pointer to keep PM happy
@@ -122,6 +121,7 @@ class DialogBase
   // Force the window to close
   void              Destroy()       { WinDestroyWindow(HwndFrame); }
 };
+FLAGSATTRIBUTE(DialogBase::DlgFlags);
 
 
 class NotebookDialogBase : public DialogBase

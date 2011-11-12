@@ -110,14 +110,16 @@ MRESULT DialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_ADJUSTWINDOWPOS:
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
-      if ((Flags & DF_AutoSizeConstr) && pswp->fl & SWP_SIZE)
+      DEBUGLOG(("DialogBase::DlgProc WM_ADJUSTWINDOWPOS: %x\n", pswp->fl));
+      if ((Flags & DF_AutoResize) && (pswp->fl & SWP_SIZE))
         dlg_adjust_resize(GetHwnd(), pswp);
     }
     break;
 
    case WM_WINDOWPOSCHANGED:
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
-      if ((Flags & DF_AutoResize) && pswp->fl & SWP_SIZE)
+      DEBUGLOG(("DialogBase::DlgProc WM_WINDOWPOSCHANGED: %x, %u\n", pswp->fl, mp2));
+      if ((Flags & DF_AutoResize) && (pswp->fl & SWP_SIZE))
         dlg_do_resize(GetHwnd(), pswp, pswp+1);
     }
     break;
