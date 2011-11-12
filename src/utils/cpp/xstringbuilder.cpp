@@ -99,7 +99,9 @@ char* xstringbuilder::detach_array()
   { ret = Data;
     delete[] Data;
   } else
-    ret = strdup(Empty);
+  { ret = new char[1];
+    *ret = 0;
+  }
   Cap = 0;
   Data = Empty;
   return ret;
