@@ -34,6 +34,7 @@
 #include "controller.h"
 #include "location.h"
 #include "playable.h"
+#include "waitinfo.h"
 #include <os2.h>
 
 #include <math.h>
@@ -52,8 +53,6 @@ InspectorDialog::InspectorDialog()
 
 InspectorDialog::~InspectorDialog()
 { DEBUGLOG(("InspectorDialog(%p)::~InspectorDialog()\n", this));
-  DiscardData(ControllerData);
-  DiscardData(WorkerData);
 }
 
 /*void InfoDialog::StartDialog()
@@ -158,34 +157,34 @@ static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
 { DEBUGLOG(("InspectorDialog:ControllerQCB(&%p{%u,...}, %p)\n", &cmd1, cmd1.Cmd, arg));
   const Ctrl::ControlCommand* cmd = &cmd1;
   vector<char>& result = *(vector<char>*)arg;
-  char buf[1024];
-  buf[0] = result.size() ? '-' : '*'; // First item is the one in service.
+  xstringbuilder sb;
+  sb.append(result.size() ? '-' : '*'); // First item is the one in service.
   if (!cmd)
   { // Deadly pill or completely consumed item
-    strcpy(buf+1, "NULL");
-    result.append() = strdup(buf);
+    sb.append("NULL");
+    result.append() = sb.detach_array();
     return;
   }
   do
   { const char* cmdname;
     switch(cmd->Cmd)
     {case Ctrl::Cmd_Nop:
-      strcpy(buf+1, "NoOp");
+      sb.append("NoOp");
       break;
 
      case Ctrl::Cmd_Load:
-      snprintf(buf+1, sizeof buf -1, "Load %s%s", cmd->Flags&1 ? "[continue] " : "", cmd->StrArg.cdata());
+      sb.appendf("Load %s%s", cmd->Flags&1 ? "[continue] " : "", cmd->StrArg.cdata());
       break;
 
      case Ctrl::Cmd_Skip:
-      snprintf(buf+1, sizeof buf -1, cmd->Flags&1 ? "Skip %+.0f" : "Skip %.0f", cmd->NumArg);
+      sb.appendf(cmd->Flags&1 ? "Skip %+.0f" : "Skip %.0f", cmd->NumArg);
       break;
 
      case Ctrl::Cmd_Navigate:
      case Ctrl::Cmd_StopAt:
       { double loc = fabs(cmd->NumArg);
         unsigned long secs = (unsigned long)floor(loc);
-        snprintf(buf+1, sizeof buf -1, "%s %s%s;%s%lu:%02lu:%02lu.%0.f",
+        sb.appendf("%s %s%s;%s%lu:%02lu:%02lu.%0.f",
           cmd->Cmd == Ctrl::Cmd_StopAt ? "StopAt" : "Navigate",
           cmd->Flags&1 ? (cmd->Flags&2 ? "[relative, playlist] " : "[relative] ") : (cmd->Flags&2 ? "[playlist] " : ""),
           cmd->StrArg ? cmd->StrArg.cdata() : "",
@@ -195,7 +194,7 @@ static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
 
      case Ctrl::Cmd_Jump:
       { Location* loc = (Location*)cmd->PtrArg;
-        snprintf(buf+1, sizeof buf -1, "Jump %s", loc->Serialize().cdata());
+        sb.appendf("Jump %s", loc->Serialize().cdata());
       }
       break;
 
@@ -215,43 +214,43 @@ static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
       cmdname = "Repeat";
      flagcmd:
       { static const char flags[4][8] = { "reset", "on", "off", "toggle" };
-        snprintf(buf+1, sizeof buf -1, "%s %s%s", cmdname,
+        sb.appendf("%s %s%s", cmdname,
           cmd->Cmd == Ctrl::Cmd_Scan && cmd->Flags&4 ? "rewind " : "", flags[cmd->Flags&3]);
       }
       break;
      
      case Ctrl::Cmd_Volume:
-      snprintf(buf+1, sizeof buf -1, "Volume %f", cmd->NumArg);
+      sb.appendf("Volume %f", cmd->NumArg);
       break;
 
      case Ctrl::Cmd_Save:
-      snprintf(buf+1, sizeof buf -1, "Save %s", cmd->StrArg ? cmd->StrArg.cdata() : "off");
+      sb.appendf("Save %s", cmd->StrArg ? cmd->StrArg.cdata() : "off");
       break;
       
      case Ctrl::Cmd_Location:
-      strcpy(buf+1, "LocationQuery");
+      sb.append("LocationQuery");
       break;
              
      case Ctrl::Cmd_DecStop:
-      strcpy(buf+1, "DecoderStop");
+      sb.append("DecoderStop");
       break;
       
      case Ctrl::Cmd_OutStop:
-      strcpy(buf+1, "OutputStop");
+      sb.append("OutputStop");
       break;
     }
-    buf[sizeof buf-1] = 0;
-    result.append() = strdup(buf);
+    result.append() = sb.detach_array();
     // next
     cmd = cmd->Link;
-    buf[0] = '+';
+    sb.append('+');
   } while (cmd);
 }
 
-static void PlayableFlagsMapper(char* str, InfoFlags flags, const char* tpl)
+static void PlayableFlagsMapper(char* str, InfoFlags flags, bool uc)
 { static const InfoFlags flaglist[] =
   { IF_Phys, IF_Tech, IF_Obj, IF_Meta, IF_Attr, IF_Child,
     IF_Rpl, IF_Drpl, IF_Item, IF_Slice };
+  const char* tpl = uc ? "PTOMACRDIS" : "ptomacrdis";
   for (size_t i = 0; i < sizeof(flaglist)/sizeof(*flaglist); ++i)
     if (flags & flaglist[i])
       str[i] = tpl[i];
@@ -260,22 +259,36 @@ static void PlayableFlagsMapper(char* str, InfoFlags flags, const char* tpl)
 static void WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
 { DEBUGLOG(("InspectorDialog:WorkerQCB(%p, %u, %u, %p)\n", entry, pri, svc, arg));
   vector<char>& result = *(vector<char>*)arg;
+  xstringbuilder sb;
   if (entry == NULL)
-  { result.append() = strdup(" NULL");
+  { sb.append(" NULL");
   } else
-  { char buf[1024];
-    RequestState req;
+  { RequestState req;
     entry->PeekRequest(req);
     DEBUGLOG(("InspectorDialog:WorkerQCB %x,%x, %x\n", req.ReqLow, req.ReqHigh, req.InService));
     static const char prefixchar[2][2] = { { '-', '=' }, { '+', '#' } };
-    buf[0] = prefixchar[svc][pri == PRI_Normal];
     char rqstr[11] = "----------";
-    PlayableFlagsMapper(rqstr, req.ReqLow, "ptomacrdis");
-    PlayableFlagsMapper(rqstr, req.ReqHigh, "PTOMACRDIS");
+    PlayableFlagsMapper(rqstr, req.ReqLow, false);
+    PlayableFlagsMapper(rqstr, req.ReqHigh, true);
     char isstr[11] = "----------";
-    PlayableFlagsMapper(isstr, req.InService, "PTOMACRDIS");
-    snprintf(buf+1, sizeof buf -1, "[%s -> %s] %s", rqstr, isstr, entry->GetPlayable().URL.cdata());
-    result.append() = strdup(buf);
+    PlayableFlagsMapper(isstr, req.InService, true);
+    sb.appendf("%c[%s -> %s] %s", prefixchar[svc][pri == PRI_Normal], rqstr, isstr, entry->GetPlayable().URL.cdata());
+  }
+  result.append() = sb.detach_array();
+}
+
+static void WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& depends, void* arg)
+{ DEBUGLOG(("InspectorDialog:WaitQCB(&%p, %u, %p, %p)\n", &entry, pri, &depends, arg));
+  vector<char>& result = *(vector<char>*)arg;
+  xstringbuilder sb;
+  size_t mandatory = depends.MandatorySize();
+  size_t total = depends.Size();
+  for (size_t i = 0; i < total; ++i)
+  { const DependencyInfoPath::Entry& e = depends[i];
+    char rqstr[11] = "----------";
+    PlayableFlagsMapper(rqstr, e.What, pri == PRI_Normal);
+    sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, e.Inst->GetDisplayName().cdata(), entry.GetPlayable().URL.cdata());
+    result.append() = sb.detach_array();
   }
 }
 
@@ -286,26 +299,26 @@ void InspectorDialog::Refresh()
   HWND lb = WinWindowFromID(GetHwnd(), LB_CONTROLLERQ);
   PMASSERT(lb != NULLHANDLE);
   PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
-  // Discard old data
-  DiscardData(ControllerData);
+  vector<char> data;
   // Retrieve data
-  Ctrl::QueueTraverse(&ControllerQCB, &ControllerData);
+  Ctrl::QueueTraverse(&ControllerQCB, &data);
   // refresh listbox
-  { LBOXINFO lbi = { 0, ControllerData.size() };
-    WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(ControllerData.begin()));
+  { LBOXINFO lbi = { 0, data.size() };
+    WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(data.begin()));
   }
+  DiscardData(data);
 
   // Refresh Worker Q
   lb = WinWindowFromID(GetHwnd(), LB_WORKERQ);
   PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
-  // Discard old data
-  DiscardData(WorkerData);
   // Retrieve data
-  Playable::QueueTraverse(&WorkerQCB, &WorkerData);
+  APlayable::QueueTraverse(&WorkerQCB, &data);
+  APlayable::WaitQueueTraverse(&WaitQCB, &data);
   // refresh listbox
-  { LBOXINFO lbi = { 0, WorkerData.size() };
-    WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(WorkerData.begin()));
+  { LBOXINFO lbi = { 0, data.size() };
+    WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(data.begin()));
   }
+  DiscardData(data);
 
   // Next refresh
   LONG value;
@@ -316,7 +329,7 @@ void InspectorDialog::Refresh()
 
 void InspectorDialog::DiscardData(vector<char>& data)
 { for (char*const* cpp = data.begin(); cpp != data.end(); ++cpp)
-    free(*cpp);
+    delete[] *cpp;
   data.clear();
 } 
 

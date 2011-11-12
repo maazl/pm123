@@ -121,11 +121,11 @@ const amp_cfg Cfg::Default =
 , true // save relative
 };
 
-Mutex Cfg::Mtx;
-amp_cfg Cfg::Current = Cfg::Default;
-event<CfgValidateArgs> Cfg::Validate;
+Mutex                      Cfg::Mtx;
+amp_cfg                    Cfg::Current = Cfg::Default;
+event<CfgValidateArgs>     Cfg::Validate;
 event<const CfgChangeArgs> Cfg::Change;
-HINI Cfg::HIni;
+HINI                       Cfg::HIni;
 
 
 void Cfg::LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)

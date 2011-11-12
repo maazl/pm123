@@ -52,10 +52,6 @@ class InspectorDialog
   { UM_REFRESH = WM_USER+1
   };
 
- private:
-  vector<char>      ControllerData;
-  vector<char>      WorkerData;
-
  private: // non copyable
                     InspectorDialog(const InspectorDialog&);
   void              operator=(const InspectorDialog&);
@@ -70,7 +66,6 @@ class InspectorDialog
   void              Refresh();
   
   static void       DiscardData(vector<char>& data);
-
  public:
   virtual           ~InspectorDialog();
   virtual void      SetVisible(bool show);

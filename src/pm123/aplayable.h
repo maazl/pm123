@@ -93,6 +93,7 @@ struct CollectionChangeArgs : public PlayableChangeArgs
 class Playable;
 class Location;
 class PlayableSetBase;
+class DependencyInfoSet;
 class JobSet;
 //class DependencyInfoWorker;
 /** @brief Common interface of \c Playable objects as well as references to \c Playable objects.
@@ -296,9 +297,13 @@ class APlayable
   static  void                Uninit();
 
   /// @brief Inspect worker queue
-  /// @details The \a action function is called once for each queue item. But be careful,
-  /// this is done from synchronized context.
+  /// @details The \a action function is called once for each queue item.
+  /// This is done from synchronized context.
   static  void                QueueTraverse(void (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg);
+  /// Inspect waiting worker items.
+  /// @details The \a action function is called once for each queue item.
+  /// This is done from synchronized context.
+  static  void                WaitQueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
 };
 
 

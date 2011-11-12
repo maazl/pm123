@@ -168,30 +168,63 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
     InfoChange(PlayableChangeArgs(*this, loaded, changed, IF_None));
 }*/
 
+/**
+ * Worker classes that keeps track of requested informations that are not
+ * ready to be evaluated because of missing dependencies.
+ * Instances of this class have built-in life time management.
+ * Once the dependencies are fulfilled, it schedules the dependent item
+ * in the worker queue of APlayable and destroys itself.
+ * Simply create new instances with new and discard the returned pointer.
+ */
 class RescheduleWorker : DependencyInfoWorker
 {public:
   const int_ptr<APlayable>  Inst;
   const Priority            Pri;
  public:
-  RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Priority pri)
-  : DependencyInfoWorker()
-  , Inst(&inst)
-  , Pri(pri)
-  { DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p, %u)\n", this,
-      &data, data.DebugDump().cdata(), &inst, pri));
-    Data.Swap(data);
-    Start();
-  }
+  RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Priority pri);
  private:
+  ~RescheduleWorker();
   virtual void              OnCompleted();
+
+ private:
+  static sorted_vector<RescheduleWorker,RescheduleWorker,CompareInstance<RescheduleWorker> > Instances;
+ public:
+  static  void              QueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
 };
+
+sorted_vector<RescheduleWorker,RescheduleWorker,CompareInstance<RescheduleWorker> > RescheduleWorker::Instances;
+
+RescheduleWorker::RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Priority pri)
+: DependencyInfoWorker()
+, Inst(&inst)
+, Pri(pri)
+{ DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p, %u)\n", this,
+    &data, data.DebugDump().cdata(), &inst, pri));
+  Data.Swap(data);
+  { Mutex::Lock lock(Mtx);
+    Instances.get(*this) = this;
+  }
+  Start();
+}
+
+RescheduleWorker::~RescheduleWorker()
+{ Mutex::Lock lock(Mtx);
+  Instances.erase(*this);
+}
 
 void RescheduleWorker::OnCompleted()
 { DEBUGLOG(("RescheduleWorker(%p)::OnCompleted()\n", this));
   Inst->ScheduleRequest(Pri);
-  // Hack: destroy ourself. It is guaranteed that DependencyInfo does exactly nothing after this callback.
+  // Hack: destroy ourself. It is guaranteed that DependencyInfoWorker does exactly nothing after this callback.
   delete this;
 }
+
+void RescheduleWorker::QueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
+{ Mutex::Lock lock(Mtx);
+  foreach (RescheduleWorker**, rpp, Instances)
+    action(*(*rpp)->Inst, (*rpp)->Pri, (*rpp)->Data, arg);
+}
+
 
 void APlayable::ScheduleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p)::ScheduleRequest(%u)\n", this, pri));
@@ -257,6 +290,10 @@ void APlayable::QueueTraverse(void (*action)(APlayable* entry, Priority pri, boo
       (*action)(obj, wp->Pri, true, arg);
   }
   WQueue.ForEach(&QueueTraverseProxy, &arg_proxy);
+}
+
+void APlayable::WaitQueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
+{ RescheduleWorker::QueueTraverse(action, arg);
 }
 
 

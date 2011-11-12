@@ -68,13 +68,14 @@ class WaitLoadInfo
 };
 
 class DependencyInfoPath
-{protected:
+{public:
   struct Entry
   { const int_ptr<APlayable> Inst;
     InfoFlags               What;
     Entry(APlayable& inst, InfoFlags what)      : Inst(&inst), What(what) {}
     static int              compare(const Entry& l, const APlayable& r);
   };
+ protected:
   typedef sorted_vector_own<Entry,APlayable,&Entry::compare> SetType;
 
  protected:
@@ -90,6 +91,9 @@ class DependencyInfoPath
   void                      Swap(DependencyInfoPath& r) { MandatorySet.swap(r.MandatorySet); }
   /// Return the total number of dependencies.
   size_t                    Size() const        { return MandatorySet.size(); }
+  /// Query item in set.
+  /// @param i zero based index, must be less than Size()
+  const Entry&              operator[](size_t i) const { return *MandatorySet[i]; }
 
   /// Add a new dependency.
   /// @param inst We depend on \a inst.
@@ -117,12 +121,15 @@ class DependencyInfoSet : private DependencyInfoPath
  public:
   /// Swap two instances.
   void                      Swap(DependencyInfoSet& r) { MandatorySet.swap(r.MandatorySet); OptionalSet.swap(r.OptionalSet); }
-  /*// Return the number of mandatory dependencies.
+  /// Return the number of mandatory dependencies.
   size_t                    MandatorySize() const { return MandatorySet.size(); }
   /// Return the number of optional dependencies.
-  size_t                    OptionalSize() const { return OptionalSet.size(); }*/
+  size_t                    OptionalSize() const { return OptionalSet.size(); }
   /// Return the total number of dependencies.
   size_t                    Size() const        { return MandatorySet.size() + OptionalSet.size(); }
+  /// Query item in set.
+  /// @param i zero based index, must be less than Size()
+  const Entry&              operator[](size_t i) const { return i < MandatorySet.size() ? *MandatorySet[i] : *OptionalSet[i-MandatorySet.size()]; }
   /// Reinitialize
   void                      Clear()             { MandatorySet.clear(); OptionalSet.clear(); }
   /// @brief Add an alternate dependency set plan to this object.
