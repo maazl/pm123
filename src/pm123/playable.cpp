@@ -430,6 +430,8 @@ void Playable::DoLoadInfo(JobSet& job)
     // Raise the first bunch of change events.
     RaiseInfoChange(upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed);
   }
+  // Now only aggregate information should be incomplete.
+  ASSERT((upd & ~IF_Aggreg) == IF_None);
 
   if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
   { // Always render aggregate info of invalid items, because this is cheap.
@@ -437,13 +439,13 @@ void Playable::DoLoadInfo(JobSet& job)
     upd.Extend(IF_Aggreg);
 
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
-  { ASSERT(Playlist != NULL);
+  { // handle aggregate information of playlist items
+    ASSERT(Playlist != NULL);
     // For the event below
     PlayableChangeArgs args(*this);
     if (upd)
     { // Request for default recursive playlist information (without exclusions)
       // is to be completed.
-      ASSERT((upd & ~IF_Aggreg) == IF_None);
       CalcRplInfo(Info, upd, args, job);
     }
     // Request Infos with exclusion lists
@@ -451,16 +453,22 @@ void Playable::DoLoadInfo(JobSet& job)
       // retrieve information
       CalcRplInfo(*iep, upd, args, job);
 
-    // Raise event if any    
+    // Raise event if any
     if (!args.IsInitial())
     { Mutex::Lock lock(Mtx);
       InfoChange(args);
     }
+    // done
+    return;
 
-  } else if (upd & IF_Aggreg)
-  { // Calculate RPL_INFO if not already done by dec_fileinfo.
+  } else
+  { // Song items => work only if requested
+    // Calculate RPL_INFO if not already done by dec_fileinfo.
     if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
-    { info.Rpl.songs   = 1;
+    { // Always calculate RPL info of song items, because this is cheap.
+      info.Rpl.songs   = 1;
+      upd.Extend(IF_Rpl);
+      // ... the same does not apply to DRPL info.
       info.Drpl.totallength = Info.Obj.songlength;
       if (info.Drpl.totallength < 0)
       { info.Drpl.totallength = 0;
@@ -477,12 +485,15 @@ void Playable::DoLoadInfo(JobSet& job)
       info.Drpl.unk_length = 1;
       info.Drpl.unk_size = 1;
     }
-    // update information
-    Mutex::Lock lock(Mtx);
-    InfoFlags changed = UpdateInfo(info, upd);
-    // Raise event if any
-    RaiseInfoChange(upd.Commit(), changed);
+    // nothing done
+    if (!upd)
+      return;
   }
+  // update information
+  Mutex::Lock lock(Mtx);
+  InfoFlags changed = UpdateInfo(info, upd);
+  // Raise event if any
+  RaiseInfoChange(upd.Commit(), changed);
 }
 
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
