@@ -1,8 +1,8 @@
 /*
+ * Copyright 2007-2011 M.Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -74,7 +74,7 @@
  * The value must be of type PPResizeConstr.
  *
  * @details Resource file syntax:
- * @code PRESPARAMS PPU_RESIZEINFO, min_size @endcode
+ * @code PRESPARAMS PPU_RESIZECONSTR min_size[, max_size] @endcode
  *
  * min_size are two words with the minimum size of the control. The x limit is
  * in the high word and the y limit in the low word. Any attempt to resize the frame window
@@ -82,6 +82,13 @@
  * to meet the constraint.
  */
 #define PPU_RESIZECONSTR    0x8101 // PP_USER + 0x101
+/** @brief Convenient way to create \c PPU_RESIZEINFO.
+ * @details The Macro takes 4 parameters:
+ * - cx-minimum, cy-minimum,
+ * - cx maximum, cy-maximum
+ * If the maximum values are zero there is no max constraint.
+ * @example @code PRESPARAMS MAKE_PPU_SIZE_CONSTR(10,4,0,0) @endcode
+ */
 #define MAKE_PPU_SIZE_CONSTR(xmin,ymin,xmax,ymax) PPU_RESIZECONSTR, ((xmin)*65536+(ymin)), ((xmax)*65536+(ymax))
 
 #ifndef RC_INVOKED
@@ -169,6 +176,14 @@ typedef struct
    * that causes at least one child window to break this constraint will be adjusted to meet
    * the constraint. */
   USHORT cx_min;
+  /** The minimum height of the control. Any attempt to resize the frame window
+    * that causes at least one child window to break this constraint will be adjusted to meet
+    * the constraint. */
+  USHORT cy_max;
+  /** The minimum width of the control. Any attempt to resize the frame window
+   * that causes at least one child window to break this constraint will be adjusted to meet
+   * the constraint. */
+  USHORT cx_max;
 } PPResizeConstr;
 
 /** Adjust the result of a resize operation according to PPU_RESIZEINFO of the children.
