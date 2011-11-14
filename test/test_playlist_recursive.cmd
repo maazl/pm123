@@ -15,12 +15,13 @@ CALL Assert 'data.totallength', '< 31.112', reply
 CALL CallPipe 'info playlist 'dir'\data\list2.lst'
 reply = result
 CALL Parse result
-CALL Assert 'data.songs', '= 3', reply
+CALL Assert 'data.songs', '= 4', reply
 CALL Assert 'data.lists', '= 3', reply
 CALL Assert 'data.invalid', '= 1', reply
-CALL Assert 'data.totalsize', '= 60222', reply
-CALL Assert 'data.totallength', '>= 31.099', reply
-CALL Assert 'data.totallength', '< 31.112', reply
+CALL Assert 'data.totalsize', '>= 90824', reply
+CALL Assert 'data.totalsize', '<= 91184', reply
+CALL Assert 'data.totallength', '>= 48.875', reply
+CALL Assert 'data.totallength', '<= 48.880', reply
 
 EXIT
 
