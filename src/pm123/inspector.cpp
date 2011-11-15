@@ -34,7 +34,7 @@
 #include "controller.h"
 #include "location.h"
 #include "playable.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include <os2.h>
 
 #include <math.h>

@@ -45,7 +45,7 @@
 #include "playlistview.h"
 #include "playlistmanager.h"
 #include "inspector.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include "loadhelper.h"
 #include "playlistmenu.h"
 #include "button95.h"

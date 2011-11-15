@@ -31,7 +31,7 @@
 #include "playableref.h"
 #include "playable.h"
 #include "location.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include <string.h>
 
 #include <debuglog.h>

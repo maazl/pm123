@@ -28,7 +28,7 @@
 
 #include "location.h"
 #include "playable.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 
 #include <limits.h>
 #include <stdio.h>

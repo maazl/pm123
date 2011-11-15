@@ -31,6 +31,7 @@
 #include "playable.h"
 #include "playableset.h"
 #include "waitinfo.h"
+#include "dependencyinfo.h"
 #include "pm123.h"
 #include "configuration.h"
 #include <utilfct.h>
@@ -93,15 +94,12 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
     return IF_None;
   // Synchronous processing failed because of dependencies or concurrency
   // => execute asynchronously
-  WaitLoadInfo waitinfo(*this, rq);
-  // Double check because some information can be valid now.
   // Restrict rel to avoid to load an information twice.
   if (rel == REL_Reload)
     rel = REL_Confirmed;
-  DoRequestInfo(rq, PRI_None, rel);
-  waitinfo.CommitInfo(~rq);
   // Wait for information currently in service (if any).
-  waitinfo.Wait();
+  WaitInfo().Wait(*this, rq, rel);
+
   return IF_None;
 }
 
@@ -149,12 +147,8 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   if (rq != IF_None)
   { // Synchronous processing failed because of dependencies or concurrency
     // => execute asynchronously
-    WaitLoadInfo waitinfo(*this, rq);
-    // Double check because some information can be valid now.
-    DoRequestAI(ai, rq, PRI_None, rel);
-    waitinfo.CommitInfo(~rq);
     // Wait for information currently in service (if any).
-    waitinfo.Wait();
+    WaitAggregateInfo().Wait(*this, ai, rq, rel);
     rq = IF_None;
   }
 

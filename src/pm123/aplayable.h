@@ -47,7 +47,7 @@ class PlayableInstance;
  * An initial Event with Changed, Loaded and Invalidated == IF_None is fired
  * just when the playable instance dies. You can check for that with IsInitial().
  * Observers should not access instance after this event completed.
- * They are deregistered automatically.
+ * They are canceled automatically.
  * The Loaded flags are set if an asynchronous request is handled. This does not imply
  * that the corresponding Changed bits are set too, because the desired information may not
  * have changed. So if you are waiting for the completion of an asynchronous request
@@ -103,7 +103,10 @@ class JobSet;
  */
 class APlayable
 : public Iref_count
-{private:
+{ friend class WaitInfo;
+  friend class WaitAggregateInfo;
+
+ private:
   /// Keep track of scheduled asynchronous requests.
   AtomicUnsigned              AsyncRequest;
  protected:

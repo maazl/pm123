@@ -33,7 +33,7 @@
 #include "eventhandler.h"
 #include "properties.h"
 #include "decoder.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include "location.h"
 #include <strutils.h>
 #include <utilfct.h>

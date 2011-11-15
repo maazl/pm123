@@ -29,7 +29,6 @@
 
 #include "collectioninfocache.h"
 #include "playable.h"
-#include "waitinfo.h"
 #include <cpp/algorithm.h>
 #include <string.h>
 

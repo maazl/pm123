@@ -29,7 +29,7 @@
 #define INCL_WIN
 #define INCL_BASE
 #include "controller.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include "configuration.h"
 #include "decoder.h"
 #include "gui.h"

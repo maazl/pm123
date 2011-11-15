@@ -9,8 +9,8 @@ CFLAGS_USR = -DPM123_CORE
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = infobundle$(CO) infostate$(CO) aplayable$(CO) waitinfo$(CO) playableset$(CO)
-OBJECTS  = $(OBJECTS) location$(CO) songiterator$(CO) collectioninfocache$(CO)
+OBJECTS  = infobundle$(CO) infostate$(CO) aplayable$(CO) waitinfo$(CO) dependencyinfo$(CO)
+OBJECTS  = $(OBJECTS) playableset$(CO) location$(CO) songiterator$(CO) collectioninfocache$(CO)
 OBJECTS  = $(OBJECTS) playableinstance$(CO) playable$(CO) playableref$(CO)
 OBJECTS  = $(OBJECTS) eventhandler$(CO) configuration$(CO) xstring_api$(CO) plugman$(CO) proxyhelper$(CO)
 OBJECTS  = $(OBJECTS) decoder$(CO) filter$(CO) output$(CO) visual$(CO) glue$(CO)
@@ -88,9 +88,9 @@ plugman.h:	..\include\plugin.h ..\utils\cpp\event.h ..\utils\cpp\xstring.h ..\ut
 loadhelper.h:	..\utils\cpp\smartptr.h controller.h
 playlistmenu.h:	playable.h ..\utils\vdelegate.h ..\utils\cpp\smartptr.h ..\utils\cpp\container\sorted_vector.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h
 ..\include\visual_plug.h:	..\include\format.h
-aplayable.cpp:	aplayable.h playableset.h waitinfo.h pm123.h configuration.h ..\utils\utilfct.h ..\utils\debuglog.h
+aplayable.cpp:	aplayable.h playableset.h waitinfo.h dependencyinfo.h pm123.h configuration.h ..\utils\utilfct.h ..\utils\debuglog.h
 pm123.h:	..\include\config.h ..\utils\cpp\xstring.h
-controller.cpp:	controller.h waitinfo.h configuration.h decoder.h gui.h glue.h pm123.h ..\utils\inimacro.h ..\utils\minmax.h ..\utils\utilfct.h ..\utils\cpp\mutex.h ..\utils\cpp\xstring.h
+controller.cpp:	controller.h dependencyinfo.h configuration.h decoder.h gui.h glue.h pm123.h ..\utils\inimacro.h ..\utils\minmax.h ..\utils\utilfct.h ..\utils\cpp\mutex.h ..\utils\cpp\xstring.h
 ..\utils\inimacro.h:	..\include\config.h
 dialog.cpp:	dialog.h configuration.h controller.h copyright.h skin.h gui.h 123_util.h filedlg.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\xio123\xio.h ..\utils\cpp\xstring.h ..\utils\cpp\container\stringmap.h pm123.rc.h ..\utils\debuglog.h
 dialog.h:	..\include\plugin.h ..\include\config.h ..\include\decoder_plug.h ..\utils\cpp\url123.h
@@ -110,15 +110,15 @@ playlistmanager.h:	..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\c
 inspector.h:	windowbase.h ..\utils\cpp\smartptr.h ..\utils\cpp\queue.h ..\utils\cpp\container\vector.h
 ..\utils\cpp/showaccel.h:	..\utils\cpp/container/sorted_vector.h
 infobundle.cpp:	123_util.h infobundle.h playableset.h playable.h xstring_api.h ..\utils\debuglog.h
-infodialog.cpp:	infodialog.h waitinfo.h pm123.h gui.h pm123.rc.h glue.h configuration.h ..\include\decoder_plug.h ..\include\plugin.h ..\utils\utilfct.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\pmutils.h
-inspector.cpp:	inspector.h pm123.rc.h pm123.h configuration.h controller.h location.h playable.h ..\utils\utilfct.h ..\utils\snprintf.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
+infodialog.cpp:	infodialog.h dependencyinfo.h pm123.h gui.h pm123.rc.h glue.h configuration.h eventhandler.h ..\include\decoder_plug.h ..\include\plugin.h ..\utils\utilfct.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\pmutils.h ..\utils\cpp\vdelegate.h
+inspector.cpp:	inspector.h pm123.rc.h pm123.h configuration.h controller.h location.h playable.h dependencyinfo.h ..\utils\utilfct.h ..\utils\snprintf.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 ..\utils\cpp/Mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
 loadhelper.cpp:	loadhelper.h configuration.h gui.h
 pipe.cpp:	pipe.h commandprocessor.h configuration.h eventhandler.h
 playablecollection.cpp:	playablecollection.h songiterator.h properties.h 123_util.h copyright.h ..\xio123\xio.h ..\utils\strutils.h ..\utils\snprintf.h ..\utils\charset.h ..\utils\debuglog.h
-playableref.cpp:	properties.h playableref.h playable.h location.h waitinfo.h ..\utils\debuglog.h
+playableref.cpp:	properties.h playableref.h playable.h location.h dependencyinfo.h ..\utils\debuglog.h
 playableset.cpp:	playableset.h playable.h ..\utils\debuglog.h
-playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h infodialog.h inspector.h playable.h waitinfo.h loadhelper.h pm123.h gui.h configuration.h 123_util.h pm123.rc.h docking.h filedlg.h ..\utils\cpp\smartptr.h ..\utils\cpp\url123.h ..\utils\snprintf.h ..\utils\debuglog.h
+playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h infodialog.h inspector.h playable.h dependencyinfo.h loadhelper.h pm123.h gui.h configuration.h 123_util.h pm123.rc.h docking.h filedlg.h ..\utils\cpp\smartptr.h ..\utils\cpp\url123.h ..\utils\snprintf.h ..\utils\debuglog.h
 playlistmanager.cpp:	playlistmanager.h gui.h dialog.h configuration.h pm123.rc.h docking.h playable.h decoder.h ..\utils\utilfct.h ..\utils\cpp\smartptr.h ..\utils\cpp\showaccel.h ..\utils\debuglog.h
 playlistmenu.cpp:	pm123.h pm123.rc.h playlistmenu.h ..\utils\cpp\vdelegate.h ..\utils\utilfct.h ..\utils\debuglog.h
 playlistview.cpp:	playlistview.h gui.h dialog.h properties.h pm123.rc.h docking.h playable.h decoder.h ..\utils\cpp\showaccel.h ..\utils\utilfct.h ..\utils\debuglog.h
@@ -130,7 +130,7 @@ skin.cpp:	skin.h configuration.h glue.h pm123.h eventhandler.h pm123.rc.h button
 windowbase.cpp:	..\utils\utilfct.h windowbase.h ..\utils\cpp\smartptr.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 button95.cpp:	button95.h ..\utils\utilfct.h ..\utils\debuglog.h
 playable.h:	..\include\config.h aplayable.h playableref.h playableinstance.h collectioninfocache.h ..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\cpp\cpputil.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\container\sorted_vector.h ..\utils\cpp\container\list.h ..\utils\cpp\url123.h
-location.cpp:	location.h playable.h waitinfo.h
+location.cpp:	location.h playable.h dependencyinfo.h
 ..\utils\cpp\xstring.h:	..\utils\cpp\smartptr.h
 ..\utils\cpp\smartptr.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 ..\utils\cpp\mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
@@ -148,14 +148,13 @@ infostate.h:	infobundle.h ..\utils\cpp\event.h ..\utils\cpp\atomic.h ..\utils\cp
 ..\utils\cpp\showaccel.h:	..\utils\cpp\container\sorted_vector.h
 infostate.cpp:	infostate.h ..\utils\debuglog.h
 collectioninfocache.h:	..\include\config.h aplayable.h infobundle.h playableset.h ..\utils\cpp\mutex.h ..\utils\cpp\container\sorted_vector.h
-collectioninfocache.cpp:	collectioninfocache.h playable.h waitinfo.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h
-waitinfo.cpp:	waitinfo.h playableset.h ..\utils\debuglog.h
+waitinfo.cpp:	waitinfo.h ..\utils\debuglog.h
 ..\include\format.h:	..\include\plugin.h
 infobundle.h:	..\include\format.h ..\include\decoder_plug.h ..\utils\cpp\cpputil.h ..\utils\cpp\xstring.h ..\utils\strutils.h
 gui.h:		controller.h songiterator.h playable.h pm123.rc.h ..\utils\cpp\smartptr.h ..\utils\cpp\event.h ..\utils\cpp\cpputil.h plugman.h
-waitinfo.h:	aplayable.h ..\utils\cpp\event.h ..\utils\cpp\mutex.h ..\utils\cpp\container\sorted_vector.h
-gui.cpp:	gui.h dialog.h filedlg.h properties.h configuration.h pm123.h pm123.rc.h 123_util.h glue.h skin.h docking.h infodialog.h playlistview.h playlistmanager.h inspector.h waitinfo.h loadhelper.h playlistmenu.h button95.h copyright.h decoder.h filter.h output.h visual.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\utils\cpp\showaccel.h
-playable.cpp:	playable.h eventhandler.h properties.h decoder.h waitinfo.h location.h ..\utils\strutils.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\eautils.h ..\utils\vdelegate.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h
+waitinfo.h:	aplayable.h ..\utils\cpp\event.h ..\utils\cpp\mutex.h
+gui.cpp:	gui.h dialog.h filedlg.h properties.h configuration.h pm123.h pm123.rc.h 123_util.h glue.h skin.h docking.h infodialog.h playlistview.h playlistmanager.h inspector.h dependencyinfo.h loadhelper.h playlistmenu.h button95.h copyright.h decoder.h filter.h output.h visual.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\utils\cpp\showaccel.h
+playable.cpp:	playable.h eventhandler.h properties.h decoder.h dependencyinfo.h location.h ..\utils\strutils.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\eautils.h ..\utils\vdelegate.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h
 playableinstance.h:	playableref.h aplayable.h collectioninfocache.h ..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\cpp\cpputil.h ..\utils\cpp\container\sorted_vector.h ..\utils\cpp\container\list.h ..\utils\cpp\url123.h
 playableinstance.cpp:	playableinstance.h playable.h ..\utils\debuglog.h
 songiterator.cpp:	songiterator.h ..\utils\debuglog.h
@@ -180,3 +179,6 @@ proxyhelper.cpp:	proxyhelper.h eventhandler.h copyright.h skin.h 123_util.h pm12
 configuration.h:	..\include\config.h ..\include\plugin.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\cpp\event.h ..\utils\cpp\container\vector.h
 configuration.cpp:	configuration.h eventhandler.h plugman.h visual.h pm123.h ..\utils\inimacro.h
 eventhandler.cpp:	eventhandler.h ..\utils\cpp\cpputil.h
+dependencyinfo.h:	aplayable.h ..\utils\cpp\event.h ..\utils\cpp\smartptr.h ..\utils\cpp\container\sorted_vector.h
+dependencyinfo.cpp:	dependencyinfo.h playableset.h playable.h ..\utils\debuglog.h
+collectioninfocache.cpp:	collectioninfocache.h playable.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h

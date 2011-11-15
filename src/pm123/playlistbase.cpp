@@ -42,7 +42,7 @@
 #include "infodialog.h"
 #include "inspector.h"
 #include "playable.h"
-#include "waitinfo.h"
+#include "dependencyinfo.h"
 #include "loadhelper.h"
 #include "pm123.h"
 #include "gui.h"
