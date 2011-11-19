@@ -197,6 +197,10 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO2*
   // fetch data
   if ((*decoderPlayingSamples)(&bufferinfo, sample, len) != 0)
     return SPECANA_ERROR;
+  DEBUGLOG(("SA: *decoderPlayingSamples(&{%i,%i},...)\n", bufferinfo.samplerate, bufferinfo.channels));
+  // coarse check against invalid data
+  if (bufferinfo.samplerate < 4000 || bufferinfo.samplerate > 200000 || bufferinfo.channels < 1 || bufferinfo.channels > 10)
+    return SPECANA_ERROR;
   // check for format change
   if (info->samplerate != bufferinfo.samplerate || info->channels != bufferinfo.channels)
   { *info = bufferinfo;
