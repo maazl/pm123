@@ -258,29 +258,36 @@ eacopy( const char* source, const char* target )
 APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easize )
 {
   APIRET rc;
+  HFILE  hf;
+  ULONG  dummy;
   EAOP2  eaop2;
   size_t len = strlen(eaname);
   DEBUGLOG(("eaget(%s, %s, %p, *%u)\n", file, eaname, eadata, *easize));
+
+  rc = DosOpen((PSZ)file, &hf, &dummy, 0, 0, OPEN_ACTION_FAIL_IF_NEW|OPEN_ACTION_OPEN_IF_EXISTS,
+    OPEN_FLAGS_RANDOM|OPEN_FLAGS_NOINHERIT|OPEN_SHARE_DENYNONE|OPEN_ACCESS_READONLY, NULL);
+  if (rc)
+    return rc;
+
   eaop2.fpGEA2List = (GEA2LIST*)alloca(sizeof(GEA2LIST) + len);
   eaop2.fpGEA2List->cbList = sizeof(GEA2LIST) + len;
   eaop2.fpGEA2List->list[0].oNextEntryOffset = 0;
   eaop2.fpGEA2List->list[0].cbName = len;
   memcpy(eaop2.fpGEA2List->list[0].szName, eaname, len + 1);
-  
   // Since there is nor reasonable efficient way to determine the size of one EA
   // a rather large buffer is allocated. EAs must not be larger than 64k anyway.
   eaop2.fpFEA2List = (FEA2LIST*)malloc(sizeof(FEA2LIST) + sizeof(FEA2) + 65534);
   eaop2.fpFEA2List->cbList = sizeof(FEA2LIST) + sizeof(FEA2) + 65534;
 
-  rc = DosQueryPathInfo((PSZ)file, FIL_QUERYEASFROMLIST, &eaop2, sizeof eaop2);
+  rc = DosQueryFileInfo(hf, FIL_QUERYEASFROMLIST, &eaop2, sizeof eaop2);
   if (rc == NO_ERROR)
-  {
-    if (easize)
+  { if (easize)
       *easize = eaop2.fpFEA2List->list[0].cbValue;
     *eadata = malloc(eaop2.fpFEA2List->list[0].cbValue);
     memcpy(*eadata, eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbName + 1, eaop2.fpFEA2List->list[0].cbValue);
   }
 
-  free (eaop2.fpFEA2List);
+  DosClose(hf);
+  free(eaop2.fpFEA2List);
   return rc;
 }
