@@ -310,10 +310,10 @@ void WaitDependencyInfo::OnCompleted()
 
 InfoFlags JobSet::RequestInfo(APlayable& target, InfoFlags what)
 { DEBUGLOG(("JobSet::RequestInfo(&%p, %x)\n", &target, what));
-  InfoFlags what2 = target.RequestInfo(what, Pri);
+  what = target.RequestInfo(what, Pri);
   if (what)
     Depends.Add(target, what);
-  return what2;
+  return what;
 }
 
 volatile const AggregateInfo& JobSet::RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what)
