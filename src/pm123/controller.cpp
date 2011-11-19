@@ -1137,7 +1137,7 @@ void CtrlImp::Worker()
       if (fail)
       { ccp->StrArg.reset();
         ccp->Flags = RC_SubseqError;
-      } else if (ccp->Cmd >= sizeof cmds / sizeof *cmds)
+      } else if ((unsigned)ccp->Cmd >= sizeof cmds / sizeof *cmds)
       { ccp->StrArg = xstring::sprintf("Invalid control command %i", ccp->Cmd);
         ccp->Flags = RC_BadArg;
       } else
