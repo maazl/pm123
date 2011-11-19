@@ -1017,7 +1017,7 @@ void CtrlImp::MsgLocation()
     // TODO: not yet implemented
   } else
   { // Fetch time first because that may change Current().
-    Location*& sip = (Location*&)PtrArg;
+    SongIterator*& sip = (SongIterator*&)PtrArg;
     PM123_TIME pos = FetchCurrentSongTime();
     *sip = Current()->Loc; // copy
     sip->Navigate(pos, SyncJob);
