@@ -687,11 +687,12 @@ void Decoder::ThreadFunc()
   int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Channels, &done);
   DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
   bool upd_len = UpdateStreamLength(); // Update stream length before ReadTechInfo
+  done /= Channels * sizeof *buffer;
   switch (rc)
   {case MPG123_DONE:
     if (done)
     { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
-      (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Channels, pos);
+      (*OutCommitBuffer)(OutParam, done, pos);
     }
     (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
     state = ST_EOF;
@@ -706,7 +707,7 @@ void Decoder::ThreadFunc()
     ReadFrameInfo();
    case MPG123_OK:
      PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
-     (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Channels, pos);
+     (*OutCommitBuffer)(OutParam, done, pos);
   }
   // Update stream length?
   if (upd_len)
