@@ -266,7 +266,7 @@ int_ptr<APlayable> Ctrl::GetRoot()
 
 void CtrlImp::RaiseControlEvents()
 { EventFlags events = (EventFlags)Pending.swap(EV_None);
-  DEBUGLOG(("CtrlImp::RaiseControlEvents: %x\n", events));
+  DEBUGLOG(("Ctrl::RaiseControlEvents: %x\n", events));
   if (events)
     ChangeEvent(events);
 }

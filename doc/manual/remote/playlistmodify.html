@@ -17,11 +17,10 @@
       <th>Reply</th>
     </tr>
     <tr>
-      <td><a name="pl_clear"><tt>pl clear </tt>or<br>
-      </a><tt><a name="clear"></a>clear</tt><tt> </tt></td>
+      <td><a name="pl_clear"><tt>pl clear </tt>or </a><tt><a
+ name="clear"></a>clear</tt><tt> </tt></td>
       <td>Clears the current playlist.</td>
-      <td>none<br>
-      </td>
+      <td>none </td>
     </tr>
     <tr>
       <td><tt><a name="pl_add"></a>pl add&nbsp;<var>&lt;url&gt;</var></tt>&nbsp;[<tt><var>&lt;url&gt;</var></tt>
@@ -65,8 +64,7 @@ on error.</td>
       <td valign="top"><tt><a name="pl_item"></a>pl item </tt><tt><var>&lt;key&gt;</var></tt>[<tt>=<var>&lt;value&gt;</var></tt>]</td>
       <td valign="top">Modify a property of a playlist item. See <a
  href="meta.html#info_item"><tt>info item</tt></a> for valid keys and
-syntax.<br>
-      </td>
+syntax. </td>
       <td valign="top">URL of the item or an empty line on error.</td>
     </tr>
     <tr>
@@ -74,7 +72,8 @@ syntax.<br>
 or <tt><a name="save"></a>save</tt> ... </td>
       <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>.
 If <var><tt>&lt;file&gt;</tt></var> is
-omitted the playlist is saved in place. This only works on mutable
+omitted the playlist is saved in place. The latter only works on
+mutable
 lists.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
@@ -93,7 +92,7 @@ into the current playlist.<br>
 Alternatively you could use <a href="#add"><tt>add</tt></a> to insert
 a reference to the directory instead. This has the side effect that the
 directory is rescanned every time
-the playlist is loaded.</p>
+the playlist is loaded into memory.</p>
   </li>
 </ol>
 </body>

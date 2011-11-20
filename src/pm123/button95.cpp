@@ -46,8 +46,12 @@ ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   PDATA95 btn = (PDATA95)WinQueryWindowPtr( hwnd, QWL_USER );
 
   switch( msg ) {
+    case DM_DRAGOVER:
+    case DM_DROP:
+    case WM_BUTTON2MOTIONSTART:
     case WM_CHAR:
     case WM_CONTEXTMENU:
+      // Delegate some messages to the player
       WinSendMsg( btn->hwnd_owner, msg, mp1, mp2 );
       break;
 

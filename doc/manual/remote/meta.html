@@ -81,7 +81,8 @@ error text.</p>
 <p>The <tt>SUBITEMS</tt> property contains the
 number of immediate sub items in a playlist or folder regardless if
 they
-are playlists, songs or whatever. It does not include nested songs. If
+are playlists, songs, invalid or whatever. It does not include nested
+songs. If
 you want to know how many playable song a playlist contains, use <tt><a
  href="meta.html#info_playlist">info playlist</a></tt>.</p>
 <h3><tt><a name="info_meta"></a>info meta </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
@@ -148,16 +149,16 @@ select the current item. If no current item is selected, only an empty
 line is returned.</p>
 <h4>Reply</h4>
 <blockquote><tt>ALIAS=<var>Radio Chromanova: Ambient</var></tt><br>
-  <tt>START=<var>&lt;start_location&gt;</var></tt> (<a
+  <tt>START=<var>&lt;start_location&gt; </var></tt>(<a
  href="../location.html">location string</a>)<tt><br>
-STOP=<var>&lt;stop_location&gt;</var></tt> (<a href="../location.html">location
+STOP=<var>&lt;stop_location&gt; </var></tt>(<a href="../location.html">location
 string</a>)<br>
-  <tt>AT=<var>&lt;last_play_pos&gt;</var></tt> (<a
+  <tt>AT=<var>&lt;last_play_pos&gt; </var></tt>(<a
  href="../location.html">location
 string</a>)<tt><var></var></tt><br>
-  <tt>PREGAP=<var>2.0</var></tt> (seconds)<br>
-  <tt>POSTGAP=<var>1.0</var></tt> (seconds)<tt><var></var></tt><br>
-  <tt>GAIN=<var>+2</var></tt> (dB)<br>
+  <tt>PREGAP=<var>2.0 </var></tt>(seconds)<br>
+  <tt>POSTGAP=<var>1.0 </var></tt>(seconds)<tt><var></var></tt><br>
+  <tt>GAIN=<var>+2 </var></tt>(dB)<br>
   <tt>OPTIONS= </tt><tt><var></var></tt></blockquote>
 <p><tt><var></var></tt>The list is terminated by an empty line. All of
 the above tags are optional and in arbitrary order.</p>

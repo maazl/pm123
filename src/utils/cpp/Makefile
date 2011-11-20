@@ -46,7 +46,7 @@ mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
 ..\interlocked.h:	..\..\include\config.h
 ..\debuglog.h:	..\errorstr.h
 smartptr.h:	..\..\include\config.h cpputil.h mutex.h ..\debuglog.h
-event.cpp:	event.h cpputil.h ..\debuglog.h
+event.cpp:	event.h cpputil.h interlockedptr.h ..\debuglog.h
 event.h:	..\..\include\config.h mutex.h ..\debuglog.h
 mutex.cpp:	mutex.h ..\debuglog.h
 queue.cpp:	queue.h ..\debuglog.h
@@ -62,7 +62,6 @@ xstringbuilder.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 priority_queue.cpp:	queue.h ..\debuglog.h ..\snprintf.h
 showaccel.cpp:	showaccel.h ..\snprintf.h
 showaccel.h:	container\sorted_vector.h
-container/list.cpp:	container/list.h ..\debuglog.h
 container/list.h:	smartptr.h cpputil.h
 container/vector.cpp:	container/vector.h cpputil.h ..\debuglog.h
 container/vector.h:	mutex.h smartptr.h
@@ -70,3 +69,10 @@ container/stringmap.cpp:	container/stringmap.h
 container/stringmap.h:	xstring.h container\sorted_vector.h
 container/iterator.cpp:	container\iterator.h
 container\iterator.h:	container\vector.h
+debugmem.cpp:	..\debuglog.h
+interlockedptr.h:	..\interlocked.h
+pmutils.cpp:	pmutils.h
+pmutils.h:	..\debuglog.h xstring.h ..\..\include\plugin.h
+..\..\include\plugin.h:	..\..\include\config.h xstring.h
+smartptr.cpp:	mutex.h smartptr.h ..\debuglog.h
+container/list.cpp:	container/list.h ..\debuglog.h

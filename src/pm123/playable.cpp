@@ -679,30 +679,19 @@ void Playable::InsertEntry(Entry* entry, Entry* before)
   // insert new item at the desired location
   entry->Attach();
   Playlist->Items.insert(entry, before);
-  DEBUGLOG(("Playable::InsertEntry - before event\n"));
-  //InvalidateCIC(IF_Aggreg, entry->GetPlayable());
-  //CollectionChange(CollectionChangeArgs(*this, *entry, PCT_Insert));
-  DEBUGLOG(("Playable::InsertEntry - after event\n"));
+  Playlist->Invalidate(IF_Aggreg, &entry->GetPlayable());
 }
 
 bool Playable::MoveEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("Playable(%p{%s})::MoveEntry(%p{%s}, %p{%s})\n", this, URL.getShortName().cdata(),
     entry, entry->GetPlayable().URL.getShortName().cdata(), before, (before ? before->GetPlayable().URL : url123::EmptyURL).getShortName().cdata()));
-  if (!Playlist->Items.move(entry, before))
-    return false;
-  // raise event
-  DEBUGLOG(("Playable::MoveEntry - before event\n"));
-  //CollectionChange(CollectionChangeArgs(*this, *entry, PCT_Move));
-  DEBUGLOG(("Playable::MoveEntry - after event\n"));
-  return true;
+  ASSERT(entry->HasParent(this));
+  return Playlist->Items.move(entry, before);
 }
 
 void Playable::RemoveEntry(Entry* entry)
 { DEBUGLOG(("Playable(%p{%s})::RemoveEntry(%p{%s})\n", this, URL.getShortName().cdata(),
     entry, entry->GetPlayable().URL.getShortName().cdata()));
-  //InvalidateCIC(IF_Aggreg, entry->GetPlayable());
-  //CollectionChange(CollectionChangeArgs(*this, *entry, PCT_Delete));
-  DEBUGLOG(("Playable::RemoveEntry - after event\n"));
   ASSERT(entry->HasParent(this));
   entry->Detach();
   Playlist->Items.remove(entry);
@@ -743,17 +732,8 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
         goto exactmatch;
       } else if (cur_search->RefTo == cur_new->RefTo)
       { DEBUGLOG(("Playable::UpdateCollection potential match: %p\n", cur_search));
-        // Check for exact match
-        // TODO: race condition
-        //if ( *cur_search->GetInfo().item == *cur_new->GetInfo().item
-        //  && *cur_search->GetInfo().attr == *cur_new->GetInfo().attr
-        //  && *cur_search->GetInfo().meta == *cur_new->GetInfo().meta )
-        //{ // exact match => take this one
-        //  match = cur_search;
-        //  goto exactmatch;
-        //} else if (match == NULL)
-          // only the first inexact match counts
-          match = cur_search;
+        // only the first inexact match counts
+        match = cur_search;
       }
     }
     // Has match?
@@ -839,9 +819,12 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
   { what |= IF_Usage;
     Modified = true;
   }
-  //InvalidateInfo(IF_Tech|IF_Rpl, true);
-  // TODO: join invalidate events
-  RaiseInfoChange(what, what);
+
+  CollectionChangeArgs args(*this, item, PCT_Insert);
+  args.Loaded = args.Changed = what;
+  args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
+                   | Playlist->Invalidate(IF_Aggreg, &ep->GetPlayable());
+  InfoChange(args);
   return ep;
 }
 
@@ -882,11 +865,12 @@ bool Playable::RemoveItem(PlayableInstance* item)
     item, item->GetPlayable().URL.cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
-  if (item && !item->HasParent(this))
+  if (!item || !item->HasParent(this))
     return false;
   InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj);
   if (!(upd & IF_Child))
+    // TODO: Hmm, normally we should wait
     return false;
 
   // now detach the item from the container
@@ -900,9 +884,13 @@ bool Playable::RemoveItem(PlayableInstance* item)
   { what |= IF_Usage;
     Modified = true;
   }
-  // TODO InvalidateInfo(IF_Tech|IF_Rpl, true);
-  // TODO: join invalidate events
-  RaiseInfoChange(what, what);
+
+  Invalidate(IF_Obj|IF_Rpl);
+  CollectionChangeArgs args(*this, item, PCT_Delete);
+  args.Loaded = args.Changed = what;
+  args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
+                   | Playlist->Invalidate(IF_Aggreg, &item->GetPlayable());
+  InfoChange(args);
   return true;
 }
 
@@ -912,6 +900,7 @@ bool Playable::Clear()
   InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj|IF_Rpl|IF_Drpl);
   if (!(upd & IF_Child))
+    // TODO: Hmm, normally we should wait
     return false;
   InfoFlags what = upd;
   // now detach all items from the container
@@ -949,6 +938,7 @@ bool Playable::Sort(ItemComparer comp)
     return true; // Empty or one element lists are always sorted.
   InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
+    // TODO: Hmm, normally we should wait
     return false;
 
   // Create index array
@@ -977,6 +967,7 @@ bool Playable::Shuffle()
     return true; // Empty or one element lists are always sorted.
   InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
+    // TODO: Hmm, normally we should wait
     return false;
 
   // Create index array
@@ -1108,30 +1099,6 @@ int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo)
   EndUpdate(what);
 }*/
 
-/*void Playable::CalcRplInfo()
-{ if (!Collection)
-  { // It's just a song
-    RPL_INFO rpl =
-    { sizeof(RPL_INFO),         // size
-      1,                        // totalsongs
-      0,                        // totallists
-      Info.TechInfo.songlength, // totallength
-      Info.PhysInfo.filesize,   // totalsize
-      false                     // recursive
-    };
-    UpdateRpl(&rpl, true);
-    return;
-  }
-  // It's a PlayableCollection
-  CollectionInfo ci;
-  int_ptr<PlayableInstance> pi = Collection->GetNext(NULL);
-  while (pi)
-  { ci.Add(Collection->GetCollectionInfo());
-    pi = Collection->GetNext(pi);
-  }
-  UpdateRpl(&ci, true);
-}*/
-
 const Playable& Playable::DoGetPlayable() const
 { return *this; }
 
@@ -1197,7 +1164,7 @@ void Playable::Cleanup()
 { DEBUGLOG(("Playable::Cleanup() - %u\n", LastCleanup));
   // Keep destructor calls out of the mutex
   vector<Playable> todelete(32);
-  // serach for unused items
+  // search for unused items
   { Repository::IXAccess rp;
     for (Playable*const* ppp = rp->end(); --ppp != rp->begin(); )
     { if ((*ppp)->RefCountIsUnique() && (long)((*ppp)->LastAccess - LastCleanup) <= 0)

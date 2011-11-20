@@ -98,6 +98,12 @@ class CollectionInfoCache
   /// if there are no exclusions.
   /// The returned storage is valid until \c *this dies.
   CollectionInfo*   Lookup(const PlayableSetBase& exclude);
+  /// Invalidate all entries that do \e not contain \a pp.
+  /// @param what Information to invalidate. Must be a subset of \c IF_Aggreg.
+  /// @param pp playable object that caused the invalidation. If pp is NULL,
+  /// all entries are invalidated.
+  /// @return subset of \a what that really caused an invalidation
+  /// in at least one entry.
   InfoFlags         Invalidate(InfoFlags what, const Playable* pp);
   /// Advances item to the next CollectionInfoCache entry that needs some work to be done
   /// at the given or higher priority level.

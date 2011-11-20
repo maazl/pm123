@@ -101,22 +101,19 @@ class URLTokenizer
 bool URLTokenizer::Next(const char*& url)
 { if (!Args || !*Args)
     return false;
-  char* narg;
   if (Args[0] == '"')
   { // quoted item
-    narg = strchr(Args+1, '"');
-    if (narg)
-      *narg++ = 0;
+    url = Args+1;
+    Args = strchr(url, '"');
   } else
-  { narg = Args + strcspn(Args, " \t");
-    if (*narg)
-      *narg++ = 0;
+  { url = Args;
+    Args += strcspn(url, " \t");
   }
-  // get url
-  url = Args;
+  if (*Args)
+    *Args++ = 0;
   // next argument
-  if (narg && *narg)
-    Args = narg + strspn(Args, " \t");
+  if (Args && *Args)
+    Args += strspn(Args, " \t");
   return true;
 }
 
@@ -351,7 +348,7 @@ class CommandProcessor : public ACommandProcessor
   CommandProcessor();
 };
 
-const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
+const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be ordered!!!
 { { "add",            &CommandProcessor::CmdPlAdd         }
 , { "autouse",        &CommandProcessor::CmdAutouse       }
 , { "cd",             &CommandProcessor::CmdCd            }
@@ -385,15 +382,21 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "pl item",        &CommandProcessor::CmdPlItem        }
 , { "pl next",        &CommandProcessor::CmdPlNext        }
 , { "pl prev",        &CommandProcessor::CmdPlPrev        }
+, { "pl previous",    &CommandProcessor::CmdPlPrev        }
 , { "pl remove",      &CommandProcessor::CmdPlRemove      }
 , { "pl reset",       &CommandProcessor::CmdPlReset       }
 , { "pl save",        &CommandProcessor::CmdPlSave        }
+, { "pl_add",         &CommandProcessor::CmdPlAdd         }
+, { "pl_clear",       &CommandProcessor::CmdPlClear       }
 , { "pl_current",     &CommandProcessor::CmdPlCurrent     }
 , { "pl_index",       &CommandProcessor::CmdPlIndex       }
 , { "pl_item",        &CommandProcessor::CmdPlItem        }
 , { "pl_next",        &CommandProcessor::CmdPlNext        }
 , { "pl_prev",        &CommandProcessor::CmdPlPrev        }
+, { "pl_previous",    &CommandProcessor::CmdPlPrev        }
+, { "pl_remove",      &CommandProcessor::CmdPlRemove      }
 , { "pl_reset",       &CommandProcessor::CmdPlReset       }
+, { "pl_save",        &CommandProcessor::CmdPlSave        }
 , { "play",           &CommandProcessor::CmdPlay          }
 , { "playlist",       &CommandProcessor::CmdPlaylist      }
 , { "playonload",     &CommandProcessor::CmdPlayonload    }
@@ -1097,13 +1100,6 @@ void CommandProcessor::CmdPlClear()
     CurPlaylist->Clear();
 }
 
-void CommandProcessor::CmdPlRemove()
-{ if (CurItem)
-  { CurPlaylist->RemoveItem(CurItem);
-    Reply.append(CurItem->GetPlayable().URL);
-  }
-}
-
 void CommandProcessor::CmdPlAdd()
 { if (CurPlaylist)
   { URLTokenizer tok(Request);
@@ -1116,6 +1112,13 @@ void CommandProcessor::CmdPlAdd()
       }
       CurPlaylist->InsertItem(*Playable::GetByURL(ParseURL(url)), CurItem);
     }
+  }
+}
+
+void CommandProcessor::CmdPlRemove()
+{ if (CurItem && CurPlaylist->RemoveItem(CurItem))
+  { Reply.append(CurItem->GetPlayable().URL);
+    CurItem = CurPlaylist->GetNext(CurItem);
   }
 }
 

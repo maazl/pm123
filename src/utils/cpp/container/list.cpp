@@ -82,8 +82,6 @@ void list_base::insert(entry_base* elem, entry_base* before)
 void list_base::remove(entry_base* elem)
 { (elem->Prev ? elem->Prev->Next : Head) = elem->Next;
   (elem->Next ? elem->Next->Prev : Tail) = elem->Prev;
-  elem->Prev = NULL;
-  elem->Next = NULL;
 }
 
 bool list_base::move(entry_base* elem, entry_base* before)
