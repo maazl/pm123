@@ -82,11 +82,9 @@ enum CollectionChangeType
 
 struct CollectionChangeArgs : public PlayableChangeArgs
 { CollectionChangeType        Type;
-  PlayableInstance*           Before;
-  CollectionChangeArgs(APlayable& inst)
-  : PlayableChangeArgs(inst) {}
-  /*CollectionChangeArgs(PlayableCollection& coll, PlayableInstance& item, CollectionChangeType type)
-  : Collection(coll), Item(item), Type(type) {}*/
+  PlayableInstance&           Before;
+  CollectionChangeArgs(APlayable& inst, PlayableInstance& item, CollectionChangeType type)
+  : PlayableChangeArgs(inst), Type(type), Before(item) {}
 };
 
 

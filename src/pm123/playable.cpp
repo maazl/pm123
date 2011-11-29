@@ -189,16 +189,22 @@ void Playable::PeekRequest(RequestState& req) const
   DEBUGLOG(("Playable::PeekRequest: {%x,%x, %x}\n", req.ReqLow, req.ReqHigh, req.InService));
 }
 
-void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags what)
-{ DEBUGLOG(("Playable(%p)::SetCachedInfo(&%p, %x)\n", this, &info, what));
-  // double check
-  what &= Info.InfoStat.Check(what, REL_Invalid);
-  if (what)
+void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags cached, InfoFlags reliable)
+{ DEBUGLOG(("Playable(%p)::SetCachedInfo(&%p, %x, %x)\n", this, &info, cached, reliable));
+  reliable &= ~cached;
+  cached &= ~reliable;
+  if (!reliable)
+    // Avoid unnecessary locks.
+    cached &= Info.InfoStat.Check(cached, REL_Invalid);
+  if (cached | reliable)
   { Mutex::Lock lock(Mtx);
-    what &= Info.InfoStat.Check(what, REL_Invalid);
-    InfoFlags changed = UpdateInfo(info, what);
-    changed &= Info.InfoStat.Cache(what);
-    RaiseInfoChange(IF_None, changed);
+    cached &= Info.InfoStat.Check(cached, REL_Invalid); // double check
+    reliable = Info.InfoStat.BeginUpdate(reliable);
+    InfoFlags changed = UpdateInfo(info, cached|reliable);
+    changed &= Info.InfoStat.Cache(cached) | reliable;
+    reliable = Info.InfoStat.EndUpdate(reliable);
+    if (reliable|changed)
+      RaiseInfoChange(reliable, changed);
   }
 }
 
@@ -595,9 +601,8 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 }
 
 PROXYFUNCIMP(void DLLENTRY, Playable)
-Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override )
-{ DEBUGLOG(("Playable::DecoderEnumCb(%p, %s, %p, %x, %x)\n", param, url, info, cached, override));
-  ASSERT((cached & override) == 0);
+Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, int cached, int reliable)
+{ DEBUGLOG(("Playable::DecoderEnumCb(%p, %s, %p, %x, %x)\n", param, url, info, cached, reliable));
   deccbdata* cbdata = (deccbdata*)param;
   const url123& abs_url = cbdata->Parent.URL.makeAbsolute(url);
   if (!abs_url)
@@ -607,18 +612,16 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
   }
   int_ptr<Playable> pp = Playable::GetByURL(abs_url);
   // Apply cached information to *pp.
-  cached &= ~pp->Info.InfoStat.Check((InfoFlags)cached, REL_Invalid);
-  // double check
-  if (cached)
-  { Mutex::Lock lock(pp->Mtx);
-    cached &= ~pp->Info.InfoStat.Check((InfoFlags)cached, REL_Invalid);
-    pp->RaiseInfoChange(IF_None, pp->Info.InfoStat.Cache(pp->UpdateInfo(*info, (InfoFlags)cached)));
-  }
+  pp->SetCachedInfo(*info, (InfoFlags)cached, (InfoFlags)reliable);
+  // Create reference
   PlayableRef* ps = new PlayableRef(*pp);
+  InfoFlags override = (InfoFlags)(cached|reliable);
   if (override & IF_Meta)
     ps->OverrideMeta(info->meta);
   if (override & IF_Attr)
     ps->OverrideAttr(info->attr);
+  if (override & IF_Item)
+    ps->OverrideItem(info->item);
   // Done
   cbdata->Children.append() = ps;
 }
@@ -820,7 +823,7 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
     Modified = true;
   }
 
-  CollectionChangeArgs args(*this, item, PCT_Insert);
+  CollectionChangeArgs args(*this, *ep, PCT_Insert);
   args.Loaded = args.Changed = what;
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &ep->GetPlayable());
@@ -886,7 +889,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
   }
 
   Invalidate(IF_Obj|IF_Rpl);
-  CollectionChangeArgs args(*this, item, PCT_Delete);
+  CollectionChangeArgs args(*this, *item, PCT_Delete);
   args.Loaded = args.Changed = what;
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &item->GetPlayable());
@@ -994,7 +997,7 @@ struct save_cb_data
 };
 
 static int DLLENTRY save_callback(void* param, xstring* url,
-  const INFO_BUNDLE** info, int* valid, int* override)
+  const INFO_BUNDLE** info, int* cached, int* reliable)
 { save_cb_data& cbd = *(save_cb_data*)param;
   // TODO: This is a race condition, because the exact content that is saved is not
   // well defined if the list is currently manipulation. Normally a snapshot should be taken.
@@ -1006,8 +1009,11 @@ static int DLLENTRY save_callback(void* param, xstring* url,
     : cbd.Current->GetPlayable().URL;
   cbd.Info.Assign(cbd.Current->GetInfo());
   *info  = &cbd.Info;
-  *valid = cbd.Current->GetValid();
-  *override = cbd.Current->GetOverridden();
+  *reliable = ~cbd.Current->RequestInfo(~IF_None, PRI_None);
+  *cached = cbd.Current->RequestInfo(~IF_None, PRI_None, REL_Cached) & ~*reliable;
+  InfoFlags override = cbd.Current->GetOverridden();
+  *reliable |= override;
+  *cached   |= override;
   return PLUGIN_OK;
 }
 

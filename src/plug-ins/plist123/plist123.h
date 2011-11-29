@@ -30,7 +30,7 @@
 #define PLIST123_H
 
 #define AUTHOR_STRING "Marcel Mueller"
-#define DESCRIPTION_STRING "PM123 Playlist File Plug-in 1.0"
+#define DESCRIPTION_STRING "PM123 Playlist Plug-in 1.0"
 
 #define EACAT_PLAYLIST "Playlist File"
 #define EATYPE_PM123   "PM123 Playlist"

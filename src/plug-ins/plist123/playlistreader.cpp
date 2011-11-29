@@ -158,7 +158,7 @@ void PlaylistReader::Reset()
 void PlaylistReader::Create()
 { DEBUGLOG(("plist123:PlaylistReader::Create() - %s, %x/%x\n", Url.cdata(), Cached, Override));
   if (Url)
-  { (*Cb)(CbParam, Url, &Info, Cached, Override);
+  { (*Cb)(CbParam, Url, &Info, Cached, Override|Cached);
     ++Count;
   }
 }

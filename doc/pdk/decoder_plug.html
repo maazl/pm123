@@ -277,6 +277,42 @@ current decoder status.
 They should always be functional and give consistent results in any
 conditions.
 The functions must be <em>thread safe</em>.</p>
+<h4><a name="decoder_support"></a>decoder_support</h4>
+<blockquote>
+  <pre>ULONG DLLENTRY <b>decoder_support</b>(const <a
+ href="decoder_plug.html#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var>)</pre>
+</blockquote>
+<ul>
+  <li><code><var>types</var></code>&nbsp;(out)
+- Pointer to the first element of an array of supported file types.</li>
+  <li><var><code>count</code></var>&nbsp;(out)
+- Number of entries in the above array.</li>
+  <li><var>return value</var> - return what kind of
+stream can the decoder play:<br>
+    <tt> DECODER_FILENAME</tt> (1) - Decoder can play files
+(including UNC names)<br>
+    <tt> DECODER_URL</tt> (2) - Decoder can play URIs
+(http, ftp, etc.)<br>
+    <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks<br>
+    <tt> DECODER_OTHER</tt> (8) - Decoder can play other
+URLs<br>
+    <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
+    <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can play playlists.<br>
+    <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
+    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
+The values should be ored as required.</li>
+</ul>
+<p>This is used by PM123 to suggest to the user what he can play
+with the
+decoder.
+Furthermore <em>PM123 will normally not query the decoder about files
+or
+other objects that are not listed in the above filter list</em> to keep
+performance up.</p>
+<p>The function is called again after a successful call to <a
+ href="index.html#plugin_configure"><tt>plugin_configure</tt></a>.
+This allows to modify the supported file types through the
+configuration.</p>
 <h4><a name="decoder_fileinfo"></a>decoder_fileinfo</h4>
 <blockquote>
   <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, int* <var>what</var>, const <a
@@ -473,7 +509,7 @@ O = may be overridden by a playlist item</p>
 <h5><a name="DECODER_INFO_ENUMERATION_CB"></a>DECODER_INFO_ENUMERATION_CB</h5>
 <blockquote>
   <pre>void (DLLENTRY* <b>cb</b>)(void* <var>param</var>, const char* <var>url</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>override</var>)</pre>
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>reliable</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>param</var></code> -
@@ -488,30 +524,52 @@ information about an item, you should place it in <code>*<var>info</var></code>.
 This can make PM123 significantly faster. If you do not have any
 information,
 you can pass <code>NULL</code> as <code><var>info</var></code>.</li>
-  <li><code><var>cached</var></code> -
-Bit
-vector of <tt><a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a></tt>
-with fields in <tt>*<var>info</var></tt> that contain cached
-information about the sub item.&nbsp;Setting a bit in this vector
-indicates that the specified
-type of information in <code>*<var>info</var></code>
-is a known property of the referenced object</li>
-  <li><code><var>override</var></code> -&nbsp;Bit
-vector of <tt><a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a></tt>.
-Setting a bit in this vector indicates that the specified
-type of information in <code>*<var>info</var></code>
-is<i> </i><i>overridden by
-this reference</i> only. You may use this e.g. to give meaningful meta
+  <li><code><var>cached, reliable</var></code> -
+Two bit
+vectors of <tt><a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a></tt>
+corresponding to fields in <tt>*<var>info</var></tt>.<br>
+    <table border="1" cellpadding="3" cellspacing="0">
+      <tbody>
+        <tr>
+          <td valign="top"><var><tt>cached</tt></var></td>
+          <td valign="top"><var><tt>reliable</tt></var></td>
+          <td valign="top">Corresponding field in <tt>*<var>info</var></tt>
+contains</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0</td>
+          <td align="center" valign="top">0</td>
+          <td valign="top">- ignored -, may be <tt>NULL</tt></td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">1</td>
+          <td align="center" valign="top">0</td>
+          <td valign="top">The field contain cached information that
+might no longer be valid.</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0</td>
+          <td align="center" valign="top">1</td>
+          <td valign="top">The field contains reliable information that
+just had been verified.</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">1</td>
+          <td align="center" valign="top">1</td>
+          <td valign="top">The field contains information that is <i>overridden
+by
+this reference</i> only.</td>
+        </tr>
+      </tbody>
+    </table>
+You may use overridden information e.g. to give meaningful meta
 information to a slice of an object. For example a cue sheet may
 reference slices of a long file, but the slices have different meta
-information although the underlying object is the same.<br>
-You cannot override all kind of information. See the above matrix for
+information although the underlying object is the same. You cannot
+override all kind of information. See the above matrix for
 details.</li>
 </ul>
-<var><tt>cached</tt></var> and <var><tt>override</tt></var> must not
-overlap. Pointers in <tt>*<var>info</var></tt> that correspond to
-information types that are neither set in <var><tt>cached</tt></var>
-nor in <var><tt>override</tt></var> may be <tt>NULL</tt>.
+<var><tt></tt></var>
 <h4><a name="decoder_saveinfo"></a>decoder_saveinfo</h4>
 <blockquote>
   <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>(char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, xstring* <var>errortext</var>)</pre>
@@ -537,7 +595,8 @@ Calling the function should succeed even if the file is currently
 playing.</p>
 <h4><a name="decoder_savefile"></a>decoder_savefile</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_savefile</b>(const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                DECODER_SAVE_ENUMERATION_CB <var>cb</var>, void* <var>param</var><var></var>, xstring* <var>errortext</var>)</pre>
+  <pre>ULONG DLLENTRY <b>decoder_savefile</b>(const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                <a
+ href="#DECODER_SAVE_ENUMERATION_CB">DECODER_SAVE_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var><var></var>, xstring* <var>errortext</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>url</var></code> - URI
@@ -587,7 +646,7 @@ place. It is currently only used to save playlists.</p>
 <blockquote>
   <pre>int (DLLENTRY* <b>cb</b>)(void* <var>param</var>, <a
  href="xstring.html">xstring</a>* <var>url</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>valid</var>, int* <var>override</var>)</pre>
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>cached</var>, int* <var>reliable</var>)</pre>
 </blockquote>
 <ul>
   <li><code><var>param</var></code> -
@@ -608,64 +667,22 @@ large playlists.<br>
 The storage where <tt>*info</tt> points to is only valid until the
 next call to <tt>cb</tt> or until <tt>decoder_savefile</tt> returned.
   </li>
-  <li><code><var>valid</var></code> (out) - Return <a
+  <li><code><var>cached, reliable</var></code> (out) - Return <a
  href="datatype.html#INFOTYPE"><code>INFOTYPE</code></a>
-bit vector. Set bits in this vector indicate that the specified
-type of information in <code>**<var>info</var></code>
-is known. The decoder should not store information that is not valid.</li>
-  <li><code><var>override</var></code>&nbsp;(out) - Return <a
- href="datatype.html#INFOTYPE"><code>INFOTYPE</code></a>
-bit vector. Set bits in this vector indicate that the specified
+bit vectors. See <a href="#DECODER_INFO_ENUMERATION_CB"><tt>DECODER_INFO_ENUMERATION_CB</tt></a>
+for details.<br>
+The decoder should not store information that is not at least cached.
+When both bits are set the specified
 type of information in <code>**<var>info</var></code>
 is overridden by
 this reference only. The decoder should store this information together
-with the URI reference when possible.<br>
-The information corresponding to the set bits in <code>*<var>override</var></code>
-must exist in <code>**<var>info</var></code>. Since not all types of
-information can be overridden, override may only contain <tt>INFO_META</tt>,
-    <tt>INFO_ATTR</tt> and <tt>INFO_ITEM</tt>.</li>
+with the URI reference when possible.</li>
   <li><var>return value</var> -&nbsp;<code>PLUGIN_OK</code> (<tt>0</tt>)
 = everything is
 fine, anything else = error, e.g. no more items.</li>
 </ul>
 This function retrieves the next sub item from the currently saved
 playlist. PM123 will fill all fields according to the above rules.
-<h4><a name="decoder_support"></a>decoder_support</h4>
-<blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_support</b>(const <a
- href="#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var>)</pre>
-</blockquote>
-<ul>
-  <li><code><var>types</var></code>&nbsp;(out)
-- Pointer to the first element of an array of supported file types.</li>
-  <li><var><code>count</code></var>&nbsp;(out)
-- Number of entries in the above array.</li>
-  <li><var>return value</var> - return what kind of
-stream can the decoder play:<br>
-    <tt> DECODER_FILENAME</tt> (1) - Decoder can play files
-(including UNC names)<br>
-    <tt> DECODER_URL</tt> (2) - Decoder can play URIs
-(http, ftp, etc.)<br>
-    <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks<br>
-    <tt> DECODER_OTHER</tt> (8) - Decoder can play other
-URLs<br>
-    <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
-    <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can play playlists.<br>
-    <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
-    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
-The values should be ored as required.</li>
-</ul>
-<p>This is used by PM123 to suggest to the user what he can play
-with the
-decoder.
-Furthermore <em>PM123 will normally not query the decoder about files
-or
-other objects that are not listed in the above filter list</em> to keep
-performance up.</p>
-<p>The function is called again after a successful call to <a
- href="index.html#plugin_configure"><tt>plugin_configure</tt></a>.
-This allows to modify the supported file types through the
-configuration.</p>
 <h5><a name="DECODER_FILETYPE"></a>DECODER_FILETYPE</h5>
 <blockquote>
   <pre>typedef struct<br>{ const char* category;<br>  const char* eatype;<br>  const char* extension;<br>  int         flags;<br>} <b>DECODER_FILETYPE</b>;</pre>

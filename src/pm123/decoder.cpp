@@ -660,7 +660,7 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, co
         static const INFO_BUNDLE trackinfo = { NULL, &(TECH_INFO&)ti, NULL, NULL, &(ATTR_INFO&)ai, NULL, NULL };
         for (int track = dec_cdinfo.firsttrack; track <= dec_cdinfo.lasttrack; ++track)
         { sprintf(trackurl+16, "%02i", track);
-          (*cb)( param, trackurl, &trackinfo, INFO_TECH|INFO_ATTR|INFO_CHILD, INFO_NONE );
+          (*cb)(param, trackurl, &trackinfo, INFO_NONE, INFO_TECH|INFO_ATTR|INFO_CHILD);
         }
         // Info of the whole CD
         info->phys->filesize   = dec_cdinfo.sectors * 2352.;

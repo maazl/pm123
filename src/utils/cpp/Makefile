@@ -6,16 +6,16 @@ TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\include;..
 TARGET   = cpputil$(LBO) xstring$(LBO)
 SRCFIL   = *.cpp container/*.cpp
-CFLAGS_USR=-fcheck-new
+CFLAGS_USR=-fcheck-new -DPM123_CORE
 
 !include $(TOPDIR)\config\makerules
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
-OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO)
+OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) xstringbuilder$(CO)
 # pmutils$(CO)
 #OBJECTS = $(OBJECTS) PM\PMMenu$(CO)
 
-OBJECTS2 = xstring$(CO) xstringbuilder$(CO) url123$(CO) container\stringmap$(CO)
+OBJECTS2 = xstring$(CO) url123$(CO) container\stringmap$(CO)
 
 cpputil$(LBO): $(OBJECTS) debugmem$(CO)
 	if exist $@ del $@

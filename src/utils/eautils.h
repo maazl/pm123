@@ -1,4 +1,5 @@
 /*
+ * Copyright 2010-2011 M.Mueller
  * Copyright 2008 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +30,31 @@
 #ifndef EAUTILS_H
 #define EAUTILS_H
 
-//#define INCL_BASE
+#define INCL_BASE
 #include <stdlib.h>
 //#include <os2.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** FILEFINDBUF3 for DosFindFirst/DosFindNext with FIL_QUERYEASFROMLIST */
+typedef struct _FILEFINDBUF3FEA2LIST
+{ // FILEFINDBUF3
+  ULONG   oNextEntryOffset;
+  FDATE   fdateCreation;
+  FTIME   ftimeCreation;
+  FDATE   fdateLastAccess;
+  FTIME   ftimeLastAccess;
+  FDATE   fdateLastWrite;
+  FTIME   ftimeLastWrite;
+  ULONG   cbFile;
+  ULONG   cbFileAlloc;
+  ULONG   attrFile;
+  // FEA2LIST
+  ULONG   cbList;
+  FEA2    list[];
+} FILEFINDBUF3FEA2LIST;
 
 /* Copies extended attributes from one file or directory to another.
  * Attributes are added to a target file or replaced.

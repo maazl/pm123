@@ -37,6 +37,7 @@
 #include "filter.h"
 #include "output.h"
 #include "visual.h"
+#include "playable.h"
 #include "commandprocessor.h"
 #include "configuration.h"
 #include "eventhandler.h"
@@ -76,9 +77,11 @@ class ModuleImp : private Module
 
  private:
   // Proxy functions for PLUGIN_CONTEXT
-  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command (ModuleImp* mp, const char* cmd);
   PROXYFUNCDEF int         DLLENTRY proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength);
   PROXYFUNCDEF int         DLLENTRY proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length);
+  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command (ModuleImp* mp, const char* cmd);
+  PROXYFUNCDEF int         DLLENTRY proxy_obj_invalidate(const char* url, int what);
+  PROXYFUNCDEF int         DLLENTRY proxy_obj_supported(const char* url, const char* eatype);
  private:
   ModuleImp(const xstring& key, const xstring& name) : Module(key, name) {}
   /// Load a new DLL as plug-in. The plug-in flavor is specialized later.
@@ -132,14 +135,14 @@ int ModuleImp::Comparer(const Module& module, const KeyType& key)
 }
 
 ModuleImp::~ModuleImp()
-{ DEBUGLOG(("ModuleImp(%p{%s})::~ModuleImp()\n", this, Key.cdata()));
+{ DEBUGLOG(("Module(%p{%s})::~Module()\n", this, Key.cdata()));
   if (HModule)
   {
     #ifdef DEBUG_LOG
     APIRET rc = DosFreeModule(HModule);
     if (rc != NO_ERROR && rc != ERROR_INVALID_ACCESS)
     { char error[1024];
-      DEBUGLOG(("ModuleImp::~ModuleImp: Could not unload %s. Error %d\n%s\n",
+      DEBUGLOG(("Module::~Module: Could not unload %s. Error %d\n%s\n",
         ModuleName.cdata(), rc, os2_strerror(rc, error, sizeof error)));
     }
     #else
@@ -148,15 +151,7 @@ ModuleImp::~ModuleImp()
     HModule = NULLHANDLE;
   }
   ModuleImp::Repository::RemoveWithKey(*this, *Key.cdata());
-  DEBUGLOG(("ModuleImp::~ModuleImp() completed\n"));
-}
-
-PROXYFUNCIMP(const char* DLLENTRY, ModuleImp)
-proxy_exec_command(ModuleImp* mp, const char* cmd)
-{ // Initialize command processor oon demand.
-  if (mp->CommandInstance == NULL)
-    mp->CommandInstance = ACommandProcessor::Create();
-  return mp->CommandInstance->Execute(cmd);
+  DEBUGLOG(("Module::~Module completed\n"));
 }
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
@@ -172,14 +167,42 @@ proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length
 { return PrfWriteProfileData(Cfg::GetHIni(), mp->Key, key, (PVOID)data, length);
 }
 
+PROXYFUNCIMP(const char* DLLENTRY, ModuleImp)
+proxy_exec_command(ModuleImp* mp, const char* cmd)
+{ // Initialize command processor on demand.
+  if (mp->CommandInstance == NULL)
+    mp->CommandInstance = ACommandProcessor::Create();
+  return mp->CommandInstance->Execute(cmd);
+}
+
+PROXYFUNCIMP(int DLLENTRY, ModuleImp)
+proxy_obj_invalidate(const char* url, int what)
+{ int_ptr<Playable> pp = Playable::FindByURL(url);
+  return pp ? pp->Invalidate((InfoFlags)what) : IF_None;
+}
+
+PROXYFUNCIMP(int DLLENTRY, ModuleImp)
+proxy_obj_supported(const char* url, const char* eatype)
+{ // Get list of decoders
+  PluginList decoders(PLUGIN_DECODER);
+  Plugin::GetPlugins(decoders);
+  // Seek for match
+  for (size_t i = 0; i < decoders.size(); i++)
+  { Decoder* dp = (Decoder*)decoders[i].get();
+    if (dp->IsFileSupported(url, eatype))
+      return true;
+  }
+  return false;
+}
+
 
 void ModuleImp::Load()
-{ DEBUGLOG(("ModuleImp(%p{%s})::Load()\n", this, Key.cdata()));
+{ DEBUGLOG(("Module(%p{%s})::Load()\n", this, Key.cdata()));
 
   char load_error[_MAX_PATH];
   *load_error = 0;
   APIRET rc = DosLoadModule(load_error, sizeof load_error, ModuleName, &HModule);
-  DEBUGLOG(("ModuleImp::Load: %p - %u - %s\n", HModule, rc, load_error));
+  DEBUGLOG(("Module::Load: %p - %u - %s\n", HModule, rc, load_error));
   // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
   // However, the module is loaded successfully.
   // Furthermore, once Firefox 3.5 has beed started at least once on the system loading os2audio.dll
@@ -209,9 +232,11 @@ void ModuleImp::Load()
 
   if (pinit)
   { PluginApi.message_display = &PROXYFUNCREF(Module)PluginDisplayMessage;
-    PluginApi.exec_command    = vdelegate(&((ModuleImp*)this)->vd_exec_command,  &PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
     PluginApi.profile_query   = vdelegate(&((ModuleImp*)this)->vd_query_profile, &PROXYFUNCREF(ModuleImp)proxy_query_profile, (ModuleImp*)this);
     PluginApi.profile_write   = vdelegate(&((ModuleImp*)this)->vd_write_profile, &PROXYFUNCREF(ModuleImp)proxy_write_profile, (ModuleImp*)this);
+    PluginApi.exec_command    = vdelegate(&((ModuleImp*)this)->vd_exec_command,  &PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
+    PluginApi.obj_invalidate  = &PROXYFUNCREF(ModuleImp)proxy_obj_invalidate;
+    PluginApi.obj_supported   = &PROXYFUNCREF(ModuleImp)proxy_obj_supported;
     Context.plugin_api  = &PluginApi;
     Context.xstring_api = &XstringApi;
     

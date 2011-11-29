@@ -42,7 +42,7 @@ static const xstring xstring_NULL = { NULL };
  * C++ class xstring. You must not use this hack for plug-in development
  * because it may give undefined behavior when the memory is freed in another
  * C runtime instance than where it is allocated. */
-#include <cpp/xstring.h>
+//#include <cpp/xstring.h>
 class xstring; // Keep CDT happy
 #define xstring_NULL xstring()
 //static const xstring xstring_NULL;
@@ -53,8 +53,6 @@ class xstring; // Keep CDT happy
  * because at this point \c plugin_init has not yet been called.
  */
 class xstring;
-/* Avoid accidental include of xstring.h. */
-#define XSTRING_H
 #endif
 
 #ifdef __cplusplus
@@ -63,6 +61,7 @@ extern "C" {
 
 #pragma pack(4)
 
+/** Plug-in result codes. */
 typedef enum
 { PLUGIN_OK           = 0
 , PLUGIN_UNSUPPORTED  = 1
@@ -77,6 +76,7 @@ typedef enum
 , PLUGIN_NO_USABLE    = ((unsigned long)-2)
 } PLUGIN_RC;
 
+/** Plug-in types */
 typedef enum
 { PLUGIN_NULL     = 0x00,
   PLUGIN_VISUAL   = 0x01,
@@ -85,6 +85,7 @@ typedef enum
   PLUGIN_OUTPUT   = 0x08
 } PLUGIN_TYPE;
 
+/** Message severity levels. */
 typedef enum
 { /** Informational message */
   MSG_INFO,
@@ -94,63 +95,70 @@ typedef enum
   MSG_ERROR
 } MESSAGE_TYPE;
 
+/** return value of plugin_query. */
 typedef struct _PLUGIN_QUERYPARAM
-{
-  int   type;         /* PLUGIN_*. values can be ORed */
+{ int   type;         /* PLUGIN_*. values can be ORed */
   char* author;       /* Author of the plug-in        */
   char* desc;         /* Description of the plug-in   */
   int   configurable; /* Is the plug-in configurable  */
   int   interface;    /* Interface revision           */
-
 } PLUGIN_QUERYPARAM;
 
-/* Common services of the PM123 core for plug-ins. */
+/** Common services of the PM123 core for plug-ins. */
 typedef struct
-{ /* message function */
+{ /** message function */
   void DLLENTRYP(message_display)(MESSAGE_TYPE type, const char* msg);
 
-  /* retrieve configuration setting */
+  /** retrieve configuration setting */
   int DLLENTRYP(profile_query)(const char* key, void* data, int maxlength);
-  /* store configuration setting */
+  /** store configuration setting */
   int DLLENTRYP(profile_write)(const char* key, const void* data, int length);
 
-  /* execute remote command */
-  /* See the documentation of remote commands for a description. */
+  /** execute remote command
+   * See the documentation of remote commands for a description. */
   const char* DLLENTRYP(exec_command)(const char* cmd);
-  /* Invalidate object properties */
-  /* what is a bit-vector of INFOTYTE */
-  void DLLENTRYP(obj_invalidate)(const char* url, int what);
+  /** Invalidate object properties
+   * @param what A bit-vector of INFOTYTE.
+   * @return Bits of \a what that caused an invalidation. */
+  int DLLENTRYP(obj_invalidate)(const char* url, int what);
+  /** Check whether a decoder claims to support this kind of object.
+   * @param url URL of the object to check
+   * @param eatype extended attributes as EAT_ASCII, EAT_MVST or EAT_MVMT.
+   * @return true -> yes
+   * @remarks The function does not actually cause any I/O.
+   * It is not reliable during plug-in initialization. */
+  int DLLENTRYP(obj_supported)(const char* url, const char* eatype);
 } PLUGIN_API; 
 
 typedef struct
-{ /* Initialize a new xstring with a C string */
+{ /** Initialize a new xstring with a C string */
   xstring  DLLENTRYP(create)   (const char* cstr);
-  /* Deallocate dynamic string. This will change the pointer to NULL. */
+  /** Deallocate dynamic string. This will change the pointer to NULL. */
   void     DLLENTRYP(free)     (volatile xstring* dst);
-  /* Return the length of a dynamic string */
+  /** Return the length of a dynamic string */
   unsigned DLLENTRYP(length)   (const    xstring* src);
-  /* Compare two xstrings for (binary!) equality. NULL allowed. */
+  /** Compare two xstrings for (binary!) equality. NULL allowed. */
   char     DLLENTRYP(equal)    (const    xstring* src1, const xstring* src2);
-  /* Compare two xstrings instances. NULL allowed. */
+  /** Compare two xstrings instances. NULL allowed. */
   int      DLLENTRYP(compare)  (const    xstring* src1, const xstring* src2);
-  /* Copy dynamic string to another one. Any previous content is discarded first.
+  /** Copy dynamic string to another one. Any previous content is discarded first.
    * This function will not copy the string itself. It only creates an additional reference to the content. */
   void     DLLENTRYP(copy)     (volatile xstring* dst,  const xstring* src);
-  /* Strongly thread safe version of xstring_copy. */
+  /** Strongly thread safe version of xstring_copy. */
   void     DLLENTRYP(copy_safe)(volatile xstring* dst,  volatile const xstring* src);
-  /* Reassign dynamic string from C string. Any previous content is discarded first. */
+  /** Reassign dynamic string from C string. Any previous content is discarded first. */
   void     DLLENTRYP(assign)   (volatile xstring* dst,  const char* cstr);
-  /* Reassign dynamic string from C string, but only if the strings differ. */
+  /** Reassign dynamic string from C string, but only if the strings differ. */
   char     DLLENTRYP(cmpassign)(         xstring* dst,  const char* cstr);
-  /* Append to xstring. The source may also be from a xstring.
+  /** Append to xstring. The source may also be from a xstring.
    * If dst is NULL a new string is created */ 
   void     DLLENTRYP(append)   (         xstring* dst,  const char* cstr);
-  /* Allocate dynamic string. Any previous content is discarded first.
+  /** Allocate dynamic string. Any previous content is discarded first.
    * The returned memory can be written up to len bytes until the next
    * xstring_* function call on dst. The return value is the same than
    * dst->cstr except for constness. */
   char*    DLLENTRYP(allocate) (         xstring* dst,  unsigned int len);
-  /* printf into a xstring. Any previous content is discarded first. */
+  /** printf into a xstring. Any previous content is discarded first. */
   void     DLLENTRYP(sprintf)  (volatile xstring* dst,  const char* fmt, ...);
   void     DLLENTRYP(vsprintf) (volatile xstring* dst,  const char* fmt, va_list va);
 } XSTRING_API;
@@ -163,11 +171,26 @@ typedef struct
 
 } PLUGIN_CONTEXT;
 
-/* returns 0 -> ok */
+/** Query information about plug-in.
+ * @return returns 0 -> ok */
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param);
+/** Initialize plug-in, i.e. load it into the player.
+ * @param ctx Some services of the PM123 core.
+ * @return 0 -> ok. */
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx); // Optional
+/** Show configure dialog.
+ * @param hwnd parent window.
+ * @param module Module handle of the plug-in. Can be used for resource lookups. */
 void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
+/** Send remote command to the plug-in.
+ * @param command command string.
+ * @param result reply.
+ * @remarks You might use PLUGIN_CONTEXT->message_display during processing.
+ * The error handler is redirected for the current thread if it is a remote command. */
 void DLLENTRY plugin_command(const char* command, xstring* result);
+/** Cancel plug-in initialization. Called before the plug-in is unloaded.
+ * @param unload ?
+ * @return 0 -> ok */
 int DLLENTRY plugin_deinit(int unload);
 
 
@@ -196,65 +219,6 @@ int DLLENTRY plugin_deinit(int unload);
 
 #ifdef __cplusplus
 }
-
-#ifndef PM123_CORE
-/* xstring proxy implementation
- *
- * For this to work a global symbol Ctx with the parameter ctx of plugin_init must be supplied.
- */
-extern PLUGIN_CONTEXT Ctx;
-
-/** 2nd Hack: In C++ we forward the string API calls to the runtime of the
- * PM123 core.
- * Note that you \e must not call any of these functions in a static initializer,
- * because at this point \c plugin_init has not yet been called.
- */
-class xstring
-{ const char* cstr;
- public:
-  xstring() : cstr(NULL) {}
-  xstring(xstring& r)                       : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
-  xstring(const xstring& r)                 : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
-  xstring(const volatile xstring& r)        : cstr(NULL) { Ctx.xstring_api->copy_safe(this, &r); }
-  xstring(const char* r)                    : cstr(((const char* DLLENTRYP()(const char*))Ctx.xstring_api->create)(r)) {}
-  xstring(const char* r, size_t len)        : cstr(NULL) { memcpy(Ctx.xstring_api->allocate(this, len), &r, len); }
-  ~xstring()                                { Ctx.xstring_api->free(this); }
-  size_t      length() const                { return Ctx.xstring_api->length(this); }
-  bool        operator!() const volatile    { return !cstr; }
-  const char* cdata() const                 { return cstr; }
-  operator const char*() const              { return cstr; }
-  const char& operator[](size_t i) const    { return cstr[i]; }
-  int         compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
-  char*       allocate(size_t len)          { return Ctx.xstring_api->allocate(this, len); }
-  bool        cmpassign(const char* str)    { return Ctx.xstring_api->cmpassign(this, str); }
-  void        reset()                       { Ctx.xstring_api->free(this); }
-  xstring&    operator=(xstring& r)         { Ctx.xstring_api->copy(this, &r); return *this; }
-  xstring&    operator=(const xstring& r)   { Ctx.xstring_api->copy(this, &r); return *this; }
-  void        operator=(const xstring& r) volatile { Ctx.xstring_api->copy(this, &r); }
-  xstring&    operator=(volatile const xstring& r) { Ctx.xstring_api->copy_safe(this, &r); return *this; }
-  void        operator=(volatile const xstring& r) volatile { Ctx.xstring_api->copy_safe(this, &r); }
-  xstring&    operator=(const char* str)    { Ctx.xstring_api->assign(this, str); return *this; }
-  void        operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
-  void        operator+=(const char* str)   { Ctx.xstring_api->append(this, str); }
-  xstring&    sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
-  xstring&    vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }
-};
-/*inline size_t   xstring::length() const { return Ctx.xstring_api->length(this); }
-inline int      xstring::compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
-inline char*    xstring::allocate(size_t len) { return Ctx.xstring_api->allocate(this, len); }
-inline bool     xstring::cmpassign(const char* str) { return Ctx.xstring_api->cmpassign(this, str); }
-inline void     xstring::reset() { Ctx.xstring_api->free(this); }
-inline xstring& xstring::operator=(xstring& r) { Ctx.xstring_api->copy(this, &r); return *this; }
-inline xstring& xstring::operator=(const xstring& r) { Ctx.xstring_api->copy(this, &r); return *this; }
-inline void     xstring::operator=(const xstring& r) volatile { Ctx.xstring_api->copy(this, &r); }
-inline xstring& xstring::operator=(volatile const xstring& r) { Ctx.xstring_api->copy_safe(this, &r); return *this; }
-inline void     xstring::operator=(volatile const xstring& r) volatile { Ctx.xstring_api->copy_safe(this, &r); }
-inline xstring& xstring::operator=(const char* str) { Ctx.xstring_api->assign(this, str); return *this; }
-inline void     xstring::operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
-inline void     xstring::operator+=(const char* str) { Ctx.xstring_api->append(this, str); }
-inline xstring& xstring::sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
-inline xstring& xstring::vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }*/
-#endif
 #endif
 
 #endif /* PM123_PLUGIN_H */

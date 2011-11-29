@@ -135,9 +135,9 @@ class Playable
   bool                      InUse;           // Current object is in use.
 
  private: // Services to update the Info* variables.
-  /// @brief Update the structure components and set the required InfoLoaded flags.
+  /// @brief Update the structure components.
   /// @return return the information that has changed.
-  /// @details Once a playable object is constructed this function must not be called
+  /// @remarks Once a playable object is constructed this function must not be called
   /// unless the specified bits are successfully requested by \c BeginUpdate
   /// and the current object is synchronized by \c Mtx.
   InfoFlags                 UpdateInfo(const INFO_BUNDLE& info, InfoFlags what);
@@ -239,8 +239,11 @@ class Playable
   virtual void              PeekRequest(RequestState& req) const;
 
   /// @brief Provides cached information about the current object.
-  /// @details The information is taken over if and only if the specified information is currently in virgin state.
-  void                      SetCachedInfo(const INFO_BUNDLE& info, InfoFlags what);
+  /// @param cached kind of information that should be taken as cached.
+  /// The information is taken over if and only if the specified information is currently in virgin state.
+  /// @param reliable kind of information that is always updated (if not locked).
+  /// @remarks Information with both bits in \a cached and \a reliable are set is ignored.
+  void                      SetCachedInfo(const INFO_BUNDLE& info, InfoFlags cached, InfoFlags reliable);
 
   /// Set new meta information.
   /// @param meta Calling this function with NULL deletes the meta information.

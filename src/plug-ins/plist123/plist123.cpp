@@ -110,10 +110,14 @@ decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
   { info->tech->info = xio_strerror(xio_ferror(file));
     return PLUGIN_NO_READ;
   }
-  info->phys->filesize = xio_fsize(file);
-  // TODO: File Timestamp
-  if (is_file(url))
-    info->phys->attributes |= PATTR_WRITABLE; // TODO: read-only flag
+
+  XSTAT xstat;
+  if (xio_fstat(file, &xstat) == 0)
+  { info->phys->filesize = xstat.size;
+    if (!(xstat.attr & S_IAREAD))
+      info->phys->attributes |= PATTR_WRITABLE;
+    info->phys->tstmp = xstat.mtime;
+  }
 
   ULONG ret = PLUGIN_OK;
   if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ))
@@ -151,7 +155,14 @@ ULONG DLLENTRY decoder_savefile(const char* url, const char* format, int what, c
   
   PlaylistWriter::Item item;
   while ((*cb)(param, &item.Url, &item.Info, &item.Valid, &item.Override) == PLUGIN_OK)
+  { // Cached => Valid
+    // Reliable => Valid
+    // Cached&Reliable => Override
+    item.Valid    ^= item.Override;
+    item.Override &= ~item.Valid;
+    // Write item
     writer->AppendItem(item);
+  }
   
   // Destroy writer before close
   writer = NULL;

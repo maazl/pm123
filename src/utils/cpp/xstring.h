@@ -40,6 +40,11 @@
 #include <cpp/smartptr.h>
 
 
+#ifdef PM123_CORE
+/* Base implementation in the PM123 core
+ * Plug-ins will use a proxy implementation below.
+ */
+
 /** @brief Java like string class.
  * @details Copying is cheap.
  * The class is thread-safe. Volatile instances are strongly thread safe.
@@ -365,7 +370,71 @@ inline bool operator>=(const char* l,    const xstring& r)
 { return r.compareTo(l) <= 0;
 }
 
+#else
+/* When compiling in plug-in context provide a xstring proxy implementation.
+ */
 
+/** For the proxy to work a global symbol Ctx with the parameter ctx of plugin_init must be supplied.
+ */
+extern PLUGIN_CONTEXT Ctx;
+
+/** 2nd Hack: In C++ we forward the string API calls to the runtime of the
+ * PM123 core.
+ * Note that you \e must not call any of these functions in a static initializer,
+ * because at this point \c plugin_init has not yet been called.
+ */
+class xstring
+{ const char* cstr;
+ public:
+  xstring() : cstr(NULL) {}
+  xstring(xstring& r)                       : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
+  xstring(const xstring& r)                 : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
+  xstring(const volatile xstring& r)        : cstr(NULL) { Ctx.xstring_api->copy_safe(this, &r); }
+  xstring(const char* r)                    : cstr(r ? ((const char* DLLENTRYP()(const char*))Ctx.xstring_api->create)(r) : NULL) {}
+  xstring(const char* r, size_t len)        : cstr(NULL) { if (r) memcpy(Ctx.xstring_api->allocate(this, len), &r, len); }
+  ~xstring()                                { Ctx.xstring_api->free(this); }
+  size_t      length() const                { return Ctx.xstring_api->length(this); }
+  bool        operator!() const volatile    { return !cstr; }
+  const char* cdata() const                 { return cstr; }
+  operator const char*() const              { return cstr; }
+  const char& operator[](size_t i) const    { return cstr[i]; }
+  int         compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
+  char*       allocate(size_t len)          { return Ctx.xstring_api->allocate(this, len); }
+  bool        cmpassign(const char* str)    { return Ctx.xstring_api->cmpassign(this, str); }
+  void        reset()                       { Ctx.xstring_api->free(this); }
+  xstring&    operator=(xstring& r)         { Ctx.xstring_api->copy(this, &r); return *this; }
+  xstring&    operator=(const xstring& r)   { Ctx.xstring_api->copy(this, &r); return *this; }
+  void        operator=(const xstring& r) volatile { Ctx.xstring_api->copy(this, &r); }
+  xstring&    operator=(volatile const xstring& r) { Ctx.xstring_api->copy_safe(this, &r); return *this; }
+  void        operator=(volatile const xstring& r) volatile { Ctx.xstring_api->copy_safe(this, &r); }
+  xstring&    operator=(const char* str)    { Ctx.xstring_api->assign(this, str); return *this; }
+  void        operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
+  void        operator+=(const char* str)   { Ctx.xstring_api->append(this, str); }
+  xstring&    sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
+  xstring&    vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }
+};
+/*inline size_t   xstring::length() const { return Ctx.xstring_api->length(this); }
+inline int      xstring::compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
+inline char*    xstring::allocate(size_t len) { return Ctx.xstring_api->allocate(this, len); }
+inline bool     xstring::cmpassign(const char* str) { return Ctx.xstring_api->cmpassign(this, str); }
+inline void     xstring::reset() { Ctx.xstring_api->free(this); }
+inline xstring& xstring::operator=(xstring& r) { Ctx.xstring_api->copy(this, &r); return *this; }
+inline xstring& xstring::operator=(const xstring& r) { Ctx.xstring_api->copy(this, &r); return *this; }
+inline void     xstring::operator=(const xstring& r) volatile { Ctx.xstring_api->copy(this, &r); }
+inline xstring& xstring::operator=(volatile const xstring& r) { Ctx.xstring_api->copy_safe(this, &r); return *this; }
+inline void     xstring::operator=(volatile const xstring& r) volatile { Ctx.xstring_api->copy_safe(this, &r); }
+inline xstring& xstring::operator=(const char* str) { Ctx.xstring_api->assign(this, str); return *this; }
+inline void     xstring::operator=(const char* str) volatile { Ctx.xstring_api->assign(this, str); }
+inline void     xstring::operator+=(const char* str) { Ctx.xstring_api->append(this, str); }
+inline xstring& xstring::sprintf(const char* fmt, ...) { va_list va; va_start(va, fmt); vsprintf(fmt, va); return *this; }
+inline xstring& xstring::vsprintf(const char* fmt, va_list va) { Ctx.xstring_api->vsprintf(this, fmt, va); return *this; }*/
+#endif
+
+
+/** String builder for xstrings or C strings.
+ * @remarks \c xstringbuilder must not refer to any non-inline function of \c xstring
+ * because of the proxy implementation of \c xstring for plug-ins.
+ */
 class xstringbuilder
 {private:
   static char* const Empty;
@@ -396,6 +465,8 @@ class xstringbuilder
   size_t      length() const                { return Len; }
   /// @brief Explicit conversion to C-style string, always null terminated, never NULL.
   const char* cdata() const                 { return Data; }
+  /// @brief Explicit conversion to C-style string, always null terminated, never NULL.
+  char*       cdata()                       { return Data; }
   /// @brief Implicit conversion to C-style string, always null terminated, never NULL.
   operator    const char*() const           { return Data; }
   /// @brief Explicit conversion to \c xstring, never NULL.

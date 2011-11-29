@@ -337,12 +337,12 @@ PM123_TIME DLLENTRY decoder_length(void* w);
 /* Callback of decoder_fileinfo. Called once per item.
  */
 typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
-  const INFO_BUNDLE* info, int cached, int override);
+  const INFO_BUNDLE* info, int cached, int reliable);
 
 /* Callback of decoder_savelist. Called once per item.
  */
 typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
-  const INFO_BUNDLE** info, int* valid, int* override);
+  const INFO_BUNDLE** info, int* cached, int* reliable);
 
 
 /* Request the information 'what' about 'url' from the decoder

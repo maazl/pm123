@@ -1085,15 +1085,15 @@ void PlaylistBase::PluginEvent(const PluginEventArgs& args)
 }
 
 static void DLLENTRY UserAddCallback(void* param,
-  const char* url, const INFO_BUNDLE* info, int cached, int override)
-{ DEBUGLOG(("UserAddCallback(%p, %s,, %x, %x)\n", param, url));
+  const char* url, const INFO_BUNDLE* info, int cached, int reliable)
+{ DEBUGLOG(("UserAddCallback(%p, %s,, %x, %x)\n", param, url, cached, reliable));
   PlaylistBase::UserAddCallbackParams& ucp = *(PlaylistBase::UserAddCallbackParams*)param;
 
   int_ptr<Playable> ip = Playable::GetByURL(url123(url));
-  ip->SetCachedInfo(*info, (InfoFlags)cached);
+  ip->SetCachedInfo(*info, (InfoFlags)cached, (InfoFlags)reliable);
   
   PlayableRef* pr = ucp.Content.append() = new PlayableRef(*ip);
-  pr->OverrideInfo(*info, (InfoFlags)override);
+  pr->OverrideInfo(*info, (InfoFlags)(cached&reliable));
 }
 
 void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, RecordBase* before)

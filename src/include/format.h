@@ -5,9 +5,10 @@
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+#include <cpp/xstring.h>
 // Keep Eclipse CDT happy
 class xstring;
+extern "C" {
 #endif
 
 

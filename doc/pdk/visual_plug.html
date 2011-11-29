@@ -18,7 +18,7 @@ interface level less than 3 are no longer supported!</em>
 Visual plug-ins must implement and export the functions defined in
 visual_plug.h.
 <blockquote>
-  <pre>HWND DLLENTRY <b>vis_init</b>(PVISPLUGININIT <var>initdata</var>);</pre>
+  <pre>HWND DLLENTRY <b>vis_init</b>(VISPLUGININIT* <var>initdata</var>);</pre>
 </blockquote>
 Visual plug-in's <tt>vis_init</tt> routine gets called every time
 plug-in
@@ -35,7 +35,7 @@ structure is pointing to the right location all the time, instead it
 should
 make its own copy of the structure.
 </p>
-<p>The pluig-in parameter <tt>param</tt> in the <tt>VISPLUGININIT</tt>
+<p>The plug-in parameter <tt>param</tt> in the <tt>VISPLUGININIT</tt>
 structure
 optionally contains parameters from the skin's .SKN file.
 </p>
