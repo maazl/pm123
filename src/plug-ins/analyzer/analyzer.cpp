@@ -826,6 +826,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case DM_DROP:
     case 0x041f:
     case 0x041e:
+    case WM_CHAR:
     case WM_CONTEXTMENU:
     case WM_BUTTON2MOTIONSTART:
     case WM_BUTTON1MOTIONSTART:
