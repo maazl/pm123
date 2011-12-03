@@ -5,25 +5,25 @@
      call SysLoadFuncs
   end
 
-  comps.1.info   = "IBM VisualAge C++ 3.6"
-  comps.1.cc     = "icc.exe"
-  comps.1.opts   = "icc_36"
-  comps.1.sig    = "Version 3.6"
+  comps.1.info   = "GNU C++"
+  comps.1.cc     = "g++.exe"
+  comps.1.opts   = "gcc"
+  comps.1.sig    = ""
 
-  comps.2.info   = "IBM VisualAge C++ 3.0"
+  comps.2.info   = "IBM VisualAge C++ 3.6"
   comps.2.cc     = "icc.exe"
-  comps.2.opts   = "icc_30"
-  comps.2.sig    = "Version 3"
+  comps.2.opts   = "icc_36"
+  comps.2.sig    = "Version 3.6"
 
   comps.3.info   = "Open Watcom C++"
   comps.3.cc     = "wcl386.exe"
   comps.3.opts   = "wcc"
   comps.3.sig    = "Open Watcom"
 
-  comps.4.info   = "GNU C++"
-  comps.4.cc     = "g++.exe"
-  comps.4.opts   = "gcc"
-  comps.4.sig    = ""
+  comps.4.info   = "IBM VisualAge C++ 3.0"
+  comps.4.cc     = "icc.exe"
+  comps.4.opts   = "icc_30"
+  comps.4.sig    = "Version 3"
 
   comps.0        = 4
   comps.selected = 0
