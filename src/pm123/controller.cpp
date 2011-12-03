@@ -430,7 +430,7 @@ bool CtrlImp::SkipCore(Location& si, int count)
 bool CtrlImp::AdjustNext(Location& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
   APlayable& ps = si.GetCurrent();
-  ps.RequestInfo(IF_Tech, PRI_Sync);
+  ps.RequestInfo(IF_Tech|IF_Child, PRI_Sync);
   if (ps.GetInfo().tech->attributes & TATTR_SONG)
     return true;
   const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, SyncJob);

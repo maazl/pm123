@@ -165,7 +165,8 @@ bool Decoder::IsFileSupported(const char* file, const char* eatype) const
   // Try file type match
   if (FileTypeCache && eatype)
   { const USHORT* data = (USHORT*)eatype;
-    return DoFileTypeMatch(FileTypeCache, *data++, data);
+    USHORT type = *data++;
+    return DoFileTypeMatch(FileTypeCache, type, data);
   }
 
   // no match

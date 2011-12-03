@@ -1,0 +1,9 @@
+LIBRARY foldr123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 recording plug-in'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   plugin_init       @1
+   plugin_query      @3
+   decoder_fileinfo  @6
+   decoder_support   @7

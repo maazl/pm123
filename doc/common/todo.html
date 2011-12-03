@@ -61,20 +61,14 @@ non-existing show up. This messages should be suppressed.</td>
 prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
     </tr>
-    <tr class="open">
-      <td><em>6 medium bug, open</em></td>
-      <td>Deadlocks with recursive playlists</td>
+    <tr class="fixed">
+      <td><em>6 medium bug, fixed<br>
+      </em></td>
+      <td>Deadlocks with recursive
+playlists</td>
       <td>With recursive playlist structures PM123 sometimes
 deadlocks because the list semaphore are not requested top down. In
-fact there is no top and no bottom in this case.<br>
-The problem arises from PlayableCollection::GetCollectionInfo.
-The required information is prefetched, but that is not sufficient.
-If another worker thread is working on another information of the other
-item and is demanding information from the current item in the same
-way,
-everything stops.<br>
-I think a conditional variable for each object in CollectionInfoCache
-is the only solution.</td>
+fact there is no top and no bottom in this case.</td>
     </tr>
     <tr class="fixed">
       <td><em>7 medium todo, fixed</em></td>
@@ -204,7 +198,7 @@ not always hit the nail on the head. Reason unknown.</td>
       <td><em>23 medium bug, open</em></td>
       <td>Pipe interface not working</td>
       <td>Open tagedit ... does not work. The command line with *
-splits the commands into seperate ones.</td>
+splits the commands into separate ones.</td>
     </tr>
     <tr class="open">
       <td><em>24 medium todo, open</em></td>
@@ -214,12 +208,13 @@ data strings can be quite long. This can cause the scroller to take a
 reasonable amount of time to return to the start. An option to restrict
 the length of the meta data for the scroller display would be helpful.</td>
     </tr>
-    <tr class="open">
-      <td><em>25 medium bug, open</em><br>
+    <tr class="fixed">
+      <td><em>25 medium bug, fixed</em><br>
       </td>
       <td>Cannot Play valid MP3 file <tt>Gottesdienst_vom_22.08.2010.MP3</tt><br>
       </td>
       <td>mpg123.dll claims not to support this file.<br>
+update to new libmpg123.<br>
       </td>
     </tr>
     <tr class="open">

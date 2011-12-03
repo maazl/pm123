@@ -446,23 +446,24 @@ void Playable::DoLoadInfo(JobSet& job)
 
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // handle aggregate information of playlist items
-    ASSERT(Playlist != NULL);
-    // For the event below
-    PlayableChangeArgs args(*this);
-    if (upd)
-    { // Request for default recursive playlist information (without exclusions)
-      // is to be completed.
-      CalcRplInfo(Info, upd, args, job);
-    }
-    // Request Infos with exclusion lists
-    for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
-      // retrieve information
-      CalcRplInfo(*iep, upd, args, job);
+    if (Playlist) // Maybe it is not yet identified as playlist because the children have not been requested so far.
+    { // For the event below
+      PlayableChangeArgs args(*this);
+      if (upd)
+      { // Request for default recursive playlist information (without exclusions)
+        // is to be completed.
+        CalcRplInfo(Info, upd, args, job);
+      }
+      // Request Infos with exclusion lists
+      for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
+        // retrieve information
+        CalcRplInfo(*iep, upd, args, job);
 
-    // Raise event if any
-    if (!args.IsInitial())
-    { Mutex::Lock lock(Mtx);
-      InfoChange(args);
+      // Raise event if any
+      if (!args.IsInitial())
+      { Mutex::Lock lock(Mtx);
+        InfoChange(args);
+      }
     }
     // done
     return;
@@ -518,23 +519,13 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   char* eadata = NULL;
   if (is_cdda(URL))
     type_mask = DECODER_TRACK;
-  else if (strnicmp("file:", URL, 5) == 0)
-  { type_mask = DECODER_FILENAME;
-    file = URL + 5;
+  else if (strnicmp("file:", URL, 5) == 0 && strchr(URL+5, '?') == NULL)
+  { file = URL + 5;
     if (file[2] == '/')
       file += 3;
     size_t size = 0;
     APIRET rc = eaget(file, ".type", &eadata, &size);
-    if (rc != NO_ERROR)
-    { // Errors of DosQueryPathInfo are considered to be permanent.
-      char buf[256];
-      os2_strerror(rc, buf, sizeof buf);
-      tech.info = buf;
-      // Even in case of an error the requested information is in fact available.
-      what = IF_Decoder|IF_Aggreg;
-      phys.attributes = PATTR_INVALID;
-      return PLUGIN_NO_READ;
-    }
+    type_mask = rc ? DECODER_OTHER : DECODER_FILENAME;
   } else if (strnicmp("http:", URL, 5) == 0 || strnicmp("https:", URL, 6) == 0 || strnicmp("ftp:", URL, 4) == 0)
     type_mask = DECODER_URL;
   else
@@ -550,7 +541,7 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef.Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
-    { if (file && !dp->IsFileSupported(file, eadata))
+    { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(file, eadata))
         continue;
       what2 = what;
       rc = dp->Fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);

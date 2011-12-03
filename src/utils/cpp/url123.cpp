@@ -29,6 +29,7 @@
 
 #include "url123.h"
 #include <strutils.h>
+#include <fileutil.h>
 #include <ctype.h>
 
 #include <string.h>
@@ -190,17 +191,23 @@ const url123 url123::normalizeURL(const char* str)
   if (isalpha(str[0]) && str[1] == ':')
   { // File name => prepend with file:///
     len = strlen(str);
-    cp = ret.allocate(len+8);
+    bool isdir = str[len-1] != '\\' && str[len-1] != '/' && is_dir(str);
+    cp = ret.allocate(len+8+isdir);
     memcpy(cp, "file:///", 8);
     cp += 8;
     memcpy(cp, str, len);
+    if (isdir)
+      cp[len] = '/';
   } else if (isPathDelimiter(str[0]) && isPathDelimiter(str[1]))
   { // UNC path => prepend with file:
     len = strlen(str);
-    cp = ret.allocate(len+5);
+    bool isdir = str[len-1] != '\\' && str[len-1] != '/' && is_dir(str);
+    cp = ret.allocate(len+5+isdir);
     memcpy(cp, "file:///", 5); // make string common with above
     cp += 5;
     memcpy(cp, str, len);
+    if (isdir)
+      cp[len] = '/';
   } else if (!hasScheme(str))
   { // broken URL
     DEBUGLOG(("url123::normalizeURL - broken url %s\n", str));

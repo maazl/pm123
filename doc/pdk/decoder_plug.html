@@ -10,9 +10,9 @@
 defined in <tt>decoder_plug.h</tt>.</p>
 <p>There are two interface revision levels. For developing new
 plug-ins the <a href="#level_3">level 3
-interface</a> is recommended. But the <a href="decoder_plug_1.html">level
-0/1 interface</a> is still supported. The level 2 of PM123 1.40 is no
-longer supported.</p>
+interface</a> is recommended. But <a href="decoder_plug_1.html">level
+0/1 plu-ins</a> are still supported. The level 2 of PM123 1.40 is
+discontinued.</p>
 <p>Decoder plug-ins are used to <em>decode audio data</em>
 as well as to <em>examine playlists</em>. Each item is
 identified by an URI.<br>
@@ -35,12 +35,313 @@ interface</a> and <a href="#output_interface">output
 interface</a><br>
 This interfaces are used to play audio data. <em>Plug-ins that
 only support playlists do not need to export these interfaces.</em></li>
-  <li><a href="#info_interface">Info interface</a><br>
+  <li><a href="#info_interface">Info interface</a>, <a
+ href="#save_interface">save interface</a><br>
 This interface is used to obtain or change information of a song or a
 playlist and to identify whether an item is supported by the plug-in.</li>
   <li><a href="#GUI_interface">GUI enhancement
 interface</a></li>
 </ol>
+<h3><a name="info_interface"></a>Info interface</h3>
+<p>The info interface functions must be independent of the
+current decoder status.
+They should always be functional and give consistent results in any
+conditions.
+The functions must be <em>thread safe</em>.</p>
+<h4><a name="decoder_support"></a>decoder_support</h4>
+<blockquote>
+  <pre>ULONG DLLENTRY <b>decoder_support</b>(const <a
+ href="decoder_plug.html#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var>)</pre>
+</blockquote>
+<ul>
+  <li><code><var>types</var></code>&nbsp;(out)
+- Pointer to the first element of an array of supported file types.</li>
+  <li><var><code>count</code></var>&nbsp;(out)
+- Number of entries in the above array.</li>
+  <li><var>return value</var> - return what kind of
+stream can the decoder play:<br>
+    <tt> DECODER_FILENAME</tt> (1) - Decoder can play files
+(including UNC names).<br>
+    <tt> DECODER_URL</tt> (2) - Decoder can play internet URIs
+(http, ftp, etc.).<br>
+    <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks, i.e. cdda
+URIs.<br>
+    <tt> DECODER_OTHER</tt> (8) - Decoder can play other
+URLs.<br>
+    <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
+    <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can read playlists.<br>
+    <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
+    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
+The values should be ored as required.</li>
+</ul>
+<p>This is used by PM123 to suggest to the user what he can play
+with the
+decoder.
+Furthermore <em>PM123 will normally not query the decoder about files
+or
+other objects that are not listed in the above filter list</em> to keep
+performance up.<br>
+</p>
+<p>The function is called again after a successful call to <a
+ href="index.html#plugin_configure"><tt>plugin_configure</tt></a>.
+This allows to modify the supported file types through the
+configuration.</p>
+<h4><a name="decoder_fileinfo"></a>decoder_fileinfo</h4>
+<blockquote>
+  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, int* <var>what</var>, const <a
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,<br>                              &nbsp; <a
+ href="decoder_plug.html#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var>)</pre>
+</blockquote>
+<ul>
+  <li><tt><var>url</var></tt> - URL to
+the desired stream. See <a href="decoder_plug.html#url_samples">URL
+samples</a>.</li>
+  <li><tt><var>flags</var></tt> - Info
+about the type of the identified item. <tt>DECODER_FLAGS_SONG</tt>
+indicates that the item can be played. <tt>DECODER_FLAGS_PLAYLIST</tt>
+indicated that the item has children.&nbsp;The two flags should not
+be set
+both, because for now the behavior of PM123 is not well defined in this
+case.</li>
+  <li><tt><var>what</var></tt> (in/out) -
+Bit vector of <a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a>.
+The requested fields in <a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a>.<br>
+The decoder may return more information than requested if it is cheap
+to do so. In this case it should set the additional bits in <tt>*<var>what</var></tt>
+to notify PM123 that the desired information is valid too.<br>
+The decoder <em>must not return less information</em>
+than
+requested. However, some information may not have any content for the
+desired object. In this case there is no need to modify the appropriate
+fields in <tt>*<var>info</var></tt>.<br>
+If <tt>*<var>what</var></tt> is <tt>0</tt> on input,
+the information in <tt>INFO_BUNDLE</tt> is not required
+at all. Only the return value of <tt>decoder_fileinfo</tt>
+is used. However, the decoder may return more even in this case.</li>
+  <li><tt><var>info</var></tt> (out) - this
+structure must be filled at least with the information required by <tt>*<var>what</var></tt>.&nbsp;See
+    <tt><a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a></tt>
+for further details. All entries of INFO_BUNDLE point to the
+appropriate structures when <tt>decoder_fileinfo</tt> is called.<br>
+If some information is not available, the requested fields in <tt>INFO_BUNDLE</tt>
+should be left unchanged. The initial state is always equivalent to
+'unavailable'. Note, that this is different from unrequested
+informations where the corresponding bits in <tt>*<var>what</var></tt>
+are not set. In the latter case the information <em>might</em>
+become available on request. It is just not yet known.<br>
+In case of an error (non-zero return value) the decoder should return
+an error text in the <tt>tech-&gt;info</tt> field, if
+available.</li>
+  <li><code><var>cb</var></code> -
+Callback function.<br>
+If <tt>INFO_OTHER</tt> is requested, the decoder has
+to call this function once for each item in the playlist (or
+collection) before <code>decoder_fileinfo</code> returns. Of course,
+this does not apply to songs.</li>
+  <li><code><var>param</var></code> -
+This parameter is to be passed as first argument to each call to <code>*<var>cb</var></code>.</li>
+  <li><var>return value</var> -<br>
+    <tt> PLUGIN_OK</tt> (<tt>0</tt>) = everything's perfect,
+structure is set.<br>
+    <tt> PLUGIN_NO_READ</tt> (<tt>100</tt>) = error reading file. <em>This
+error should only be set if there is no chance that any
+other
+plug-in may read this URL.</em> E.g. if it is a file URI and the file
+does
+not exist or if it is a http URI and the domain does not exist or the
+server does not respond on the port.<br>
+    <tt> PLUGIN_NO_PLAY</tt> (<tt>200</tt>) = this decoder can't
+play that. PM123 will try other decoders if available.</li>
+</ul>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tbody>
+    <tr>
+      <th>Bit in <tt>*<var>what</var></tt>
+on input</th>
+      <th>Bit in <tt>*<var>what</var></tt>
+on return</th>
+      <th>Corresponding info available</th>
+      <th>Corresponding fields in&nbsp;<tt>INFO_BUNDLE</tt></th>
+    </tr>
+    <tr>
+      <td align="center">reset</td>
+      <td align="center">reset</td>
+      <td align="center">don't care</td>
+      <td>ignored</td>
+    </tr>
+    <tr>
+      <td align="center">set</td>
+      <td align="center">reset</td>
+      <td align="center">don't care</td>
+      <td><strong>not allowed!</strong></td>
+    </tr>
+    <tr>
+      <td align="center">don't care</td>
+      <td align="center">set</td>
+      <td align="center">no</td>
+      <td>unmodified</td>
+    </tr>
+    <tr>
+      <td align="center">don't care</td>
+      <td align="center">set</td>
+      <td align="center">yes</td>
+      <td>filled with valid content</td>
+    </tr>
+  </tbody>
+</table>
+<p>If a decoder knows that some information, that is not
+explicitly
+requested, is not available for the current URI or it knows it's
+content during processing of the request, it should always set the
+corresponding bit in <tt>*<var>what</var></tt>
+and return the information if applicable. This avoids redundant calls
+to <tt>decoder_fileinfo</tt>.</p>
+<p>PM123 does not need all informations for all kind of objects. <em>The
+aggregate type <b>recursive playlist information</b> is never
+requested
+explicitly by PM123.</em> However, a plug-in may supply this
+kind of
+information if it is available. E.g. playlists may store cached
+information about their
+children to improve performance. If you are in doubt, do not supply
+this kind of information.</p>
+<p style="float: right;"><u>Legend:</u><br>
+<strong>X</strong> = required if requested by the PM123<br>
+Q = may be requested by the PM123<br>
+<em>C</em>&nbsp;= my be cached and returned by the decoder<br>
+O = may be overridden by a playlist item</p>
+<p style="float: right;">
+</p>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tbody>
+    <tr>
+      <th>info type</th>
+      <th>song</th>
+      <th>playlist</th>
+      <th>playlist item</th>
+    </tr>
+    <tr>
+      <td><code>phys</code></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><em></em><em>C</em></td>
+    </tr>
+    <tr>
+      <td><code>tech</code></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><em>C</em></td>
+    </tr>
+    <tr>
+      <td><code>obj</code></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><em>C</em></td>
+    </tr>
+    <tr>
+      <td><code>meta</code></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><em>C</em> O</td>
+    </tr>
+    <tr>
+      <td><code>attr</code></td>
+      <td align="center">Q</td>
+      <td align="center"><strong>X</strong></td>
+      <td align="center"><em>C</em> O</td>
+    </tr>
+    <tr>
+      <td>children</td>
+      <td align="center">Q</td>
+      <td align="center"><strong>X</strong></td>
+      <td> <br>
+      </td>
+    </tr>
+    <tr>
+      <td><code>rpl</code></td>
+      <td>&nbsp;</td>
+      <td align="center"><em>C</em><em></em></td>
+      <td align="center"><em>C</em></td>
+    </tr>
+    <tr>
+      <td><tt>drpl</tt></td>
+      <td>&nbsp;</td>
+      <td align="center"><em>C</em><em></em></td>
+      <td align="center"><em>C</em></td>
+    </tr>
+    <tr>
+      <td><tt>item</tt></td>
+      <td> <br>
+      </td>
+      <td> <br>
+      </td>
+      <td align="center">O</td>
+    </tr>
+  </tbody>
+</table>
+<h5><a name="DECODER_INFO_ENUMERATION_CB"></a>DECODER_INFO_ENUMERATION_CB</h5>
+<blockquote>
+  <pre>void (DLLENTRY* <b>cb</b>)(void* <var>param</var>, const char* <var>url</var>, const <a
+ href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>reliable</var>)</pre>
+</blockquote>
+<ul>
+  <li><code><var>param</var></code> -
+Arbitrary parameter from&nbsp;<code>decoder_fileinfo</code>.</li>
+  <li><code><var>url</var></code> - URI
+of the sub item. The URI may be absolute or relative. In case of
+relative URIs the context of the enclosing playlist is used for URI
+resolution.</li>
+  <li><code><var>info</var></code> -
+Known information about the sub item. If you already know some
+information about an item, you should place it in <code>*<var>info</var></code>.
+This can make PM123 significantly faster. If you do not have any
+information,
+you can pass <code>NULL</code> as <code><var>info</var></code>.</li>
+  <li><code><var>cached, reliable</var></code> -
+Two bit
+vectors of <tt><a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a></tt>
+corresponding to fields in <tt>*<var>info</var></tt>.<br>
+    <table border="1" cellpadding="3" cellspacing="0">
+      <tbody>
+        <tr>
+          <td valign="top"><var><tt>cached</tt></var></td>
+          <td valign="top"><var><tt>reliable</tt></var></td>
+          <td valign="top">Corresponding field in <tt>*<var>info</var></tt>
+contains</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0</td>
+          <td align="center" valign="top">0</td>
+          <td valign="top">- ignored -, may be <tt>NULL</tt></td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">1</td>
+          <td align="center" valign="top">0</td>
+          <td valign="top">The field contain cached information that
+might no longer be valid.</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0</td>
+          <td align="center" valign="top">1</td>
+          <td valign="top">The field contains reliable information that
+just had been verified.</td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">1</td>
+          <td align="center" valign="top">1</td>
+          <td valign="top">The field contains information that is <i>overridden
+by
+this reference</i> only.</td>
+        </tr>
+      </tbody>
+    </table>
+You may use overridden information e.g. to give meaningful meta
+information to a slice of an object. For example a cue sheet may
+reference slices of a long file, but the slices have different meta
+information although the underlying object is the same. You cannot
+override all kind of information. See the above matrix for
+details.</li>
+</ul>
 <h3><a name="playback_interface"></a>Playback
 interface</h3>
 <h4>decoder_init, decoder_uninit</h4>
@@ -255,8 +556,7 @@ must point to a <code>META_INFO</code> structure.</li>
 <ul>
   <li><code><var>w</var></code> - pointer
 from <code>decoder_init</code></li>
-  <li>
-    <h4><var>event</var> - one of the following values</h4>
+  <li> <var>event</var> - one of the following values<br>
     <code>OUTEVENT_LOW_WATER</code> - the output plug-in
 detected that it will run out of data soon.<br>
     <code>OUTEVENT_HIGH_WATER</code> - the output plug-in
@@ -271,305 +571,8 @@ end of the stream has been reached recently. This should be ignored.</p>
 <p>You will usually get a <code>OUTEVENT_LOW_WATER</code>
 call immediately after the decoding started or after a seek command
 because the buffers are not yet filled.</p>
-<h3><a name="info_interface"></a>Info interface</h3>
-<p>The info interface functions must be independent of the
-current decoder status.
-They should always be functional and give consistent results in any
-conditions.
-The functions must be <em>thread safe</em>.</p>
-<h4><a name="decoder_support"></a>decoder_support</h4>
-<blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_support</b>(const <a
- href="decoder_plug.html#DECODER_FILETYPE">DECODER_FILETYPE</a>** <var>types</var>, int* <var>count</var>)</pre>
-</blockquote>
-<ul>
-  <li><code><var>types</var></code>&nbsp;(out)
-- Pointer to the first element of an array of supported file types.</li>
-  <li><var><code>count</code></var>&nbsp;(out)
-- Number of entries in the above array.</li>
-  <li><var>return value</var> - return what kind of
-stream can the decoder play:<br>
-    <tt> DECODER_FILENAME</tt> (1) - Decoder can play files
-(including UNC names)<br>
-    <tt> DECODER_URL</tt> (2) - Decoder can play URIs
-(http, ftp, etc.)<br>
-    <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks<br>
-    <tt> DECODER_OTHER</tt> (8) - Decoder can play other
-URLs<br>
-    <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
-    <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can play playlists.<br>
-    <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
-    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
-The values should be ored as required.</li>
-</ul>
-<p>This is used by PM123 to suggest to the user what he can play
-with the
-decoder.
-Furthermore <em>PM123 will normally not query the decoder about files
-or
-other objects that are not listed in the above filter list</em> to keep
-performance up.</p>
-<p>The function is called again after a successful call to <a
- href="index.html#plugin_configure"><tt>plugin_configure</tt></a>.
-This allows to modify the supported file types through the
-configuration.</p>
-<h4><a name="decoder_fileinfo"></a>decoder_fileinfo</h4>
-<blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, int* <var>what</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,<br>                              &nbsp; <a
- href="#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var>)</pre>
-</blockquote>
-<ul>
-  <li><tt><var>url</var></tt> - URL to
-the desired stream. See <a href="#url_samples">URL samples</a>.</li>
-  <li><tt><var>flags</var></tt> - Info
-about the type of the identified item. <tt>DECODER_FLAGS_SONG</tt>
-indicates that the item can be played. <tt>DECODER_FLAGS_PLAYLIST</tt>
-indicated that the item has children.&nbsp;The two flags should not
-be set
-both, because for now the behavior of PM123 is not well defined in this
-case.</li>
-  <li><tt><var>what</var></tt> (in/out) -
-Bit vector of <a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a>.
-The requested fields in <a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a>.<br>
-The decoder may return more information than requested if it is cheap
-to do so. In this case it should set the additional bits in <tt>*<var>what</var></tt>
-to notify PM123 that the desired information is valid too.<br>
-The decoder <em>must not return less information</em>
-than
-requested. However, some information may not have any content for the
-desired object. In this case there is no need to modify the appropriate
-fields in <tt>*<var>info</var></tt>.<br>
-If <tt>*<var>what</var></tt> is <tt>0</tt> on input,
-the information in <tt>INFO_BUNDLE</tt> is not required
-at all. Only the return value of <tt>decoder_fileinfo</tt>
-is used. However, the decoder may return more even in this case.</li>
-  <li><tt><var>info</var></tt> (out) - this
-structure must be filled at least with the information required by <tt>*<var>what</var></tt>.&nbsp;See
-    <tt><a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a></tt>
-for further details. All entries of INFO_BUNDLE point to the
-appropriate structures when <tt>decoder_fileinfo</tt> is called.<br>
-If some information is not available, the requested fields in <tt>INFO_BUNDLE</tt>
-should be left unchanged. The initial state is always equivalent to
-'unavailable'. Note, that this is different from unrequested
-informations where the corresponding bits in <tt>*<var>what</var></tt>
-are not set. In the latter case the information <em>might</em>
-become available on request. It is just not yet known.<br>
-In case of an error (non-zero return value) the decoder should return
-an error text in the <tt>tech-&gt;info</tt> field, if
-available.</li>
-  <li><code><var>cb</var></code> -
-Callback function.<br>
-If <tt>INFO_OTHER</tt> is requested, the decoder has
-to call this function once for each item in the playlist (or
-collection) before <code>decoder_fileinfo</code> returns. Of course,
-this does not apply to songs.</li>
-  <li><code><var>param</var></code> -
-This parameter is to be passed as first argument to each call to <code>*<var>cb</var></code>.</li>
-  <li><var>return value</var> -<br>
-    <tt> PLUGIN_OK</tt> (<tt>0</tt>) = everything's perfect,
-structure is set.<br>
-    <tt> PLUGIN_NO_READ</tt> (<tt>100</tt>) = error reading file. <em>This
-error should only be set if there is no chance that any
-other
-plug-in may read this URL.</em> E.g. if it is a file URI and the file
-does
-not exist or if it is a http URI and the domain does not exist or the
-server does not respond on the port.<br>
-    <tt> PLUGIN_NO_PLAY</tt> (<tt>200</tt>) = this decoder can't
-play that. PM123 will try other decoders if available.</li>
-</ul>
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Bit in <tt>*<var>what</var></tt>
-on input</th>
-      <th>Bit in <tt>*<var>what</var></tt>
-on return</th>
-      <th>Corresponding info available</th>
-      <th>Corresponding fields in&nbsp;<tt>INFO_BUNDLE</tt></th>
-    </tr>
-    <tr>
-      <td align="center">reset</td>
-      <td align="center">reset</td>
-      <td align="center">don't care</td>
-      <td>ignored</td>
-    </tr>
-    <tr>
-      <td align="center">set</td>
-      <td align="center">reset</td>
-      <td align="center">don't care</td>
-      <td><strong>not allowed!</strong></td>
-    </tr>
-    <tr>
-      <td align="center">don't care</td>
-      <td align="center">set</td>
-      <td align="center">no</td>
-      <td>unmodified</td>
-    </tr>
-    <tr>
-      <td align="center">don't care</td>
-      <td align="center">set</td>
-      <td align="center">yes</td>
-      <td>filled with valid content</td>
-    </tr>
-  </tbody>
-</table>
-<p>If a decoder knows that some information, that is not
-explicitly
-requested, is not available for the current URI or it knows it's
-content during processing of the request, it should always set the
-corresponding bit in <tt>*<var>what</var></tt>
-and return the information if applicable. This avoids redundant calls
-to <tt>decoder_fileinfo</tt>.</p>
-<p>PM123 does not need all informations for all kind of objects. <em>The
-aggregate type <b>recursive playlist information</b> is never
-requested
-explicitly by PM123.</em> However, a plug-in may supply this
-kind of
-information if it is available. E.g. playlists may store cached
-information about their
-children to improve performance. If you are in doubt, do not supply
-this kind of information.</p>
-<p style="float: right;"><u>Legend:</u><br>
-<strong>X</strong> = required if requested by the PM123<br>
-Q = may be requested by the PM123<br>
-<em>C</em>&nbsp;= my be cached and returned by the decoder<br>
-O = may be overridden by a playlist item</p>
-<p style="float: right;"></p>
-<p style="float: right;">
-</p>
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>info type</th>
-      <th>song</th>
-      <th>playlist</th>
-      <th>playlist item</th>
-    </tr>
-    <tr>
-      <td><code>phys</code></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><em></em><em>C</em></td>
-    </tr>
-    <tr>
-      <td><code>tech</code></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><em>C</em></td>
-    </tr>
-    <tr>
-      <td><code>obj</code></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><em>C</em></td>
-    </tr>
-    <tr>
-      <td><code>meta</code></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><em>C</em> O</td>
-    </tr>
-    <tr>
-      <td><code>attr</code></td>
-      <td align="center">Q</td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><em>C</em> O</td>
-    </tr>
-    <tr>
-      <td>children</td>
-      <td align="center">Q</td>
-      <td align="center"><strong>X</strong></td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td><code>rpl</code></td>
-      <td>&nbsp;</td>
-      <td align="center"><em>C</em><em></em></td>
-      <td align="center"><em>C</em></td>
-    </tr>
-    <tr>
-      <td><tt>drpl</tt></td>
-      <td>&nbsp;</td>
-      <td align="center"><em>C</em><em></em></td>
-      <td align="center"><em>C</em></td>
-    </tr>
-    <tr>
-      <td><tt>item</tt></td>
-      <td> <br>
-      </td>
-      <td> <br>
-      </td>
-      <td align="center">O</td>
-    </tr>
-  </tbody>
-</table>
-<h5><a name="DECODER_INFO_ENUMERATION_CB"></a>DECODER_INFO_ENUMERATION_CB</h5>
-<blockquote>
-  <pre>void (DLLENTRY* <b>cb</b>)(void* <var>param</var>, const char* <var>url</var>, const <a
- href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,&nbsp;int <var>cached</var>, int <var>reliable</var>)</pre>
-</blockquote>
-<ul>
-  <li><code><var>param</var></code> -
-Arbitrary parameter from&nbsp;<code>decoder_fileinfo</code>.</li>
-  <li><code><var>url</var></code> - URI
-of the sub item. The URI may be absolute or relative. In case of
-relative URIs the context of the enclosing playlist is used for URI
-resolution.</li>
-  <li><code><var>info</var></code> -
-Known information about the sub item. If you already know some
-information about an item, you should place it in <code>*<var>info</var></code>.
-This can make PM123 significantly faster. If you do not have any
-information,
-you can pass <code>NULL</code> as <code><var>info</var></code>.</li>
-  <li><code><var>cached, reliable</var></code> -
-Two bit
-vectors of <tt><a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a></tt>
-corresponding to fields in <tt>*<var>info</var></tt>.<br>
-    <table border="1" cellpadding="3" cellspacing="0">
-      <tbody>
-        <tr>
-          <td valign="top"><var><tt>cached</tt></var></td>
-          <td valign="top"><var><tt>reliable</tt></var></td>
-          <td valign="top">Corresponding field in <tt>*<var>info</var></tt>
-contains</td>
-        </tr>
-        <tr>
-          <td align="center" valign="top">0</td>
-          <td align="center" valign="top">0</td>
-          <td valign="top">- ignored -, may be <tt>NULL</tt></td>
-        </tr>
-        <tr>
-          <td align="center" valign="top">1</td>
-          <td align="center" valign="top">0</td>
-          <td valign="top">The field contain cached information that
-might no longer be valid.</td>
-        </tr>
-        <tr>
-          <td align="center" valign="top">0</td>
-          <td align="center" valign="top">1</td>
-          <td valign="top">The field contains reliable information that
-just had been verified.</td>
-        </tr>
-        <tr>
-          <td align="center" valign="top">1</td>
-          <td align="center" valign="top">1</td>
-          <td valign="top">The field contains information that is <i>overridden
-by
-this reference</i> only.</td>
-        </tr>
-      </tbody>
-    </table>
-You may use overridden information e.g. to give meaningful meta
-information to a slice of an object. For example a cue sheet may
-reference slices of a long file, but the slices have different meta
-information although the underlying object is the same. You cannot
-override all kind of information. See the above matrix for
-details.</li>
-</ul>
-<var><tt></tt></var>
+<var></var>
+<h3><a name="save_interface"></a>Save interface</h3>
 <h4><a name="decoder_saveinfo"></a>decoder_saveinfo</h4>
 <blockquote>
   <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>(char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, xstring* <var>errortext</var>)</pre>
