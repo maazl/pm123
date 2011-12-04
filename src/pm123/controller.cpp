@@ -863,7 +863,7 @@ void CtrlImp::MsgSkip()
   { Reply(RC_NoSong);
     return;
   }
-  pp->RequestInfo(IF_Tech, PRI_Sync);
+  pp->RequestInfo(IF_Tech|IF_Child, PRI_Sync);
   if (!(pp->GetInfo().tech->attributes & TATTR_PLAYLIST))
   { Reply(RC_NoList);
     return;
@@ -940,8 +940,7 @@ void CtrlImp::MsgLoad()
     play->SetInUse(true);
     // Only load items that have a minimum of well known properties.
     // In case of enumerable items the content is required, in case of songs the decoder.
-    // Both is related to IF_Other. The other informations are prefetched too.
-    play->RequestInfo(IF_Tech, PRI_Sync);
+    play->RequestInfo(IF_Tech|IF_Child, PRI_Sync);
     if (play->GetInfo().tech->attributes & TATTR_INVALID)
     { play->SetInUse(false);
       Reply(RC_InvalidItem);
@@ -1079,7 +1078,7 @@ void CtrlImp::MsgDecStop()
   // Let's try to prefetch this information at low priority to avoid latencies.
   ps.RequestInfo(IF_Tech|IF_Meta|IF_Obj, PRI_Low, REL_Confirmed);
 
-  // In rewind mode we continue to rewind from the end of the prevois song.
+  // In rewind mode we continue to rewind from the end of the previous song.
   // TODO: Location problem.
   Reply(RC_OK);
 }

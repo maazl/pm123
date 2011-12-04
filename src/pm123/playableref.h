@@ -151,7 +151,7 @@ class PlayableSlice : public APlayable
   virtual void              PeekRequest(RequestState& req) const;
 
   #ifdef DEBUG_LOG
-          xstring           DebugName() const;
+  static  const char*       DebugName(const PlayableSlice* r);
   #endif
 
  protected: // Event handler

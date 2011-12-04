@@ -133,9 +133,6 @@ class xstring
   /// Initialize a new \c xstring instance with \a len bytes of uninitialized storage.
   explicit    xstring(size_t len)           : Data(new(len) StringData) {}
  public:
-  /// Case insensitive comparer core.
-  static int  compareI(const char* s1, const char* s2, size_t len);
-
   /// Create instance with the default value NULL.
               xstring()                     {}
   /// @brief Copy constructor
@@ -187,6 +184,8 @@ class xstring
   /// Compare strings (case sensitive).
   /// The NULL string is the smallest possible string, less than an empty string.
   int         compareTo(const char* str, size_t len) const;
+  /// Compare two strings.
+  static int  compare(const xstring& l, const xstring& r) { return l.compareTo(r); }
   /// Compare strings (case insensitive).
   /// This works only for 7 bit ASCII as expected.
   int         compareToI(const xstring& r) const;
@@ -196,6 +195,10 @@ class xstring
   /// Compare strings (case insensitive).
   /// This works only for 7 bit ASCII as expected.
   int         compareToI(const char* str, size_t len) const;
+  /// Case insensitive comparer core.
+  static int  compareI(const char* s1, const char* s2, size_t len);
+  /// Compare two strings.
+  static int  compareI(const xstring& l, const xstring& r) { return l.compareToI(r); }
 
   bool        startsWith(const xstring& r) const { return startsWith(r.Data->ptr(), r.length()); }
   bool        startsWith(const char* r) const { return startsWith(r, strlen(r)); }
@@ -290,8 +293,6 @@ class xstring
   /// @brief Concatenate strings.
   /// @details The strings must not be NULL.
   friend const xstring operator+(const char* l,    const xstring& r);
-  /// Compare two strings.
-  static int  compare(const xstring& l, const xstring& r) { return l.compareTo(r); }
   /// sprintf, well...
   static const xstring sprintf(const char* fmt, ...);
   /// vsprintf, well...
@@ -391,7 +392,7 @@ class xstring
   xstring(const xstring& r)                 : cstr(NULL) { Ctx.xstring_api->copy(this, &r); }
   xstring(const volatile xstring& r)        : cstr(NULL) { Ctx.xstring_api->copy_safe(this, &r); }
   xstring(const char* r)                    : cstr(r ? ((const char* DLLENTRYP()(const char*))Ctx.xstring_api->create)(r) : NULL) {}
-  xstring(const char* r, size_t len)        : cstr(NULL) { if (r) memcpy(Ctx.xstring_api->allocate(this, len), &r, len); }
+  xstring(const char* r, size_t len)        : cstr(NULL) { if (r) memcpy(Ctx.xstring_api->allocate(this, len), r, len); }
   ~xstring()                                { Ctx.xstring_api->free(this); }
   size_t      length() const                { return Ctx.xstring_api->length(this); }
   bool        operator!() const volatile    { return !cstr; }

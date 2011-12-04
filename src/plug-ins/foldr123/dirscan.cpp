@@ -31,19 +31,16 @@
 
 #include <eautils.h>
 #include <cpp/smartptr.h>
+#include <cpp/algorithm.h>
 
-
-DirScan::DirScan(DECODER_INFO_ENUMERATION_CB cb, void* param)
-: CallBack(cb)
-, CbParam(param)
-{}
 
 PLUGIN_RC DirScan::InitUrl(const char* url)
 {
-  Recursive = false;
-  AllFiles  = false;
-  Hidden    = false;
-  NumItems  = 0;
+  Recursive    = false;
+  AllFiles     = false;
+  Hidden       = false;
+  FoldersFirst = false;
+  Items.clear();
 
   // Check whether it is a folder
   Params = strchr(url, '?');
@@ -55,9 +52,10 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
 
   // Parse parameters if any.
   if (*Params)
-  { Recursive = strstr(Params+1, "Recursive") || strstr(Params+1, "recursive");
-    AllFiles  = strstr(Params+1, "All")       || strstr(Params+1, "all");
-    Hidden    = strstr(Params+1, "Hidden")    || strstr(Params+1, "hidden");
+  { Recursive    = strstr(Params+1, "Recursive")    || strstr(Params+1, "recursive");
+    AllFiles     = strstr(Params+1, "All")          || strstr(Params+1, "all");
+    Hidden       = strstr(Params+1, "Hidden")       || strstr(Params+1, "hidden");
+    FoldersFirst = strstr(Params+1, "FoldersFirst") || strstr(Params+1, "foldersfirst");
   }
 
   // copy url without parameters
@@ -107,39 +105,6 @@ PLUGIN_RC DirScan::GetInfo(const INFO_BUNDLE* info)
   return PLUGIN_OK;
 }
 
-static META_INFO empty_meta = META_INFO_INIT;
-static ATTR_INFO empty_attr = ATTR_INFO_INIT;
-
-void DirScan::ReturnDir(const FILEFINDBUF3* fb)
-{ DEBUGLOG(("foldr123:DirScan::ReturnDir({...}) - %s\n", Path.cdata()));
-  Path.append('/');
-  Path.append(Params);
-
-  PHYS_INFO phys;
-  TECH_INFO tech = TECH_INFO_INIT;
-  INFO_BUNDLE info = { &phys, &tech, NULL, &empty_meta, &empty_attr };
-  phys.filesize   = fb->cbFile;
-  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
-  phys.attributes = PATTR_NONE;
-  tech.attributes = TATTR_PLAYLIST;
-  tech.decoder    = "foldr123.dll";
-
-  ++NumItems;
-  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS|INFO_TECH|INFO_META|INFO_ATTR);
-}
-
-void DirScan::ReturnFile(const FILEFINDBUF3* fb)
-{ DEBUGLOG(("foldr123:DirScan::ReturnFile({...}) - %s\n", Path.cdata()));
-  PHYS_INFO phys;
-  INFO_BUNDLE info = { &phys };
-  phys.filesize   = fb->cbFile;
-  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
-  phys.attributes = fb->attrFile & FILE_READONLY ? PATTR_NONE : PATTR_WRITABLE;
-
-  ++NumItems;
-  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS);
-}
-
 bool DirScan::AppendPath(const char* name, size_t len)
 { switch (len)
   {case 2:
@@ -153,6 +118,40 @@ bool DirScan::AppendPath(const char* name, size_t len)
   Path.append(name, len);
   return true;
 }
+
+void DirScan::AppendItem(const FILEFINDBUF3* fb)
+{ DEBUGLOG(("foldr123:DirScan::AppendItem({...}) - %s\n", Path.cdata()));
+  if (fb->attrFile & FILE_DIRECTORY)
+  { Path.append('/');
+    Path.append(Params);
+  }
+  Items.append() = new Entry(Path, fb->attrFile, fb->cbFile, ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite));
+
+  /*PHYS_INFO phys;
+  TECH_INFO tech = TECH_INFO_INIT;
+  INFO_BUNDLE info = { &phys, &tech, NULL, &empty_meta, &empty_attr };
+  phys.filesize   = fb->cbFile;
+  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
+  phys.attributes = PATTR_NONE;
+  tech.attributes = TATTR_PLAYLIST;
+  tech.decoder    = "foldr123.dll";
+
+  ++NumItems;
+  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS|INFO_TECH|INFO_META|INFO_ATTR);*/
+}
+
+/*void DirScan::ReturnFile(const FILEFINDBUF3* fb)
+{ DEBUGLOG(("foldr123:DirScan::ReturnFile({...}) - %s\n", Path.cdata()));
+
+  PHYS_INFO phys;
+  INFO_BUNDLE info = { &phys };
+  phys.filesize   = fb->cbFile;
+  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
+  phys.attributes = fb->attrFile & FILE_READONLY ? PATTR_NONE : PATTR_WRITABLE;
+
+  ++NumItems;
+  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS);
+}*/
 
 void DirScan::Scan()
 { DEBUGLOG(("foldr123:DirScan::Scan()\n"));
@@ -173,12 +172,7 @@ void DirScan::Scan()
       FILEFINDBUF3* fb = (FILEFINDBUF3*)buffer.get();
       while (count--)
       { if (AppendPath(fb->achName, fb->cchName))
-        { // Subdirectory?
-          if (fb->attrFile & FILE_DIRECTORY)
-            ReturnDir(fb);
-          else
-            ReturnFile(fb);
-        }
+          AppendItem(fb);
         // next entry
         if (!fb->oNextEntryOffset)
           break;
@@ -208,14 +202,14 @@ void DirScan::Scan()
       { if (AppendPath((char*)&fb->cbList + fb->cbList +1, *((unsigned char*)&fb->cbList + fb->cbList)))
         { // Subdirectory?
           if (fb->attrFile & FILE_DIRECTORY)
-            ReturnDir((FILEFINDBUF3*)fb);
+            AppendItem((FILEFINDBUF3*)fb);
           else
           { // Has .type EA?
             const char* eadata = fb->cbList > sizeof(FEA2)
               ? fb->list[0].szName + fb->list[0].cbName +1
               : NULL;
             if (Ctx.plugin_api->obj_supported(Path, eadata))
-              ReturnFile((FILEFINDBUF3*)fb);
+              AppendItem((FILEFINDBUF3*)fb);
           }
         }
         // next entry
@@ -229,5 +223,44 @@ void DirScan::Scan()
     }
   }
   DosFindClose(hdir);
+  Path.reset();
 }
 
+static int StandardComparer(const DirScan::Entry* l, const DirScan::Entry* r)
+{ return stricmp(l->URL, r->URL);
+}
+
+static int FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r)
+{ if ((l->Attributes ^ r->Attributes) & FILE_DIRECTORY)
+    return (l->Attributes & FILE_DIRECTORY) - (r->Attributes & FILE_DIRECTORY);
+  else
+    return stricmp(l->URL, r->URL);
+}
+
+static META_INFO empty_meta = META_INFO_INIT;
+static ATTR_INFO empty_attr = ATTR_INFO_INIT;
+
+int DirScan::SendResult(DECODER_INFO_ENUMERATION_CB cb, void* param)
+{
+  // Order by
+  merge_sort(Items.begin(), Items.end(), FoldersFirst ? &FoldersFirstComparer : StandardComparer);
+
+  foreach (Entry*const*, epp, Items)
+  { const Entry* ep = *epp;
+    PHYS_INFO phys = PHYS_INFO_INIT;
+    TECH_INFO tech = TECH_INFO_INIT;
+    INFO_BUNDLE info = { &phys, &tech, NULL, &empty_meta, &empty_attr };
+    phys.filesize  = ep->Size;
+    phys.tstmp     = ep->Timestamp;
+    int what = INFO_PHYS;
+    if (ep->Attributes & FILE_DIRECTORY)
+    { tech.attributes = TATTR_PLAYLIST;
+      tech.decoder    = "foldr123.dll";
+      what |= INFO_TECH|INFO_META|INFO_ATTR;
+    } else if (!(ep->Attributes & FILE_READONLY))
+      phys.attributes = PATTR_WRITABLE;
+    (*cb)(param, ep->URL.cdata(), &info, INFO_NONE, what);
+  }
+
+  return Items.size();
+}

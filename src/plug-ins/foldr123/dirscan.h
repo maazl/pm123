@@ -33,18 +33,31 @@
 #define INCL_BASE
 #include <decoder_plug.h>
 #include <cpp/xstring.h>
+#include <cpp/container/vector.h>
 #include <time.h>
 #include <os2.h>
 
 class DirScan
-{private:
-  // Context
-  const DECODER_INFO_ENUMERATION_CB CallBack;
-  void* const CbParam;
+{public:
+  struct Entry
+  { /// URL of the entry. Must be the first item to be compatible with const char*.
+    const xstring    URL;
+    /// File Attributes
+    const ULONG      Attributes;
+    /// File size
+    const PM123_SIZE Size;
+    /// File modification time
+    const int        Timestamp;
+    /// Create Entry
+    Entry(const xstring& url, ULONG attr, PM123_SIZE size, int tstmp)
+    : URL(url), Attributes(attr), Size(size), Timestamp(tstmp) {}
+  };
+ private:
   // Parameters
   bool  Recursive;
   bool  AllFiles;
   bool  Hidden;
+  bool  FoldersFirst;
   // Working set
   /// Path to current item without any URL parameters.
   /// Points to the Folder at first, the sub items later.
@@ -55,31 +68,28 @@ class DirScan
   char* DosPath;
   /// Offset in Path after the trailing slash of the base folder.
   size_t BasePathLen;
-  /// Item count
-  size_t NumItems;
+  /// Item container
+  vector_own<Entry> Items;
 
  private:
   static time_t ConvertOS2FTime(FDATE date, FTIME time);
   /// Append the object name to the base path in \c Path.
   /// @return false if name is "." or "..".
   bool  AppendPath(const char* name, size_t len);
-  void  ReturnDir(const FILEFINDBUF3* fb);
-  void  ReturnFile(const FILEFINDBUF3* fb);
+  void  AppendItem(const FILEFINDBUF3* fb);
  public:
   /// Step 1: initialize a new directory scanner
-  DirScan(DECODER_INFO_ENUMERATION_CB cb, void* param);
+  DirScan() {}
   /// Step 2: use the following URL as base path
   /// @return PLUGIN_OK if the operation succeeds.
   PLUGIN_RC InitUrl(const char* url);
-  /// Query Info about the directory.
-  /// @param info [out] place information here.
-  /// *info is also filled in case of an error.
+  /// Step 3: is also filled in case of an error.
   /// @return PLUGIN_OK if the operation succeeds.
   PLUGIN_RC GetInfo(const INFO_BUNDLE* info);
-  /// Start the directory scan.
+  /// Step 4: start the directory scan.
   void      Scan();
-  /// Get the number of found items.
-  size_t    GetNumItems() const { return NumItems; }
+  /// Step 5: forward the results.
+  int       SendResult(DECODER_INFO_ENUMERATION_CB cb, void* param);
 };
 
 #endif

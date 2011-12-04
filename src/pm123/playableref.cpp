@@ -222,6 +222,16 @@ void PlayableSlice::PeekRequest(RequestState& req) const
   DEBUGLOG(("PlayableSlice::PeekRequest: {%x,%x, %x}\n", req.ReqLow, req.ReqHigh, req.InService));
 }
 
+#ifdef DEBUG_LOG
+const char* PlayableSlice::DebugName(const PlayableSlice* r)
+{ if (!r)
+    return "(null)";
+  if (!r->RefTo)
+    return "[null]";
+  return r->RefTo->GetPlayable().URL;
+}
+#endif
+
 void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableSlice(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));

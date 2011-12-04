@@ -90,7 +90,7 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* i
   if (strnicmp(url, "file://", 7) != 0)
     return PLUGIN_NO_PLAY;
 
-  DirScan scanner(cb, param);
+  DirScan scanner;
 
   PLUGIN_RC prc = scanner.InitUrl(url);
   if (prc)
@@ -111,7 +111,8 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* i
   *what |= INFO_OBJ|INFO_CHILD;
 
   scanner.Scan();
-  info->obj->num_items = scanner.GetNumItems();
+
+  info->obj->num_items = scanner.SendResult(cb, param);
 
   return PLUGIN_OK;
 }

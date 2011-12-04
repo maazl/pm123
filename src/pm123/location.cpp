@@ -121,27 +121,33 @@ Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUT
   APlayable* cur = &GetCurrent();
   int_ptr<PlayableInstance> pi;
   do
-  { if (job.RequestInfo(*cur, IF_Tech|IF_Slice))
-      return xstring::empty; // Delayed!!!
-
-    Position = 0;
+  { Position = 0;
     if ((cur->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) != TATTR_PLAYLIST)
-    { // Song or whatever
+    { // Song or whatever => go to parent (if any)
      pop:
       if (Callstack.size() == slice)
         return "End"; // End
+      // pop
       pi = Callstack.erase(Callstack.size()-1);
       cur = &GetCurrent();
     }
     // TODO: start/stop location
+    // Find next item in *cur before/after pi that is not in callstack (recursion check)
     do
     { pi = (cur->GetPlayable().*dirfunc)(pi);
+      DEBUGLOG(("Location::PrevNextCore %p -> %p{%s}\n", cur, pi.get(), PlayableInstance::DebugName(pi)));
+      // End of list => go to parent
       if (pi == NULL)
         goto pop;
     } while (IsInCallstack(&pi->GetPlayable()));
+    // Ensure required info types
+    if (job.RequestInfo(*pi, IF_Tech|IF_Slice|IF_Child))
+      return xstring::empty; // Delayed!!!
+    // go to found item
+    // push
     Callstack.append() = pi;
     cur = pi;
-
+    pi.reset();
   } while ((cur->GetInfo().tech->attributes & stopat) == 0);
   return xstring(); // NULL
 }
@@ -370,7 +376,7 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
   
   APlayable* cur = Root;
   // Request Tech info
-  if (job.RequestInfo(*cur, IF_Tech|IF_Obj))
+  if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
     return xstring::empty; // Delayed
 
   // Prepare exclude list
