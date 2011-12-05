@@ -584,9 +584,9 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance& obj, R
 
   rec->URL          = obj.GetPlayable().URL;
   // Request some infos
-  InfoFlags avail = (IF_Decoder|IF_Item|IF_Slice|IF_Drpl) &
-                    ~( obj.RequestInfo(IF_Decoder|IF_Item, PRI_Normal)
-                     | obj.RequestInfo(IF_Slice|IF_Drpl, PRI_Low) );
+  InfoFlags avail = IF_Decoder|IF_Item|IF_Slice|IF_Drpl;
+  avail &= ~obj.RequestInfo(IF_Decoder|IF_Item, PRI_Normal);
+  avail &= ~obj.RequestInfo(IF_Slice|IF_Drpl, PRI_Low);
   CalcCols(rec, avail);
 
   rec->flRecordAttr = 0;

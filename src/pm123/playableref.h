@@ -59,7 +59,7 @@ class PlayableSlice : public APlayable
   { /// Aggregate info without exclusions
     CollectionInfo          DefaultInfo;
     /// Create aggregate info cache for a playable object
-    CICache(Playable& p)    : CollectionInfoCache(p), DefaultInfo(PlayableSetBase::Empty) {};
+    CICache(Playable& p)    : CollectionInfoCache(p), DefaultInfo(PlayableSetBase::Empty, IF_Decoder|IF_Item|IF_Display|IF_Usage) {};
     /// Check whether an Aggregate info structure is owned by this instance.
     /// @remarks The Method is logically const. But the Mutex requires write access.
     bool                    IsMine(const AggregateInfo& ai);

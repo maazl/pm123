@@ -643,7 +643,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_RECORDUPDATE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDCOMMAND: %s, %i, %x\n",
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDUPDATE: %s, %i, %x\n",
         RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2), StateFromRec(rec).UpdateFlags.get()));
       UpdateRecord(rec);
       // Free the record in case this is requested.

@@ -259,47 +259,39 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   else if (what & IF_Rpl)
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
+  // IF_Item is always available if we got beyond IsItemOverridden.
   // Forward all remaining requests to *RefTo.
   InfoFlags what2 = what & ~IF_Item;
   // TODO Forward aggregate only if no slice?
-  InfoFlags async = CallDoRequestInfo(*RefTo, what, pri, rel);
+  InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
 
   EnsureCIC();
   InfoState& infostat = CIC->DefaultInfo.InfoStat;
+  what &= infostat.Check(what & (IF_Slice|IF_Aggreg), rel);
 
-  what2 |= what & IF_Item;
-  what2 &= infostat.Check(what2, rel);
-  // IF_Item is always available if we got beyond IsItemOverridden.
-  if (what2 & IF_Item)
-  { infostat.EndUpdate(infostat.BeginUpdate(IF_Item));
-    what2 &= ~IF_Item;
-    what &= ~IF_Item;
+  if (pri != PRI_None && what != IF_None)
+  {
+    /*// Fastpath for IF_Item and possibly IF_Slice.
+    InfoFlags upd = InfoStat.BeginUpdate(what2 & (IF_Item|IF_Slice));
+    if (what2 & IF_Slice)
+    { JobSet dummy(PRI_None);
+      int cr = CalcLoc(Item.start, StartCache, SB_Start, dummy)
+             | CalcLoc(Item.stop,  StopCache,  SB_Stop,  dummy);
+
+      switch (cr)
+      {case CR_Changed:
+        InfoChange(PlayableChangeArgs(*this, this, IF_Slice * (cr == CR_Changed), IF_Slice, IF_None));
+       case CR_Nop:
+        InfoStat.
+        return async;
+
+        case CR_Delayed:
+    }*/
+
+    // Place request for slice
+    async |= infostat.Request(what, pri);
   }
-
-  if (pri == PRI_None || what2 == IF_None)
-    return async;
-
-  /*// Fastpath for IF_Item and possibly IF_Slice.
-  InfoFlags upd = InfoStat.BeginUpdate(what2 & (IF_Item|IF_Slice));
-  if (what2 & IF_Slice)
-  { JobSet dummy(PRI_None);
-    int cr = CalcLoc(Item.start, StartCache, SB_Start, dummy)
-           | CalcLoc(Item.stop,  StopCache,  SB_Stop,  dummy);
-
-    switch (cr)
-    {case CR_Changed:
-      InfoChange(PlayableChangeArgs(*this, this, IF_Slice * (cr == CR_Changed), IF_Slice, IF_None));
-     case CR_Nop:
-      InfoStat.
-      return async;
-      
-      case CR_Delayed:
-  }*/
-    
-  // Place request for slice
-  async |= infostat.Request(what2, pri);
   what |= what2;
-
   return async;
 }
 
