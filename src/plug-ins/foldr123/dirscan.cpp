@@ -31,6 +31,7 @@
 
 #include <eautils.h>
 #include <strutils.h>
+#include <xio.h>
 #include <cpp/smartptr.h>
 #include <cpp/algorithm.h>
 
@@ -215,10 +216,16 @@ void DirScan::Scan()
           if (fb->attrFile & FILE_DIRECTORY)
             AppendItem((FILEFINDBUF3*)fb);
           else
-          { // Has .type EA?
-            const char* eadata = fb->cbList > sizeof(FEA2)
-              ? fb->list[0].szName + fb->list[0].cbName +1
-              : NULL;
+          { char buf[XIO_MAX_FILETYPE];
+            const char* eadata = NULL;
+            // Has .type EA?
+            if (fb->cbList > sizeof(FEA2))
+            { const USHORT* eas = (const USHORT*)(fb->list[0].szName + fb->list[0].cbName +1);
+              USHORT eatype = *eas++;
+              *buf = 0;
+              eadecode(buf, sizeof buf, eatype, &eas);
+              eadata = buf;
+            }
             if (Ctx.plugin_api->obj_supported(Path, eadata))
               AppendItem((FILEFINDBUF3*)fb);
           }

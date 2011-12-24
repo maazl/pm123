@@ -121,13 +121,14 @@ typedef struct
    * @param what A bit-vector of INFOTYTE.
    * @return Bits of \a what that caused an invalidation. */
   int DLLENTRYP(obj_invalidate)(const char* url, int what);
-  /** Check whether a decoder claims to support this kind of object.
+  /** Check whether a decoder claims to support this kind of URL and type.
    * @param url URL of the object to check
-   * @param eatype extended attributes as EAT_ASCII, EAT_MVST or EAT_MVMT.
+   * @param type .type extended attribute or mime type respectively.
+   * Multiple types may be tab separated.
    * @return true -> yes
    * @remarks The function does not actually cause any I/O.
    * It is not reliable during plug-in initialization. */
-  int DLLENTRYP(obj_supported)(const char* url, const char* eatype);
+  int DLLENTRYP(obj_supported)(const char* url, const char* type);
 } PLUGIN_API; 
 
 typedef struct

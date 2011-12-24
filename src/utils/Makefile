@@ -13,8 +13,9 @@ OBJECTS = $(OBJECTS) utilfct_dlg$(CO) utilfct_pm_misc$(CO) utilfct_thread$(CO) u
 OBJECTS = $(OBJECTS) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
-OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) eautils$(CO) strnchr$(CO) strnlen$(CO)
+OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnchr$(CO) strnlen$(CO)
 OBJECTS = $(OBJECTS) strutils$(CO) strptime$(CO)
+OBJECTS = $(OBJECTS) eautils$(CO) eadecode$(CO)
 OBJECTS = $(OBJECTS) memcmpcpy$(CO) vdelegate$(CO) interlocked$(CO) debuglog$(CO)
 STDLIBS = $(LIBS_UNI)
 
@@ -74,3 +75,5 @@ strutils.c:	strutils.h
 utilfct_dlg.c:	utilfct.h debuglog.h
 interlocked.c:	interlocked.h
 interlocked.h:	..\include\config.h
+eadecode.c:	debuglog.h
+strptime.c:	strutils.h

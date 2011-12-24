@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <strutils.h>
+#include <eautils.h>
 
 #include "xio_file.h"
 #include "xio_url.h"
@@ -394,53 +395,6 @@ static time_t convert_OS2_ftime(FDATE date, FTIME time)
   return mktime(&value);
 }
 
-static bool appendType(char* dst, const char* src, unsigned len)
-{ size_t curlen = strlen(dst);
-  if (curlen + len > XIO_MAX_FILETYPE - 2)
-  { DEBUGLOG(("xio123:append: truncated .type EA %s\n", src));
-    return false;
-  }
-  dst[curlen] = '\t' ; // delimiter
-  memcpy(dst + curlen +1, src, len);
-  dst[curlen + 1 + len] = 0;
-  return true;
-}
-
-static bool decodeEA(char* dst, USHORT type, const USHORT*& eadata)
-{ DEBUGLOG(("xio123:decodeEA(%04x, %04x...)\n", type, eadata[0]));
-  switch (type)
-  {case EAT_ASCII:
-    if (!appendType(dst, (const char*)(eadata + 1), eadata[0]))
-      return false;
-   default:
-    (const char*&)eadata += sizeof(USHORT) + eadata[0];
-    break;
-
-   case EAT_MVST:
-    { size_t count = eadata[1];
-      type = eadata[2];
-      eadata += 3;
-      while (count--)
-        if (!decodeEA(dst, type, eadata))
-          return false;
-    }
-    break;
-
-   case EAT_MVMT:
-    { size_t count = eadata[1];
-      eadata += 2;
-      while (count--)
-      { type = *eadata++;
-        if (!decodeEA(dst, type, eadata))
-          return false;
-      }
-    }
-   case EAT_ASN1: // not supported
-    break;
-  }
-  return true;
-}
-
 int XIOfile::getstat( XSTAT* st )
 { APIRET rc;
   FILESTATUS3 fi;
@@ -483,7 +437,7 @@ int XIOfile::getstat( XSTAT* st )
     // easize = eaop2.fpFEA2List->list[0].cbValue;
     const USHORT* eadata = (const USHORT*)(eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbName + 1);
     USHORT eatype = *eadata++;
-    decodeEA(st->type, eatype, eadata);
+    eadecode(st->type, sizeof(st->type), eatype, &eadata);
   }
 
   return 0;
