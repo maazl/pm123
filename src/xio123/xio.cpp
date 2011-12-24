@@ -333,7 +333,7 @@ xio_ftell( XFILE* x )
    value indicates an error. On devices that cannot seek the return
    value is nonzero. */
 long DLLENTRY
-xio_fseek( XFILE* x, long int offset, int origin )
+xio_fseek( XFILE* x, long int offset, XIO_SEEK origin )
 {
   DEBUGLOG(("xio_fseek(%p, %li, %i)\n", x, offset, origin));
   ASSERT(x && x->serial == XIO_SERIAL);
@@ -636,7 +636,7 @@ xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* m
 /* Returns a specified meta information if it is
    provided by associated stream. */
 char* DLLENTRY
-xio_get_metainfo( XFILE* x, int type, char* result, int size )
+xio_get_metainfo( XFILE* x, XIO_META type, char* result, int size )
 {
   DEBUGLOG(("xio_get_metainfo(%p, %i, %p, %i)\n", x, type, result, size));
   ASSERT(x && x->serial == XIO_SERIAL);
@@ -703,7 +703,7 @@ xio_set_observer( XFILE* x, unsigned long window,
 /* Returns XIO_NOT_SEEK (0) on streams incapable of seeking,
    XIO_CAN_SEEK (1) on streams capable of seeking and returns
    XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
-int DLLENTRY
+XIO_SEEK_SUPPORT DLLENTRY
 xio_can_seek( XFILE* x )
 {
   DEBUGLOG(("xio_can_seek(%p)\n", x));
@@ -724,6 +724,18 @@ xio_can_seek( XFILE* x )
     return XIO_NOT_SEEK;
 }
 
+XIO_PROTOCOL DLLENTRY
+xio_protocol( XFILE* x )
+{ DEBUGLOG(("xio_protocol(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
+  if( !x || x->serial != XIO_SERIAL ) {
+    errno = EBADF;
+    return XIO_NOT_SEEK;
+  }
+  #endif
+  return x->protocol->protocol();
+}
 
 /* Returns the read-ahead buffer size. */
 int DLLENTRY

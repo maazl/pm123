@@ -236,7 +236,7 @@ long XIOcddb::tell( long* offset64 )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOcddb::seek( long offset, int origin, long* offset64 )
+long XIOcddb::seek( long offset, XIO_SEEK origin, long* offset64 )
 {
   errno = EINVAL;
   if (offset64)
@@ -260,6 +260,11 @@ int XIOcddb::getstat( XSTAT* st )
 XSFLAGS XIOcddb::supports() const
 { return XS_CAN_READ;// | XS_NOT_BUFFERIZE;
 }
+
+XIO_PROTOCOL XIOcddb::protocol() const
+{ return XIO_PROTOCOL_CDDB;
+}
+
 
 /* Cleanups the cddb protocol. */
 XIOcddb::~XIOcddb()

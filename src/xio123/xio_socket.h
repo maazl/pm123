@@ -85,7 +85,7 @@ class XIOsocket : public XPROTOCOL
   // Unsupported. Always returns an error (-1L).
   virtual long    tell( long* offset64 = NULL );
   // Unsupported. Always returns an error (-1L).
-  virtual long    seek( long offset, int origin, long* offset64 = NULL );
+  virtual long    seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
   // Unsupported. Always returns an error (-1L).
   virtual long    getsize( long* offset64 = NULL );
   // Unsupported. Always returns an error (-1).
@@ -94,6 +94,7 @@ class XIOsocket : public XPROTOCOL
   virtual int     chsize( long size, long offset64 = 0 );
   // Return the supported properties of the current protocol
   virtual XSFLAGS supports() const;
+  virtual XIO_PROTOCOL protocol() const;
 
   // Converts a string containing a valid internet address using
   // dotted-decimal notation or host name into an internet address

@@ -126,7 +126,7 @@ int XIObuffer::getstat( XSTAT* st )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIObuffer::seek( long offset, int origin, long* offset64 )
+long XIObuffer::seek( long offset, XIO_SEEK origin, long* offset64 )
 {
   long result;
 
@@ -164,7 +164,7 @@ int XIObuffer::chsize( long size, long size64 )
   return chain->chsize( size, size64 );
 }
 
-char* XIObuffer::get_metainfo( int type, char* result, int size )
+char* XIObuffer::get_metainfo( XIO_META type, char* result, int size )
 { if ( type == XIO_META_TITLE && *s_title )
   { CritSect cs;
     if (s_title)
@@ -253,3 +253,6 @@ XSFLAGS XIObuffer::supports() const
 { return chain->supports();
 }
 
+XIO_PROTOCOL XIObuffer::protocol() const
+{ return chain->protocol();
+}

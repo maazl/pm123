@@ -31,6 +31,7 @@
 #define XIO_PROTOCOL_H
 
 #include <config.h>
+#include "xio.h"
 
 #include <cpp/cpputil.h>
 #include <cpp/mutex.h>
@@ -144,7 +145,7 @@ class XPROTOCOL {
      the origin. Returns the offset, in bytes, of the new position from
      the beginning of the file. A return value of -1L indicates an
      error. */
-  virtual long    seek( long offset, int origin, long* offset64 = NULL ) = 0;
+  virtual long    seek( long offset, XIO_SEEK origin, long* offset64 = NULL ) = 0;
 
   /* Returns the size of the file. A return value of -1L indicates an
      error or an unknown size. */
@@ -165,7 +166,7 @@ class XPROTOCOL {
   /* Returns a specified meta information if it is provided by associated stream.
      The default implementation always return "".
      Precondition: size > 0 */
-  virtual char*   get_metainfo( int type, char* result, int size );
+  virtual char*   get_metainfo( XIO_META type, char* result, int size );
 
   /* Set an observer that is called whenever a source updates the metadata.
      The function returns the previously set observer.
@@ -173,8 +174,12 @@ class XPROTOCOL {
      The callback will only be executed while calling read(). */ 
   virtual Iobserver* set_observer( Iobserver* observer );
 
-  /* Return the supported properties of the current protocol */
+  /// Return the supported properties of the current protocol
   virtual XSFLAGS supports() const = 0;
+
+  /// Return the current protocol type
+  /// @remarks RTTI by the back door
+  virtual XIO_PROTOCOL protocol() const = 0;
 };
 
 /* Specialization of XPROTOCOL for ready only access */

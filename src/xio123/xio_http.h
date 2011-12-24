@@ -95,6 +95,7 @@ class XIOhttp : public XIOreadonly
   char  s_genre[128];
   char  s_name [128];
   char  s_title[128];
+  char  s_type [XIO_MAX_FILETYPE];
 
   // TODO: @@@@@ I think this is crap...
   Mutex mtx_access; /* Serializes access to the protocol's data. */
@@ -120,12 +121,13 @@ class XIOhttp : public XIOreadonly
   virtual int read( void* result, unsigned int count );
   virtual int close();
   virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
   virtual int getstat( XSTAT* st );
-  virtual char* get_metainfo( int type, char* result, int size );
+  virtual char* get_metainfo( XIO_META type, char* result, int size );
   virtual Iobserver* set_observer( Iobserver* observer );
   virtual XSFLAGS supports() const;
+  virtual XIO_PROTOCOL protocol() const;
 
   /* Maps the error number in errnum to an error message string. */
   static const char* strerror( int errnum );

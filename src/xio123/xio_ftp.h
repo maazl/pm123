@@ -93,10 +93,11 @@ class XIOftp : public XIOreadonly
   virtual int read( void* result, unsigned int count );
   virtual int close();
   virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
   virtual int getstat( XSTAT* st );
   virtual XSFLAGS supports() const;
+  virtual XIO_PROTOCOL protocol() const;
 
   /* Maps the error number in errnum to an error message string. */
   static const char* strerror( int errnum );

@@ -405,7 +405,7 @@ long XIOsocket::tell(long* offset64)
   return -1L;
 }
 
-long XIOsocket::seek(long offset, int origin, long* offset64)
+long XIOsocket::seek(long offset, XIO_SEEK origin, long* offset64)
 { errno = EINVAL;
   if (offset64)
     *offset64 = -1L;
@@ -430,6 +430,9 @@ int XIOsocket::chsize(long size, long offset64)
 
 XSFLAGS XIOsocket::supports() const
 { return XS_CAN_READ|XS_CAN_WRITE|XS_CAN_READWRITE;
+}
+XIO_PROTOCOL XIOsocket::protocol() const
+{ return XIO_PROTOCOL_SOCKET;
 }
 
 XIOsocket::~XIOsocket()

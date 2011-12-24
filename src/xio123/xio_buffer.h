@@ -83,12 +83,13 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   virtual int open( const char* filename, XOFLAGS oflags );
   virtual int close();
   virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
   virtual int getstat( _XSTAT* st );
   virtual int chsize( long size, long offset64 = 0 ) = 0;
-  virtual char* get_metainfo( int type, char* result, int size );
+  virtual char* get_metainfo( XIO_META type, char* result, int size );
   virtual XSFLAGS supports() const;
+  virtual XIO_PROTOCOL protocol() const;
 };
 
 

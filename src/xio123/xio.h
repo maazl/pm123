@@ -42,23 +42,33 @@ extern "C" {
 #define XIO_MAX_HOSTNAME  512
 #define XIO_MAX_USERNAME  128
 #define XIO_MAX_PASSWORD  128
+#define XIO_MAX_FILETYPE  128
 
-#define XIO_FILE          0
-#define XIO_HTTP          1
-#define XIO_FTP           2
-#define XIO_CDDB          3
+typedef enum
+{ XIO_PROTOCOL_FILE
+, XIO_PROTOCOL_HTTP
+, XIO_PROTOCOL_FTP
+, XIO_PROTOCOL_CDDB
+, XIO_PROTOCOL_SOCKET
+} XIO_PROTOCOL;
 
-#define XIO_SEEK_SET      0
-#define XIO_SEEK_CUR      1
-#define XIO_SEEK_END      2
+typedef enum
+{ XIO_SEEK_SET
+, XIO_SEEK_CUR
+, XIO_SEEK_END
+} XIO_SEEK;
 
-#define XIO_META_NAME     0
-#define XIO_META_GENRE    1
-#define XIO_META_TITLE    2
+typedef enum
+{ XIO_META_NAME
+, XIO_META_GENRE
+, XIO_META_TITLE
+} XIO_META;
 
-#define XIO_NOT_SEEK      0
-#define XIO_CAN_SEEK      1
-#define XIO_CAN_SEEK_FAST 2
+typedef enum
+{ XIO_NOT_SEEK
+, XIO_CAN_SEEK
+, XIO_CAN_SEEK_FAST
+} XIO_SEEK_SUPPORT;
 
 typedef struct _XFILE XFILE;
 
@@ -108,7 +118,7 @@ xio_ftell( XFILE* x );
  * value indicates an error. On devices that cannot seek the return
  * value is nonzero. */
 long DLLENTRY
-xio_fseek( XFILE* x, long int offset, int origin );
+xio_fseek( XFILE* x, long int offset, XIO_SEEK origin );
 
 /** Repositions the file pointer associated with stream to the beginning
  * of the file. A call to xio_rewind is the same as:
@@ -129,6 +139,7 @@ typedef struct _XSTAT
   time_t   mtime;   /* -1 if not available */
   time_t   ctime;   /* -1 if not available */
   unsigned attr;    /* see S_IA... */
+  char     type[XIO_MAX_FILETYPE];/* tab separated list of EA types or mime type. */
 } XSTAT;
 
 enum
@@ -225,7 +236,7 @@ xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* m
 /** Returns a specified meta information if it is
  * provided by associated stream. */
 char* DLLENTRY
-xio_get_metainfo( XFILE* x, int type, char* result, int size );
+xio_get_metainfo( XFILE* x, XIO_META type, char* result, int size );
 
 /** @deprecated use xio_set_metacallback instead.
  * @details Sets a handle of a window that are to be notified of changes
@@ -239,8 +250,13 @@ xio_set_observer( XFILE* x, unsigned long window,
 /** Returns \a XIO_NOT_SEEK (0) on streams incapable of seeking,
  * \a XIO_CAN_SEEK (1) on streams capable of seeking and returns
  * \a XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
-int DLLENTRY
+XIO_SEEK_SUPPORT DLLENTRY
 xio_can_seek( XFILE* x );
+
+/** Returns the protocol handler used by this handle.
+ * @return exactly one of the XIO_FILE, XIO_ */
+XIO_PROTOCOL DLLENTRY
+xio_protocol( XFILE* x );
 
 
 /** Returns the read-ahead buffer size. */

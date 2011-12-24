@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <strutils.h>
 
 #include "xio_file.h"
 #include "xio_url.h"
@@ -328,7 +329,7 @@ long XIOfile::tell( long* offset64 )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOfile::seek( long offset, int origin, long* offset64 )
+long XIOfile::seek( long offset, XIO_SEEK origin, long* offset64 )
 {
   ULONG  mode;
   APIRET rc;
@@ -393,12 +394,75 @@ static time_t convert_OS2_ftime(FDATE date, FTIME time)
   return mktime(&value);
 }
 
+static bool appendType(char* dst, const char* src, unsigned len)
+{ size_t curlen = strlen(dst);
+  if (curlen + len > XIO_MAX_FILETYPE - 2)
+  { DEBUGLOG(("xio123:append: truncated .type EA %s\n", src));
+    return false;
+  }
+  dst[curlen] = '\t' ; // delimiter
+  memcpy(dst + curlen +1, src, len);
+  dst[curlen + 1 + len] = 0;
+  return true;
+}
+
+static bool decodeEA(char* dst, USHORT type, const USHORT*& eadata)
+{ DEBUGLOG(("xio123:decodeEA(%04x, %04x...)\n", type, eadata[0]));
+  switch (type)
+  {case EAT_ASCII:
+    if (!appendType(dst, (const char*)(eadata + 1), eadata[0]))
+      return false;
+   default:
+    (const char*&)eadata += sizeof(USHORT) + eadata[0];
+    break;
+
+   case EAT_MVST:
+    { size_t count = eadata[1];
+      type = eadata[2];
+      eadata += 3;
+      while (count--)
+        if (!decodeEA(dst, type, eadata))
+          return false;
+    }
+    break;
+
+   case EAT_MVMT:
+    { size_t count = eadata[1];
+      eadata += 2;
+      while (count--)
+      { type = *eadata++;
+        if (!decodeEA(dst, type, eadata))
+          return false;
+      }
+    }
+   case EAT_ASN1: // not supported
+    break;
+  }
+  return true;
+}
+
 int XIOfile::getstat( XSTAT* st )
 { APIRET rc;
   FILESTATUS3 fi;
+  EAOP2  eaop2 = {NULL};
 
   FILE_REQUEST_DISK(this);
-  rc = DosQueryFileInfo( s_handle, FIL_STANDARD, &fi, sizeof fi );
+  rc = DosQueryFileInfo(s_handle, FIL_STANDARD, &fi, sizeof fi);
+
+  if (rc == NO_ERROR)
+  { eaop2.fpGEA2List = (GEA2LIST*)alloca(sizeof(GEA2LIST) + 5);
+    eaop2.fpGEA2List->cbList = sizeof(GEA2LIST) + 5;
+    eaop2.fpGEA2List->list[0].oNextEntryOffset = 0;
+    eaop2.fpGEA2List->list[0].cbName = 5;
+    memcpy(eaop2.fpGEA2List->list[0].szName, ".type", 6);
+    // Since there is nor reasonable efficient way to determine the size of one EA
+    // a rather large buffer is allocated.
+    eaop2.fpFEA2List = (FEA2LIST*)alloca(sizeof(FEA2LIST) + sizeof(FEA2) + 256);
+    eaop2.fpFEA2List->cbList = sizeof(FEA2LIST) + sizeof(FEA2) + 256;
+
+    if (DosQueryFileInfo(s_handle, FIL_QUERYEASFROMLIST, &eaop2, sizeof eaop2) != NO_ERROR)
+      eaop2.fpFEA2List = NULL; // No .TYPE EA.
+  }
   FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
@@ -412,6 +476,16 @@ int XIOfile::getstat( XSTAT* st )
   st->mtime = convert_OS2_ftime(fi.fdateLastWrite, fi.ftimeLastWrite);
   st->ctime = convert_OS2_ftime(fi.fdateCreation, fi.ftimeCreation);
   st->attr = fi.attrFile; // This ftp client is always read only
+
+  *st->type = 0;
+  if (eaop2.fpFEA2List && eaop2.fpFEA2List->list[0].cbValue)
+  { // Decode .TYPE EA
+    // easize = eaop2.fpFEA2List->list[0].cbValue;
+    const USHORT* eadata = (const USHORT*)(eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbName + 1);
+    USHORT eatype = *eadata++;
+    decodeEA(st->type, eatype, eadata);
+  }
+
   return 0;
 }
 
@@ -441,6 +515,10 @@ XSFLAGS XIOfile::supports() const
 { return
     XS_CAN_READ   | XS_CAN_WRITE | XS_CAN_READWRITE |
     XS_CAN_CREATE | XS_CAN_SEEK  | XS_CAN_SEEK_FAST;
+}
+
+XIO_PROTOCOL XIOfile::protocol() const
+{ return XIO_PROTOCOL_FILE;
 }
 
 /* Cleanups the file protocol. */

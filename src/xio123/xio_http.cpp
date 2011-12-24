@@ -187,6 +187,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
     char  r_genre[ sizeof( s_genre )] = "";
     char  r_name [ sizeof( s_name  )] = "";
     char  r_title[ sizeof( s_title )] = "";
+    char  r_type [ sizeof( s_type  )] = "";
 
     if( !proxy_addr ) {
       get = url_string( url, XURL_STR_ENCODE | XURL_STR_REQUEST );
@@ -266,9 +267,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         }
       } else if( strnicmp( request, "Content-Length:", 15 ) == 0 ) {
         // Content-Length is used only if we don't have Content-Range.
-        if( !r_size ) {
+        if( r_size < 0 )
           r_size = atol( skip_space( request + 15 ));
-        }
       } else if( strnicmp( request, "Accept-Ranges: bytes", 20 ) == 0 ) {
         r_supports |= XS_CAN_SEEK;
       } else if( strnicmp( request, "Content-Range: bytes", 20 ) == 0 ) {
@@ -277,6 +277,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         r_size  = strtoul( p, &p, 10 ); ++p;
         r_size  = strtoul( p, &p, 10 );
         r_supports |= XS_CAN_SEEK;
+      } else if( strnicmp( request, "Content-Type:", 13 ) == 0 ) {
+        strlcpy( r_type, skip_space( request + 13 ), sizeof( s_type ));
       } else if( strnicmp( request, "Last-Modified:", 14 ) == 0 ) {
         r_mtime = parse_datetime( request + 14 );
       } else if( strnicmp( request, "icy-metaint:", 12 ) == 0 ) {
@@ -319,9 +321,10 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       s_metaint = r_metaint;
       s_metapos = r_metaint;
 
-      strcpy( s_genre, r_genre);
-      strcpy( s_name,  r_name );
-      strcpy( s_title, r_title);
+      strlcpy( s_genre, r_genre, sizeof(s_genre) );
+      strlcpy( s_name,  r_name,  sizeof(s_name)  );
+      strlcpy( s_title, r_title, sizeof(s_title) );
+      strlcpy( s_type,  r_type,  sizeof(s_type)  );
 
     } else
     { s_socket.close();
@@ -505,7 +508,7 @@ long XIOhttp::tell( long* offset64 )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOhttp::seek( long offset, int origin, long* offset64 )
+long XIOhttp::seek( long offset, XIO_SEEK origin, long* offset64 )
 {
   if(!( support & XS_CAN_SEEK ) || s_metaint ) {
     errno = error = EINVAL;
@@ -570,15 +573,16 @@ long XIOhttp::getsize( long* offset64 )
 
 int XIOhttp::getstat( XSTAT* st )
 { // TODO: support file meta infos, modification time
-  st->size = getsize();
+  st->size = s_size;
   st->atime = -1;
   st->mtime = s_mtime;
   st->ctime = -1;
   st->attr = S_IAREAD; // The http client is always read only
+  strlcpy(st->type, s_type, sizeof(st->type));
   return 0;
 }
 
-char* XIOhttp::get_metainfo( int type, char* result, int size )
+char* XIOhttp::get_metainfo( XIO_META type, char* result, int size )
 {
   Mutex::Lock lock(mtx_access);
   switch( type ) {
@@ -600,6 +604,11 @@ XSFLAGS XIOhttp::supports() const
 { return support;
 }
 
+XIO_PROTOCOL XIOhttp::protocol() const
+{ return XIO_PROTOCOL_HTTP;
+}
+
+
 /* Cleanups the http protocol. */
 XIOhttp::~XIOhttp()
 {
@@ -619,6 +628,7 @@ XIOhttp::XIOhttp()
   memset(s_genre, 0, sizeof s_genre);
   memset(s_name , 0, sizeof s_name );
   memset(s_title, 0, sizeof s_title);
+  memset(s_title, 0, sizeof s_type );
   blocksize = 4096;
 }
 

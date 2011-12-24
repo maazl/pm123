@@ -299,7 +299,7 @@ long XIOftp::tell( long* offset64 )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOftp::seek( long offset, int origin, long* offset64 )
+long XIOftp::seek( long offset, XIO_SEEK origin, long* offset64 )
 {
   if(!( support & XS_CAN_SEEK )) {
     errno = EINVAL;
@@ -360,11 +360,16 @@ int XIOftp::getstat( XSTAT* st )
   st->mtime = -1;
   st->ctime = -1;
   st->attr = S_IAREAD; // This ftp client is always read only
+  *st->type = 0;
   return 0;
 }
 
 XSFLAGS XIOftp::supports() const
 { return support;
+}
+
+XIO_PROTOCOL XIOftp::protocol() const
+{ return XIO_PROTOCOL_FTP;
 }
 
 /* Cleanups the ftp protocol. */

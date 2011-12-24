@@ -154,7 +154,7 @@ int XPROTOCOL::puts( const char* string )
   return rc;
 }
 
-char* XPROTOCOL::get_metainfo( int type, char* result, int size )
+char* XPROTOCOL::get_metainfo( XIO_META type, char* result, int size )
 { *result = 0;
   return result;
 }

@@ -49,11 +49,12 @@ class XIOfile : public XPROTOCOL
   virtual int write( const void* source, unsigned int count );
   virtual int close();
   virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
   virtual int getstat( XSTAT* st );
   virtual int chsize( long size, long offset64 = 0 );
   virtual XSFLAGS supports() const;
+  virtual XIO_PROTOCOL protocol() const;
 };
 
 #endif /* XIO_FILE_H */
