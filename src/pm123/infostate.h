@@ -41,47 +41,48 @@
 #include <cpp/url123.h>
 
 
-enum InfoFlags // must be aligned to INFOTYPE in format.h
+/// Flags to control the kind of information. Mostly used in the asynchronous request interface.
+enum InfoFlags // must be aligned to INFOTYPE in format.h!
 { IF_None    = 0x0000,
   // Decoder information
-  IF_Phys    = 0x0001, // applies to GetInfo().phys
-  IF_Tech    = 0x0002, // applies to GetInfo().tech
-  IF_Obj     = 0x0004, // applies to GetInfo().obj
-  IF_Meta    = 0x0008, // applies to GetInfo().meta
-  IF_Attr    = 0x0010, // applies to GetInfo().attr and GetAtLoc()
-  IF_Child   = 0x0080, // applies to GetCollection()
+  IF_Phys    = 0x0001, /// applies to GetInfo().phys
+  IF_Tech    = 0x0002, /// applies to GetInfo().tech
+  IF_Obj     = 0x0004, /// applies to GetInfo().obj
+  IF_Meta    = 0x0008, /// applies to GetInfo().meta
+  IF_Attr    = 0x0010, /// applies to GetInfo().attr and GetAtLoc()
+  IF_Child   = 0x0080, /// applies to GetNext() and GetPre()
   IF_Decoder = IF_Phys|IF_Tech|IF_Obj|IF_Meta|IF_Attr|IF_Child,
   // Aggregate information
-  IF_Rpl     = 0x0100, // applies to GetInfo().rpl and GetCollectionInfo(...)
-  IF_Drpl    = 0x0200, // applies to GetInfo().drpl and GetCollectionInfo(...)
+  IF_Rpl     = 0x0100, /// applies to GetInfo().rpl and RequestAggregateInfo(...)
+  IF_Drpl    = 0x0200, /// applies to GetInfo().drpl and RequestAggregateInfo(...)
   IF_Aggreg  = IF_Rpl|IF_Drpl,
   // Playable Item information
-  IF_Item    = 0x0400, // applies to GetInfo().item
+  IF_Item    = 0x0400, /// applies to GetInfo().item
   // The following flags are calculated content.
-  IF_Slice   = 0x1000, // applies to GetStartLoc() and GetStopLoc()
-  IF_Display = 0x2000, // applies to GetDisplayName()
+  IF_Slice   = 0x1000, /// applies to GetStartLoc() and GetStopLoc()
+  IF_Display = 0x2000, /// applies to GetDisplayName()
   // The following flags are for events only.
-  IF_Usage   = 0x4000 // applies to IsInUse() and IsModified()
+  IF_Usage   = 0x4000 /// applies to IsInUse() and IsModified()
 };
 FLAGSATTRIBUTE(InfoFlags);
 
 /// Asynchronous request priority
 enum Priority
-{ PRI_None      = 0,   // Do not execute anything, only check for existance.
-  PRI_Low       = 1,   // Execute request at idle time.
-  PRI_Normal    = 2,   // Execute request.
-  PRI_Sync      = 3,   // Execute request synchronously, i.e. wait for the response.
+{ PRI_None      = 0,   /// Do not execute anything, only check for existance.
+  PRI_Low       = 1,   /// Execute request at idle time.
+  PRI_Normal    = 2,   /// Execute request.
+  PRI_Sync      = 3,   /// Execute request synchronously, i.e. wait for the response.
 };
 
 /// @brief Information reliability level
 /// @details When used for requests only level 1 and up make sense.
 /// When used for information state only up to level 3 makes sense.
 enum Reliability
-{ REL_Virgin    = 0,   // The information is not available
-  REL_Invalid   = 1,   // The information is loaded, but is likely to be outdated.
-  REL_Cached    = 2,   // The information could be from a cache that is not well known to be synchronized.
-  REL_Confirmed = 3,   // The information should be known to reflect the most recent state.
-  REL_Reload    = 4,   // The information should be reloaded by user request regardless of it's reliability.
+{ REL_Virgin    = 0,   /// The information is not available
+  REL_Invalid   = 1,   /// The information is loaded, but is likely to be outdated.
+  REL_Cached    = 2,   /// The information could be from a cache that is not well known to be synchronized.
+  REL_Confirmed = 3,   /// The information should be known to reflect the most recent state.
+  REL_Reload    = 4,   /// The information should be reloaded by user request regardless of it's reliability.
 };
 
 /** Structure to store result of PeekRequest. */
@@ -151,8 +152,8 @@ class InfoState
   /// Return request state for a priority.
   InfoFlags      GetRequest(Priority pri) const;
 
-  /// Check what kind of information is currently in service.
-  InfoFlags      InfoInService() const        { return (InfoFlags)+InService; }
+  /*/// Check what kind of information is currently in service.
+  InfoFlags      InfoInService() const        { return (InfoFlags)+InService; }*/
   /// Request informations for update. This sets the appropriate bits in InfoInService.
   /// @return The function returns the bits \e not previously set. The caller must not update
   /// other information than the returned bits.

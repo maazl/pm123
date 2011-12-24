@@ -40,20 +40,40 @@
 *
 ****************************************************************************/
 
+void DependencyInfoPath::Entry::Merge(InfoFlags what, const PlayableSetBase* exclude)
+{ What |= what;
+  if (!Exclude) // Hmm, dependencies on the same object with different exclusion lists???
+    Exclude = exclude;
+}
+
+InfoFlags DependencyInfoPath::Entry::Check()
+{ InfoFlags what2 = What & IF_Aggreg;
+  if (what2 && Exclude)
+  { Inst->RequestAggregateInfo(*Exclude, what2, PRI_None);
+    What &= what2 | ~IF_Aggreg;
+    if ((What & ~IF_Aggreg) == 0)
+      goto done;
+  }
+  What = Inst->RequestInfo(What, PRI_None);
+ done:
+  return What;
+}
+
 int DependencyInfoPath::Entry::compare(const Entry& l, const APlayable& r)
 { // Arbitrary but reliable sequence.
   return (int)l.Inst.get() - (int)&r;
 }
 
-void DependencyInfoPath::Add(APlayable& inst, InfoFlags what)
-{ DEBUGLOG(("DependencyInfoPath::Add(&%p, %x)\n", &inst, what));
+void DependencyInfoPath::Add(APlayable& inst, InfoFlags what, const PlayableSetBase* exclude)
+{ DEBUGLOG(("DependencyInfoPath::Add(&%p, %x, %p)\n", &inst, what, exclude));
+  ASSERT(!exclude || (what & IF_Aggreg));
   Entry*& ep = MandatorySet.get(inst);
   if (ep)
     // Hit => merge
-    ep->What |= what;
+    ep->Merge(what, exclude);
   else
     // No hit => insert
-    ep = new Entry(inst, what);
+    ep = new Entry(inst, what, exclude);
 }
 
 #ifdef DEBUG_LOG
@@ -103,7 +123,7 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
       outer |= 1;
       Entry*& lo = OptionalSet.get(*re->Inst);
       if (lo)
-      { lo->What |= re -> What;
+      { lo->Merge(re->What, re->Exclude);
         ++ri;
       } else
       { lo = re;
@@ -115,7 +135,7 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
       outer |= 2;
       Entry*& ro = roset.get(*le->Inst);
       if (ro)
-      { ro->What |= le->What;
+      { ro->Merge(le->What, le->Exclude);
         ++li;
       } else
       { ro = le;
@@ -123,7 +143,7 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
       }
       le = li < MandatorySet.size() ? MandatorySet[li] : NULL;
     } // else match
-    { le->What |= re->What;
+    { le->Merge(re->What, re->Exclude);
       le = ++li < MandatorySet.size() ? MandatorySet[li] : NULL;
       re = ++ri < r.Size() ? AccessMandatorySet(r)[ri] : NULL;
     }
@@ -147,7 +167,7 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
         le = li < OptionalSet.size() ? OptionalSet[li] : NULL;
         continue;
       } // else match
-      { le->What |= re->What;
+      { le->Merge(re->What, re->Exclude);
         le = ++li < OptionalSet.size() ? OptionalSet[li] : NULL;
       }
       re = ++ri < roset.size() ? roset[ri] : NULL;
@@ -169,7 +189,7 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
       } else if (re == NULL || le->Inst.get() < re->Inst.get())
       { // current left entry does not match
       } // else match
-      { le->What |= re->What;
+      { le->Merge(re->What, re->Exclude);
         re = ++ri < roset.size() ? roset[ri] : NULL;
       }
       le = ++li < OptionalSet.size() ? OptionalSet[li] : NULL;
@@ -219,8 +239,7 @@ void DependencyInfoWorker::Start()
         DEBUGLOG(("DependencyInfoWorker::Start checking optional entry %p{%s} : %x\n",
           &ep2->Inst, ep2->Inst->GetPlayable().URL.getShortName().cdata(), ep2->What));
         DelegList.append() = new DelegType(ep2->Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
-        ep2->What = ep2->Inst->RequestInfo(ep2->What, PRI_None);
-        if (ep2->What == IF_None)
+        if (ep2->Check() == IF_None)
         { DelegList.clear();
           goto completed;
         }
@@ -228,19 +247,17 @@ void DependencyInfoWorker::Start()
       // Now wait for optional entry.
       goto wait;
     }
-    ep = Data.MandatorySet.erase(Data.MandatorySet.size()-1);
+    ep = Data.MandatorySet.erase(Data.MandatorySet.size()-1); // Start from back to avoid unnecessary moving.
     DEBUGLOG(("DependencyInfoWorker::Start checking mandatory dependency %p{%s} : %x\n",
       &ep->Inst, ep->Inst->GetPlayable().URL.getShortName().cdata(), ep->What));
-    ep->What = ep->Inst->RequestInfo(ep->What, PRI_None);
-    if (ep->What)
+    if (ep->Check())
     { DEBUGLOG(("DependencyInfoWorker::Start still waiting for %x\n", ep->What));
       NowWaitingFor = ep->What;
       ep->Inst->GetInfoChange() += Deleg;
       // double check
-      ep->What = ep->Inst->RequestInfo(ep->What, PRI_None);
-      if ( ep->What != IF_None // no double check hit
-        || !Deleg.detach() )   // or /we/ did not deregister ourself
-        goto wait;             // => wait for other thread
+      if ( ep->Check() != IF_None // no double check hit
+        || !Deleg.detach() )      // or /we/ did not deregister ourself
+        goto wait;                // => wait for other thread
       // else move on with the next queue item
     }
     DEBUGLOG(("DependencyInfoWorker::Start item has already completed.\n"));
@@ -260,7 +277,7 @@ void DependencyInfoWorker::Cancel()
 }
 
 void DependencyInfoWorker::MandatoryInfoChangeEvent(const PlayableChangeArgs& args)
-{ DEBUGLOG(("DependencyInfoWorker(%p)::MandatoryInfoChangeEvent({&%p})\n", &args.Instance));
+{ DEBUGLOG(("DependencyInfoWorker(%p)::MandatoryInfoChangeEvent({&%p, %x})\n", this, &args.Instance, args.Loaded));
   NowWaitingFor &= ~args.Loaded;
   if ( NowWaitingFor == IF_None // Have we finished?
     && Deleg.detach() ) // and did /we/ deregister ourself?
@@ -270,7 +287,7 @@ void DependencyInfoWorker::MandatoryInfoChangeEvent(const PlayableChangeArgs& ar
 }
 
 void DependencyInfoWorker::OptionalInfoChangeEvent(const PlayableChangeArgs& args)
-{ DEBUGLOG(("DependencyInfoWorker(%p)::MandatoryInfoChangeEvent({&%p})\n", &args.Instance));
+{ DEBUGLOG(("DependencyInfoWorker(%p)::OptionalInfoChangeEvent({&%p, %x})\n", this, &args.Instance, args.Loaded));
   { Mutex::Lock lock(Mtx);
     DependencyInfoSet::Entry* ep = Data.OptionalSet.find(args.Instance);
     if (ep == NULL)
@@ -320,6 +337,6 @@ volatile const AggregateInfo& JobSet::RequestAggregateInfo(APlayable& target, co
 { DEBUGLOG(("JobSet::RequestAggregateInfo(&%p, {%u,}, %x)\n", &target, excluding.size(), what));
   volatile const AggregateInfo& ret = target.RequestAggregateInfo(excluding, what, Pri);
   if (what)
-    Depends.Add(target, what);
+    Depends.Add(target, what, &ret.Exclude);
   return ret;
 }

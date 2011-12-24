@@ -84,7 +84,7 @@ ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
   return DECODER_OTHER|DECODER_PLAYLIST;
 }
 
-ULONG DLLENTRY decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
+ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                 DECODER_INFO_ENUMERATION_CB cb, void* param)
 { // Check for file url
   if (strnicmp(url, "file://", 7) != 0)

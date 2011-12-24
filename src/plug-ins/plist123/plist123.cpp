@@ -100,29 +100,18 @@ decoder_support(const DECODER_FILETYPE** types, int* count)
 
 
 ULONG DLLENTRY
-decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
+decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* info,
                  DECODER_INFO_ENUMERATION_CB cb, void* param)
 {
-  *what |= INFO_PHYS|INFO_META; // always inclusive
+  if (!handle)
+    return PLUGIN_NO_PLAY;
+
+  *what |= INFO_META; // always inclusive
  
-  XFILE* file = xio_fopen(url, "rU");
-  if (file == NULL)
-  { info->tech->info = xio_strerror(xio_ferror(file));
-    return PLUGIN_NO_READ;
-  }
-
-  XSTAT xstat;
-  if (xio_fstat(file, &xstat) == 0)
-  { info->phys->filesize = xstat.size;
-    if (!(xstat.attr & S_IAREAD))
-      info->phys->attributes |= PATTR_WRITABLE;
-    info->phys->tstmp = xstat.mtime;
-  }
-
   ULONG ret = PLUGIN_OK;
   if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ))
   { *what |= INFO_CHILD|INFO_TECH|INFO_OBJ;
-    sco_ptr<PlaylistReader> reader(PlaylistReader::SnifferFactory(url, file));
+    sco_ptr<PlaylistReader> reader(PlaylistReader::SnifferFactory(url, handle));
     if (reader == NULL)
     { info->tech->info = "Unrecognized playlist type.";
       ret = PLUGIN_NO_PLAY;
@@ -136,7 +125,6 @@ decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
     }
   }
   
-  xio_fclose(file);
   return ret;
 }
 

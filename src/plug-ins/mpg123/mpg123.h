@@ -72,6 +72,8 @@ class ID3
 {protected:
   /// Stream associated with filename, NULL = none
   XFILE*        XFile;
+  /// true if the handle should be closed by the destructor.
+  bool          MyHandle;
   /// Currently handled file name
   xstring       Filename;
   /// Last error text
@@ -80,13 +82,16 @@ class ID3
  protected:
   ID3() : XFile(NULL) {}
  public:
-  ID3(const xstring& filename) : XFile(NULL), Filename(filename) {}
+  ID3(const xstring& filename) : XFile(NULL), MyHandle(false), Filename(filename) {}
   /// Open MPEG file. Returns 0 if it successfully opens the file.
   /// @return A nonzero return value indicates an error. A -1 return value
   /// indicates an unsupported format of the file.
   PLUGIN_RC     Open(const char* mode);
   /// Closes the MPEG file.
   void          Close();
+  /// Set the I/O file handle.
+  void          SetHandle(XFILE* handle) { ASSERT(!MyHandle); XFile = handle; }
+  ~ID3()        { if (MyHandle) Close(); }
   /// Get last error text.
   const xstring& GetLastError() const { return LastError; }
 
@@ -146,20 +151,21 @@ class MPG123 : public ID3
   MPG123();
  public:
   MPG123(const xstring& filename);
-  ~MPG123();
 
   /// Open MPEG file. Returns 0 if it successfully opens the file.
   /// @return A nonzero return value indicates an error. A -1 return value
   /// indicates an unsupported format of the file.
-  PLUGIN_RC     Open(const char* mode);
+  PLUGIN_RC     OpenMPEG();
   /// Closes the MPEG file.
   /// @remarks Must be called from synchronized context.
-  void          Close();
+  void          CloseMPEG();
+
+  ~MPG123()     { CloseMPEG(); }
 
   /// Return most recent stream length or -1 if not available.
   PM123_TIME    StreamLength() const { return (double)LastLength / FrameInfo.rate; }
 
-  void          FillPhysInfo(PHYS_INFO& phys);
+  //void          FillPhysInfo(PHYS_INFO& phys);
   bool          FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj);
   void          FillMetaInfo(META_INFO& meta);
 
@@ -216,6 +222,8 @@ class Decoder : public MPG123
   PROXYFUNCDEF void TFNENTRY ThreadStub(void* arg);
   /// Worker thread
   void          ThreadFunc();
+  // Revoke access right.
+  void          SetHandle(XFILE* handle);
 
  public:
   Decoder();

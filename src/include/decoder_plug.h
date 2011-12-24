@@ -358,7 +358,7 @@ typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
       PLUGIN_NO_READ = error reading file (too small?),
       PLUGIN_NO_PLAY = decoder can't play that,
       other values   = errno, check xio_strerror() for string. */
-ULONG DLLENTRY decoder_fileinfo (const char* url, int* what, const INFO_BUNDLE* info,
+ULONG DLLENTRY decoder_fileinfo (const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                  DECODER_INFO_ENUMERATION_CB cb, void* param);
 
 ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int haveinfo, xstring* errortext);

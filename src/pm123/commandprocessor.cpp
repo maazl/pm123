@@ -37,8 +37,10 @@
 #include "loadhelper.h"
 #include "configuration.h"
 #include "controller.h"
+#include "location.h"
 #include "eventhandler.h"
 #include "123_util.h"
+#include "dependencyinfo.h"
 #include "copyright.h"
 #include "plugman.h"
 #include <cpp/vdelegate.h>
@@ -271,6 +273,11 @@ class CommandProcessor : public ACommandProcessor
   // PLAYLIST
   /// Move forward/backward in the current playlist
   void PlSkip(int count);
+  /// Insert all songs of the playlist url into the currently selected playlist.
+  /// @return the number of inserted songs.
+  int  PlFlatInsert(const url123& url);
+  /// Common implementation of Dir and Rdir.
+  void PlDir(bool recursive);
 
   void CmdPlaylist();
   void CmdPlNext();
@@ -285,6 +292,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdPlAdd();
   void CmdDir();
   void CmdRdir();
+  void CmdPlSort();
   void CmdPlSave();
 
   // METADATA
@@ -348,7 +356,8 @@ class CommandProcessor : public ACommandProcessor
   CommandProcessor();
 };
 
-const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be ordered!!!
+// list must be ordered!!!
+const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 { { "add",            &CommandProcessor::CmdPlAdd         }
 , { "autouse",        &CommandProcessor::CmdAutouse       }
 , { "cd",             &CommandProcessor::CmdCd            }
@@ -378,14 +387,17 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be o
 , { "pl add",         &CommandProcessor::CmdPlAdd         }
 , { "pl clear",       &CommandProcessor::CmdPlClear       }
 , { "pl current",     &CommandProcessor::CmdPlCurrent     }
+, { "pl dir",         &CommandProcessor::CmdDir           }
 , { "pl index",       &CommandProcessor::CmdPlIndex       }
 , { "pl item",        &CommandProcessor::CmdPlItem        }
 , { "pl next",        &CommandProcessor::CmdPlNext        }
 , { "pl prev",        &CommandProcessor::CmdPlPrev        }
 , { "pl previous",    &CommandProcessor::CmdPlPrev        }
+, { "pl rdir",        &CommandProcessor::CmdRdir          }
 , { "pl remove",      &CommandProcessor::CmdPlRemove      }
 , { "pl reset",       &CommandProcessor::CmdPlReset       }
 , { "pl save",        &CommandProcessor::CmdPlSave        }
+, { "pl sort",        &CommandProcessor::CmdPlSort        }
 , { "pl_add",         &CommandProcessor::CmdPlAdd         }
 , { "pl_clear",       &CommandProcessor::CmdPlClear       }
 , { "pl_current",     &CommandProcessor::CmdPlCurrent     }
@@ -397,6 +409,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be o
 , { "pl_remove",      &CommandProcessor::CmdPlRemove      }
 , { "pl_reset",       &CommandProcessor::CmdPlReset       }
 , { "pl_save",        &CommandProcessor::CmdPlSave        }
+, { "pl_sort",        &CommandProcessor::CmdPlSort        }
 , { "play",           &CommandProcessor::CmdPlay          }
 , { "playlist",       &CommandProcessor::CmdPlaylist      }
 , { "playonload",     &CommandProcessor::CmdPlayonload    }
@@ -1097,13 +1110,16 @@ void CommandProcessor::CmdUse()
 
 void CommandProcessor::CmdPlClear()
 { if (CurPlaylist)
-    CurPlaylist->Clear();
+  { CurPlaylist->Clear();
+    Reply.append('1');
+  }
 }
 
 void CommandProcessor::CmdPlAdd()
 { if (CurPlaylist)
   { URLTokenizer tok(Request);
     const char* url;
+    int count;
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
     while (tok.Next(url))
     { if (!url)
@@ -1111,7 +1127,9 @@ void CommandProcessor::CmdPlAdd()
         break; // Bad URL
       }
       CurPlaylist->InsertItem(*Playable::GetByURL(ParseURL(url)), CurItem);
+      ++count;
     }
+    Reply.append(count);
   }
 }
 
@@ -1122,40 +1140,56 @@ void CommandProcessor::CmdPlRemove()
   }
 }
 
-void CommandProcessor::CmdDir()
+int CommandProcessor::PlFlatInsert(const url123& url)
+{
+  int_ptr<Playable> dir = Playable::GetByURL(url);
+  // Request simple RPL info to force all recursive playlists to load.
+  dir->RequestInfo(IF_Rpl, PRI_Sync);
+
+  vector_int<APlayable> list;
+  { // get all songs
+    Location iter(dir);
+    JobSet job(PRI_Sync);
+    while (iter.NavigateCount(1, TATTR_SONG, job) == NULL)
+      list.append() = &iter.GetCurrent();
+  }
+
+  Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+  foreach (const int_ptr<APlayable>*, app, list)
+    CurPlaylist->InsertItem(**app, CurItem);
+
+  return list.size();
+}
+
+void CommandProcessor::PlDir(bool recursive)
 { if (CurPlaylist)
   { URLTokenizer tok(Request);
     const char* curl;
-    Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+    int count;
     while (tok.Next(curl))
     { url123 url = ParseURL(curl);
       if (strchr(url, '?'))
       { Reply.append(tok.Current());
         break; // Bad URL
       }
-      if (url[url.length()-1] != '/')
-        url = url + "/";
-      CurPlaylist->InsertItem(*Playable::GetByURL(url), CurItem);
+      url = amp_make_dir_url(url, recursive);
+      count += PlFlatInsert(url);
     }
+    Reply.append(count);
   }
 }
 
+void CommandProcessor::CmdDir()
+{ PlDir(false);
+}
+
 void CommandProcessor::CmdRdir()
-{ if (CurPlaylist)
-  { URLTokenizer tok(Request);
-    const char* curl;
-    Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
-    while (tok.Next(curl))
-    { url123 url = ParseURL(curl);
-      if (strchr(url, '?'))
-      { Reply.append(tok.Current());
-        break; // Bad URL
-      }
-      if (url[url.length()-1] != '/')
-        url = url + "/";
-      CurPlaylist->InsertItem(*Playable::GetByURL(url+"?recursive"), CurItem);
-    }
-  }
+{ PlDir(true);
+}
+
+void CommandProcessor::CmdPlSort()
+{
+  // TODO:
 }
 
 void CommandProcessor::CmdPlSave()
@@ -1529,7 +1563,6 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "dndrecurse",      &amp_cfg::recurse_dnd    }
 , { "dockmargin",      &amp_cfg::dock_margin    }
 , { "dockwindows",     &amp_cfg::dock_windows   }
-, { "foldersautosort", &amp_cfg::sort_folders   }
 , { "foldersfirst",    &amp_cfg::folders_first  }
 , { "font",            &CommandProcessor::DoFontOption }
 , { "pipe",            &amp_cfg::pipe_name      }

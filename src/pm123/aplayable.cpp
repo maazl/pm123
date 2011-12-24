@@ -64,7 +64,7 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
   InfoFlags async = DoRequestInfo(rq, pri, rel);
   DEBUGLOG(("APlayable::RequestInfo rq = %x, async = %x\n", rq, async));
   ASSERT(async == IF_None || pri != PRI_None);
-  /*#ifdef DEBUG
+  #ifdef DEBUG
   if (pri != PRI_None && rq)
   { RequestState req;
     PeekRequest(req);
@@ -73,7 +73,8 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
     DoRequestInfo(rq, PRI_None, rel);
     ASSERT((~req.ReqHigh & rq) == 0);
   }
-  #endif*/
+  #endif
+  ASSERT((async & rq) == async);
   // what  - requested information
   // rq    - missing information, might be more than what
   // async - asynchronously requested information, subset of rq
@@ -112,7 +113,7 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   DEBUGLOG(("APlayable::RequestAggregateInfo ai = &%p{%s,}, rq = %x, async = %x\n",
     &ai, ai.Exclude.DebugDump().cdata(), rq, async));
   ASSERT(async == IF_None || pri != PRI_None);
-  /*#ifdef DEBUG
+  #ifdef DEBUG
   if (pri != PRI_None && rq)
   { RequestState req;
     PeekRequest(req);
@@ -121,7 +122,7 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
     DoRequestAI(ai, rq, PRI_None, rel);
     ASSERT((~req.ReqHigh & rq) == 0);
   }
-  #endif*/
+  #endif
   // what  - requested information
   // rq    - missing information, subset of what
   // async - asynchronously requested information, subset of rq
@@ -157,10 +158,11 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   return ai;
 }
 
-/*void APlayable::RaiseInfoChange(InfoFlags loaded, InfoFlags changed)
-{ if (loaded|changed)
-    InfoChange(PlayableChangeArgs(*this, loaded, changed, IF_None));
-}*/
+void APlayable::RaiseInfoChange(const PlayableChangeArgs& args)
+{ DEBUGLOG(("APlayable(%p{%s})::RaiseInfoChange(&{&%p, %p, %x, %x, %x})\n", this, GetPlayable().URL.getShortName().cdata(),
+    &args.Instance, args.Origin, args.Loaded, args.Changed, args.Invalidated));
+  InfoChange(args);
+}
 
 /**
  * Worker classes that keeps track of requested informations that are not
@@ -202,7 +204,8 @@ RescheduleWorker::RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Pri
 }
 
 RescheduleWorker::~RescheduleWorker()
-{ Mutex::Lock lock(Mtx);
+{ DEBUGLOG(("RescheduleWorker(%p)::~RescheduleWorker()\n", this));
+  Mutex::Lock lock(Mtx);
   Instances.erase(*this);
 }
 

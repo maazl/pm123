@@ -42,12 +42,9 @@
 #include <debuglog.h>
 #include <os2.h>
 
-#include <stdio.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <process.h>
-#include <errno.h>
-#include <ctype.h>
 #include <fileutil.h>
 
 PLUGIN_CONTEXT Ctx = {0};
@@ -108,14 +105,15 @@ PLUGIN_RC ID3::Open(const char* mode)
     Ctx.plugin_api->message_display(MSG_ERROR, LastError);
     return PLUGIN_NO_READ;
   }
-
- return PLUGIN_OK;
+  MyHandle = true;
+  return PLUGIN_OK;
 }
 
 void ID3::Close()
 { if (XFile)
   { xio_fclose(XFile);
     XFile = NULL;
+    MyHandle = false;
   }
 }
 
@@ -204,10 +202,6 @@ MPG123::MPG123(const xstring& filename)
 , LastSize(-1)
 {}
 
-MPG123::~MPG123()
-{ Close();
-}
-
 void MPG123::TrackInstance()
 { Mutex::Lock lock(InstMutex);
   Instances.append() = this;
@@ -270,13 +264,8 @@ bool MPG123::UpdateStreamLength()
   return false;
 }
 
-PLUGIN_RC MPG123::Open(const char* mode)
-{
-  PLUGIN_RC ret = ID3::Open(mode);
-  if (ret != PLUGIN_OK)
-    return ret;
-
-  int rc;
+PLUGIN_RC MPG123::OpenMPEG()
+{ int rc;
   MPEG = mpg123_new(NULL, &rc);
   if (MPEG == NULL)
   { ID3::Close();
@@ -311,13 +300,12 @@ PLUGIN_RC MPG123::Open(const char* mode)
   return PLUGIN_OK;
 }
 
-void MPG123::Close()
+void MPG123::CloseMPEG()
 { if (MPEG)
   { EndTrackInstance();
     mpg123_delete(MPEG);
     MPEG = NULL;
   }
-  ID3::Close();
 }
 
 ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
@@ -335,19 +323,8 @@ ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
 off_t MPG123::FSeek(void* that, off_t offset, int seekmode)
 {
   #define this ((Decoder*)that)
-  return xio_fseek(this->XFile, offset, seekmode);
+  return xio_fseek(this->XFile, offset, (XIO_SEEK)seekmode);
   #undef this
-}
-
-void MPG123::FillPhysInfo(PHYS_INFO& phys)
-{ DEBUGLOG(("MPG123(%p{%s})::FillPhysInfo(&%p)\n", this, Filename.cdata(), &phys));
-  phys.filesize = LastSize;
-  XSTAT st;
-  if (xio_fstat(XFile, &st) == 0)
-  { phys.tstmp = st.mtime;
-    if (!(st.attr & S_IAREAD))
-      phys.attributes = PATTR_WRITABLE;
-  }
 }
 
 inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
@@ -566,6 +543,7 @@ xstring MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
     if (w.MPEG && stricmp(w.Filename, dstfile) == 0)
     { DEBUGLOG(("mpg123:Decoder::ReplaceFile: suspend currently used file: %s\n", w.Filename.cdata()));
       resumepoints[i] = mpg123_tell(w.MPEG);
+      w.CloseMPEG();
       w.Close();
     } else
       w.DecMutex.Release();
@@ -590,7 +568,7 @@ xstring MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
       continue;
     MPG123& w = *Instances[i];
     DEBUGLOG(("mpg123:Decoder::ReplaceFile: resumes currently used file: %s\n", w.Filename.cdata()));
-    if (w.Open("rbXU") == 0)
+    if (w.Open("rbXU") == 0 && w.OpenMPEG() == 0)
       mpg123_seek(w.MPEG, resumepoints[i], SEEK_SET);
     w.DecMutex.Release();
   }
@@ -741,6 +719,8 @@ PLUGIN_RC Decoder::Setup(const DECODER_PARAMS2& par)
   Filename = par.URL;
   // Init
   PLUGIN_RC rc = Open("rbXU");
+  if (rc == PLUGIN_OK)
+    rc = OpenMPEG();
   if (rc != PLUGIN_OK)
     return rc;
   xio_set_metacallback(XFile, &Decoder::MetaCallback, this);
@@ -910,20 +890,23 @@ PM123_TIME DLLENTRY decoder_length( void* arg )
 }
 
 /// Returns information about specified file.
-ULONG DLLENTRY decoder_fileinfo( const char* url, int* what, const INFO_BUNDLE* info,
+ULONG DLLENTRY decoder_fileinfo( const char* url, XFILE* handle, int* what, const INFO_BUNDLE* info,
                                  DECODER_INFO_ENUMERATION_CB, void* )
 {
   DEBUGLOG(("mpg123:decoder_fileinfo(%s, *%x, %p)\n", url, *what, info));
-  *what |= INFO_PHYS|INFO_ATTR|INFO_CHILD;
-  MPG123 w(url);
 
-  PLUGIN_RC rc = w.Open("rbU");
+  if (!handle)
+    return PLUGIN_NO_PLAY;
+
+  *what |= INFO_ATTR|INFO_CHILD;
+  MPG123 w(url);
+  w.SetHandle(handle);
+  PLUGIN_RC rc = w.OpenMPEG();
   if (rc != PLUGIN_OK)
   { info->tech->info = w.GetLastError();
     return rc;
   }
 
-  w.FillPhysInfo(*info->phys);
   if (*what & (INFO_TECH|INFO_OBJ|INFO_META))
   { *what |= INFO_TECH|INFO_OBJ|INFO_META;
     if (!w.FillTechInfo(*info->tech, *info->obj))

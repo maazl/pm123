@@ -148,9 +148,9 @@ bool Decoder::UninitPlugin()
   return true;
 }
 
-bool Decoder::IsFileSupported(const char* file, const char* eatype) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s\n", this, ModRef.Key.cdata(),
-    file, eatype, FileTypeCache.cdata(), FileExtensionCache.cdata()));
+bool Decoder::IsFileSupported(const char* file, const char* type) const
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %s) - %s, %s\n", this, ModRef.Key.cdata(),
+    file, type, FileTypeCache.cdata(), FileExtensionCache.cdata()));
 
   // Try file name match
   if (FileExtensionCache)
@@ -163,46 +163,16 @@ bool Decoder::IsFileSupported(const char* file, const char* eatype) const
   } }
 
   // Try file type match
-  if (FileTypeCache && eatype)
-  { const USHORT* data = (USHORT*)eatype;
-    USHORT type = *data++;
-    return DoFileTypeMatch(FileTypeCache, type, data);
+  if (FileTypeCache && type)
+  { do
+    { size_t len = strcspn(type, "\t;");
+      if (wildcardfit(FileTypeCache, xstring(type, len)))
+        return true;
+      type += len;
+    } while (*type++);
   }
 
   // no match
-  return false;
-}
-
-bool Decoder::DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*& eadata)
-{ DEBUGLOG(("Decoder::DoFileTypeMatch(%04x, %04x...)\n", type, eadata[0]));
-  switch (type)
-  {case EAT_ASCII:
-    if (wildcardfit(filetypes, xstring((const char*)(eadata + 1), eadata[0])))
-      return true;
-   default:
-    (const char*&)eadata += sizeof(USHORT) + eadata[0];
-    break;
-
-   case EAT_MVST:
-    { size_t count = eadata[1];
-      USHORT type = eadata[2];
-      eadata += 3;
-      while (count--)
-        if (DoFileTypeMatch(filetypes, type, eadata))
-          return true;
-    }
-    break;
-
-   case EAT_MVMT:
-    { size_t count = eadata[1];
-      eadata += 2;
-      while (count--)
-        if (DoFileTypeMatch(filetypes, *eadata++, eadata))
-          return true;
-    }
-   case EAT_ASN1: // not supported
-    break;
-  }
   return false;
 }
 
@@ -278,7 +248,7 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
  private:
   PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PARAMS2* params );
   PROXYFUNCDEF void       DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, int* what, const INFO_BUNDLE* info,
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                                                                 DECODER_INFO_ENUMERATION_CB cb, void* param );
   PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, xstring* errortxt );
   PROXYFUNCDEF int        DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
@@ -619,10 +589,10 @@ proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
-proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, const INFO_BUNDLE *info,
+proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, struct _XFILE* handle, int* what, const INFO_BUNDLE *info,
                           DECODER_INFO_ENUMERATION_CB cb, void* param )
-{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, *%x, %p{...}, %p, %p)\n", op,
-    filename, *what, info, cb, param));
+{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %p, %s, *%x, %p{...}, %p, %p)\n", op,
+    handle, filename, *what, info, cb, param));
 
   DECODER_INFO old_info = { sizeof old_info };
   // Work around for missing undef value of the replay gain fields in level 1 plug-ins.
@@ -684,19 +654,6 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, co
     { char* fname = (char*)alloca(strlen(filename)+1);
       strcpy(fname, filename);
       filename = ConvertUrl2File(fname);
-      if (*what & IF_Phys)
-      { // get file size
-        // TODO: large file support
-        struct stat fi;
-        rc = PLUGIN_NO_READ;
-        if ( stat( filename, &fi ) == 0 && (fi.st_mode & S_IFDIR) == 0 )
-        { // All level 1 plug-ins only support songs
-          info->phys->filesize = fi.st_size;
-          info->phys->tstmp    = fi.st_mtime;
-          info->phys->attributes = PATTR_WRITABLE * ((fi.st_mode & S_IRUSR) != 0);
-          rc = 0;
-        }
-      }
     }
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
     if (*what & (IF_Tech|IF_Obj|IF_Meta))

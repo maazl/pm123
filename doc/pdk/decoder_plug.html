@@ -9,8 +9,9 @@
 <p>Decoder plug-ins must implement and export the functions
 defined in <tt>decoder_plug.h</tt>.</p>
 <p>There are two interface revision levels. For developing new
-plug-ins the <a href="#level_3">level 3
-interface</a> is recommended. But <a href="decoder_plug_1.html">level
+plug-ins the <strong><a href="#level_3">level 3
+interface</a> is strongly recommended</strong>. But <a
+ href="decoder_plug_1.html">level
 0/1 plu-ins</a> are still supported. The level 2 of PM123 1.40 is
 discontinued.</p>
 <p>Decoder plug-ins are used to <em>decode audio data</em>
@@ -65,7 +66,7 @@ stream can the decoder play:<br>
     <tt> DECODER_URL</tt> (2) - Decoder can play internet URIs
 (http, ftp, etc.).<br>
     <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks, i.e. cdda
-URIs.<br>
+URIs. (deprecated, use <tt> DECODER_OTHER</tt>)<br>
     <tt> DECODER_OTHER</tt> (8) - Decoder can play other
 URLs.<br>
     <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
@@ -77,10 +78,10 @@ The values should be ored as required.</li>
 <p>This is used by PM123 to suggest to the user what he can play
 with the
 decoder.
-Furthermore <em>PM123 will normally not query the decoder about files
+Furthermore <em>PM123 will not query the decoder about files
 or
 other objects that are not listed in the above filter list</em> to keep
-performance up.<br>
+performance up.
 </p>
 <p>The function is called again after a successful call to <a
  href="index.html#plugin_configure"><tt>plugin_configure</tt></a>.
@@ -88,7 +89,7 @@ This allows to modify the supported file types through the
 configuration.</p>
 <h4><a name="decoder_fileinfo"></a>decoder_fileinfo</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, int* <var>what</var>, const <a
+  <pre>ULONG DLLENTRY <b>decoder_fileinfo</b>(const char *<var>url</var>, XFILE* <var>handle</var>, int* <var>what</var>, const <a
  href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>* <var>info</var>,<br>                              &nbsp; <a
  href="decoder_plug.html#DECODER_INFO_ENUMERATION_CB">DECODER_INFO_ENUMERATION_CB</a> <var>cb</var>, void* <var>param</var>)</pre>
 </blockquote>
@@ -96,6 +97,18 @@ configuration.</p>
   <li><tt><var>url</var></tt> - URL to
 the desired stream. See <a href="decoder_plug.html#url_samples">URL
 samples</a>.</li>
+  <li><var><tt>handle</tt></var> - optional XIO object handle. If the
+core engine can open the object via XIO then it passes the handle to
+the decoder to avoid that every decoder opens the object anew only to
+find out that it does not support it. The handle is opened in binary
+read only mode with deny none and with synchronous buffering enabled.
+Even if the source stream does not support seeking, you may seek within
+one buffer size. The buffer size depends on the protocol. It it at
+least 4kiB, so you should not read more than the first 4kiB.<br>
+Decoders should use this handle unless they have a good reason not to
+do so. <em>Decoders must not close the handle</em>. Only decoders that
+returned <tt>DECODER_OTHER</tt> at <tt>decoder_support</tt> may be
+called with <tt><var>handle</var> == NULL</tt>.</li>
   <li><tt><var>flags</var></tt> - Info
 about the type of the identified item. <tt>DECODER_FLAGS_SONG</tt>
 indicates that the item can be played. <tt>DECODER_FLAGS_PLAYLIST</tt>
@@ -149,7 +162,8 @@ other
 plug-in may read this URL.</em> E.g. if it is a file URI and the file
 does
 not exist or if it is a http URI and the domain does not exist or the
-server does not respond on the port.<br>
+server does not respond on the port. In fact decoders normally shall
+not return <tt> PLUGIN_NO_READ</tt> if they are called with a valid <var><tt>handle</tt></var>.<br>
     <tt> PLUGIN_NO_PLAY</tt> (<tt>200</tt>) = this decoder can't
 play that. PM123 will try other decoders if available.</li>
 </ul>
@@ -199,8 +213,9 @@ to <tt>decoder_fileinfo</tt>.</p>
 <p>PM123 does not need all informations for all kind of objects. <em>The
 aggregate type <b>recursive playlist information</b> is never
 requested
-explicitly by PM123.</em> However, a plug-in may supply this
-kind of
+explicitly by PM123.</em> PM123 will also never request <tt>INFO_PHYS</tt>
+if a <var><tt>handle</tt></var> is not <tt>NULL</tt>. However, a
+plug-in may supply aggregate
 information if it is available. E.g. playlists may store cached
 information about their
 children to improve performance. If you are in doubt, do not supply
@@ -209,7 +224,8 @@ this kind of information.</p>
 <strong>X</strong> = required if requested by the PM123<br>
 Q = may be requested by the PM123<br>
 <em>C</em>&nbsp;= my be cached and returned by the decoder<br>
-O = may be overridden by a playlist item</p>
+O = may be overridden by a playlist item<br>
+</p>
 <p style="float: right;">
 </p>
 <table border="1" cellpadding="3" cellspacing="0">
@@ -222,8 +238,10 @@ O = may be overridden by a playlist item</p>
     </tr>
     <tr>
       <td><code>phys</code></td>
-      <td align="center"><strong>X</strong></td>
-      <td align="center"><strong>X</strong></td>
+      <td align="center"><strong>X</strong><br>
+      </td>
+      <td align="center"><strong>X</strong><br>
+      </td>
       <td align="center"><em></em><em>C</em></td>
     </tr>
     <tr>
@@ -279,6 +297,7 @@ O = may be overridden by a playlist item</p>
     </tr>
   </tbody>
 </table>
+<br>
 <h5><a name="DECODER_INFO_ENUMERATION_CB"></a>DECODER_INFO_ENUMERATION_CB</h5>
 <blockquote>
   <pre>void (DLLENTRY* <b>cb</b>)(void* <var>param</var>, const char* <var>url</var>, const <a

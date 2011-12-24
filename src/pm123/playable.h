@@ -141,8 +141,6 @@ class Playable
   /// unless the specified bits are successfully requested by \c BeginUpdate
   /// and the current object is synchronized by \c Mtx.
   InfoFlags                 UpdateInfo(const INFO_BUNDLE& info, InfoFlags what);
-  /// Raise InfoChange event
-  void                      RaiseInfoChange(InfoFlags loaded, InfoFlags changed);
 
  private: // Services for playlist functions
   void                      EnsurePlaylist();
@@ -320,18 +318,15 @@ class Playable
   #endif
   static  void              DetachObjects(const vector<Playable>& list);
  public:
-  // Seek whether an URL is already loaded.
+  /// Seek whether an URL is already loaded.
   static  int_ptr<Playable> FindByURL(const xstring& url);
-  // FACTORY! Get a new or an existing instance of this URL.
-  // The optional parameters ca_* are preloaded informations.
-  // This is returned by the appropriate Get* functions without the need to access the underlying data source.
-  // This is used to speed up large playlists.
+  /// FACTORY! Get a new or an existing instance of this URL.
   static  int_ptr<Playable> GetByURL(const url123& url);
-  // Cleanup unused items from the repository
-  // One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
-  // So the distance between the calls to Cleanup defines the minimum cache lifetime.
+  /// Cleanup unused items from the repository
+  /// @remarks One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
+  /// So the distance between the calls to Cleanup defines the minimum cache lifetime.
   static  void              Cleanup();
-  // Destroy worker
+  /// Destroy worker
   static  void              Uninit();
 };
 

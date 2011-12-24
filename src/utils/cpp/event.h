@@ -267,7 +267,7 @@ template <class C, class P>
 class class_delegate : public delegate<class_delegate<C,P>, P>
 {public:
   typedef void (C::*func_type)(P& param);
- public: // You might change the target parameters, but be careful to do this synchronized.
+ protected: // You might change the target parameters, but be careful to do this synchronized.
   C*              Inst;
   func_type       Func;
  private:

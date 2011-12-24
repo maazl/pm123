@@ -50,7 +50,7 @@ struct DecoderProcs
   void   DLLENTRYP(decoder_event    )(void*  w, OUTEVENTTYPE event);
   ULONG  DLLENTRYP(decoder_status   )(void*  w);
   double DLLENTRYP(decoder_length   )(void*  w);
-  ULONG  DLLENTRYP(decoder_fileinfo )(const char* url, int* what, const INFO_BUNDLE* info,
+  ULONG  DLLENTRYP(decoder_fileinfo )(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                       DECODER_INFO_ENUMERATION_CB cb, void* param);
   ULONG  DLLENTRYP(decoder_saveinfo )(const char* url, const META_INFO* info, int haveinfo, xstring* errortxt);
   ULONG  DLLENTRYP(decoder_savefile )(const char* url, const char* format, int* what, const INFO_BUNDLE* info,
@@ -100,8 +100,6 @@ class Decoder : public Plugin, protected DecoderProcs
   /// Load the plug-in that is identified as a decoder.
   /// @exception ModuleException Something went wrong.
   virtual void LoadPlugin();
- private:
-  static  bool DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*& eadata);
 
  public:
   virtual      ~Decoder();
@@ -140,8 +138,8 @@ class Decoder : public Plugin, protected DecoderProcs
 
   PM123_TIME   DecoderLength()         { return W ? decoder_length(W) : -1; }
 
-  ULONG        Fileinfo(const char* url, int* what, const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
-               { return decoder_fileinfo(url, what, info, cb, param); }
+  ULONG        Fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
+               { return decoder_fileinfo(url, handle, what, info, cb, param); }
 
   ULONG        SaveInfo(const char* url, const META_INFO* info, int haveinfo);
 

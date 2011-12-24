@@ -40,6 +40,7 @@
 #include <fileutil.h> // is_cdda
 #include <eautils.h>
 #include <vdelegate.h>
+#include <xio.h>
 #include <cpp/algorithm.h>
 #include <string.h>
 #include <stdio.h>
@@ -120,10 +121,10 @@ Playable::Playable(const url123& url)
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Notify about dyeing
-  InfoChange(PlayableChangeArgs(*this));
+  RaiseInfoChange(PlayableChangeArgs(*this));
   // No more events.
-  InfoChange.reset();
-  InfoChange.sync();
+  GetInfoChange().reset();
+  GetInfoChange().sync();
 }
 
 void Playable::SetAlias(const xstring& alias)
@@ -146,7 +147,7 @@ void Playable::SetInUse(bool used)
   bool changed = InUse != used;
   InUse = used;
   // TODO: keep origin in case of cascaded execution
-  InfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
+  RaiseInfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
 }
 
 void Playable::SetModified(bool modified)
@@ -154,7 +155,7 @@ void Playable::SetModified(bool modified)
   Mutex::Lock lock(Mtx);
   bool changed = Modified != modified;
   Modified = modified;
-  InfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
+  RaiseInfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
 }
 
 xstring Playable::GetDisplayName() const
@@ -175,7 +176,7 @@ InfoFlags Playable::Invalidate(InfoFlags what)
   // TODO: invalidate CIC also.
   if (what)
   { Mutex::Lock lock(Mtx);
-    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, what));
+    RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, what));
   }
   return what;
 }
@@ -204,7 +205,7 @@ void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags cached, InfoFlag
     changed &= Info.InfoStat.Cache(cached) | reliable;
     reliable = Info.InfoStat.EndUpdate(reliable);
     if (reliable|changed)
-      RaiseInfoChange(reliable, changed);
+      RaiseInfoChange(PlayableChangeArgs(*this, reliable, changed));
   }
 }
 
@@ -285,11 +286,6 @@ InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
   if (what & IF_Drpl)
     ret |= IF_Drpl * Info.Drpl.CmpAssign(*info.drpl);
   return ret;
-}
-
-void Playable::RaiseInfoChange(InfoFlags loaded, InfoFlags changed)
-{ if (loaded|changed)
-    InfoChange(PlayableChangeArgs(*this, this, loaded, changed, IF_None));
 }
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
@@ -434,7 +430,7 @@ void Playable::DoLoadInfo(JobSet& job)
       }
     }
     // Raise the first bunch of change events.
-    RaiseInfoChange(upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed);
+    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed));
   }
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
@@ -462,7 +458,7 @@ void Playable::DoLoadInfo(JobSet& job)
       // Raise event if any
       if (!args.IsInitial())
       { Mutex::Lock lock(Mtx);
-        InfoChange(args);
+        RaiseInfoChange(args);
       }
     }
     // done
@@ -499,8 +495,8 @@ void Playable::DoLoadInfo(JobSet& job)
   // update information
   Mutex::Lock lock(Mtx);
   InfoFlags changed = UpdateInfo(info, upd);
-  // Raise event if any
-  RaiseInfoChange(upd.Commit(), changed);
+  // Raise event
+  RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit(), changed));
 }
 
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
@@ -514,26 +510,41 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 
   memset(checked, 0, sizeof *checked * decoders.size());
 
-  const char* file = NULL;
-  int type_mask;
-  char* eadata = NULL;
-  if (is_cdda(URL))
+  DECODER_TYPE type_mask;
+  InfoFlags whatrq = what;
+
+  // Try XIO123 first.
+  XSTAT st;
+  st.size = -1;
+  st.mtime = (time_t)-1;
+  *st.type = 0;
+  XFILE* handle = xio_fopen(URL, "rbU");
+  if (handle)
+  { // We got a handle
+    switch (xio_protocol(handle))
+    {case XIO_PROTOCOL_FILE:
+      type_mask = DECODER_FILENAME; break;
+     case XIO_PROTOCOL_HTTP:
+     case XIO_PROTOCOL_FTP:
+      type_mask = DECODER_URL; break;
+     default:
+      type_mask = DECODER_OTHER; break;
+    }
+    if (xio_fstat(handle, &st) == 0)
+    { whatrq &= ~IF_Phys;
+      what |= IF_Phys;
+      phys.filesize = st.size;
+      phys.tstmp = st.mtime;
+      phys.attributes = PATTR_WRITABLE * !(st.attr & S_IAREAD);
+    }
+  } else if (is_cdda(URL))
     type_mask = DECODER_TRACK;
-  else if (strnicmp("file:", URL, 5) == 0 && strchr(URL+5, '?') == NULL)
-  { file = URL + 5;
-    if (file[2] == '/')
-      file += 3;
-    size_t size = 0;
-    APIRET rc = eaget(file, ".type", &eadata, &size);
-    type_mask = rc ? DECODER_OTHER : DECODER_FILENAME;
-  } else if (strnicmp("http:", URL, 5) == 0 || strnicmp("https:", URL, 6) == 0 || strnicmp("ftp:", URL, 4) == 0)
-    type_mask = DECODER_URL;
   else
     type_mask = DECODER_OTHER;
 
   ULONG rc;
   Decoder* dp;
-  int what2;
+  int whatdec;
   size_t i;
   // First checks decoders supporting the specified type of files.
   for (i = 0; i < decoders.size(); i++)
@@ -541,12 +552,14 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef.Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
-    { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(file, eadata))
+    { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(URL, st.type))
         continue;
-      what2 = what;
-      rc = dp->Fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+      whatdec = whatrq;
+      rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
       if (rc != PLUGIN_NO_PLAY)
         goto ok; // This also happens in case of a plug-in independent error
+      if (handle)
+        xio_rewind(handle);
     }
     checked[i] = TRUE;
   }
@@ -558,19 +571,25 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     dp = (Decoder*)decoders[i].get();
     if (!dp->TryOthers)
       continue;
-    what2 = what;
-    rc = dp->Fileinfo(URL, &what2, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+    whatdec = whatrq;
+    rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
     if (rc != PLUGIN_NO_PLAY)
       goto ok; // This also happens in case of a plug-in independent error
+    if (handle)
+      xio_rewind(handle);
   }
 
   // No decoder found
+  if (handle)
+    xio_fclose(handle);
   info.tech->info = "Cannot find a decoder that supports this item.";
   // Even in case of an error the requested information is in fact available.
   what = IF_Decoder|IF_Aggreg;
   tech.attributes = TATTR_INVALID;
   return PLUGIN_NO_PLAY;
  ok:
+  if (handle)
+    xio_fclose(handle);
   tech.decoder = dp->ModRef.Key;
   if (rc != 0)
   { phys.attributes |= PATTR_INVALID;
@@ -585,9 +604,9 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     info.attr->ploptions, info.attr->at.cdata(),
     info.rpl->songs, info.rpl->lists, info.rpl->lists, info.rpl->unknown,
     info.drpl->totallength, info.drpl->unk_length, info.drpl->totalsize, info.drpl->unk_size,
-    what2));
-  ASSERT((what & ~what2) == 0); // The decoder must not reset bits.
-  what |= (InfoFlags)what2; // do not reset bits
+    whatdec));
+  ASSERT((whatrq & ~whatdec) == 0); // The decoder must not reset bits.
+  what |= (InfoFlags)whatdec; // do not reset bits
   return rc;
 }
 
@@ -653,7 +672,7 @@ void Playable::SetMetaInfo(const META_INFO* meta)
     change.Invalidated = Info.InfoStat.Invalidate(IF_Meta);
   // Fire change event if any
   if (!change.IsInitial())
-    InfoChange(change);
+    RaiseInfoChange(change);
 }
 
 void Playable::EnsurePlaylist()
@@ -818,7 +837,7 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
   args.Loaded = args.Changed = what;
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &ep->GetPlayable());
-  InfoChange(args);
+  RaiseInfoChange(args);
   return ep;
 }
 
@@ -850,7 +869,7 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     what &= ~IF_Child;
   // done!
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(what|IF_Child, what);
+  RaiseInfoChange(PlayableChangeArgs(*this, what|IF_Child, what));
   return true;
 }
 
@@ -884,7 +903,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
   args.Loaded = args.Changed = what;
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &item->GetPlayable());
-  InfoChange(args);
+  RaiseInfoChange(args);
   return true;
 }
 
@@ -921,7 +940,7 @@ bool Playable::Clear()
 
   upd.Commit();
   // TODO: join invalidate events
-  RaiseInfoChange(what|IF_Child, what);
+  RaiseInfoChange(PlayableChangeArgs(*this, what|IF_Child, what));
   return true;
 }
 
@@ -950,7 +969,7 @@ bool Playable::Sort(ItemComparer comp)
   ASSERT(index.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(IF_Child, IF_Child*changed);
+  RaiseInfoChange(PlayableChangeArgs(*this, IF_Child, IF_Child*changed));
   return true;
 }
 
@@ -973,7 +992,7 @@ bool Playable::Shuffle()
   ASSERT(newcontent.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(IF_Child, IF_Child*changed);
+  RaiseInfoChange(PlayableChangeArgs(*this, IF_Child, IF_Child*changed));
   return true;
 }
 
@@ -1083,7 +1102,7 @@ int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo)
   }
   // Fire change event if any
   if (!change.IsInitial())
-    InfoChange(change);
+    RaiseInfoChange(change);
   return 0;
 }
 

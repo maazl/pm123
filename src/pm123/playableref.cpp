@@ -46,13 +46,11 @@
 PlayableSlice::PlayableSlice(APlayable& pp)
 : RefTo(&pp),
   InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
-{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(APlayable&%p)\n", this, &pp));
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(APlayable&%p{%s})\n", this, &pp, pp.GetPlayable().URL.cdata()));
   Info.rpl = NULL;
   Info.drpl = NULL;
   Info.item = &Item;
-  if (RefTo)
-  { RefTo->GetInfoChange() += InfoDeleg;
-  }
+  RefTo->GetInfoChange() += InfoDeleg;
 }
 PlayableSlice::PlayableSlice(const PlayableSlice& r)
 : RefTo(r.RefTo),
@@ -60,7 +58,7 @@ PlayableSlice::PlayableSlice(const PlayableSlice& r)
   StartCache(r.StartCache),
   StopCache(r.StopCache),
   InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
-{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(PlayableSlice&%p)\n", this, &r));
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(PlayableSlice&%p{%p})\n", this, &r, r.GetPlayable().URL.cdata()));
   Info.rpl  = NULL;
   Info.drpl = NULL;
   Info.item = &Item;
@@ -103,7 +101,7 @@ int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, Slic
 }
 
 xstring PlayableSlice::GetDisplayName() const
-{ return RefTo->GetDisplayName();
+{ return IsItemOverridden() && Item.alias ? Item.alias : RefTo->GetDisplayName();
 }
 
 /*int_ptr<Location> PlayableSlice::GetLocCore(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, Priority pri) const
@@ -199,7 +197,7 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
     if (CIC)
       CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
   }
-  InfoChange(args);
+  RaiseInfoChange(args);
 }
 
 InfoFlags PlayableSlice::Invalidate(InfoFlags what)
@@ -208,7 +206,7 @@ InfoFlags PlayableSlice::Invalidate(InfoFlags what)
     ret |= CIC->DefaultInfo.InfoStat.Invalidate(what);
     // TODO: invalidate CIC entries also
   if (ret)
-    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
+    RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
   return ret;
 }
 
@@ -245,7 +243,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
     args2.Invalidated &= ~IF_Item;
   }
   if (!args2.IsInitial())
-    InfoChange(args2);
+    RaiseInfoChange(args2);
 }
 
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
@@ -260,8 +258,8 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
   // IF_Item is always available if we got beyond IsItemOverridden.
-  // Forward all remaining requests to *RefTo.
   InfoFlags what2 = what & ~IF_Item;
+  // Forward all remaining requests to *RefTo.
   // TODO Forward aggregate only if no slice?
   InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
 
@@ -269,9 +267,8 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   InfoState& infostat = CIC->DefaultInfo.InfoStat;
   what &= infostat.Check(what & (IF_Slice|IF_Aggreg), rel);
 
-  if (pri != PRI_None && what != IF_None)
-  {
-    /*// Fastpath for IF_Item and possibly IF_Slice.
+  /* if (what & IF_Slice)
+    // Fastpath for IF_Slice?
     InfoFlags upd = InfoStat.BeginUpdate(what2 & (IF_Item|IF_Slice));
     if (what2 & IF_Slice)
     { JobSet dummy(PRI_None);
@@ -288,9 +285,10 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
         case CR_Delayed:
     }*/
 
+  if (pri != PRI_None && what != IF_None)
     // Place request for slice
     async |= infostat.Request(what, pri);
-  }
+
   what |= what2;
   return async;
 }
@@ -483,7 +481,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
       args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
       if (!args.IsInitial())
-      { InfoChange(args);
+      { RaiseInfoChange(args);
         args.Reset();
       }
     }
@@ -521,7 +519,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     }
   }
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 const Playable& PlayableSlice::DoGetPlayable() const
@@ -607,7 +605,7 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
     Info.meta = &Meta;
   }
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
@@ -629,7 +627,7 @@ void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
     Info.meta = &Meta;
   }
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 void PlayableRef::OverrideInfo(const INFO_BUNDLE& info, InfoFlags override)

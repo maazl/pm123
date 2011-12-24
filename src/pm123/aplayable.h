@@ -68,6 +68,8 @@ struct PlayableChangeArgs
   InfoFlags                   Invalidated;// Bit vector with invalidated information.
   PlayableChangeArgs(APlayable& inst, APlayable* orig, InfoFlags loaded, InfoFlags changed, InfoFlags invalidated)
                                                   : Instance(inst), Origin(orig), Loaded(loaded), Changed(changed), Invalidated(invalidated) {}
+  PlayableChangeArgs(APlayable& inst, InfoFlags loaded, InfoFlags changed)
+                                                  : Instance(inst), Origin(&inst), Loaded(loaded), Changed(changed), Invalidated(IF_None) {}
   PlayableChangeArgs(APlayable& inst)             : Instance(inst), Origin(&inst), Loaded(IF_None), Changed(IF_None), Invalidated(IF_None) {}
   bool                        IsInitial() const   { return (Changed|Loaded|Invalidated) == IF_None; }
   void                        Reset()             { Changed = IF_None; Loaded = IF_None; Invalidated = IF_None; }
@@ -107,11 +109,10 @@ class APlayable
  private:
   /// Keep track of scheduled asynchronous requests.
   AtomicUnsigned              AsyncRequest;
- protected:
-  /// Information request state
-  //InfoState                   InfoStat;
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
+ protected:
+  void                        RaiseInfoChange(const PlayableChangeArgs& args);
 
  public:
   //                            APlayable(InfoFlags preset = IF_Usage|IF_Display) : InfoStat(preset) {}
@@ -178,7 +179,7 @@ class APlayable
   /// The current item is always excluded.
   /// @param what Depending on \a what, only partial information is requested.
   /// If the information is not immediately available and pri is not PRI_None,
-  /// the missing infos are requested asynchronously.
+  /// the missing infos are requested asynchronously.\n
   /// On output \a what contain only the bits of information that is \e not immediately available.
   /// In case all infos are at the required reliability level what is set to \c IF_None.
   /// @return The method always returns a reference to a AggregateInfo structure.
@@ -197,8 +198,6 @@ class APlayable
   /// to the invalidate event and requests the information as soon as it has been invalidated.
   virtual InfoFlags           Invalidate(InfoFlags what) = 0;
 
-  /// Return the currently valid types of information.
-          InfoFlags           GetValid(Reliability rel = REL_Cached) { return ~RequestInfo(~IF_None, PRI_None, rel); }
   /// Return the overridden information.
   virtual InfoFlags           GetOverridden() const = 0;
 
@@ -306,6 +305,5 @@ class APlayable
   /// This is done from synchronized context.
   static  void                WaitQueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
 };
-
 
 #endif

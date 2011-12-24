@@ -97,7 +97,6 @@ struct amp_cfg
   cfg_anav altnavig;          // Alternate navigation method 0=song only, 1=song&time, 2=time only
   bool    autoturnaround;     // Turn around at prev/next when at the end of a playlist
   bool    recurse_dnd;        // Drag and drop of folders recursive
-  bool    sort_folders;       // Automatically sort filesystem folders (by name)
   bool    folders_first;      // Place subfolders before content
   bool    append_dnd;         // Drag and drop appends to default playlist
   bool    append_cmd;         // Commandline appends to default playlist

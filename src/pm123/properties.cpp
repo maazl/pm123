@@ -227,7 +227,6 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       CheckButton(CB_AUTOUSEPL,     cfg.autouse      );
       CheckButton(CB_RECURSEDND,    cfg.recurse_dnd  );
-      CheckButton(CB_SORTFOLDERS,   cfg.sort_folders );
       CheckButton(CB_FOLDERSFIRST,  cfg.folders_first);
       CheckButton(CB_AUTOAPPENDDND, cfg.append_dnd   );
       CheckButton(CB_AUTOAPPENDCMD, cfg.append_cmd   );
@@ -250,7 +249,6 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.autouse      = QueryButtonCheckstate(CB_AUTOUSEPL    );
       cfg.recurse_dnd  = QueryButtonCheckstate(CB_RECURSEDND   );
-      cfg.sort_folders = QueryButtonCheckstate(CB_SORTFOLDERS  );
       cfg.folders_first= QueryButtonCheckstate(CB_FOLDERSFIRST );
       cfg.append_dnd   = QueryButtonCheckstate(CB_AUTOAPPENDDND);
       cfg.append_cmd   = QueryButtonCheckstate(CB_AUTOAPPENDCMD);

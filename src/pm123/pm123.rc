@@ -291,8 +291,7 @@ DLGTEMPLATE CFG_SETTINGS2
     AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 68, 112, 12, WS_GROUP
     AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",
                                                         CB_RECURSEDND,     12, 56, 232, 12, WS_GROUP
-    AUTOCHECKBOX "Sort folder content by ~name",        CB_SORTFOLDERS,    12, 44, 112, 12, WS_GROUP
-    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,  132, 44, 112, 12
+    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,   12, 44, 112, 12
     LTEXT        "Append to the default playlist:",     ST_GENERIC,        12, 32, 232, 12, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "at ~drag & drop to the main window",  CB_AUTOAPPENDDND,  12, 20, 112, 12, WS_GROUP
@@ -987,13 +986,17 @@ DLGTEMPLATE DLG_INSPECTOR
   {
     LTEXT        "Controller Queue",  ST_GENERIC,       8,190, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
       PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
-    LISTBOX                           LB_CONTROLLERQ,   8,150, 264, 40, LS_NOADJUSTPOS|LS_HORZSCROLL
+    LISTBOX                           LB_CONTROLLERQ,   8,158, 264, 32, LS_NOADJUSTPOS|LS_HORZSCROLL
       PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,4,5, 1,1,1,5)
-      PRESPARAMS MAKE_PPU_SIZE_CONSTR(0,16,0,0)
-    LTEXT        "Worker Queue",      ST_GENERIC,       8,138, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_SIZE_CONSTR(196,16,0,0)
+    LTEXT        "Worker Queue",      ST_GENERIC,       8,150, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
       PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,4,5, 0,1,0,1)
-    LISTBOX                           LB_WORKERQ,       8, 22, 264,116, LS_NOADJUSTPOS|LS_HORZSCROLL
-      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,4,5), MAKE_PPU_SIZE_CONSTR(264,0, 80,0)
+    LISTBOX                           LB_WORKERQ,       8, 90, 264, 60, LS_NOADJUSTPOS|LS_HORZSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,2,5, 1,1,2,5)
+    LTEXT        "Dependencies",      ST_GENERIC,       8, 82, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,2,5, 0,1,0,1)
+    LISTBOX                           LB_DEPENDENCIES,  8, 22, 264, 60, LS_NOADJUSTPOS|LS_HORZSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,2,5)
     DEFPUSHBUTTON "Close",            DID_OK,           8,  4,  48, 12, WS_GROUP
     PUSHBUTTON   "~Refresh",          PB_REFRESH,      64,  4,  48, 12
     AUTOCHECKBOX "~Auto refresh [ms]",CB_AUTOREFRESH, 120,  6,  60,  8, WS_GROUP

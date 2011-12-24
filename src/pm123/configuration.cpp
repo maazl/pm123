@@ -69,7 +69,6 @@ const amp_cfg Cfg::Default =
 , false
 , false
 , false
-, false
 , 2 // num_workers
 , 1
 
@@ -175,7 +174,6 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.altnavig);
   load_ini_int(HIni, cfg.autoturnaround);
   load_ini_int(HIni, cfg.recurse_dnd);
-  load_ini_int(HIni, cfg.sort_folders);
   load_ini_int(HIni, cfg.folders_first);
   load_ini_int(HIni, cfg.append_dnd);
   load_ini_int(HIni, cfg.append_cmd);
@@ -236,7 +234,6 @@ void Cfg::SaveIni()
     save_ini_value(HIni, cfg.altnavig);
     save_ini_bool (HIni, cfg.autoturnaround);
     save_ini_bool (HIni, cfg.recurse_dnd);
-    save_ini_bool (HIni, cfg.sort_folders);
     save_ini_bool (HIni, cfg.folders_first);
     save_ini_bool (HIni, cfg.append_dnd);
     save_ini_bool (HIni, cfg.append_cmd);

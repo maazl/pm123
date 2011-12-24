@@ -20,37 +20,37 @@
       <td><a name="pl_clear"><tt>pl clear </tt>or </a><tt><a
  name="clear"></a>clear</tt><tt> </tt></td>
       <td>Clears the current playlist.</td>
-      <td>none </td>
+      <td>Empty = error. </td>
     </tr>
     <tr>
       <td><tt><a name="pl_add"></a>pl add&nbsp;<var>&lt;url&gt;</var></tt>&nbsp;[<tt><var>&lt;url&gt;</var></tt>
 [...]] or<br>
       <tt><a name="add"></a>add</tt> ... </td>
-      <td>Adds <a href="../urlformat.html">URLs or files</a> to the
-current playlist. The items are
-added before the current item. If the current item is past the end the
+      <td>Inserts <a href="../urlformat.html">URLs or files</a> into
+the
+current playlist. The items are placed before the current item. If the
+current item is not set the
 new items are appended.<br>
 The names
 or URLs can be enclosed with double quotes. The operation is not atomic
 in case of an error.</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
+      <td>Number of added items or empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="dir"></a>dir <var>&lt;directory&gt;</var></tt> <small><sup><a
  href="#note1">(1.)</a></sup></small></td>
-      <td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (non-recursive).</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
+      <td>Insert all supported files in <tt><var>&lt;directory&gt;</var></tt>
+into the playlist (non-recursive). The content is placed before the
+current item or appended, if the current item is not set.</td>
+      <td>Number of added items or empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="rdir"></a>rdir <var>&lt;directory&gt;</var></tt><a
  href="#note1"> </a><small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (recursive).</td>
-      <td>Empty = OK,<br>
-Failed URL on error.</td>
+      <td>Add all supported files in <tt><var>&lt;directory&gt;</var></tt>
+and it's subdirectories to the playlist. The content is placed before
+the current item or appended, if the current item is not set.</td>
+      <td>Number of added items or empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_remove"></a>pl remove </tt>or<br>
@@ -65,7 +65,26 @@ on error.</td>
       <td valign="top">Modify a property of a playlist item. See <a
  href="meta.html#info_item"><tt>info item</tt></a> for valid keys and
 syntax. </td>
-      <td valign="top">URL of the item or an empty line on error.</td>
+      <td valign="top">Empty = error.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_sort"></a>pl sort display<br>
+pl sort song<br>
+pl sort artist<br>
+pl sort album<br>
+pl sort track<br>
+pl sort year<br>
+pl sort object<br>
+pl sort time<br>
+pl sort size</tt><tt><br>
+pl sort random</tt></td>
+      <td valign="top">Sort the content of the current playlist by the
+given criterion. The sort operation is stable, i.e. when sorting by
+album name the order of the songs of the same album is preserved. You
+might use this to sort by multiple properties, e.g. sort by the track
+first and by the album secondly. This effectively orders by album and
+then by track.</td>
+      <td valign="top">Empty = error.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_save"></a>pl save </tt>[<var><tt>&lt;file&gt;</tt></var>]

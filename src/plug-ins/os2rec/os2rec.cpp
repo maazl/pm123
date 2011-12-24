@@ -276,7 +276,7 @@ static const char* get_connector_name(ULONG connector)
   }
 }
 
-ULONG DLLENTRY decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
+ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
   DECODER_INFO_ENUMERATION_CB, void*)
 { // parse URL
   PARAMETERS params = defaults;

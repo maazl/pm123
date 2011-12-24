@@ -223,6 +223,7 @@ delegate<const void, const PlayableChangeArgs> GUIImp::CurrentDeleg   (&GUIImp::
 delegate<const void, const CfgChangeArgs>      GUIImp::ConfigDeleg    (&GUIImp::ConfigNotification);
 
 
+/// Helper class that posts a window message on completion of a DependencyInfoWorker.
 class PostMsgWorker : public DependencyInfoWorker
 {private:
   HWND            Target;
@@ -250,6 +251,8 @@ void PostMsgWorker::OnCompleted()
 }
 
 
+/// Helper that posts a message when alternate navigation is delayed
+/// because of missing dependencies for recursive playlist information.
 PostMsgWorker DelayedAltSliderDragWorker;
 
 
@@ -1714,12 +1717,8 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
       { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
-        { // TODO: should be alterable
-          if (Cfg::Get().recurse_dnd)
-            fullname = fullname + "/?Recursive";
-          else
-            fullname = fullname + "/";
-        }
+          // TODO: recursive should be alterable
+          fullname = amp_make_dir_url(fullname, Cfg::Get().recurse_dnd);
 
         const url123& url = url123::normalizeURL(fullname);
         DEBUGLOG(("GUIImp::DragDrop: url=%s\n", url ? url.cdata() : "<null>"));

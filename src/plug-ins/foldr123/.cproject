@@ -34,6 +34,8 @@
 									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
 									<listOptionValue builtIn="false" value="_MAX_PATH=260"/>
+									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
+									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.233872720" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

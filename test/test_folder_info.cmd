@@ -67,5 +67,6 @@ Parse: PROCEDURE EXPOSE data.
 Assert:
   INTERPRET 'result = 'ARG(1)
   INTERPRET 'IF result 'ARG(2)' THEN RETURN'
-  EXIT 'Expected ""'ARG(1) ARG(2)'", found "'result'" 'ARG(3)
+  EXIT 'Expected ""'ARG(1) ARG(2)'", found "'result'" 'ARG(3) 'last command = 'lastcmd
 
+

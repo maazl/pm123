@@ -30,6 +30,7 @@
 #include "dirscan.h"
 
 #include <eautils.h>
+#include <strutils.h>
 #include <cpp/smartptr.h>
 #include <cpp/algorithm.h>
 
@@ -39,6 +40,7 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
   Recursive    = false;
   AllFiles     = false;
   Hidden       = false;
+  Pattern.reset();
   FoldersFirst = false;
   Items.clear();
 
@@ -49,14 +51,6 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
   // now cp points to the parameters starting with '?' or to '\0' if none.
   if (Params[-1] != '/')
     return PLUGIN_NO_PLAY;
-
-  // Parse parameters if any.
-  if (*Params)
-  { Recursive    = strstr(Params+1, "Recursive")    || strstr(Params+1, "recursive");
-    AllFiles     = strstr(Params+1, "All")          || strstr(Params+1, "all");
-    Hidden       = strstr(Params+1, "Hidden")       || strstr(Params+1, "hidden");
-    FoldersFirst = strstr(Params+1, "FoldersFirst") || strstr(Params+1, "foldersfirst");
-  }
 
   // copy url without parameters
   BasePathLen = Params - url;
@@ -70,7 +64,45 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
     if (DosPath[1] == '|')
       DosPath[1] = ':';
   }
-  DEBUGLOG(("foldr123:DirScan::InitUrl(%s): Rec=%u, All=%u, Hid=%u, Path=%s, Par=%s\n", url, Recursive, AllFiles, Hidden, Path.cdata(), Params));
+
+  // Parse parameters if any.
+  while (*Params)
+  { const char* key = ++Params;
+    size_t len = strcspn(Params, "&");
+    Params += len;
+    const char* value = strnchr(key, '=', len);
+    if (value)
+    { len = value - key;
+      ++value;
+    }
+    // Now [key..key+len] is the key and [value..Params] is the value.
+    switch (len)
+    {case 12:
+      if (strnicmp(key, "foldersfirst", 12) == 0)
+        FoldersFirst = true;
+      break;
+     case 9:
+      if (strnicmp(key, "recursive", 9) == 0)
+        Recursive = true;
+      break;
+     case 8:
+      if (strnicmp(key, "allfiles", 8) == 0)
+        AllFiles = true;
+      break;
+     case 7:
+      if (strnicmp(key, "pattern", 7) == 0)
+        if (value)
+          Pattern.assign(value, Params-value);
+      break;
+     case 6:
+      if (strnicmp(key, "hidden", 6) == 0)
+        Hidden = true;
+      break;
+    }
+  }
+
+  DEBUGLOG(("foldr123:DirScan::InitUrl(%s): Rec=%u, All=%u, Hid=%u, Pat=%s, Path=%s",
+    url, Recursive, AllFiles, Hidden, Pattern.cdata(), Path.cdata()));
   return PLUGIN_OK;
 }
 
@@ -126,37 +158,16 @@ void DirScan::AppendItem(const FILEFINDBUF3* fb)
     Path.append(Params);
   }
   Items.append() = new Entry(Path, fb->attrFile, fb->cbFile, ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite));
-
-  /*PHYS_INFO phys;
-  TECH_INFO tech = TECH_INFO_INIT;
-  INFO_BUNDLE info = { &phys, &tech, NULL, &empty_meta, &empty_attr };
-  phys.filesize   = fb->cbFile;
-  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
-  phys.attributes = PATTR_NONE;
-  tech.attributes = TATTR_PLAYLIST;
-  tech.decoder    = "foldr123.dll";
-
-  ++NumItems;
-  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS|INFO_TECH|INFO_META|INFO_ATTR);*/
 }
-
-/*void DirScan::ReturnFile(const FILEFINDBUF3* fb)
-{ DEBUGLOG(("foldr123:DirScan::ReturnFile({...}) - %s\n", Path.cdata()));
-
-  PHYS_INFO phys;
-  INFO_BUNDLE info = { &phys };
-  phys.filesize   = fb->cbFile;
-  phys.tstmp      = ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite);
-  phys.attributes = fb->attrFile & FILE_READONLY ? PATTR_NONE : PATTR_WRITABLE;
-
-  ++NumItems;
-  (*CallBack)(CbParam, Path, &info, INFO_NONE, INFO_PHYS);
-}*/
 
 void DirScan::Scan()
 { DEBUGLOG(("foldr123:DirScan::Scan()\n"));
   // Seek for all files.
-  Path.append("/*");
+  Path.append('/');
+  if (Pattern)
+    Path.append(Pattern);
+  else
+    Path.append('*');
   // allocate output buffer
   sco_arr<char> buffer(65534);
   HDIR hdir = HDIR_CREATE;

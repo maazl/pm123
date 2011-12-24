@@ -18,9 +18,18 @@ types are supported:</p>
 <p>On input PM123 accepts ordinary file names without the <tt>file:///</tt>&nbsp;prefix
 too. This ensures compatibility with applications that are not
 aware of URLs in most cases.</p>
+<h3><a name="http"></a>http URLs</h3>
+<p>There is few to say about these kind of URLs. PM123 can read
+anything that is supported as file from an http server too.<br>
+Additionally ShoutCast and IceCast streaming is supported for MPEG and
+Ogg streams.</p>
+<h3><a name="ftp"></a>ftp URLs</h3>
+<p>PM123 can read anything that is supported as file from an ftp
+server too.</p>
 <h3><a name="file_folder"></a>File system
-folder URLs</h3>
-<p>PM123 can play the whole content of a file system folder
+folder URLs (foldr123 plug-in)</h3>
+<p>The plug-in <tt>foldr123.dll</tt> can play the whole content of a
+file system folder
 without the need to create a playlist. This is done by creating a
 virtual playlist in memory with all items in the folder.
 </p>
@@ -55,31 +64,26 @@ nested playlists. All parameters are inherited.</td>
 name.</td>
       <td>...<tt>/?pattern=*.mp3</tt></td>
     </tr>
-    <tr valign="baseline">
-      <td><tt>sort=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
-      <td>Override the <a href="settings2.html">configuration
-setting</a> whether to sort the content of folders by name.<br>
-'<tt>-1</tt>' will force the option off for this folder.</td>
-      <td>...<tt>/?sort=1</tt></td>
+    <tr>
+      <td valign="top"><tt>allfiles</tt></td>
+      <td valign="top">Include all files. By default only file types
+that might be supported by one of&nbsp; the currently enabled decoders
+are included.</td>
+      <td valign="top">...<tt>/?allfiles</tt></td>
     </tr>
     <tr valign="baseline">
-      <td><tt>foldersfirst=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
-      <td>Override the <a href="settings2.html">configuration
-setting</a> whether to place sub folders before any other content.<br>
-'<tt>-1</tt>' will force the option off for this folder.</td>
-      <td>...<tt>/?foldersfirst=-1</tt></td>
+      <td><tt>hidden</tt><tt></tt></td>
+      <td>Include hidden and system files in search.</td>
+      <td>...<tt>/?hidden</tt></td>
+    </tr>
+    <tr valign="baseline">
+      <td><tt>foldersfirst</tt></td>
+      <td>Place the subfolders first (recursive mode only).</td>
+      <td>...<tt>/?foldersfirst</tt></td>
     </tr>
   </tbody>
 </table>
-<h3><a name="http"></a>http URLs</h3>
-<p>There is few to say about these kind of URLs. PM123 can read
-anything that is supported as file from an http server too.<br>
-Additionally ShoutCast and IceCast streaming is supported for MPEG and
-Ogg streams.</p>
-<h3><a name="ftp"></a>ftp URLs</h3>
-<p>PM123 can read anything that is supported as file from an ftp
-server too.</p>
-<h3><a name="cd"></a>Compact disc URLs</h3>
+<h3><a name="cd"></a>Compact disc URLs (cddaplay plug-in)</h3>
 <p>To identify tracks on a CD-ROM drive PM123 uses the following
 syntax:</p>
 <blockquote>
@@ -87,7 +91,7 @@ syntax:</p>
 </blockquote>
 <p>The latter one identifies an entire disc. This a playlist like
 object.</p>
-<h3><a name="other"></a>Other, plug-in specific URLs</h3>
+<h3><a name="other"></a>Further, plug-in specific URLs</h3>
 <p>Depending on the plug-ins installed almost any other URL type <i>might</i>
 be supported. For example the <a href="os2rec.html">recording plug-in</a>
 supports URLs starting with <tt>record://</tt>.</p>

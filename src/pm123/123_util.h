@@ -37,23 +37,25 @@
 #include <cpp/url123.h>
 
 
-/* Constructs a string of the displayable text from the file information. [123_utils] */
+/// Constructs a string of the displayable text from the file information.
 const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info );
 
-/* Get current working directory */
+/// Get current working directory
 const url123 amp_get_cwd();
 
-/* Reads url from specified file. [123_utils] */
+/// Reads url from specified file.
 const xstring amp_url_from_file(const char* filename);
 
-/* Reads an string from a drag and drop structure. [123_utils] */
+/// Append appropriate parameters directory URL to meet configuration settings.
+const xstring amp_make_dir_url(const char* url, bool recursive);
+
+/// Reads an string from a drag and drop structure.
 const xstring amp_string_from_drghstr(HSTR hstr);
 
-/* Make readable string from font attributes */ 
+/// Make readable string from font attributes
 const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size);
-/* Make font attributes from string. Return false on error */ 
+/// Make font attributes from string. Return false on error
 bool amp_string_to_font_attrs(FATTRS& attrs, unsigned& size, const char* name);
 
 
 #endif
-

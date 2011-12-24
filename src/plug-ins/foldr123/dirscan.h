@@ -40,7 +40,7 @@
 class DirScan
 {public:
   struct Entry
-  { /// URL of the entry. Must be the first item to be compatible with const char*.
+  { /// URL of the entry.
     const xstring    URL;
     /// File Attributes
     const ULONG      Attributes;
@@ -54,18 +54,19 @@ class DirScan
   };
  private:
   // Parameters
-  bool  Recursive;
-  bool  AllFiles;
-  bool  Hidden;
-  bool  FoldersFirst;
+  bool    Recursive;
+  bool    AllFiles;
+  bool    Hidden;
+  xstring Pattern;
+  bool    FoldersFirst;
   // Working set
   /// Path to current item without any URL parameters.
   /// Points to the Folder at first, the sub items later.
   xstringbuilder Path;
   /// Pointer into URL starting a '?' or '\0' if no parameters.
-  const char* Params;
+  const  char* Params;
   /// Pointer into Path that skips "file://".
-  char* DosPath;
+  char*  DosPath;
   /// Offset in Path after the trailing slash of the base folder.
   size_t BasePathLen;
   /// Item container
@@ -75,8 +76,8 @@ class DirScan
   static time_t ConvertOS2FTime(FDATE date, FTIME time);
   /// Append the object name to the base path in \c Path.
   /// @return false if name is "." or "..".
-  bool  AppendPath(const char* name, size_t len);
-  void  AppendItem(const FILEFINDBUF3* fb);
+  bool   AppendPath(const char* name, size_t len);
+  void   AppendItem(const FILEFINDBUF3* fb);
  public:
   /// Step 1: initialize a new directory scanner
   DirScan() {}

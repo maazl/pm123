@@ -287,7 +287,7 @@ static void WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& dep
   { const DependencyInfoPath::Entry& e = depends[i];
     char rqstr[11] = "----------";
     PlayableFlagsMapper(rqstr, e.What, pri == PRI_Normal);
-    sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, e.Inst->GetDisplayName().cdata(), entry.GetPlayable().URL.cdata());
+    sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, entry.GetPlayable().URL.cdata(), e.Inst->GetPlayable().URL.cdata());
     result.append() = sb.detach_array();
   }
 }
@@ -298,24 +298,34 @@ void InspectorDialog::Refresh()
   // Refresh controller Q
   HWND lb = WinWindowFromID(GetHwnd(), LB_CONTROLLERQ);
   PMASSERT(lb != NULLHANDLE);
-  PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
   vector<char> data;
   // Retrieve data
   Ctrl::QueueTraverse(&ControllerQCB, &data);
   // refresh listbox
-  { LBOXINFO lbi = { 0, data.size() };
+  { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
+    LBOXINFO lbi = { 0, data.size() };
     WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(data.begin()));
   }
   DiscardData(data);
 
   // Refresh Worker Q
   lb = WinWindowFromID(GetHwnd(), LB_WORKERQ);
-  PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
   // Retrieve data
   APlayable::QueueTraverse(&WorkerQCB, &data);
+  // refresh listbox
+  { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
+    LBOXINFO lbi = { 0, data.size() };
+    WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(data.begin()));
+  }
+  DiscardData(data);
+
+  // Refresh Dependencies
+  lb = WinWindowFromID(GetHwnd(), LB_DEPENDENCIES);
+  // Retrieve data
   APlayable::WaitQueueTraverse(&WaitQCB, &data);
   // refresh listbox
-  { LBOXINFO lbi = { 0, data.size() };
+  { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
+    LBOXINFO lbi = { 0, data.size() };
     WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(data.begin()));
   }
   DiscardData(data);

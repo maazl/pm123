@@ -27,14 +27,14 @@ CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/TEST3.OGG"'
 CALL CallPipe 'pl remove'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/TEST.OGG"'
 
-CALL CallPipe 'pl dir "'dirurl'/DATA/DIR1"'
+CALL CallPipe 'dir "'dirurl'/DATA/DIR1"'
 CALL Assert 'result', '= ""'
 CALL CallPipe 'pl prev'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/DIR1/TEST.OGG"'
 CALL CallPipe 'pl index'
 CALL Assert 'result', '= "2"'
 
-CALL CallPipe 'pl rdir "'dirurl'/DATA/DIR1"'
+CALL CallPipe 'rdir "'dirurl'/DATA/DIR1"'
 
 EXIT
 

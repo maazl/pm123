@@ -40,14 +40,12 @@ any kind of playable objects. The syntax is: <kbd><var>F</var>[<var>QQQQQQQQQQ</
 <dl>
   <dt><kbd><var>F</var></kbd>&nbsp;-
 flag</dt>
-  <dd><kbd>*</kbd>&nbsp;- currently in work by a
-worker thread</dd>
-  <dd><kbd>+</kbd> - Low priority request: the item depends on other
-items and is rescheduled later.<br>
+  <dd><kbd>+</kbd> - Low priority request: currently in work by a
+worker thread.<br>
     <kbd>-</kbd>&nbsp;- Low priority request: no worker is currently
 available. To do later.<br>
-    <kbd>#</kbd> - High priority request: the item depends on other
-items and is rescheduled later.<br>
+    <kbd>#</kbd> - High priority request: currently in work by a
+worker thread.<br>
     <kbd>=</kbd> - High priority request: no worker is currently
 available. To do later.<br>
   </dd>

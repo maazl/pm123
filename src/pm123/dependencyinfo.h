@@ -37,21 +37,41 @@
 #include <cpp/container/sorted_vector.h>
 
 
+/// Collection of dependencies of a APlayable object on other APlayable objects.
 class DependencyInfoPath
 {public:
+  /// Single dependency
   struct Entry
-  { const int_ptr<APlayable> Inst;
+  { /// Depends on this object
+    const int_ptr<APlayable> Inst;
+    /// InfoFlags that are required to complete
     InfoFlags               What;
-    Entry(APlayable& inst, InfoFlags what)      : Inst(&inst), What(what) {}
+    /// Optional set of excluded items.
+    /// @remarks This structure does not own the exclusion set.
+    /// But the set will only refer to AggerateInfo.Exclude of Inst.
+    /// And it is only used to call Inst.RequestAggregateInfo from the InfoChange event of Inst.
+    /// So the reference is valid as long as Inst exists and only used as long as Inst exists.
+    const PlayableSetBase*  Exclude;
+    /// Create a dependency
+    Entry(APlayable& inst, InfoFlags what, const PlayableSetBase* exclude = NULL) : Inst(&inst), What(what), Exclude(exclude) {}
+    /// Merge two dependencies with
+    void                    Merge(InfoFlags what, const PlayableSetBase* exclude = NULL);
+    /// Update this dependency and return the information types that are not yet available.
+    /// or \c IF_None if the dependency is fulfilled.
+    InfoFlags               Check();
+    /// Compare two dependencies. The sort order is arbitrary, but stable.
     static int              compare(const Entry& l, const APlayable& r);
   };
  protected:
+  /// Internal set of dependencies. The set is ordered.
   typedef sorted_vector_own<Entry,APlayable,&Entry::compare> SetType;
 
  protected:
+  /// Set of dependencies.
   SetType                   MandatorySet;
 
  protected:
+  /// Helper function to access MandatorySet of another instance from derived classes.
   static SetType&           AccessMandatorySet(DependencyInfoPath& that) { return that.MandatorySet; }
   #ifdef DEBUG_LOG
   static void               DumpSet(xstringbuilder& dest, const SetType& set);
@@ -70,13 +90,14 @@ class DependencyInfoPath
   /// @param what We depend on the information \a what of \a inst.
   /// @remarks All dependencies added by this functions are mandatory. If the same instance is added twice,
   /// the \a what flags are joined.
-  void                      Add(APlayable& inst, InfoFlags what);
+  void                      Add(APlayable& inst, InfoFlags what, const PlayableSetBase* exclude = NULL);
   /// Reinitialize
   void                      Clear()             { MandatorySet.clear(); }
   #ifdef DEBUG_LOG
   xstring                   DebugDump() const;
   #endif
 };
+
 /** @brief Set of required dependencies to complete a request.
  * @details This set consists of two parts: a list of mandatory dependencies and a list of
  * optional dependencies. The dependency is completed exactly if all mandatory dependencies
@@ -86,6 +107,7 @@ class DependencyInfoSet : private DependencyInfoPath
 { friend class DependencyInfoWorker;
 
  private:
+  /// Set of optional dependencies.
   SetType                   OptionalSet;
 
  public:
@@ -140,6 +162,9 @@ class DependencyInfoWorker
   /// @details This list is non-null if and only if we are waiting for optional dependencies.
   vector_own<DelegType>     DelegList;
 
+ private: // non-copyable
+  DependencyInfoWorker(const DependencyInfoWorker&);
+  void operator=(const DependencyInfoWorker&);
  protected:
   /// @brief Create worker to wait for a DependencyInfoSet.
   /// @remarks You must override \c OnCompleted to instantiate this class.
@@ -148,7 +173,7 @@ class DependencyInfoWorker
   /// @remarks Destroying a worker that has been started and not yet completed is undefined behavior.
   /// Further note that this method is non virtual and objects of this class should not be destroyed
   /// directly polymorphically. Therefore it is protected.
-                            ~DependencyInfoWorker() {};
+                            ~DependencyInfoWorker() { DEBUGLOG(("DependencyInfoWorker(%p)::~DependencyInfoWorker()\n", this)); };
   /// @brief Start the worker.
   /// @remarks This explicit call is required because starting too early could result in a virtual pure function call.
   void                      Start();

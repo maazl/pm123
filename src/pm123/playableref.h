@@ -113,27 +113,28 @@ class PlayableSlice : public APlayable
 
   // Faster, non-virtual version.
           Playable&         GetPlayable() const      { return RefTo->GetPlayable(); }
-  // Display name, forwarder to RefTo
+  /// Display name, forwarder to RefTo
   virtual xstring           GetDisplayName() const;
   
   virtual const INFO_BUNDLE_CV& GetInfo() const;
 
-  // Usage status
+  /// Usage status
   virtual bool              IsInUse() const;
+  /// Change usage status.
   virtual void              SetInUse(bool used);
 
   /// Return the overridden information.
   virtual InfoFlags         GetOverridden() const;
   /// Return \c true if the current instance overrides SliceInfo.
           bool              IsItemOverridden() const { return Info.item == &Item; }
-  // Return true if the current instance is different from *RefTo.
+  /// Return true if the current instance is different from *RefTo.
           bool              IsSlice() const          { return IsItemOverridden() && (Item.start != NULL || Item.stop != NULL); }
-  // Override the item information.
-  // If the function is called with NULL the overriding is cancelled.
-  // Note that since the start and stop locations may not be verified immediately
-  // because the underlying playlist may not be loaded so far. You can set
-  // any invalid string here. However, the error may come up later, when
-  // IF_Slice is requested.
+  /// @brief Override the item information.
+  /// @detail If the function is called with NULL the overriding is cancelled.
+  /// Note that since the start and stop locations may not be verified immediately
+  /// because the underlying playlist may not be loaded so far. You can set
+  /// any invalid string here. However, the error may come up later, when
+  /// IF_Slice is requested.
           void              OverrideItem(const ITEM_INFO* item);
 
   // This functions are only valid if IF_Slice has already been requested.

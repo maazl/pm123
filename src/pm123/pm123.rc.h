@@ -316,7 +316,6 @@
 
 #define CB_AUTOUSEPL       1310
 #define CB_RECURSEDND      1311
-#define CB_SORTFOLDERS     1312
 #define CB_FOLDERSFIRST    1313
 #define CB_AUTOAPPENDDND   1314
 #define CB_AUTOAPPENDCMD   1315
@@ -452,6 +451,7 @@
 #define LB_CONTROLLERQ     1952
 #define ST_WORKERQ         1953
 #define LB_WORKERQ         1954
+#define LB_DEPENDENCIES    1955
 #define CB_AUTOREFRESH     1961
 #define SB_AUTOREFRESH     1962
 

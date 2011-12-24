@@ -40,6 +40,7 @@
 #include "copyright.h"
 #include "skin.h" // bmp_query_text
 #include "controller.h"
+#include "configuration.h"
 #include <visual_plug.h>
 
 #include <interlocked.h>
@@ -111,8 +112,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 }*/
 
 /* Constructs a string of the displayable text from the file information. */
-const xstring
-amp_construct_tag_string( const INFO_BUNDLE_CV* info )
+const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info )
 {
   xstringbuilder result;
 
@@ -156,8 +156,7 @@ const url123 amp_get_cwd()
 }
 
 /* Reads url from specified file. */
-const xstring
-amp_url_from_file(const char* filename)
+const xstring amp_url_from_file(const char* filename)
 {
   FILE* file = fopen(filename, "r");
   if (!file)
@@ -177,6 +176,22 @@ amp_url_from_file(const char* filename)
   }
   fclose(file);
   return ret;
+}
+
+const xstring amp_make_dir_url(const char* url, bool recursive)
+{ size_t len = strlen(url);
+  xstringbuilder sb(len + 50);
+  sb.append(url);
+  if (url[len-1] != '/')
+    sb.append('/');
+  sb.append('?');
+  if (recursive)
+    sb.append("recursive&");
+  const volatile amp_cfg& cfg = Cfg::Get();
+  if (cfg.folders_first)
+    sb.append("foldersfirst&");
+  sb.erase(sb.length()-1);
+  return sb;
 }
 
 const xstring amp_string_from_drghstr(HSTR hstr)
