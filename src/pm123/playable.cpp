@@ -35,6 +35,7 @@
 #include "decoder.h"
 #include "dependencyinfo.h"
 #include "location.h"
+#include "waitinfo.h"
 #include <strutils.h>
 #include <utilfct.h>
 #include <fileutil.h> // is_cdda
@@ -289,14 +290,14 @@ InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
 }
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p{%s})::DoRequestInfo(%x&, %u, %u)\n", this, URL.getShortName().cdata(), what, pri, rel));
+{ DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %u, %u)\n", this, what, pri, rel));
   // Mask info's that are always available
   what &= IF_Decoder|IF_Aggreg;
 
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
   else if (what & (IF_Rpl|IF_Child))
-    what |= IF_Tech|IF_Child; // required for RPL_INFO aggregate
+    what |= IF_Phys|IF_Tech|IF_Child; // required for RPL_INFO aggregate
 
   what &= Info.InfoStat.Check(what, rel);
   InfoFlags op = pri == PRI_None || what == IF_None
@@ -306,7 +307,7 @@ InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel
 }
 
 AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
-{ DEBUGLOG(("Playable(%p{%s})::DoAILookup({%u,})\n", this, URL.getShortName().cdata(), exclude.size()));
+{ DEBUGLOG(("Playable(%p)::DoAILookup({%u,})\n", this, exclude.size()));
   if ((Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // Playlist
     if (!Playlist) // Fastpath
@@ -322,15 +323,14 @@ AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p{%s})::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this,
-    URL.getShortName().cdata(), &ai, ai.Exclude.DebugDump().cdata(), what, pri, rel));
+{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this, &ai, ai.Exclude.DebugDump().cdata(), what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
 
   InfoFlags what2 = IF_None;
   if (what & IF_Drpl)
     what2 = IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
   else if (what & IF_Rpl)
-    what2 = IF_Tech|IF_Child; // required for RPL_INFO aggregate
+    what2 = IF_Phys|IF_Tech|IF_Child; // required for RPL_INFO aggregate
   what2 = DoRequestInfo(what2, pri, rel);
   what2 |= ((CollectionInfo&)ai).RequestAI(what, pri, rel);
   DEBUGLOG(("Playable::DoRequestAI(,%x&,) : %x\n", what, what2));
@@ -435,6 +435,22 @@ void Playable::DoLoadInfo(JobSet& job)
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
 
+  // The required basic information to calculate aggregate infos might be on the way by another thread.
+  // In this case we have either to wait or to disable automatic calculation of cheap aggregate infos.
+  { InfoFlags what2 = Info.InfoStat.Check(IF_Phys|IF_Tech|IF_Obj|IF_Child, REL_Invalid);
+    if (upd)
+    { // Aggregate information is explicitly requested.
+      if ((upd & IF_Drpl) == 0)
+        what2 &= ~IF_Obj;
+      // Wait for information currently in service.
+      WaitInfo().Wait(*this, what2, REL_Cached);
+    } else
+    { // Aggregate information is not requested and should only be calculated if cheap.
+      if (what2)
+        return;
+    }
+  }
+
   if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
   { // Always render aggregate info of invalid items, because this is cheap.
     info.Rpl.invalid = 1;
@@ -442,24 +458,22 @@ void Playable::DoLoadInfo(JobSet& job)
 
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // handle aggregate information of playlist items
-    if (Playlist) // Maybe it is not yet identified as playlist because the children have not been requested so far.
-    { // For the event below
-      PlayableChangeArgs args(*this);
-      if (upd)
-      { // Request for default recursive playlist information (without exclusions)
-        // is to be completed.
-        CalcRplInfo(Info, upd, args, job);
-      }
-      // Request Infos with exclusion lists
-      for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
-        // retrieve information
-        CalcRplInfo(*iep, upd, args, job);
+    // For the event below
+    PlayableChangeArgs args(*this);
+    if (upd)
+    { // Request for default recursive playlist information (without exclusions)
+      // is to be completed.
+      CalcRplInfo(Info, upd, args, job);
+    }
+    // Request Infos with exclusion lists
+    for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
+      // retrieve information
+      CalcRplInfo(*iep, upd, args, job);
 
-      // Raise event if any
-      if (!args.IsInitial())
-      { Mutex::Lock lock(Mtx);
-        RaiseInfoChange(args);
-      }
+    // Raise event if any
+    if (!args.IsInitial())
+    { Mutex::Lock lock(Mtx);
+      RaiseInfoChange(args);
     }
     // done
     return;
