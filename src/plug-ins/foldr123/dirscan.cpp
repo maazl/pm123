@@ -46,10 +46,12 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
   Items.clear();
 
   // Check whether it is a folder
-  Params = strchr(url, '?');
-  if (!Params)
+  const char* params = Params = strchr(url, '?');
+  if (!params)
     Params = url + strlen(url);
-  // now cp points to the parameters starting with '?' or to '\0' if none.
+  // now params points to the parameters starting with '?' or to '\0' if none.
+
+  // Can only play folder URLs
   if (Params[-1] != '/')
     return PLUGIN_NO_PLAY;
 
@@ -67,10 +69,10 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
   }
 
   // Parse parameters if any.
-  while (*Params)
-  { const char* key = ++Params;
-    size_t len = strcspn(Params, "&");
-    Params += len;
+  while (*params)
+  { const char* key = ++params;
+    size_t len = strcspn(params, "&");
+    params += len;
     const char* value = strnchr(key, '=', len);
     if (value)
     { len = value - key;
@@ -93,7 +95,7 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
      case 7:
       if (strnicmp(key, "pattern", 7) == 0)
         if (value)
-          Pattern.assign(value, Params-value);
+          Pattern.assign(value, params-value);
       break;
      case 6:
       if (strnicmp(key, "hidden", 6) == 0)
