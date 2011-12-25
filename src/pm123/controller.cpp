@@ -1216,6 +1216,7 @@ void Ctrl::Uninit()
   SongIterator last; // last playing location
   { Queue.Purge();
     PostCommand(MkLocation(&last, 0));
+    PostCommand(MkPlayStop(Op_Reset));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     CtrlImp::DecEventDelegate.detach();
@@ -1268,5 +1269,4 @@ Ctrl::ControlCommand* Ctrl::SendCommand(ControlCommand* cmd)
 
 void Ctrl::CbNop(ControlCommand* cmd)
 {}
-
 

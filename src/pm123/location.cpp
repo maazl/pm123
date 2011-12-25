@@ -381,10 +381,8 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
 
   // Prepare exclude list
   PlayableSet exclude;
-  { const int_ptr<PlayableInstance>* pipp = Callstack.begin();
-    const int_ptr<PlayableInstance>* pepp = Callstack.begin();
-    while (pipp != pepp)
-    { cur = *pipp++;
+  { foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
+    { cur = *pipp;
       Playable& p = cur->GetPlayable();
       exclude.get(p) = &p;
     }

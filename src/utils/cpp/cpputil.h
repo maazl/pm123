@@ -82,7 +82,7 @@ struct unspecified_struct_type;
 typedef const volatile unspecified_struct_type* unspecified_bool_type;
 
 #define foreach(type, var, list) \
-  for (type var = (list).begin(); var != (list).end(); ++var)
+  for (type *var = (list).begin(), *end = (list).end(); var != end; ++var)
 
 
 #endif

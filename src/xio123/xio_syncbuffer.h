@@ -43,7 +43,7 @@ class XIOsyncbuffer : public XIObuffer
   // Load new data into the buffer. Return false on error.
   // The function tries to load the entire buffer size, but it succeeds also
   // with less data if the underlying stream runs into EOF.
-  // data_size will tell you what has happend. If it is less than size
+  // data_size will tell you what has happened. If it is less than size
   // EOF is reached.
   bool    fill_buffer();
 
