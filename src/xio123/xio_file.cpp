@@ -145,12 +145,11 @@ is_singletasking_fs( const char* filename )
    successfully opens the file. A return value of -1 shows an error. */
 int XIOfile::open( const char* filename, XOFLAGS oflags )
 {
-  char* openname = NULL; // generated filename from URL, must be freed.
   ULONG flags = 0;
   ULONG omode = OPEN_FLAGS_NOINHERIT;
   ULONG dummy;
   APIRET rc;
-  DEBUGLOG(("xio:XIOfile(%p)::file_open(%s, %x)\n", this, filename, oflags));
+  DEBUGLOG(("XIOfile(%p)::open(%s, %x)\n", this, filename, oflags));
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
     omode |= OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYWRITE;
@@ -196,12 +195,13 @@ int XIOfile::open( const char* filename, XOFLAGS oflags )
     }*/
 
     p = url->path;
-    DEBUGLOG(("xio:file_open %s\n", p));
+    //DEBUGLOG(("XIOfile::open %s\n", p));
     // Convert file://server/share/path URLs to UNC path
     if ( *p != '/' ) {
-      openname = (char*)malloc( strlen( p ) + 3 );
-      openname[0] = openname[1] = '/';
-      strcpy( openname + 2, p );
+      char* f = (char*)alloca( strlen( p ) + 3 );
+      f[0] = f[1] = '/';
+      strcpy( f + 2, p );
+      filename = f;
     } else {
       // Converts leading drive letters of the form C| to C:
       // and if a drive letter is present strips off the slash that precedes
@@ -213,7 +213,9 @@ int XIOfile::open( const char* filename, XOFLAGS oflags )
       } else if ( p[1] == '/' && p[2] == '/' ) {
         ++p;
       }
-      openname = strdup( p );
+      char* f = (char*)alloca( strlen( p ) + 1 );
+      strcpy( f, p );
+      filename = f;
     }
     url_free( url );
   }
@@ -223,19 +225,19 @@ int XIOfile::open( const char* filename, XOFLAGS oflags )
   #endif
 
   FILE_REQUEST_DISK(this);
-  rc = DosOpen( openname ? openname : (PSZ)filename, &s_handle,
+  rc = DosOpen( (PSZ)filename, &s_handle,
                 &dummy, 0, FILE_NORMAL, flags, omode, NULL );
-  if ( rc == NO_ERROR && oflags & XO_APPEND ) {
+  DEBUGLOG(("XIOfile::open: hfile = %i, action = %u, rc = %i\n", s_handle, dummy, rc));
+  if ( rc == NO_ERROR && oflags & XO_APPEND )
     rc = DosSetFilePtr( s_handle, 0, FILE_END, &dummy );
-  }
   FILE_RELEASE_DISK(this);
-
-  free( openname );
 
   if ( rc != NO_ERROR ) {
     errno = error = map_os2_errors( rc );
+    s_handle = (HFILE)-1;
     return -1;
   } else {
+    ASSERT(s_handle != (HFILE)-1);
     return 0;
   }
 }
@@ -249,6 +251,7 @@ int XIOfile::read( void* result, unsigned int count )
   ULONG actual = 0; // DosRead seems to dislike random numbers
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosRead( s_handle, result, count, &actual );
   FILE_RELEASE_DISK(this);
 
@@ -259,6 +262,7 @@ int XIOfile::read( void* result, unsigned int count )
   } else if (actual == 0) {
     eof = true;
   }
+  DEBUGLOG(("XIOfile::read(%p, %u): %u - hfile = %i, rc = %i\n", result, count, actual, s_handle, rc));
   return actual;
 }
 
@@ -272,6 +276,7 @@ int XIOfile::write( const void* source, unsigned int count )
   ULONG actual;
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosWrite( s_handle, (PVOID)source, count, &actual );
   FILE_RELEASE_DISK(this);
 
@@ -287,11 +292,14 @@ int XIOfile::write( const void* source, unsigned int count )
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 int XIOfile::close()
-{
-  APIRET rc;
+{ DEBUGLOG(("XIOfile(%p)::close() - %i\n", this, s_handle));
+  if (s_handle == (HFILE)-1)
+  { errno = EBADF;
+    return -1;
+  }
 
   FILE_REQUEST_DISK(this);
-  rc = DosClose( s_handle );
+  APIRET rc = DosClose( s_handle );
   FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR ) {
@@ -312,6 +320,7 @@ long XIOfile::tell( long* offset64 )
   ULONG actual;
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosSetFilePtr( s_handle, 0, FILE_CURRENT, &actual );
   FILE_RELEASE_DISK(this);
 
@@ -346,6 +355,7 @@ long XIOfile::seek( long offset, XIO_SEEK origin, long* offset64 )
   }
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosSetFilePtr( s_handle, offset, mode, &actual );
   FILE_RELEASE_DISK(this);
 
@@ -370,6 +380,7 @@ long XIOfile::getsize( long* offset64 )
   FILESTATUS3 fi;
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosQueryFileInfo( s_handle, FIL_STANDARD, &fi, sizeof fi );
   FILE_RELEASE_DISK(this);
 
@@ -401,6 +412,7 @@ int XIOfile::getstat( XSTAT* st )
   EAOP2  eaop2 = {NULL};
 
   FILE_REQUEST_DISK(this);
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosQueryFileInfo(s_handle, FIL_STANDARD, &fi, sizeof fi);
 
   if (rc == NO_ERROR)
@@ -454,6 +466,7 @@ int XIOfile::chsize( long size, long offset64 )
 
   FILE_REQUEST_DISK(this);
   // TODO: 64 bit
+  ASSERT(s_handle != (HFILE)-1);
   rc = DosSetFileSize( s_handle, size );
   FILE_RELEASE_DISK(this);
 

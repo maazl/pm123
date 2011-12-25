@@ -58,6 +58,7 @@ XIOsyncbuffer::XIOsyncbuffer(XPROTOCOL* chain, unsigned int buf_size)
 bool XIOsyncbuffer::fill_buffer()
 { DEBUGLOG(("XIOsyncbuffer(%p)::fill_buffer() - %p, %u\n", this, head, size));
   unsigned int read_size = chain->read( head, size );
+  DEBUGLOG(("XIOsyncbuffer::fill_buffer: %u, %i\n", read_size, errno));
   if (read_size == (unsigned int)-1)
   { error = errno;
     if (error == 0) // Hmm...
