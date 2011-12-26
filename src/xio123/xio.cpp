@@ -356,11 +356,11 @@ xio_fseek( XFILE* x, long int offset, XIO_SEEK origin )
    (void)xio_fseek( x, 0L, XIO_SEEK_SET )
    except that xio_rewind also clears the error indicator for
    the stream. */
-void DLLENTRY
+int DLLENTRY
 xio_rewind( XFILE* x )
 {
   xio_clearerr( x );
-  xio_fseek( x, 0, XIO_SEEK_SET );
+  return xio_fseek( x, 0, XIO_SEEK_SET );
 }
 
 /* Returns the size of the file. A return value of -1L indicates an

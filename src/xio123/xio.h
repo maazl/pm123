@@ -102,8 +102,7 @@ size_t DLLENTRY
 xio_fwrite( const void* buffer, size_t size, size_t count, XFILE* x );
 
 /** Closes a file pointed to by \a x.
- * @return Returns 0 if it successfully closes the file, or -1 if any errors were detected.
- */
+ * @return Returns 0 if it successfully closes the file, or -1 if any errors were detected. */
 int DLLENTRY
 xio_fclose( XFILE* x );
 
@@ -124,8 +123,9 @@ xio_fseek( XFILE* x, long int offset, XIO_SEEK origin );
  * of the file. A call to xio_rewind is the same as:
  * <code>(void)xio_fseek(x, 0L, XIO_SEEK_SET)</code>
  * except that \c xio_rewind also clears the error indicator for
- * the stream. */
-void DLLENTRY
+ * the stream.
+ * @return Returns 0 if it successfully resets the file pointer. */
+int DLLENTRY
 xio_rewind( XFILE* x );
 
 /** Returns the size of the file. A return value of -1L indicates an
