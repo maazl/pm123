@@ -360,7 +360,7 @@ int DLLENTRY
 xio_rewind( XFILE* x )
 {
   xio_clearerr( x );
-  return xio_fseek( x, 0, XIO_SEEK_SET );
+  return xio_fseek( x, 0, XIO_SEEK_SET ) == -1L;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an

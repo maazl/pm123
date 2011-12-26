@@ -113,9 +113,9 @@ long DLLENTRY
 xio_ftell( XFILE* x );
 
 /** Changes the current file position to a new location within the file.
- * @return Returns 0 if it successfully moves the pointer. A nonzero return
- * value indicates an error. On devices that cannot seek the return
- * value is nonzero. */
+ * @return Returns the ne position if it successfully moves the pointer.
+ * A return value of -1L indicates an error. On devices that cannot seek
+ * the return value is -1L. */
 long DLLENTRY
 xio_fseek( XFILE* x, long int offset, XIO_SEEK origin );
 
