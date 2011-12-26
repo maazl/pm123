@@ -46,17 +46,18 @@ PLUGIN_RC DirScan::InitUrl(const char* url)
   Items.clear();
 
   // Check whether it is a folder
-  const char* params = Params = strchr(url, '?');
+  const char* params = strchr(url, '?');
   if (!params)
-    Params = url + strlen(url);
+    params = url + strlen(url);
   // now params points to the parameters starting with '?' or to '\0' if none.
 
   // Can only play folder URLs
-  if (Params[-1] != '/')
+  if (params[-1] != '/')
     return PLUGIN_NO_PLAY;
 
   // copy url without parameters
-  BasePathLen = Params - url;
+  Params = params;
+  BasePathLen = params - url;
   Path.reserve(_MAX_PATH+25); // typically sufficient size
   Path.append(url, BasePathLen -1); // Discard trailing slash for now
 
