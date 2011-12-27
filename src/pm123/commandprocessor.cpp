@@ -1772,7 +1772,7 @@ static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
     Plugin::GetPlugins(list, false);
     const int_ptr<Plugin>* ppp = list.begin();
     while (ppp != list.end())
-      if (&(*ppp)->ModRef == &module)
+      if ((*ppp)->ModRef == &module)
       { list.erase(ppp);
         Plugin::SetPluginList(list);
         return type;

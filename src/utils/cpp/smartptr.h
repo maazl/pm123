@@ -119,7 +119,7 @@ class Iref_count
   ~Iref_count() {} // You must not call the non-virtual destructor directly.
  public:
   // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
-  // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly
+  // you can safely assume that it is your's, unless you pass the reference explicitly or implicitly
   // to another thread or int_ptr instance.
   bool RefCountIsUnique() const         { return (Count & ~INT_PTR_ALIGNMENT) == 0; }
   // Checks whether the object is not under control of a int_ptr.

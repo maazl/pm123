@@ -63,7 +63,6 @@ struct DecoderProcs
 };
 
 class Playable;
-struct DecoderProcs;
 /****************************************************************************
  *
  * Decoder plug-in instance.

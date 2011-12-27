@@ -88,7 +88,7 @@ DoTest: PROCEDURE EXPOSE summary.
 
   INTERPRET("CALL '"ARG(1)"'")
   IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN DO
-    SAY "failed: "result
+    SAY "FAILED: "result
     summary.failed = summary.failed + 1
     CALL 'pipecmd' 'getmessages'
     CALL CHAROUT , result

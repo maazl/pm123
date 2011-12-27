@@ -9,7 +9,7 @@ CALL VAssert 'RESULT', last
 CALL CallPipe 'plugin list decoder'
 CALL VAssert 'RESULT'
 
-CALL CallPipe 'plugin params decoder mpg123?tryothers=1'
+CALL CallPipe 'plugin params decoder mpg123?tryothers=1&'
 CALL VAssert 'RESULT'
 CALL CallPipe 'getmessages'
 
@@ -113,3 +113,4 @@ VAssert:
       EXIT 'Expected "'ARG(2)'", found "'VALUE(ARG(1))'", last command: "'lastcmd'"'
     END
   RETURN
+

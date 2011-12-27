@@ -29,8 +29,6 @@
  */
 
 
-/* Code for the playlist manager */
-
 #define  INCL_WIN
 #define  INCL_GPI
 #define  INCL_DOS
@@ -330,8 +328,7 @@ void PlaylistManager::SetInfo(const xstring& text)
   CNRINFO cnrInfo = { sizeof(CNRINFO) };
   cnrInfo.pszCnrTitle = (PSZ)text.cdata(); // OS/2 API doesn't like const...
   PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_CNRTITLE)));
-  // now free the old title
-  Info = text;
+  Info = text; // Keep text alive
 }
 
 PlaylistBase::ICP PlaylistManager::GetPlaylistType(const RecordBase* rec) const

@@ -430,7 +430,7 @@ void Playable::DoLoadInfo(JobSet& job)
       }
     }
     // Raise the first bunch of change events.
-    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit((InfoFlags)what2 & ~IF_Aggreg), changed));
+    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit((InfoFlags)what2), changed));
   }
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
@@ -538,11 +538,8 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     switch (xio_protocol(handle))
     {case XIO_PROTOCOL_FILE:
       type_mask = DECODER_FILENAME; break;
-     case XIO_PROTOCOL_HTTP:
-     case XIO_PROTOCOL_FTP:
-      type_mask = DECODER_URL; break;
      default:
-      type_mask = DECODER_OTHER; break;
+      type_mask = DECODER_URL; break;
     }
     if (xio_fstat(handle, &st) == 0)
     { whatrq &= ~IF_Phys;
@@ -563,7 +560,7 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   // First checks decoders supporting the specified type of files.
   for (i = 0; i < decoders.size(); i++)
   { dp = (Decoder*)decoders[i].get();
-    DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef.Key.cdata(),
+    DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef->Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
     { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(URL, st.type))
@@ -573,7 +570,15 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
       if (rc != PLUGIN_NO_PLAY)
         goto ok; // This also happens in case of a plug-in independent error
       if (handle)
-        xio_rewind(handle);
+        if (xio_rewind(handle))
+        { // Try to recover from seek error.
+          xio_fclose(handle);
+          handle = xio_fopen(URL, "rbU");
+          if (handle == NULL)
+          { rc = PLUGIN_NO_READ;
+            goto ok;
+          }
+        }
     }
     checked[i] = TRUE;
   }
@@ -590,7 +595,15 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     if (rc != PLUGIN_NO_PLAY)
       goto ok; // This also happens in case of a plug-in independent error
     if (handle)
-      xio_rewind(handle);
+      if (xio_rewind(handle))
+      { // Try to recover from seek error.
+        xio_fclose(handle);
+        handle = xio_fopen(URL, "rbU");
+        if (handle == NULL)
+        { rc = PLUGIN_NO_READ;
+          goto ok;
+        }
+      }
   }
 
   // No decoder found
@@ -604,7 +617,7 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
  ok:
   if (handle)
     xio_fclose(handle);
-  tech.decoder = dp->ModRef.Key;
+  tech.decoder = dp->ModRef->Key;
   if (rc != 0)
   { phys.attributes |= PATTR_INVALID;
     if (tech.info == 0)

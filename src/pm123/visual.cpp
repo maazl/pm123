@@ -68,16 +68,16 @@ const PLUGIN_PROCS Visual::VisualCallbacks =
 
 /* Assigns the addresses of the visual plug-in procedures. */
 void Visual::LoadPlugin()
-{ DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, mod.Key.cdata()));
   Hwnd = NULLHANDLE;
-  const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&plugin_deinit, "plugin_deinit");
   mod.LoadMandatoryFunction(&plugin_init,   "vis_init");
 }
 
 bool Visual::InitPlugin(HWND owner)
 { DEBUGLOG(("Visual(%p{%s})::initialize(%x) - %d %d, %d %d, %s\n",
-    this, ModRef.Key.cdata(), owner, Props.x, Props.y, Props.cx, Props.cy, Props.param.cdata()));
+    this, ModRef->Key.cdata(), owner, Props.x, Props.y, Props.cx, Props.cy, Props.param.cdata()));
 
   VISPLUGININIT visinit;
   visinit.x       = Props.x;
@@ -119,10 +119,10 @@ static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
 void Visual::SetProperties(const VISUAL_PROPERTIES* data)
 { if (data)
   { DEBUGLOG(("Visual(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
-      this, ModRef.Key.cdata(), data, data->x, data->y, data->cx, data->cy, data->param.cdata()));
+      this, ModRef->Key.cdata(), data, data->x, data->y, data->cx, data->cy, data->param.cdata()));
     Props = *data;
   } else
-  { DEBUGLOG(("Visual(%p{%s})::set_properties(%p)\n", this, ModRef.Key.cdata(), data));
+  { DEBUGLOG(("Visual(%p{%s})::set_properties(%p)\n", this, ModRef->Key.cdata(), data));
     Props = def_visuals;
   }
 }

@@ -94,14 +94,13 @@ qentry* queue_base::Purge()
   return rhead;
 }
 
-void queue_base::ForEach(void (*action)(const qentry* entry, void* arg), void* arg)
+bool queue_base::ForEach(bool (*action)(const qentry* entry, void* arg), void* arg)
 { DEBUGLOG(("queue_base(%p)::ForEach(%p, %p) - %p\n", this, action, arg, Head));
   Mutex::Lock lock(Mtx);
-  const qentry* ep = Head;
-  while (ep)
-  { action(ep, arg);
-    ep = ep->Next;
-  }
+  for (const qentry* ep = Head; ep; ep = ep->Next)
+    if (!action(ep, arg))
+      return false;
+  return true;
 }
 
 

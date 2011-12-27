@@ -64,8 +64,7 @@ class InspectorDialog
   virtual void      OnDestroy();
   // Refresh the list boxes
   void              Refresh();
-  
-  static void       DiscardData(vector<char>& data);
+
  public:
   virtual           ~InspectorDialog();
   virtual void      SetVisible(bool show);

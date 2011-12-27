@@ -28,7 +28,7 @@ BOOL DLLENTRY decoder_uninit(void*  w);
 /* returns ORed values */
 typedef enum
 { DECODER_FILENAME = 0x0001, /* Decoder can play a regular file. (file:) */
-  DECODER_URL      = 0x0002, /* Decoder can play a internet stream or file. (http:, https:, ftp:) */
+  DECODER_URL      = 0x0002, /* Decoder can play a Internet stream or file. (http:, https:, ftp:) */
   DECODER_TRACK    = 0x0004, /* Decoder can play a CD track. (cd: cdda:) */
   DECODER_OTHER    = 0x0008, /* Decoder can play something else. */
   #if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL >= 2

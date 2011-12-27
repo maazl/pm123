@@ -323,7 +323,7 @@ class Ctrl
   static event_pub<const EventFlags>& GetChangeEvent() { return ChangeEvent; }
   
  public: // debug interface
-  static void QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), void* arg);
+  static bool QueueTraverse(bool (*action)(const ControlCommand& cmd, void* arg), void* arg);
 };
 FLAGSATTRIBUTE(Ctrl::EventFlags);
 

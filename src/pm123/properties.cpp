@@ -494,7 +494,7 @@ void PropertyDialog::PluginPage::RefreshList()
   { Plugin* pp = *ppp;
     if (pp == Selected)
       selected = ppp - List.begin();
-    xstring title = pp->ModRef.Key;
+    xstring title = pp->ModRef->Key;
     if (List.Type == PLUGIN_VISUAL && ((Visual*)pp)->GetProperties().skin)
       title = title + " (Skin)";
     WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(title.cdata()));
@@ -536,7 +536,7 @@ void PropertyDialog::PluginPage::RefreshInfo()
     EnableControl(PB_PLG_CONFIG, FALSE);
   } else
   { char buffer[64];
-    const PLUGIN_QUERYPARAM& params = Selected->ModRef.GetParams();
+    const PLUGIN_QUERYPARAM& params = Selected->ModRef->GetParams();
     SetItemText(ST_PLG_AUTHOR, params.author);
     SetItemText(ST_PLG_DESC,   params.desc);
     snprintf(buffer, sizeof buffer,        "Interface level %i%s",
@@ -724,7 +724,7 @@ MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
          case LN_ENTER:
           i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
           if ((size_t)i < List.size())
-            List[i]->ModRef.Config(GetHwnd());
+            List[i]->ModRef->Config(GetHwnd());
           break;
         }
         break;
@@ -784,7 +784,7 @@ MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
        case PB_PLG_CONFIG:
         if ((size_t)i < List.size())
-          List[i]->ModRef.Config(GetHwnd());
+          List[i]->ModRef->Config(GetHwnd());
         break;
 
        case PB_PLG_SET:

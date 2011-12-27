@@ -96,9 +96,9 @@ void Decoder::FillFileTypeCache()
 }
 
 void Decoder::LoadPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, mod.Key.cdata()));
   W = NULL;
-  const Module& mod = ModRef;
   if (mod.GetParams().type & PLUGIN_DECODER)
   { mod.LoadMandatoryFunction(&decoder_fileinfo, "decoder_fileinfo");
     mod.LoadOptionalFunction(&decoder_init,     "decoder_init"    );
@@ -115,32 +115,32 @@ void Decoder::LoadPlugin()
   mod.LoadOptionalFunction(&decoder_savefile, "decoder_savefile");
 
   ULONG DLLENTRYP(decoder_support)(const DECODER_FILETYPE** types, int* count);
-  ModRef.LoadMandatoryFunction(&decoder_support, "decoder_support");
+  mod.LoadMandatoryFunction(&decoder_support, "decoder_support");
 
   Type = (DECODER_TYPE)decoder_support(&FileTypes, &FileTypesCount);
   if ( (Type & DECODER_SONG)
     && ( !decoder_init || !decoder_uninit || !decoder_command
       || !decoder_status || !decoder_length || !decoder_event ))
     throw ModuleException("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
-      ModRef.ModuleName.cdata());
+      mod.ModuleName.cdata());
 
   FillFileTypeCache();
 }
 
 void Decoder::InitPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, ModRef.Key.cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, ModRef->Key.cdata()));
   int rc = (*decoder_init)(&W);
   DEBUGLOG(("Decoder::InitPlugin: %i - %p\n", rc, W));
   if (rc)
   { W = NULL;
-    throw ModuleException("The decoder %s failed to initialize. Error code %i", ModRef.Key.cdata(), rc);
+    throw ModuleException("The decoder %s failed to initialize. Error code %i", ModRef->Key.cdata(), rc);
   }
   DEBUGLOG(("Decoder::InitPlugin: %p\n", W));
   RaisePluginChange(PluginEventArgs::Init);
 }
 
 bool Decoder::UninitPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, ModRef.Key.cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, ModRef->Key.cdata()));
   if (IsInitialized())
   { (*decoder_uninit)(xchg(W, (void*)NULL));
     RaisePluginChange(PluginEventArgs::Uninit);
@@ -149,7 +149,7 @@ bool Decoder::UninitPlugin()
 }
 
 bool Decoder::IsFileSupported(const char* file, const char* type) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %s) - %s, %s\n", this, ModRef.Key.cdata(),
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %s) - %s, %s\n", this, ModRef->Key.cdata(),
     file, type, FileTypeCache.cdata(), FileExtensionCache.cdata()));
 
   // Try file name match
@@ -203,7 +203,7 @@ bool Decoder::SetParam(const char* param, const xstring& value)
 
 ULONG Decoder::SaveInfo(const char* url, const META_INFO* info, int haveinfo)
 { if (!decoder_saveinfo)
-  { EventHandler::PostFormat(MSG_ERROR, "The plug-in %s cannot save meta information.", ModRef.Key.cdata());
+  { EventHandler::PostFormat(MSG_ERROR, "The plug-in %s cannot save meta information.", ModRef->Key.cdata());
     return PLUGIN_NO_USABLE;
   }
   xstring errortxt;
@@ -289,9 +289,9 @@ DecoderProxy1::~DecoderProxy1()
 
 /* Assigns the addresses of the decoder plug-in procedures. */
 void DecoderProxy1::LoadPlugin()
-{ DEBUGLOG(("DecoderProxy1(%p{%s})::load()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("DecoderProxy1(%p{%s})::load()\n", this, mod.Key.cdata()));
   W = NULL;
-  const Module& mod = ModRef;
   ASSERT(mod.GetParams().type & PLUGIN_DECODER);
   ULONG DLLENTRYP(decoder_support)( char* fileext[], int* size );
   mod.LoadMandatoryFunction(&decoder_init,      "decoder_init");
@@ -378,7 +378,7 @@ bool DecoderProxy1::SetParam(const char* param, const xstring& value)
 PROXYFUNCIMP(int DLLENTRY, DecoderProxy1)
 proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i) - %f\n",
-    op, op->ModRef.Key.cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
+    op, op->ModRef->Key.cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
   { EventHandler::Post(MSG_ERROR, "PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
@@ -460,8 +460,8 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
 /* Proxy for loading interface level 0/1 */
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
 proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_decoder_command(%p {%s}, %p, %d, %p)\n",
-    op, op->ModRef.Key.cdata(), w, msg, params));
+{ DEBUGLOG(("proxy_1_decoder_command(%p{%s}, %p, %d, %p)\n",
+    op, op->ModRef->Key.cdata(), w, msg, params));
 
   if (params == NULL) // well, sometimes wired things may happen
     return (*op->vdecoder_command)(w, msg, NULL);
@@ -575,7 +575,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
 /* Proxy for loading interface level 0/1 */
 PROXYFUNCIMP(void DLLENTRY, DecoderProxy1)
 proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->ModRef.Key.cdata(), w, event));
+{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->ModRef->Key.cdata(), w, event));
 
   switch (event)
   {case OUTEVENT_LOW_WATER:
@@ -669,8 +669,8 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, struct _XFILE
   // convert information to new format
   if (rc == 0)
   { ConvertDECODER_INFO(info, &old_info);
-    // Always supply AttrInfo and RPL/DRPL
-    *what |= IF_Attr|IF_Rpl|IF_Drpl;
+    // Always supply AttrInfo and RPL/DRPL and old style plug-ins never have children.
+    *what |= IF_Attr|IF_Child|IF_Rpl|IF_Drpl;
   }
   return rc;
 }
@@ -718,7 +718,7 @@ proxy_1_decoder_length( DecoderProxy1* op, void* a )
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { DecoderProxy1* op = (DecoderProxy1*)WinQueryWindowPtr(hwnd, QWL_USER);
   DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n",
-    hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModRef.Key.cdata()));
+    hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModRef->Key.cdata()));
   switch (msg)
   {case WM_PLAYSTOP:
     (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
@@ -797,8 +797,8 @@ void DecoderProxy1::CommandCallback(Ctrl::ControlCommand* cmd)
 
 Decoder::~Decoder()
 { Mutex::Lock lock(Module::Mtx);
-  ASSERT(ModRef.Dec == this);
-  ModRef.Dec = NULL;
+  ASSERT(ModRef->Dec == this);
+  ModRef->Dec = NULL;
 }
 
 int_ptr<Decoder> Decoder::FindInstance(const Module& module)
@@ -862,7 +862,7 @@ void Decoder::AppendLoadMenu(HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZ
   { const Decoder& dec = (Decoder&)*decoders[i];
     if (dec.GetEnabled() && dec.decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec.decoder_getwizard)();
-      DEBUGLOG(("Decoder::AppendLoadMenu: %s - %p\n", dec.ModRef.Key.cdata(), da));
+      DEBUGLOG(("Decoder::AppendLoadMenu: %s - %p\n", dec.ModRef->Key.cdata(), da));
       MENUITEM mi = {0};
       mi.iPosition   = where;
       mi.afStyle     = MIS_TEXT;
@@ -902,7 +902,7 @@ void Decoder::AppendAccelTable(HACCEL& haccel, ULONG id_base, LONG offset, DECOD
   { Decoder& dec = (Decoder&)*decoders[i];
     if (dec.GetEnabled() && dec.decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec.decoder_getwizard)();
-      DEBUGLOG(("Decoder::AppendAccelTable: %s - %p\n", dec.ModRef.Key.cdata(), da));
+      DEBUGLOG(("Decoder::AppendAccelTable: %s - %p\n", dec.ModRef->Key.cdata(), da));
       for (; da != NULL; da = da->link, ++id_base)
       { if (size-- == 0)
           goto nomore; // too many entries, can't help

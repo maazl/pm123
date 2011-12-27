@@ -192,22 +192,24 @@ qentry* priority_queue_base::Purge()
   return rhead;
 }
 
-void priority_queue_base::ForEach(void (*action)(const qentry* entry, size_t priority, void* arg), void* arg)
+bool priority_queue_base::ForEach(bool (*action)(const qentry* entry, size_t priority, void* arg), void* arg)
 { DEBUGLOG(("queue_base(%p)::ForEach(%p, %p) - %p\n", this, action, arg, Head));
   const PriEntry* pep = PriEntries;
   size_t pri = 0;
   Mutex::Lock lock(Mtx);
   const qentry* ep = Head;
   if (ep == NULL)
-    return;
+    return true;
   // Starting priority
   while (pep->Tail == NULL)
     ++pri, ++pep;
   do
-  { action(ep, pri, arg);
+  { if (!action(ep, pri, arg))
+      return false;
     while (ep == pep->Tail)
       ++pri, ++pep;
     ep = ep->Next;
   } while (ep);
+  return true;
 }
 

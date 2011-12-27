@@ -1216,7 +1216,7 @@ void GUIImp::PlayableNotification(const void* rcv, const PlayableChangeArgs& arg
 }
 
 void GUIImp::PluginNotification(const void*, const PluginEventArgs& args)
-{ DEBUGLOG(("GUIImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
+{ DEBUGLOG(("GUIImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
   switch (args.Operation)
   {case PluginEventArgs::Load:
    case PluginEventArgs::Unload:

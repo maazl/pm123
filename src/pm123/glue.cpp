@@ -162,7 +162,7 @@ void Glue::virtualize(int i)
   par.output_event           = params.OutEvent;
   par.w                      = params.W;
   if (!fil.Initialize(&par))
-  { EventHandler::PostFormat(MSG_WARNING, "The filter plug-in %s failed to initialize.", fil.ModRef.Key.cdata());
+  { EventHandler::PostFormat(MSG_WARNING, "The filter plug-in %s failed to initialize.", fil.ModRef->Key.cdata());
     filters.erase(i);
     virtualize(i-1);
     return;
@@ -564,7 +564,7 @@ out_event_handler( void* w, OUTEVENTTYPE event )
 static time_t nomsgtill = 0;
 
 void Glue::plugin_notification(void*, const PluginEventArgs& args)
-{ DEBUGLOG(("Glue::plugin_notification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
+{ DEBUGLOG(("Glue::plugin_notification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
   switch (args.Operation)
   {case PluginEventArgs::Load:
    case PluginEventArgs::Unload:

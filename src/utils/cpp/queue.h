@@ -61,7 +61,7 @@ class queue_base
   void       Write(qentry* entry, qentry* after);
   void       WriteFront(qentry* entry);
   qentry*    Purge();
-  void       ForEach(void (*action)(const qentry* entry, void* arg), void* arg);
+  bool       ForEach(bool (*action)(const qentry* entry, void* arg), void* arg);
 };
 
 /** Queue class.
@@ -71,11 +71,11 @@ template <class T>
 class queue : public queue_base
 {private:
   struct ActionProxyParam
-  { void     (*Action)(const T& entry, void* arg);
+  { bool     (*Action)(const T& entry, void* arg);
     void*    Arg;
   };
-  static void ActionProxy(const qentry* entry, void* arg)
-             { (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, ((ActionProxyParam*)arg)->Arg); } 
+  static bool ActionProxy(const qentry* entry, void* arg)
+             { return (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, ((ActionProxyParam*)arg)->Arg); }
  public:
              ~queue()             { Purge(); }
   /// Read and return the next item.
@@ -89,10 +89,13 @@ class queue : public queue_base
   /// Remove all elements from the queue
   void       Purge();
   /// @brief Enumerate queue content.
-  /// @details Note that action is called from synchronized context.
-  void       ForEach(void (*action)(const T& entry, void* arg), void* arg)
+  /// @param action Call-back method. Called once for each queued item.
+  /// If the call-back returns false, the enumeration is aborted with return code false.
+  /// @return true if the enumeration completed without abort.
+  /// @note Note that action is called from synchronized context.
+  bool       ForEach(bool (*action)(const T& entry, void* arg), void* arg)
              { ActionProxyParam args_proxy = { action, arg };
-               queue_base::ForEach(&ActionProxy, &args_proxy); 
+               return queue_base::ForEach(&ActionProxy, &args_proxy);
              }
 };
 
@@ -171,38 +174,44 @@ class priority_queue_base
   void         WriteFront(qentry* entry, size_t priority);
   /// Clear the queue and return the original head of the queue.
   qentry*      Purge();
-  /// Enumerate all queue items. \a *action is called for each item.
+  /// Enumerate all queue items.
+  /// @param action \a *action is called for each item.
+  /// If the call-back returns false, the enumeration is aborted with return code false.
+  /// @return true if the enumeration completed without abort.
   /// @note \a *action is called from synchronized context. So be careful to avoid deadlocks.
-  void         ForEach(void (*action)(const qentry* entry, size_t priority, void* arg), void* arg);
+  bool         ForEach(bool (*action)(const qentry* entry, size_t priority, void* arg), void* arg);
 };
 
 template <class T>
 class priority_queue : public priority_queue_base
 {private:
   struct ActionProxyParam
-  { void       (*Action)(const T& entry, size_t priority, void* arg);
+  { bool       (*Action)(const T& entry, size_t priority, void* arg);
     void*      Arg;
   };
-  static void ActionProxy(const qentry* entry, size_t priority, void* arg)
-               { (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, priority, ((ActionProxyParam*)arg)->Arg); }
+  static bool ActionProxy(const qentry* entry, size_t priority, void* arg)
+               { return (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, priority, ((ActionProxyParam*)arg)->Arg); }
  public:
                priority_queue(size_t priorities) : priority_queue_base(priorities) {}
                ~priority_queue()      { Purge(); }
-  // Read the next item.
+  /// Read the next item.
   T*           Read(size_t priority)  { return (T*)priority_queue_base::Read(priority); }
-  // Read the next item and return the priority of the read item.
+  /// Read the next item and return the priority of the read item.
   T*           Read(size_t* priority) { return (T*)priority_queue_base::Read(priority); }
-  // Post an element to the Queue
+  /// Post an element to the Queue
   void         Write(T* entry, size_t priority) { priority_queue_base::Write(entry, priority); }
-  // Puts back an element into the queue.
+  /// Puts back an element into the queue.
   void         WriteFront(T* entry, size_t priority) { priority_queue_base::WriteFront(entry, priority); }
-  // Remove all elements from the queue.
+  /// Remove all elements from the queue.
   void         Purge();
-  // Callback for each elements
-  // Note that the callback is called from synchronized context.
-  void         ForEach(void (*action)(const T& entry, size_t priority, void* arg), void* arg)
+  /// Enumerate all queue items.
+  /// @param action \a *action is called for each item.
+  /// If the call-back returns false, the enumeration is aborted with return code false.
+  /// @return true if the enumeration completed without abort.
+  /// @remarks Note that the call-back is called from synchronized context.
+  bool         ForEach(bool (*action)(const T& entry, size_t priority, void* arg), void* arg)
                { ActionProxyParam args_proxy = { action, arg };
-                 priority_queue_base::ForEach(&ActionProxy, &args_proxy);
+                 return priority_queue_base::ForEach(&ActionProxy, &args_proxy);
                }
 };
 

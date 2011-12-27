@@ -68,7 +68,7 @@ class PlaylistBase
 {protected:
   /// Strongly typed, thread-safe bit vector of update flags for an item or the entire playlist.
   struct CommonState
-  { /// Bitvector of outstanding update commands.
+  { /// Bit vector of outstanding update commands.
     AtomicUnsigned      UpdateFlags;
     /// Create empty update vector.
     CommonState() : UpdateFlags(0) {}
@@ -77,16 +77,16 @@ class PlaylistBase
   /// @brief C++ part of a container record.
   /// @details This is referenced by the extended \c MINIRECORDCORE structure.
   struct CPDataBase
-  { /// The pointer to the backend content.
+  { /// The pointer to the back-end content.
     int_ptr<PlayableInstance> const Content;
     /// Storage for alias name <-> pszIcon
     xstring             Text;
     /// Update flags
     CommonState         EvntState;
-    /// Delegate for change events of the backend content.
+    /// Delegate for change events of the back-end content.
     class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> InfoChange;
     /// Create C++ part of the record data.
-    /// @param content Backend content of this record.
+    /// @param content Back-end content of this record.
     /// @param pm parent PlaylistBase
     /// @param infochangefn Function to be called when the change event of the backend content fires.
     CPDataBase(PlayableInstance& content, PlaylistBase& pm,
@@ -135,27 +135,27 @@ class PlaylistBase
   /// User messages related to playlist container views.
   enum
   { UM_UPDATEINFO = WM_USER+0x101,
-    // Execute a update command for a record.
-    // mp1 = Record* or NULL
-    // The reference counter of the Record is decremented after the message is processed.
-    // The Commands to be executed are atomically taken from the Update bitvector
-    // in the referenced record or the container.
+    /// Execute a update command for a record.
+    /// mp1 = Record* or NULL
+    /// The reference counter of the Record is decremented after the message is processed.
+    /// The Commands to be executed are atomically taken from the Update bitvector
+    /// in the referenced record or the container.
     UM_RECORDUPDATE,
-    // Delete a record structure and put it back to PM
-    // mp1 = Record
+    /// Delete a record structure and put it back to PM
+    /// mp1 = Record
     UM_DELETERECORD,
-    // Playstatus-Event hit.
-    // mp1 = status
+    /// Play status event hit.
+    /// mp1 = status
     UM_PLAYSTATUS,
-    // Asynchronous insert operation
-    // mp1 = InsertInfo*
-    // The InsertInfo structure is deleted after the message is processed.
+    /// Asynchronous insert operation
+    /// mp1 = InsertInfo*
+    /// The InsertInfo structure is deleted after the message is processed.
     UM_INSERTITEM,
-    // Remove item addressed by a record asynchronuously
-    // mp1 = Record*
-    // The reference counter of the Record is decremented after the message is processed.
+    /// Remove item addressed by a record asynchronously
+    /// mp1 = Record*
+    /// The reference counter of the Record is decremented after the message is processed.
     UM_REMOVERECORD,
-    // Update decoder tables.
+    /// Update decoder tables.
     UM_UPDATEDEC
   };
  public:
@@ -245,139 +245,139 @@ class PlaylistBase
   PlaylistBase(Playable& content, ULONG rid);
 
   CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
-  // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
+  /// Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
   APlayable&        APlayableFromRec(const RecordBase* rec) const { return rec ? (APlayable&)*rec->Data->Content : *Content; }
-  // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
+  /// Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
   Playable&         PlayableFromRec(const RecordBase* rec) const { return rec ? rec->Data->Content->GetPlayable() : *Content; }
-  // Prevent a Record from deletion until FreeRecord is called
+  /// Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
                     { if (rec) ++rec->UseCount; }
-  // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
-  // This function does not free the record immediately. It posts a message which does the job.
-  // So you can safely access the record data until the next PM call.
+  /// Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
+  /// This function does not free the record immediately. It posts a message which does the job.
+  /// So you can safely access the record data until the next PM call.
   void              FreeRecord(RecordBase* rec);
-  // Post record message
+  /// Post record message
   virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
 
-  // Gives the Record back to the PM and destroys the C++ part of it.
-  // The Record object is no longer valid after calling this function.
+  /// Gives the Record back to the PM and destroys the C++ part of it.
+  /// The Record object is no longer valid after calling this function.
   void              DeleteEntry(RecordBase* entry);
 
   void              StartDialog();
-  // Called at WM_INITDLG
-  // Should set Container
+  /// Called at WM_INITDLG
+  /// Should set Container
   virtual void      InitDlg();
 
-  // Dialog procedure, called by DlgProcStub
+  /// Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 
-  // Determine type of Playable object. See ICP_* constants.
-  // Subfunction to CalcIcon.
-  // This function is only called for enumerable items.
+  /// Determine type of Playable object. See ICP_* constants.
+  /// Sub function to CalcIcon.
+  /// This function is only called for enumerable items.
   virtual ICP       GetPlaylistType(const RecordBase* rec) const = 0;
-  // Gets the display state of a record. See IC_* constants.
-  // Subfunction to CalcIcon.
-  // This function is only called for used items.
+  /// Gets the display state of a record. See IC_* constants.
+  /// Sub function to CalcIcon.
+  /// This function is only called for used items.
   virtual IC        GetRecordUsage(const RecordBase* rec) const = 0;
-  // Calculate icon for a record. Content must be valid!
+  /// Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);
-  // Set the window title
+  /// Set the window title
   void              SetTitle();
-  // Load context menu for a record
+  /// Load context menu for a record
   virtual HWND      InitContextMenu() = 0;
-  // Update plug-in specific accelerator table.
+  /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable() = 0;
 
-  // Subfunction to the factory below.
+  /// Sub function to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance& obj, RecordBase* parent) = 0;
-  // Factory: create a new entry in the container.
+  /// Factory: create a new entry in the container.
   RecordBase*       AddEntry(PlayableInstance& obj, RecordBase* parent, RecordBase* after);
-  // Moves the record "entry" including its subitems as child to "parent" after the record "after".
-  // If parent is NULL the record is moved to the top level.
-  // If after is NULL the record is moved to the first place of parent.
-  // The function returns the moved entry or NULL in case of an error.
+  /// Moves the record "entry" including its sub items as child to "parent" after the record "after".
+  /// If parent is NULL the record is moved to the top level.
+  /// If after is NULL the record is moved to the first place of parent.
+  /// The function returns the moved entry or NULL in case of an error.
   RecordBase*       MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after);
-  // Removes entries from the container
+  /// Removes entries from the container
   void              RemoveEntry(RecordBase* const rec);
-  // Find parent record. Returns NULL if rec is at the top level.
+  /// Find parent record. Returns NULL if rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const = 0;
-  // Remove all childrens (recursively) and return the number of deleted objects in the given level.
-  // This function does not remove the record itself.
-  // If root is NULL the entire Collection is cleared.
+  /// Remove all childrens (recursively) and return the number of deleted objects in the given level.
+  /// This function does not remove the record itself.
+  /// If root is NULL the entire Collection is cleared.
   int               RemoveChildren(RecordBase* const root);
-  // Update the list of children (if available) or schedule a request.
+  /// Update the list of children (if available) or schedule a request.
   virtual void      RequestChildren(RecordBase* const rec);
-  // Update the list of children
-  // rec == NULL => root node
+  /// Update the list of children
+  /// rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
 
-  // Populate Source array with records with a given emphasis or an empty list if none.
+  /// Populate Source array with records with a given emphasis or an empty list if none.
   void              GetRecords(USHORT emphasis);
-  // Populate Source array for context menu or drag and drop with anchor rec.
+  /// Populate Source array for context menu or drag and drop with anchor rec.
   bool              GetSource(RecordBase* rec);
-  // Apply a function to all objects in the Source array.
+  /// Apply a function to all objects in the Source array.
   void              Apply2Source(void (PlaylistBase::*op)(Playable&));
   void              Apply2Source(void (PlaylistBase::*op)(RecordBase*));
 
   void              PopulateSetFromSource(AInfoDialog::KeyType& dest);
-  // Set or clear the emphasis of the records in the Source array.
+  /// Set or clear the emphasis of the records in the Source array.
   void              SetEmphasis(USHORT emphasis, bool set) const;
-  // Analyze the records in the Source array for it's types.
+  /// Analyze the records in the Source array for it's types.
   RecordType        AnalyzeRecordTypes() const;
-  // Return true if and only if rec is a subitem of the currently loaded root.
-  // This will not return true if rec points directly to the current root.
+  /// Return true if and only if rec is a subitem of the currently loaded root.
+  /// This will not return true if rec points directly to the current root.
   bool              IsUnderCurrentRoot(RecordBase* rec) const;
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
             // They may be used in the window procedure of derived classes.
-  // Update the icon of a record
+  /// Update the icon of a record
   void              UpdateIcon(RecordBase* rec);
-  // Update the information from a playable instance
+  /// Update the information from a playable instance
   virtual void      UpdateRecord(RecordBase* rec) = 0;
-  // Update status of all active PlayableInstances
+  /// Update status of all active PlayableInstances
   void              UpdatePlayStatus();
-  // Update play status of one record
+  /// Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
 
  protected: // Notifications by the underlying Playable objects.
-  // This function is called when meta, status or technical information of a node changes.
+  /// This function is called when meta, status or technical information of a node changes.
   void              InfoChangeEvent(const PlayableChangeArgs& args, RecordBase* rec);
-  // This function is called when playing starts or stops.
+  /// This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
-  // This function is called when the list of enabled plug-ins changed.
+  /// This function is called when the list of enabled plug-ins changed.
   void              PluginEvent(const PluginEventArgs& args);
 
  protected: // User actions
-  // Add Item
+  /// Add Item
   void              UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent = NULL, RecordBase* before = NULL);
-  // Insert a new item
+  /// Insert a new item
   void              UserInsert(const InsertInfo* pii);
-  // Remove item by Record pointer
+  /// Remove item by Record pointer
   void              UserRemove(RecordBase* rec);
-  // Flatten item by Record pointer, non-recursive
+  /// Flatten item by Record pointer, non-recursive
   void              UserFlatten(RecordBase* rec);
-  // Flatten item by Record pointer, recursive
+  /// Flatten item by Record pointer, recursive
   void              UserFlattenAll(RecordBase* rec);
-  // Save list
+  /// Save list
   void              UserSave(bool saveas);
-  // Navigate to
+  /// Navigate to
   virtual void      UserNavigate(const RecordBase* rec) = 0;
-  // Open tree view
+  /// Open tree view
   void              UserOpenTreeView(Playable& p);
-  // Open detailed view
+  /// Open detailed view
   void              UserOpenDetailedView(Playable& p);
-  // View Info
+  /// View Info
   void              UserOpenInfoView(const AInfoDialog::KeyType& set, AInfoDialog::PageNo page);
-  // Clear playlist
+  /// Clear playlist
   void              UserClearPlaylist(Playable& p);
-  // Refresh records
+  /// Refresh records
   void              UserReload(Playable& p);
-  // Edit metadata
+  /// Edit meta data
   void              UserEditMeta();
-  // Sort records
+  /// Sort records
   void              UserSort(Playable& p);
-  // Place records in random order.
+  /// Place records in random order.
   void              UserShuffle(Playable& p);
   // comparers
   static int        CompURL(const PlayableInstance* l, const PlayableInstance* r);
@@ -389,27 +389,27 @@ class PlaylistBase
   static int        CompTime(const PlayableInstance* l, const PlayableInstance* r);
 
  protected: // D'n'd target
-  // Handle CN_DRAGOVER/CN_DRAGAFTER
+  /// Handle CN_DRAGOVER/CN_DRAGAFTER
   MRESULT           DragOver(DRAGINFO* pdinfo, RecordBase* target);
-  // Handle CN_DROP
+  /// Handle CN_DROP
   void              DragDrop(DRAGINFO* pdinfo, RecordBase* target);
-  // Handle DM_RENDERCOMPLETE
+  /// Handle DM_RENDERCOMPLETE
   void              DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags);
  protected: // D'n'd source
-  // Handle CN_INITDRAG
+  /// Handle CN_INITDRAG
   void              DragInit();
-  // Handle DM_DISCARDOBJECT
+  /// Handle DM_DISCARDOBJECT
   bool              DropDiscard(DRAGINFO* pdinfo);
-  // Handle DM_RENDER
+  /// Handle DM_RENDER
   BOOL              DropRender(DRAGTRANSFER* pdtrans);
-  // Handle DM_ENDCONVERSATION
+  /// Handle DM_ENDCONVERSATION
   void              DropEnd(RecordBase* rec, bool ok);
 
  public: // public interface
   virtual           ~PlaylistBase();
-  // Gets the content
+  /// Gets the content
   Playable*         GetContent() { return Content; }
-  // Get an instance of the same type as the current instance for URL.
+  /// Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj) = 0;
 
 };

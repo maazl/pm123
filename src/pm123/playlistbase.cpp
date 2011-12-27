@@ -858,7 +858,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
         { // not found! => add
           DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata()));
           crp = AddEntry(*pi, rp, crp);
-          if (crp && (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
+          if (crp && (crp->flRecordAttr & CRA_EXPANDED))// (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
             RequestChildren(crp);
           break;
         }
@@ -1072,7 +1072,7 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
 
 void PlaylistBase::PluginEvent(const PluginEventArgs& args)
 { DEBUGLOG(("PlaylistBase(%p)::PluginEvent({&%p{%s}, %i})\n", this,
-    &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
+    &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
   if (args.Plug.PluginType == PLUGIN_DECODER)
   { switch (args.Operation)
     {case PluginEventArgs::Enable:

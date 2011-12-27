@@ -11,3 +11,6 @@ CALL DIRECTORY 'work'
 CALL ENDLOCAL
 
 CALL SysSleep(1)
+
+CALL 'pipecmd' 'plugin list decoder @default'
+/*SAY "R:" result*/

@@ -337,14 +337,13 @@ PluginList Plugin::Visuals (PLUGIN_VISUAL);  // only visuals
 
 
 Plugin::Plugin(Module& mod, PLUGIN_TYPE type)
-: ModRef(*int_ptr<Module>(&mod).toCptr())
+: ModRef(&mod)
 , PluginType(type)
 , Enabled(true)
 {}
 
 Plugin::~Plugin()
-{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, ModRef.Key.cdata()));
-  int_ptr<Module>().fromCptr(&ModRef);
+{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, ModRef->Key.cdata()));
 }
 
 void Plugin::SetEnabled(bool enabled)
@@ -389,7 +388,7 @@ void Plugin::SetParams(stringmap_own& params)
 
 void Plugin::Serialize(xstringbuilder& target) const
 { size_t start = target.length();
-  const xstring& modulename = ModRef.ModuleName;
+  const xstring& modulename = ModRef->ModuleName;
   target.append(modulename);
   if (modulename.startsWithI(amp_startpath))
     target.erase(start, amp_startpath.length());
@@ -495,7 +494,7 @@ void Plugin::AppendPlugin(Plugin* plugin)
 { PluginList& target = GetPluginList(plugin->PluginType);
   Mutex::Lock lock(Module::Mtx);
   if (target.contains(plugin))
-    throw ModuleException("Tried to load the plug-in %s twice.", plugin->ModRef.Key.cdata());
+    throw ModuleException("Tried to load the plug-in %s twice.", plugin->ModRef->Key.cdata());
   plugin->RaisePluginChange(PluginEventArgs::Load);
   target.append() = plugin;
 }
@@ -572,7 +571,7 @@ xstring PluginList::Deserialize(const char* str)
     try
     { int_ptr<Plugin> pp = Plugin::Deserialize(xstring(sp, cp-sp), Type);
       if (contains(pp))
-      { err.appendf("Tried to load plug-in %s twice.\n", pp->ModRef.Key.cdata());
+      { err.appendf("Tried to load plug-in %s twice.\n", pp->ModRef->Key.cdata());
         goto next;
       }
       append() = pp;

@@ -381,13 +381,12 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
 
   // Prepare exclude list
   PlayableSet exclude;
-  { foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
-    { cur = *pipp;
-      Playable& p = cur->GetPlayable();
-      exclude.get(p) = &p;
-    }
-    // Implicit: cur = &GetCurrent(); 
+  foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
+  { cur = *pipp;
+    Playable& p = cur->GetPlayable();
+    exclude.get(p) = &p;
   }
+  // Implicit: cur = &GetCurrent();
 
   // Identify direction
   DirFunc dirfunc;

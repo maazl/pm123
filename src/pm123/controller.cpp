@@ -121,65 +121,65 @@ class CtrlImp
   /// Applies the operator op to flag and returns true if the flag has been changed.
   /// Implicitly updates the reply fields \c Flags and \c StrVal.
          bool  SetFlag(bool& flag);
-  // Sets the volume according to this->Volume and the scan mode.
+  /// Sets the volume according to this->Volume and the scan mode.
   static void  SetVolume();
-  // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
-  // The function returns the result of dec_play.
-  // Precondition: The output must have been initialized.
-  // The function does not return unless the decoder is decoding or an error occurred.
+  /// Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
+  /// @return The function returns the result of dec_play.
+  /// @remarks Precondition: The output must have been initialized.
+  /// The function does not return unless the decoder is decoding or an error occurred.
   static ULONG DecoderStart(APlayable& ps, PM123_TIME offset);
-  // Stops decoding and deinitializes the decoder plug-in.
+  /// Stops decoding and deinitializes the decoder plug-in.
   static void  DecoderStop();
-  // Initializes the output for playing pp.
-  // The playable object is needed for naming purposes.
+  /// Initializes the output for playing pp.
+  /// The playable object is needed for naming purposes.
   static ULONG OutputStart(APlayable& pp);
-  // Stops playback and clears the prefetch list.
+  /// Stops playback and clears the prefetch list.
   static void  OutputStop();
-  // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
-  // The status of common parts of the two stacks is not touched.
-  // To set the in-use status initially pass EmptyStack as oldstack.
-  // To reset all in-use status pass EmptyStack as newstack.
+  /// Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
+  /// The status of common parts of the two stacks is not touched.
+  /// To set the in-use status initially pass EmptyStack as oldstack.
+  /// To reset all in-use status pass EmptyStack as newstack.
   static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
-  // Internal sub function to UpdateStackUsage
+  /// Internal sub function to UpdateStackUsage
   static void  SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set);
-  // Core logic of MsgSkip.
-  // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
-  // If we try to move the current song pointer out of the range of the that that si relies on,
-  // the function returns false and si is in reset state.
+  /// Core logic of MsgSkip.
+  /// Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
+  /// If we try to move the current song pointer out of the range of the that that si relies on,
+  /// the function returns false and si is in reset state.
          bool  SkipCore(Location& si, int count);
-  // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
+  /// Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
   static bool  AdjustNext(Location& si);
-  // Jump to the location si. The function will destroy the content of si.
+  /// Jump to the location si. The function will destroy the content of si.
          void  NavigateCore(Location& si);
   // Register events to a new current song and request some information if not yet known.
   //static void  AttachCurrentSong(APlayable& ps);
-  // Clears the prefetch list and keep the first element if keep is true.
-  // The operation is atomic.
+  /// Clears the prefetch list and keep the first element if keep is true.
+  /// The operation is atomic.
   static void  PrefetchClear(bool keep);
-  // Check whether a prefetched item is completed.
-  // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
-  // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
-  // change event is set.
+  /// Check whether a prefetched item is completed.
+  /// This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
+  /// In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
+  /// change event is set.
   static void  CheckPrefetch(PM123_TIME pos);
-  // Get the time in the current Song. This may cleanup the prefetch list by calling CheckPrefetch.
+  /// Get the time in the current Song. This may cleanup the prefetch list by calling CheckPrefetch.
   static PM123_TIME FetchCurrentSongTime();
-  // Internal stub to provide the TFNENTRY calling convention for _beginthread.
+  /// Internal stub to provide the TFNENTRY calling convention for _beginthread.
   friend void TFNENTRY ControllerWorkerStub(void*);
-  // Worker thread that processes the message queue.
+  /// Worker thread that processes the message queue.
   static void  Worker();
-  // Event handler for decoder events.
+  /// Event handler for decoder events.
   static void  DecEventHandler(void*, const dec_event_args& args);
-  // Event handler for output events.
+  /// Event handler for output events.
   static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
-  // Event handler for tracking modifications of the currently playing song.
+  /// Event handler for tracking modifications of the currently playing song.
   static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
-  // Event handler for tracking modifications of the currently loaded object.
+  /// Event handler for tracking modifications of the currently loaded object.
   static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
   // Event handler for asynchronous changes to the SongIterator (not any prefetched one).
   //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
 
  private: // messages handlers, not thread safe
-  // The messages are described before the class header.
+  // The messages are described in controller.h.
   void  MsgNop     ();
   void  MsgPause   ();
   void  MsgScan    ();
@@ -197,7 +197,7 @@ class CtrlImp
   void  MsgDecStop ();
   void  MsgOutStop ();
 
- private: // non-constructable, non-copyable
+ private: // non-constructible, non-copyable
   CtrlImp();
   CtrlImp(const CtrlImp&);
   void  operator=(const CtrlImp&);
@@ -206,10 +206,10 @@ class CtrlImp
 
  private:
   struct QueueTraverseProxyData
-  { void  (*Action)(const Ctrl::ControlCommand& cmd, void* arg);
+  { bool  (*Action)(const Ctrl::ControlCommand& cmd, void* arg);
     void* Arg;
   };
-  static void QueueTraverseProxy(const Ctrl::QEntry& entry, void* arg);
+  static bool QueueTraverseProxy(const Ctrl::QEntry& entry, void* arg);
 };
 
 
@@ -1017,9 +1017,10 @@ void CtrlImp::MsgLocation()
   } else
   { // Fetch time first because that may change Current().
     SongIterator*& sip = (SongIterator*&)PtrArg;
-    PM123_TIME pos = FetchCurrentSongTime();
     *sip = Current()->Loc; // copy
-    sip->Navigate(pos, SyncJob);
+    PM123_TIME pos = FetchCurrentSongTime();
+    if (pos)
+      sip->Navigate(pos, SyncJob);
   }
   Reply(RC_OK);
 }
@@ -1165,15 +1166,15 @@ void CtrlImp::Worker()
   WinTerminate(hab);
 }
 
-void CtrlImp::QueueTraverseProxy(const QEntry& entry, void* arg)
-{ (*((QueueTraverseProxyData*)arg)->Action)(*entry.Cmd, ((QueueTraverseProxyData*)arg)->Arg);
+bool CtrlImp::QueueTraverseProxy(const QEntry& entry, void* arg)
+{ return (*((QueueTraverseProxyData*)arg)->Action)(*entry.Cmd, ((QueueTraverseProxyData*)arg)->Arg);
 }
 
-void Ctrl::QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), void* arg)
+bool Ctrl::QueueTraverse(bool (*action)(const ControlCommand& cmd, void* arg), void* arg)
 { if (CtrlImp::CurCmd)
     action(*CtrlImp::CurCmd, arg);
   CtrlImp::QueueTraverseProxyData args_proxy = { action, arg };
-  Queue.ForEach(&CtrlImp::QueueTraverseProxy, &args_proxy);
+  return Queue.ForEach(&CtrlImp::QueueTraverseProxy, &args_proxy);
 }
 
 
@@ -1216,7 +1217,6 @@ void Ctrl::Uninit()
   SongIterator last; // last playing location
   { Queue.Purge();
     PostCommand(MkLocation(&last, 0));
-    PostCommand(MkPlayStop(Op_Reset));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     CtrlImp::DecEventDelegate.detach();

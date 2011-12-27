@@ -185,7 +185,7 @@ class RescheduleWorker : DependencyInfoWorker
  private:
   static sorted_vector<RescheduleWorker,RescheduleWorker,CompareInstance<RescheduleWorker> > Instances;
  public:
-  static  void              QueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
+  static  bool              QueueTraverse(bool (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
 };
 
 sorted_vector<RescheduleWorker,RescheduleWorker,CompareInstance<RescheduleWorker> > RescheduleWorker::Instances;
@@ -216,10 +216,12 @@ void RescheduleWorker::OnCompleted()
   delete this;
 }
 
-void RescheduleWorker::QueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
+bool RescheduleWorker::QueueTraverse(bool (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
 { Mutex::Lock lock(Mtx);
   foreach (RescheduleWorker**, rpp, Instances)
-    action(*(*rpp)->Inst, (*rpp)->Pri, (*rpp)->Data, arg);
+    if (!action(*(*rpp)->Inst, (*rpp)->Pri, (*rpp)->Data, arg))
+      return false;
+  return true;
 }
 
 
@@ -270,12 +272,12 @@ void TFNENTRY PlayableWorkerStub(void* arg)
 { APlayable::PlayableWorker(*(APlayable::WInit*)arg);
 }
 
-void APlayable::QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg)
+bool APlayable::QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg)
 { DEBUGLOG(("APlayable::QueueTraverseProxy(&%p{%p,...}, %u, %p)\n", &entry, entry.Data.get(), priority, arg));
-  (*((QueueTraverseProxyData*)arg)->Action)(entry.Data, priority ? PRI_Low : PRI_Normal, false, ((QueueTraverseProxyData*)arg)->Arg);
+  return (*((QueueTraverseProxyData*)arg)->Action)(entry.Data, priority ? PRI_Low : PRI_Normal, false, ((QueueTraverseProxyData*)arg)->Arg);
 }
 
-void APlayable::QueueTraverse(void (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg)
+bool APlayable::QueueTraverse(bool (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg)
 { QueueTraverseProxyData arg_proxy = { action, arg };
   const WInit* const wpe = WItems + WNumWorkers+WNumDlgWorkers;
   Mutex::Lock lock(WQueue.Mtx);
@@ -286,11 +288,11 @@ void APlayable::QueueTraverse(void (*action)(APlayable* entry, Priority pri, boo
     if (obj)
       (*action)(obj, wp->Pri, true, arg);
   }
-  WQueue.ForEach(&QueueTraverseProxy, &arg_proxy);
+  return WQueue.ForEach(&QueueTraverseProxy, &arg_proxy);
 }
 
-void APlayable::WaitQueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
-{ RescheduleWorker::QueueTraverse(action, arg);
+bool APlayable::WaitQueueTraverse(bool (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
+{ return RescheduleWorker::QueueTraverse(action, arg);
 }
 
 

@@ -45,6 +45,9 @@
 #include <debuglog.h>
 
 
+#define MAX_ITEMS 1000
+
+
 InspectorDialog::InspectorDialog()
 : DialogBase(DLG_INSPECTOR, NULLHANDLE, DF_AutoResize)
 { DEBUGLOG(("InspectorDialog(%p)::InspectorDialog()\n", this));
@@ -153,7 +156,7 @@ void InspectorDialog::OnDestroy()
   // this may get invalid here
 }
 
-static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
+static bool ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
 { DEBUGLOG(("InspectorDialog:ControllerQCB(&%p{%u,...}, %p)\n", &cmd1, cmd1.Cmd, arg));
   const Ctrl::ControlCommand* cmd = &cmd1;
   vector<char>& result = *(vector<char>*)arg;
@@ -163,7 +166,7 @@ static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
   { // Deadly pill or completely consumed item
     sb.append("NULL");
     result.append() = sb.detach_array();
-    return;
+    return result.size() < MAX_ITEMS;
   }
   do
   { const char* cmdname;
@@ -240,10 +243,13 @@ static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
       break;
     }
     result.append() = sb.detach_array();
+    if (result.size() >= MAX_ITEMS)
+      return false;
     // next
     cmd = cmd->Link;
     sb.append('+');
   } while (cmd);
+  return true;
 }
 
 static void PlayableFlagsMapper(char* str, InfoFlags flags, bool uc)
@@ -256,7 +262,7 @@ static void PlayableFlagsMapper(char* str, InfoFlags flags, bool uc)
       str[i] = tpl[i];
 }
 
-static void WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
+static bool WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
 { DEBUGLOG(("InspectorDialog:WorkerQCB(%p, %u, %u, %p)\n", entry, pri, svc, arg));
   vector<char>& result = *(vector<char>*)arg;
   xstringbuilder sb;
@@ -275,9 +281,10 @@ static void WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
     sb.appendf("%c[%s -> %s] %s", prefixchar[svc][pri == PRI_Normal], rqstr, isstr, entry->GetPlayable().URL.cdata());
   }
   result.append() = sb.detach_array();
+  return result.size() < MAX_ITEMS;
 }
 
-static void WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& depends, void* arg)
+static bool WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& depends, void* arg)
 { DEBUGLOG(("InspectorDialog:WaitQCB(&%p, %u, %p, %p)\n", &entry, pri, &depends, arg));
   vector<char>& result = *(vector<char>*)arg;
   xstringbuilder sb;
@@ -289,7 +296,22 @@ static void WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& dep
     PlayableFlagsMapper(rqstr, e.What, pri == PRI_Normal);
     sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, entry.GetPlayable().URL.cdata(), e.Inst->GetPlayable().URL.cdata());
     result.append() = sb.detach_array();
+    if (result.size() >= MAX_ITEMS)
+      return false;
   }
+  return true;
+}
+
+static void AppendDummy(vector<char>& data)
+{ char* cp = new char[4];
+  memcpy(cp, "...", 4);
+  data.append() = cp;
+}
+
+static void DiscardData(vector<char>& data)
+{ for (char*const* cpp = data.begin(); cpp != data.end(); ++cpp)
+    delete[] *cpp;
+  data.clear();
 }
 
 void InspectorDialog::Refresh()
@@ -300,7 +322,8 @@ void InspectorDialog::Refresh()
   PMASSERT(lb != NULLHANDLE);
   vector<char> data;
   // Retrieve data
-  Ctrl::QueueTraverse(&ControllerQCB, &data);
+  if (!Ctrl::QueueTraverse(&ControllerQCB, &data))
+    AppendDummy(data);
   // refresh listbox
   { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
     LBOXINFO lbi = { 0, data.size() };
@@ -311,7 +334,8 @@ void InspectorDialog::Refresh()
   // Refresh Worker Q
   lb = WinWindowFromID(GetHwnd(), LB_WORKERQ);
   // Retrieve data
-  APlayable::QueueTraverse(&WorkerQCB, &data);
+  if (!APlayable::QueueTraverse(&WorkerQCB, &data))
+    AppendDummy(data);
   // refresh listbox
   { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
     LBOXINFO lbi = { 0, data.size() };
@@ -322,7 +346,8 @@ void InspectorDialog::Refresh()
   // Refresh Dependencies
   lb = WinWindowFromID(GetHwnd(), LB_DEPENDENCIES);
   // Retrieve data
-  APlayable::WaitQueueTraverse(&WaitQCB, &data);
+  if (!APlayable::WaitQueueTraverse(&WaitQCB, &data))
+    AppendDummy(data);
   // refresh listbox
   { PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
     LBOXINFO lbi = { 0, data.size() };
@@ -336,12 +361,6 @@ void InspectorDialog::Refresh()
     && WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_QUERYVALUE, MPFROMP(&value), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)) )
     PMXASSERT(WinStartTimer(amp_player_hab, GetHwnd(), TID_INSP_AUTOREFR, value), != 0);
 }
-
-void InspectorDialog::DiscardData(vector<char>& data)
-{ for (char*const* cpp = data.begin(); cpp != data.end(); ++cpp)
-    delete[] *cpp;
-  data.clear();
-} 
 
 
 volatile int_ptr<InspectorDialog> InspectorDialog::Instance;

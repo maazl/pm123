@@ -216,8 +216,8 @@ xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& 
       }
     }
   }
-  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder->ModRef.Key.cdata(), format.cdata()));
-  return decoder >= 0 ? decoder->ModRef.Key : xstring();
+  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder->ModRef->Key.cdata(), format.cdata()));
+  return decoder >= 0 ? decoder->ModRef->Key : xstring();
 }
 
 /* Default dialog procedure for the file dialog. */

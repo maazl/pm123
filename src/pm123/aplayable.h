@@ -274,7 +274,7 @@ class APlayable
     int      TID;
   };
   struct QueueTraverseProxyData
-  { void  (*Action)(APlayable* entry, Priority pri, bool insvc, void* arg);
+  { bool  (*Action)(APlayable* entry, Priority pri, bool insvc, void* arg);
     void* Arg;
   };
  private:
@@ -288,7 +288,7 @@ class APlayable
           void                HandleRequest(Priority pri);
   static  void                PlayableWorker(WInit& init);
   friend  void TFNENTRY       PlayableWorkerStub(void* arg);
-  static  void                QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg);
+  static  bool                QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg);
 
  public:
   /// Initialize worker
@@ -296,14 +296,16 @@ class APlayable
   /// Destroy worker
   static  void                Uninit();
 
-  /// @brief Inspect worker queue
-  /// @details The \a action function is called once for each queue item.
+  /// Inspect worker queue
+  /// @param action The \a action function is called once for each queue item.
+  /// When it returns false the enumeration is aborted.
+  /// @return true if the enumeration completed without abort.
   /// This is done from synchronized context.
-  static  void                QueueTraverse(void (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg);
+  static  bool                QueueTraverse(bool (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg);
   /// Inspect waiting worker items.
   /// @details The \a action function is called once for each queue item.
   /// This is done from synchronized context.
-  static  void                WaitQueueTraverse(void (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
+  static  bool                WaitQueueTraverse(bool (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg);
 };
 
 #endif

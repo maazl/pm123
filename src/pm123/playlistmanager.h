@@ -46,17 +46,19 @@
 class PlaylistManager
 : public PlaylistBase
 {public:
-  // C++ part of a record
   struct Record;
+  /// C++ part of a record
   struct CPData : public CPDataBase
-  { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
-    bool              Recursive; // Flag whether this node is in the current callstack.
+  { /// Pointer to parent Record or NULL if we are at the root level.
+    Record*           Parent;
+    /// Flag whether this node is in the current callstack.
+    bool              Recursive;
     CPData(PlayableInstance& content, PlaylistManager& pm,
            void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
            RecordBase* rec,
            Record* parent);
   };
-  // POD part of a record
+  /// POD part of a record
   struct Record : public RecordBase
   { // For convenience
     const CPData*   Data() const { return (const CPData*&)RecordBase::Data; }
@@ -71,60 +73,60 @@ class PlaylistManager
   bool              DecChanged2;   // Shadow of PlaylistBase::DecChanged to handle the record menu independantly.
 
  private:
-  // Create a playlist manager window for an URL, but don't open it.
+  /// Create a playlist manager window for an object, but don't open it.
   PlaylistManager(Playable& obj);
   static PlaylistManager* Factory(Playable& key);
   static int        Comparer(const PlaylistManager& pl, const Playable& key);
   typedef inst_index<PlaylistManager, Playable, &PlaylistManager::Comparer> RepositoryType;
  public:
   static int_ptr<PlaylistManager> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistManager::Factory); }
-  // Get an instance of the same type as the current instance for URL.
+  /// Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
                     ~PlaylistManager() { RepositoryType::RemoveWithKey(*this, *Content); }
   static void       DestroyAll();
 
  private:
-  // Post record message, filtered
+  /// Post record message, filtered
   virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
-  // create container window
+  /// create container window
   virtual void      InitDlg();
-  // Dialog procedure, called by DlgProcStub
+  /// Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Load context menu for a record
+  /// Load context menu for a record
   virtual HWND      InitContextMenu();
-  // Update plug-in specific accelerator table.
+  /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable();
-  // Set Status info
+  /// Set Status info
   void              SetInfo(const xstring& info);
-  // initiate the display of a record's info
+  /// initiate the display of a record's info
   void              ShowRecordAsync(Record* rec);
-  // Determine type of Playable object
-  // Subfunction to CalcIcon.
+  /// Determine type of Playable object
+  /// Subfunction to CalcIcon.
   virtual ICP       GetPlaylistType(const RecordBase* rec) const;
-  // Gets the Usage type of a record.
-  // Subfunction to CalcIcon.
+  /// Gets the Usage type of a record.
+  /// Subfunction to CalcIcon.
   virtual IC        GetRecordUsage(const RecordBase* rec) const;
-  // check whether the current record is recursive
+  /// check whether the current record is recursive
   bool              RecursionCheck(const RecordBase* rec) const;
-  // same with explicit parent for new items not yet added
+  /// same with explicit parent for new items not yet added
   bool              RecursionCheck(const Playable& pp, const RecordBase* parent) const;
 
  private: // Modifiying function and notifications
-  // Subfunction to the factory below.
+  /// Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance& obj, RecordBase* parent);
-  // Find parent record. Returns NULL if rec is at the top level.
+  /// Find parent record. Returns NULL if rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
 
-  // Update the list of children (if available) or schedule a request.
+  /// Update the list of children (if available) or schedule a request.
   virtual void      RequestChildren(RecordBase* const rec);
-  // Update the list of children
-  // rec == NULL => root node
+  /// Update the list of children
+  /// rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
-  // Update a record
+  /// Update a record
   virtual void      UpdateRecord(RecordBase* rec);
-  // Update play status of one record
+  /// Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
-  // Navigate to
+  /// Navigate to
   virtual void      UserNavigate(const RecordBase* rec);
 };
 

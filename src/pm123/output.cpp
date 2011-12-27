@@ -70,9 +70,9 @@ void Output::PluginNotification(void*, const PluginEventArgs& args)
 
 /* Assigns the addresses of the output plug-in procedures. */
 void Output::LoadPlugin()
-{ DEBUGLOG(("Output(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("Output(%p{%s})::LoadPlugin()\n", this, mod.Key.cdata()));
   A = NULL;
-  const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&output_init,            "output_init");
   mod.LoadMandatoryFunction(&output_uninit,          "output_uninit");
   mod.LoadMandatoryFunction(&output_playing_samples, "output_playing_samples");
@@ -84,7 +84,7 @@ void Output::LoadPlugin()
 }
 
 bool Output::InitPlugin()
-{ DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, ModRef.Key.cdata()));
+{ DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, ModRef->Key.cdata()));
 
   if ((*output_init)(&A) != 0)
   { A = NULL;
@@ -95,7 +95,7 @@ bool Output::InitPlugin()
 }
 
 bool Output::UninitPlugin()
-{ DEBUGLOG(("Output(%p{%s})::UninitPlugin()\n", this, ModRef.Key.cdata()));
+{ DEBUGLOG(("Output(%p{%s})::UninitPlugin()\n", this, ModRef->Key.cdata()));
 
   if (IsInitialized())
   { (*output_command)(A, OUTPUT_CLOSE, NULL);
@@ -152,9 +152,9 @@ OutputProxy1::~OutputProxy1()
 
 /* Assigns the addresses of the output plug-in procedures. */
 void OutputProxy1::LoadPlugin()
-{ DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, mod.Key.cdata()));
   A = NULL;
-  const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&output_init,            "output_init");
   mod.LoadMandatoryFunction(&output_uninit,          "output_uninit");
   mod.LoadMandatoryFunction(&voutput_playing_samples,"output_playing_samples");
@@ -181,7 +181,7 @@ inline void OutputProxy1::SendSamples(void* a)
 /* virtualization of level 1 output plug-ins */
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
 proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info)
-{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->ModRef.Key.cdata(), a, msg, info));
+{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->ModRef->Key.cdata(), a, msg, info));
 
   if (info == NULL) // sometimes info is NULL
     return (*op->voutput_command)(a, msg, NULL);
@@ -289,7 +289,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* fo
 PROXYFUNCIMP(void DLLENTRY, OutputProxy1)
 proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, PM123_TIME posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
-    op, op->ModRef.Key.cdata(), a, len, posmarker, op->voutput_buffer_level));
+    op, op->ModRef->Key.cdata(), a, len, posmarker, op->voutput_buffer_level));
 
   if (op->voutput_buffer_level == 0)
     op->voutput_posmarker = posmarker;
@@ -301,7 +301,7 @@ proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, PM123_TIME pos
 
 PROXYFUNCIMP(PM123_TIME DLLENTRY, OutputProxy1)
 proxy_1_output_playing_pos( OutputProxy1* op, void* a )
-{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->ModRef.Key.cdata(), a));
+{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->ModRef->Key.cdata(), a));
   return ProxyHelper::TstmpI2F((*op->voutput_playing_pos)(a), op->voutput_posmarker);
 }
 

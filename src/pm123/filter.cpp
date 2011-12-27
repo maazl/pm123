@@ -43,9 +43,9 @@
 
 /* Assigns the addresses of the filter plug-in procedures. */
 void Filter::LoadPlugin()
-{ DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, mod.Key.cdata()));
   F = NULL;
-  const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&filter_init,   "filter_init");
   mod.LoadMandatoryFunction(&filter_update, "filter_update");
   mod.LoadMandatoryFunction(&filter_uninit, "filter_uninit");
@@ -56,7 +56,7 @@ bool Filter::InitPlugin()
 }
 
 bool Filter::UninitPlugin()
-{ DEBUGLOG(("Filter(%p{%s})::UninitPlugin\n", this, ModRef.Key.cdata()));
+{ DEBUGLOG(("Filter(%p{%s})::UninitPlugin\n", this, ModRef->Key.cdata()));
 
   if (IsInitialized())
   { (*filter_uninit)(F);
@@ -67,7 +67,7 @@ bool Filter::UninitPlugin()
 }
 
 bool Filter::Initialize(FILTER_PARAMS2* params)
-{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, ModRef.Key.cdata(), params));
+{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, ModRef->Key.cdata(), params));
 
   FILTER_PARAMS2 par = *params;
   if (IsInitialized() || (*filter_init)(&F, params) != 0)
@@ -135,9 +135,9 @@ class FilterProxy1 : public Filter, protected ProxyHelper
 };
 
 void FilterProxy1::LoadPlugin()
-{ DEBUGLOG(("FilterProxy1(%p{%s})::LoadPlugin()\n", this, ModRef.Key.cdata()));
+{ const Module& mod = *ModRef;
+  DEBUGLOG(("FilterProxy1(%p{%s})::LoadPlugin()\n", this, mod.Key.cdata()));
   F = NULL;
-  const Module& mod = ModRef;
   mod.LoadMandatoryFunction(&vfilter_init,         "filter_init");
   mod.LoadMandatoryFunction(&vfilter_uninit,       "filter_uninit");
   mod.LoadMandatoryFunction(&vfilter_play_samples, "filter_play_samples");
@@ -161,7 +161,7 @@ inline void FilterProxy1::SendSamples()
 
 PROXYFUNCIMP(ULONG DLLENTRY, FilterProxy1)
 proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
-{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->ModRef.Key.cdata(), f, params, params->a));
+{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->ModRef->Key.cdata(), f, params, params->a));
 
   FILTER_PARAMS par;
   par.size                = sizeof par;
@@ -198,7 +198,7 @@ proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
 
 PROXYFUNCIMP(void DLLENTRY, FilterProxy1)
 proxy_1_filter_update(FilterProxy1* pp, const FILTER_PARAMS2* params)
-{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->ModRef.Key.cdata(), params));
+{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->ModRef->Key.cdata(), params));
 
   CritSect cs;
   // replace function pointers

@@ -194,7 +194,7 @@ struct PluginEventArgs
 class Plugin : public Iref_count
 {public:
   /// Strong reference to the underlying module.
-  Module&      ModRef;
+  const int_ptr<Module> ModRef;
   /// Kind of plug-in handled by the class instance.
   const PLUGIN_TYPE PluginType;
  protected:
