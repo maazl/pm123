@@ -346,10 +346,10 @@ class vector_int : public vector<T>
   /// @brief Removes an element from the vector and return it's value.
   /// @details The \a where pointer is set to the next item after the removed one.
   /// Precondition: \a where in [begin(),end()), Performance: O(n)
-  const int_ptr<T>  erase(const int_ptr<T>*& where){ return int_ptr<T>((const int_ptr<T>&)vector<T>::erase((T*const*&)where)); }
+  const int_ptr<T>  erase(const int_ptr<T>*& where){ return int_ptr<T>().fromCptr(vector<T>::erase((T*const*&)where)); }
   /// @brief Removes an element from the vector and return it's value.
   /// @details Precondition: \a where in [0,size()), Performance: O(n)
-  const int_ptr<T>  erase(size_t where)            { return int_ptr<T>((const int_ptr<T>&)vector<T>::erase(where)); }
+  const int_ptr<T>  erase(size_t where)            { return int_ptr<T>().fromCptr(vector<T>::erase(where)); }
 };
 
 template <class T>
