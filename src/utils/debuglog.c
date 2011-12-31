@@ -38,6 +38,12 @@
 #include <malloc.h>
 
 
+long getTID()
+{ PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  return ptib->tib_ptib2->tib2_ultid;
+}
+
 // log to stderr
 void debuglog( const char* fmt, ... )
 { va_list va;
@@ -82,17 +88,13 @@ void debuglog( const char* fmt, ... )
 }
 
 void dassert(const char* file, int line, const char* msg)
-{ PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg);
+{ fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n", file, line, getTID(), msg);
   DosResetBuffer(2);
   abort();
 }
 
 void cassert(const char* file, int line, const char* msg)
-{ PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s (%i)\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, strerror(errno), errno);
+{ fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s (%i)\n", file, line, getTID(), msg, strerror(errno), errno);
   DosResetBuffer(2);
   abort();
 }
@@ -100,10 +102,8 @@ void cassert(const char* file, int line, const char* msg)
 void oassert(unsigned long apiret, const char* file, int line, const char* msg)
 { if (apiret)
   { char buf[1024];
-    PTIB ptib;
     os2_strerror(apiret, buf, sizeof(buf));
-    DosGetInfoBlocks(&ptib, NULL);
-    fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, buf);
+    fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, getTID(), msg, buf);
     DosResetBuffer(2);
     abort();    
 } }
@@ -112,9 +112,7 @@ void pmassert(const char* file, int line, const char* msg)
 { char buf[1024];
   os2pm_strerror(buf, sizeof(buf));
   if (*buf)
-  { PTIB ptib;
-    DosGetInfoBlocks(&ptib, NULL);
-    fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, buf);
+  { fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, getTID(), msg, buf);
     DosResetBuffer(2);
     abort();    
 } }

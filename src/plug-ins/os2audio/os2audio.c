@@ -559,10 +559,9 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
   // Update TID always because the decoder thread may change while playing gapless.
-  { PTIB ptib;
-    DosGetInfoBlocks( &ptib, NULL );
-    if (a->drivethread != ptib->tib_ptib2->tib2_ultid)
-    { a->drivethread = ptib->tib_ptib2->tib2_ultid;
+  { TID tid = getTID();
+    if (a->drivethread != tid)
+    { a->drivethread = tid;
       // If we were already boosted we also have to boost the new thread
       if (a->boosted)
         DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,

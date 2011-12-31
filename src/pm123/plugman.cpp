@@ -136,6 +136,7 @@ int ModuleImp::Comparer(const Module& module, const KeyType& key)
 
 ModuleImp::~ModuleImp()
 { DEBUGLOG(("Module(%p{%s})::~Module()\n", this, Key.cdata()));
+  ModuleImp::Repository::RemoveWithKey(*this, *Key.cdata());
   if (HModule)
   {
     #ifdef DEBUG_LOG
@@ -150,7 +151,6 @@ ModuleImp::~ModuleImp()
     #endif
     HModule = NULLHANDLE;
   }
-  ModuleImp::Repository::RemoveWithKey(*this, *Key.cdata());
   DEBUGLOG(("Module::~Module completed\n"));
 }
 
@@ -289,7 +289,8 @@ int_ptr<Module> Module::FindByKey(const char* name)
 }
 
 int_ptr<Module> Module::GetByKey(const char* name)
-{ xstring modulename;
+{ ASSERT(getTID() == 1);
+  xstring modulename;
   char* cp = modulename.allocate(strlen(name), name);
   // replace '/'
   for(;;)

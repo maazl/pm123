@@ -94,6 +94,7 @@ class Output
   static int_ptr<Output> FindInstance(const Module& module);
   /// Return the \c Output instance on \a module. Create a new one if required.
   /// @return the plug-in or NULL if it cannot be instantiated.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Output> GetInstance(Module& module);
 
   // initialize global services

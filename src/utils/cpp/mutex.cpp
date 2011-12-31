@@ -156,16 +156,13 @@ void SpinLock::Wait()
 
 void RecSpinLock::Inc()
 { SpinLock::Inc();
-  PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  ASSERT(CurrentTID == 0 || CurrentTID == ptib->tib_ptib2->tib2_ultid);
-  CurrentTID = ptib->tib_ptib2->tib2_ultid;
+  TID tid = getTID();
+  ASSERT(CurrentTID == 0 || CurrentTID == tid);
+  CurrentTID = tid;
 }
 
 bool RecSpinLock::Dec()
-{ PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  ASSERT(CurrentTID == ptib->tib_ptib2->tib2_ultid);
+{ ASSERT(CurrentTID == getTID());
   if (Peek() == 1)
     CurrentTID = 0;
   return SpinLock::Dec();
@@ -173,9 +170,7 @@ bool RecSpinLock::Dec()
 
 void RecSpinLock::Wait()
 { DEBUGLOG(("RecSpinLock(%p)::Wait() - %u\n", this));
-  PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  if (CurrentTID == ptib->tib_ptib2->tib2_ultid)
+  if (CurrentTID == getTID())
     DEBUGLOG(("RecSpinLock::Wait recusrsion!\n"));
   else
     SpinLock::Wait();

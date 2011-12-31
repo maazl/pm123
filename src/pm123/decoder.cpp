@@ -416,10 +416,7 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
   op->temppos = -1; // buffer is empty now
 
   if (op->tid == (ULONG)-1)
-  { PTIB ptib;
-    DosGetInfoBlocks(&ptib, NULL);
-    op->tid = ptib->tib_ordinal;
-  }
+    op->tid = getTID();
 
   while (rem)
   { float* dest;
@@ -808,7 +805,8 @@ int_ptr<Decoder> Decoder::FindInstance(const Module& module)
 }
 
 int_ptr<Decoder> Decoder::GetInstance(Module& module)
-{ if ((module.GetParams().type & PLUGIN_DECODER) == 0)
+{ ASSERT(getTID() == 1);
+  if ((module.GetParams().type & PLUGIN_DECODER) == 0)
     throw ModuleException("Cannot load plug-in %s as decoder.", module.Key.cdata());
   Mutex::Lock lock(Module::Mtx);
   Decoder* dec = module.Dec;

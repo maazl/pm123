@@ -345,7 +345,8 @@ int_ptr<Output> Output::FindInstance(const Module& module)
 }
 
 int_ptr<Output> Output::GetInstance(Module& module)
-{ if ((module.GetParams().type & PLUGIN_OUTPUT) == 0)
+{ ASSERT(getTID() == 1);
+  if ((module.GetParams().type & PLUGIN_OUTPUT) == 0)
     throw ModuleException("Cannot load plug-in %s as output plug-in.", module.Key.cdata());
   Mutex::Lock lock(Module::Mtx);
   Output* out = module.Out;

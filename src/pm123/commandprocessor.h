@@ -57,6 +57,11 @@ class ACommandProcessor
 
   /// Use this factory method to create instances.
   static ACommandProcessor* Create();
+
+  /// Initialize command processor service.
+  static void Init();
+  /// Shutdown command processor service.
+  static void Uninit();
 };
 
 #endif

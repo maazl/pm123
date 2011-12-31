@@ -44,6 +44,7 @@
 #include "controller.h"
 #include "loadhelper.h"
 #include "pipe.h"
+#include "commandprocessor.h"
 
 #include <xio.h>
 #include <utilfct.h>
@@ -247,6 +248,8 @@ int main(int argc, char** argv)
   else if (start && amp_pipe_check())
     goto exit;
 
+  ACommandProcessor::Init();
+
   // prepare plug-in manager
   plugman_init();
 
@@ -313,6 +316,7 @@ int main(int argc, char** argv)
   ///////////////////////////////////////////////////////////////////////////
   Playable::Uninit();
   plugman_uninit();
+  ACommandProcessor::Uninit();
  exit:
   config_deleg.detach();
   Cfg::Uninit();

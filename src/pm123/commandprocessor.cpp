@@ -40,6 +40,7 @@
 #include "location.h"
 #include "eventhandler.h"
 #include "123_util.h"
+#include "pm123.h"
 #include "dependencyinfo.h"
 #include "copyright.h"
 #include "plugman.h"
@@ -165,7 +166,7 @@ class CommandProcessor : public ACommandProcessor
   int_ptr<PlayableInstance>   CurItem;
   /// current base URL
   url123                      CurDir;
-  /// Cummulated messages
+  /// Collected messages
   xstringbuilder              Messages;
   /// Current command in service
   const char*                 Command;
@@ -342,6 +343,9 @@ class CommandProcessor : public ACommandProcessor
   void ReplyType(PLUGIN_TYPE type);
   void AppendPluginType(PLUGIN_TYPE type);
   PLUGIN_TYPE InstantiatePlugin(Module& module, const char* params, PLUGIN_TYPE type);
+  PLUGIN_TYPE LoadPlugin(PLUGIN_TYPE type);
+  PLUGIN_TYPE UnloadPlugin(PLUGIN_TYPE type);
+  bool ReplacePluginList(PluginList& list);
 
   void CmdPluginLoad();
   void CmdPluginUnload();
@@ -354,6 +358,31 @@ class CommandProcessor : public ACommandProcessor
 
  public:
   CommandProcessor();
+
+  // Plugin manager service window
+ private:
+  enum
+  { /// Instantiate a plug-in.
+    /// mp1  CommandProcessor*
+    /// mp2  requested PLUGIN_TYPEs to instantiate
+    /// mr   PLUGIN_TYPEs successfully instantiated
+    UM_LOAD_PLUGIN = WM_USER,
+    /// Unload a plug-in.
+    /// mp1  CommandProcessor*
+    /// mp2  requested PLUGIN_TYPEs to unload
+    /// mr   PLUGIN_TYPEs successfully unloaded
+    UM_UNLOAD_PLUGIN,
+    /// Replace a list of plug-ins.
+    /// mp1  CommandProcessor*
+    /// mp2  PluginList*, the list implicitly contains the plug-in flavor.
+    /// mr   true on success
+    UM_LOAD_PLUGIN_LIST
+  };
+  static HWND ServiceHwnd;
+  friend MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+ public:
+  static void CreateServiceWindow();
+  static void DestroyServiceWindow() { WinDestroyWindow(ServiceHwnd); }
 };
 
 // list must be ordered!!!
@@ -1722,18 +1751,8 @@ PLUGIN_TYPE CommandProcessor::InstantiatePlugin(Module& module, const char* para
   return PLUGIN_NULL;
 }
 
-void CommandProcessor::CmdPluginLoad()
-{
-  size_t len = strcspn(Request, " \t");
-  if (Request[len] == 0)
-    throw SyntaxException("Plug-in name missing.");
-  Request[len] = 0;
-
-  PLUGIN_TYPE type = ParseTypeList();
-
-  Request += len+1;
-  Request += strspn(Request, " \t");
-  // TODO: AppendPluginType(Plugin::Deserialize(Request, op->Val));
+PLUGIN_TYPE CommandProcessor::LoadPlugin(PLUGIN_TYPE type)
+{ DEBUGLOG(("CommandProcessor(%p)::LoadPlugin(%x) - %s\n", this, type, Request));
 
   const char* params = strchr(Request, '?');
   if (params)
@@ -1741,7 +1760,7 @@ void CommandProcessor::CmdPluginLoad()
     ++params;
   }
   // append .dll?
-  len = strlen(Request);
+  size_t len = strlen(Request);
   if (len <= 4 || stricmp(Request+len-4, ".dll") != 0)
   { char* cp = (char*)alloca(len+4);
     memcpy(cp, Request, len);
@@ -1763,6 +1782,24 @@ void CommandProcessor::CmdPluginLoad()
   } catch (const ModuleException& ex)
   { MessageHandler(this, MSG_ERROR, ex.GetErrorText().cdata());
   }
+  return type;
+}
+
+void CommandProcessor::CmdPluginLoad()
+{
+  size_t len = strcspn(Request, " \t");
+  if (Request[len] == 0)
+    throw SyntaxException("Plug-in name missing.");
+  Request[len] = 0;
+
+  PLUGIN_TYPE type = ParseTypeList();
+
+  Request += len+1;
+  Request += strspn(Request, " \t");
+  // TODO: AppendPluginType(Plugin::Deserialize(Request, op->Val));
+
+  // Continue in thread 1
+  WinSendMsg(ServiceHwnd, UM_LOAD_PLUGIN, MPFROMP(this), MPFROMLONG(type));
 }
 
 static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
@@ -1782,19 +1819,12 @@ static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
   return PLUGIN_NULL;
 }
 
-void CommandProcessor::CmdPluginUnload()
-{ size_t len = strcspn(Request, " \t");
-  if (Request[len] == 0)
-    throw SyntaxException("Plug-in name missing.");
-  Request[len] = 0;
+PLUGIN_TYPE CommandProcessor::UnloadPlugin(PLUGIN_TYPE type)
+{ DEBUGLOG(("CommandProcessor(%p)::UnloadPlugin(%x)\n", this, type));
 
-  PLUGIN_TYPE type = ParseTypeList();
-
-  Request += len+1;
-  Request += strspn(Request, " \t");
   int_ptr<Module> module(ParsePlugin(Request));
   if (module == NULL)
-    return;
+    return PLUGIN_NULL;
 
   type = DoUnload(*module, type & PLUGIN_DECODER)
        | DoUnload(*module, type & PLUGIN_FILTER)
@@ -1802,6 +1832,55 @@ void CommandProcessor::CmdPluginUnload()
        | DoUnload(*module, type & PLUGIN_VISUAL);
 
   ReplyType(type);
+  return type;
+}
+
+void CommandProcessor::CmdPluginUnload()
+{ size_t len = strcspn(Request, " \t");
+  if (Request[len] == 0)
+    throw SyntaxException("Plug-in name missing.");
+  Request[len] = 0;
+
+  PLUGIN_TYPE type = ParseTypeList();
+  Request += len+1;
+  Request += strspn(Request, " \t");
+
+  // Continue in thread 1
+  WinSendMsg(ServiceHwnd, UM_UNLOAD_PLUGIN, MPFROMP(this), MPFROMLONG(type));
+}
+
+bool CommandProcessor::ReplacePluginList(PluginList& list)
+{ DEBUGLOG(("CommandProcessor(%p)::ReplacePluginList({%x,...}) - %s\n", this, list.Type, Request));
+  try
+  { // set plug-in list
+    if (stricmp(Request, "@default") == 0)
+      list.LoadDefaults();
+    else if (stricmp(Request, "@empty") == 0)
+      list.clear();
+    else
+    { // Replace \t by \n
+      char* cp = Request;
+      while ((cp = strchr(cp, '\t')) != NULL)
+      { *cp = '\n';
+        while (*++cp == '\t');
+      }
+      const xstring& err = list.Deserialize(Request);
+      if (err)
+      { MessageHandler(this, MSG_ERROR, err);
+        Reply.clear();
+        return false;
+      }
+    }
+    Plugin::SetPluginList(list);
+    // Clear the list that now contains the old plug-ins.
+    // At this point the references are released and the modules are free.
+    list.clear();
+    return true;
+  } catch (const ModuleException& ex)
+  { MessageHandler(this, MSG_ERROR, ex.GetErrorText());
+    Reply.clear();
+    return false;
+  }
 }
 
 void CommandProcessor::CmdPluginList()
@@ -1818,27 +1897,9 @@ void CommandProcessor::CmdPluginList()
   Plugin::GetPlugins(list, false);
   Reply.append(list.Serialize());
   if (*np)
-  { // set plug-in list
-    try
-    { if (stricmp(np, "@default") == 0)
-        list.LoadDefaults();
-      else if (stricmp(np, "@empty") == 0)
-        list.clear();
-      else
-      { // Replace \t by \n
-        char* cp = np;
-        while ((cp = strchr(cp, '\t')) != NULL)
-        { *cp = '\n';
-          while (*++cp == '\t');
-        }
-        list.Deserialize(np);
-      }
-      Plugin::SetPluginList(list);
-    }
-    catch (const ModuleException& ex)
-    { MessageHandler(this, MSG_ERROR, ex.GetErrorText());
-      Reply.clear();
-    }
+  { Request = np;
+    // Continue in thread 1
+    WinSendMsg(ServiceHwnd, UM_LOAD_PLUGIN_LIST, MPFROMP(this), MPFROMP(&list));
   }
 }
 
@@ -1881,4 +1942,39 @@ void CommandProcessor::CmdPluginParams()
       DEBUGLOG(("CommandProcessor::CmdPluginParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value.cdata()));
     #endif
   }
+}
+
+
+HWND CommandProcessor::ServiceHwnd = NULLHANDLE;
+
+MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  {case CommandProcessor::UM_LOAD_PLUGIN:
+    { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      return MRFROMLONG(cmd->LoadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
+    }
+   case CommandProcessor::UM_UNLOAD_PLUGIN:
+    { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      return MRFROMLONG(cmd->UnloadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
+    }
+   case CommandProcessor::UM_LOAD_PLUGIN_LIST:
+    { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      return MRFROMLONG(cmd->ReplacePluginList(*(PluginList*)PVOIDFROMMP(mp2)));
+    }
+  }
+  return WinDefWindowProc(hwnd, msg, mp1, mp2);
+}
+
+inline void CommandProcessor::CreateServiceWindow()
+{ PMRASSERT(WinRegisterClass(amp_player_hab, "PM123_CommandProcessor", &ServiceWinFn, 0, 0));
+  ServiceHwnd = WinCreateWindow(HWND_OBJECT, "PM123_CommandProcessor", NULL, 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+  PMASSERT(ServiceHwnd != NULLHANDLE);
+}
+
+void ACommandProcessor::Init()
+{ CommandProcessor::CreateServiceWindow();
+}
+
+void ACommandProcessor::Uninit()
+{ CommandProcessor::DestroyServiceWindow();
 }

@@ -29,6 +29,19 @@ data before getting to the output plug-in.</p>
 <p><tt>plugin.h</tt> contains the necessary structures
 for all PM123 plug-ins.
 All exported and callback functions must use the calling convention <code>_cdecl</code>.</p>
+<ul>
+  <li><a href="#plugin_query"><tt>plugin_query</tt></a> - query the
+plug-ins capabilities</li>
+  <li><a href="#plugin_init"><tt>plugin_init</tt></a> [optional] -
+initialize the plug-in</li>
+  <li><a href="#plugin_configure"><tt>plugin_configure</tt></a>
+[optional] - invoke the configuration dialog</li>
+  <li><a href="#plugin_command"><tt>plugin_command</tt></a> [optional]
+- execute plug-in specific remote command</li>
+  <li><a href="#plugin_deinit"><tt>plugin_deinit</tt></a> [optional] -
+prepare the plug-in for unload<br>
+  </li>
+</ul>
 <p>Before you include any file from the PDK you should define the macro
 <tt>PLUGIN_INTERFACE_LEVEL</tt> to the appropriate value matching the <a
  href="#interface_level">interface compatibility</a> of your plugin.
@@ -52,7 +65,11 @@ variables in the <i>param</i> structure, for example:
  href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
 </blockquote>
 <p><a name="plugin_init"></a>A second initialization function, <tt>plugin_init</tt>,
-is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.</p>
+is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.
+The function is called only from the application's main thread. It
+should not block for longer nor do I/O operations to keep the GUI
+responsive.<br>
+</p>
 <blockquote>
   <pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
 </blockquote>
@@ -109,7 +126,10 @@ should appear when PM123 calls
 <p>where <i>hwnd</i> is the notebook or player
 window so that you can "lock" your
 window on it if you want and where <i>module</i> can be
-used to load a resource from your DLL.</p>
+used to load a resource from your DLL. The functions is called only
+from the application's main thread. It should not block for longer nor
+do I/O operations to keep the GUI responsive.<br>
+</p>
 <p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt>
 is
 optional. If the symbol is exported, the
@@ -119,7 +139,7 @@ plug-in can receive <a href="../manual/remote.html">remote commands</a>.</p>
  href="xstring.html">xstring</a>* <var>result</var>);</pre>
 </blockquote>
 <p>The <var><tt>command</tt></var> parameter receives the command
-passed to the remote interface without the astrisk and plug-in name
+passed to the remote interface without the asterisk and plug-in name
 prefix. The handling is plug-in specific. <var><tt>result</tt></var>
 should be assigned with the result of the command if any. Note that
 these commands must not be used to control the primary function of a

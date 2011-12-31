@@ -128,23 +128,23 @@
 extern "C" {
 #endif
 
-/* Queries a module handle and name. */
+/** Queries a module handle and name. */
 void getModule ( HMODULE* hmodule, char* name, int name_size );
-/* Queries a program name. */
+/** Queries a program name. */
 void getExeName( char* name, int name_size );
 
-/* Returns TRUE if WarpSans is supported by operating system. */
+/** Returns TRUE if WarpSans is supported by operating system. */
 BOOL check_warpsans( void );
-/* Assigns the 9.WarpSans as default font for a specified window if it is supported by
-   operating system. Otherwise assigns the 8.Helv as default font. */
+/** Assigns the 9.WarpSans as default font for a specified window if it is supported by
+ * operating system. Otherwise assigns the 8.Helv as default font. */
 void do_warpsans( HWND hwnd );
 
-/* Places the current thread into a wait state until another thread
-   in the current process has ended. Kills another thread if the
-   time expires and return FALSE. */
-BOOL  wait_thread( TID tid, ULONG msec );
-/* Same as wait_thread, but keep the PM message queue alive. */
-BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
+/** Places the current thread into a wait state until another thread
+ * in the current process has ended. Kills another thread if the
+ * time expires and return FALSE. */
+BOOL wait_thread( TID tid, ULONG msec );
+/** Same as wait_thread, but keep the PM message queue alive. */
+BOOL wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
 /** Small rational number */
 typedef struct

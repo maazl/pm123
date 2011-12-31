@@ -46,6 +46,11 @@
 extern "C" {
 #endif
 
+
+/** Queries the current thread ID. */
+long getTID();
+
+
 /* Logging */
 #ifdef DEBUG_LOG
   void debuglog( const char* fmt, ... );
@@ -65,97 +70,85 @@ extern "C" {
 
 
 /* Assertions
-
-- Normal assertion
-
-    ASSERT(expression)
-
-  Expression is only evaluated in debug builds.
-  If expression is false the programm is aborted with an error message.
- 
-- Side-effect free assertion
- 
-    RASSERT(expression)
-   
-  The expression is only checked in debug builds, but the expresion is always evaluated.
-
-- Return value assertion
- 
-    XASSERT(expression, condition)
-   
-  The condition is only checked in debug builds, but the expression is always evaluated.
-  If "expression condition" evaluates false the program is aborted with an error message.
-
-- Pointer validation (roughly)
-
-    PASSERT(pointer)
-
-  Asserts if the passed pointer is definitely invalid, i.e. points to bad memory.
-  NULL pointers are valid.
-
-- C runtime assertion
- 
-    CASSERT(expression)
-    CXASSERT(expression, condition)
-   
-  Same as ASSERT/XASSERT, but the value of errno is shown too.
-
-- OS/2 core assertion 
-
-    OASSERT(apiret)
-   
-  Similar to ASSERT, but the value of apiret is checked against NO_ERROR.
-  The apiret expression is evaluated only in debug builds and it may be evaluated more than once.
- 
-- OS/2 return value assertion 
-
-    ORASSERT(apiret)
-   
-  Similar to XASSERT, but the value of apiret is checked against NO_ERROR and if not equal
-  the application aborts with an error message showing the value of apiret too.
-  The apiret expression is always evaluated exactly once.
- 
-- PM assertion
- 
-    PMASSERT(expression)
-    PMXASSERT(expression, condition)
- 
-  Same as ASSERT/XASSERT, but the value of WinGetErrorInfo is shown too.
-
-- PM return value check assertion
- 
-    PMRASSERT(expression)
- 
-  Similar to PMXASSERT but with the default condition to check whether expression is true.
-  In fact also the same as PMASSERT but expression is always evaluated.
-
-- PM assertion
- 
-    PMEASSERT(expression)
- 
-  Similar to PMASSERT, but do not check the return value of expression at all. Check only if WinGetLastError returns non-zero. 
-
 */
- 
 #if defined(DEBUG) || defined(DEBUG_LOG)
+  /** Raise assertion
+   * @param file Code file, usually \c __FILE__
+   * @param line Line number in code file, usually \c __LINE__
+   * @param msg Error message
+   * @remarks This function never returns. */
   void dassert(const char* file, int line, const char* msg);
+  /** @brief Normal assertion
+   * @example ASSERT(some_pointer != NULL);
+   * @details If \a expr is \c false the program aborts with an error message.
+   * \a expr is only evaluated in debug builds. */
   #define ASSERT(expr) ((expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
+  /** @brief Side-effect free assertion (return value check)
+   * @example RASSERT(some_function_that_sould_return_true());
+   * @details \a expr is only checked in debug builds, but \a expr is always evaluated. */
   #define RASSERT(expr) (!!(expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
+  /** @brief Return value assertion
+   * @example XASSERT(some_function, == NO_ERROR);
+   * @details \a cond is only checked in debug builds, but \a expr is always evaluated.
+   * If "\a expr \a cond" evaluates false the program aborts with an error message. */
   #define XASSERT(expr, cond) (((expr) cond) ? (void)0 : dassert(__FILE__, __LINE__, #expr" "#cond))
+  /** @brief Pointer validation (roughly)
+   * @example PASSERT(some_pointer);
+   * @details Asserts if the passed pointer is definitely invalid, i.e. points to bad memory.
+   * NULL pointers are valid.
+   * @remarks The check is not bullet proof. It only checks for pointers that are definitely invalid. */
   #define PASSERT(expr) ASSERT(!(expr) || ((unsigned)(expr) >= 0x10000 && (unsigned)(expr) < 0x40000000))
 
+  /** Raise C runtime assertion and show value of \c errno.
+   * @param file Code file, usually \c __FILE__
+   * @param line Line number in code file, usually \c __LINE__
+   * @param msg Error message
+   * @remarks This function never returns. */
   void cassert(const char* file, int line, const char* msg);
+  /** @brief C runtime assertion
+   * @details Same as \c ASSERT, but the value of \c errno is shown in the error message too. */
   #define CASSERT(expr) ((expr) ? (void)0 : cassert(__FILE__, __LINE__, #expr))
+  /** @brief C runtime assertion
+   * @details Same as \c XASSERT, but the value of \c errno is shown in the error message too. */
   #define CXASSERT(expr, cond) (((expr) cond) ? (void)0 : cassert(__FILE__, __LINE__, #expr" "#cond))
 
+  /** Raise OS/2 API assertion and show value of \a apiret.
+   * @param apiret OS/2 API return code. If \a apiret ist non-zero \c oassert will fail.
+   * @param file Code file, usually \c __FILE__
+   * @param line Line number in code file, usually \c __LINE__
+   * @param msg Error message */
   void oassert(unsigned long apiret, const char* file, int line, const char* msg);
+  /** @brief OS/2 core assertion
+   * @example OASSERT(rc);
+   * @details Similar to \c ASSERT, but the value of \a apiret is checked against \c NO_ERROR.
+   * The \a apiret expression is evaluated only in debug builds and it may be evaluated more than once. */
   #define OASSERT(apiret) ((apiret) ? (void)0 : oassert(apiret, __FILE__, __LINE__, #apiret))
+  /** @brief OS/2 return value assertion
+   * @example OASSERT(DosClose(hf));
+   * @details Similar to \c XASSERT, but the value of \a apiret is checked against \c NO_ERROR
+   * and if not equal the application aborts with an error message showing the value of \a apiret too.
+   * The \a apiret expression is always evaluated exactly once. */
   #define ORASSERT(apiret) oassert(apiret, __FILE__, __LINE__, #apiret)
 
+  /** Raise OS/2 PM assertion and show value of \c WinGetErrorInfo.
+   * @param file Code file, usually \c __FILE__
+   * @param line Line number in code file, usually \c __LINE__
+   * @param msg Error message */
   void pmassert(const char* file, int line, const char* msg);
+  /** @brief PM assertion
+   * @details Same as \c ASSERT, but the value of \c WinGetErrorInfo is shown too. */
   #define PMASSERT(expr) ((expr) ? (void)0 : pmassert(__FILE__, __LINE__, #expr))
+  /** @brief PM assertion
+   * @details Same as \c XASSERT, but the value of \c WinGetErrorInfo is shown too. */
   #define PMXASSERT(expr, cond) (((expr) cond) ? (void)0 : pmassert(__FILE__, __LINE__, #expr" "#cond))
+  /** @brief PM return value check assertion
+   * @example PMRASSERT(WinPostMsg(hwnd, WM_Close, 0, 0));
+   * @details Similar to \c PMXASSERT but with the default condition to check whether \a expr is true.
+   * In fact also the same as PMASSERT but expression is always evaluated. */
   #define PMRASSERT(expr) (!!(expr) ? (void)0 : pmassert(__FILE__, __LINE__, #expr))
+  /** PM assertion
+   * Similar to \c PMASSERT, but do not check the return value of \a expr at all.
+   * Check only if \c WinGetLastError returns non-zero. */
   #define PMEASSERT(expr) ((expr), pmassert(__FILE__, __LINE__, #expr))
 #else
   #define ASSERT(erpr)

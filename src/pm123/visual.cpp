@@ -134,7 +134,8 @@ int_ptr<Visual> Visual::FindInstance(const Module& module)
 }
 
 int_ptr<Visual> Visual::GetInstance(Module& module)
-{ if ((module.GetParams().type & PLUGIN_VISUAL) == 0)
+{ ASSERT(getTID() == 1);
+  if ((module.GetParams().type & PLUGIN_VISUAL) == 0)
     throw ModuleException("Cannot load plug-in %s as visual plug-in.", module.Key.cdata());
   Mutex::Lock lock(Module::Mtx);
   Visual* vis = module.Vis;

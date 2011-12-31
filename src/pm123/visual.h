@@ -101,14 +101,13 @@ class Visual : public Plugin, protected VisualProcs
   const VISUAL_PROPERTIES& GetProperties() const { return Props; }
   /// Setter to the properties of this plug-in instance.
   virtual void SetProperties(const VISUAL_PROPERTIES* data);
-  // Get the plug-in's window handle.
-  //HWND         GetHwnd() const        { return Hwnd; }
   
   /// Return the \c Visual instance on \a Module if it exists.
   /// Otherwise return \c NULL.
   static int_ptr<Visual> FindInstance(const Module& module);
   /// Factory. Return the \c Visual instance on \a module. Create a new one if required.
   /// @exception ModuleException Something went wrong.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Visual> GetInstance(Module& module);
 };
 

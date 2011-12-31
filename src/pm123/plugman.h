@@ -138,6 +138,7 @@ class Module
   void    LoadMandatoryFunction(void* function, const char* function_name) const;
   /// Launch the configure dialog.
   /// @param hwnd Parent window.
+  /// @remarks This function must be called from thread 1.
   void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
                                                if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
   /// Handle plug-in specific command if the plug-in exports plugin_command.
@@ -158,6 +159,7 @@ class Module
   static int_ptr<Module> FindByKey(const char* name);
   /// Ensure access to a Module.
   /// @exception ModuleException Something went wrong.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Module> GetByKey(const char* name);
   /// Gets a snapshot of all currently active plug-in instances.
   static void            CopyAllInstancesTo(vector_int<Module>& target);
@@ -231,10 +233,12 @@ public:
   /// @return Return \c true if \a param is known and valid.
   /// @details By overloading this function specific plug-ins may take individual parameters.
   /// Note that value might be \c NULL.
+  /// @remarks This function must be called from thread 1.
   virtual bool SetParam(const char* param, const xstring& value);
   /// @brief Set the entire plug-in configuration.
   /// @details All identified keys are removed from map.
   /// The remaining keys are unknown.
+  /// @remarks This function must be called from thread 1.
   void         SetParams(stringmap_own& map);
   /// Serialize current configuration and name and append it to \a target.
   void         Serialize(xstringbuilder& target) const;
@@ -255,17 +259,19 @@ public:
   /// Access plug-in change event.
   static event_pub<const PluginEventArgs>& GetChangeEvent() { return ChangeEvent; }
 
-  // Return the \c plug-in instance of the requested type on \a module
+  /// Return the \c plug-in instance of the requested type on \a module
   /// or null if none.
   static int_ptr<Plugin> FindInstance(Module& module, PLUGIN_TYPE type);
   /// Return the \c plug-in instance of the requested type on \a module. Create a new one if required.
   /// @exception ModuleException Something went wrong.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Plugin> GetInstance(Module& module, PLUGIN_TYPE type);
   /// @brief Create or update a plug-in from a string.
   /// @exception ModuleException Something went wrong.
   /// @remarks Note that the function does not add the plug-in
   /// to any list. But the parameters in the string are applied immediately,
   /// if the plug-in \e is already in a list.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Plugin> Deserialize(const char* str, PLUGIN_TYPE type);
 
   /// Put the list of enabled plug-ins into \a target.
@@ -273,7 +279,7 @@ public:
   /// @param enabled Return only enabled plug-ins (default).
   static void  GetPlugins(PluginList& target, bool enabled = true);
 
-  /// Append the plugin to the appropriate list.
+  /// Append the plug-in to the appropriate list.
   /// @exception ModuleException Something went wrong.
   static void  AppendPlugin(Plugin* plugin);
   /// Replace a plug-in list. This activates changes.
@@ -317,9 +323,11 @@ class PluginList : public vector_int<Plugin>
   const xstring   Serialize() const;
   /// Deserialize plug-in list from a string.
   /// @return \c NULL on success and an error text on error.
+  /// @remarks This function must be called from thread 1.
   xstring         Deserialize(const char* str);
 
   /// Reset the list to the default of this plug-in flavor.
+  /// @remarks This function must be called from thread 1.
   void            LoadDefaults();
 };
 

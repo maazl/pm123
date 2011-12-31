@@ -94,7 +94,7 @@ class Decoder : public Plugin, protected DecoderProcs
  protected:
   // instances of this class are only created by the factory function below.
   Decoder(Module& module);
-  // Fill file type and extension cache
+  /// Fill file type and extension cache
   void         FillFileTypeCache();
   /// Load the plug-in that is identified as a decoder.
   /// @exception ModuleException Something went wrong.
@@ -102,29 +102,21 @@ class Decoder : public Plugin, protected DecoderProcs
 
  public:
   virtual      ~Decoder();
-  /*/// Save ID3-data to the given file
-  virtual ULONG SaveInfo(const char* url, const META_INFO* info, DECODERMETA haveinfo, xstring& errortxt) = 0;
-  /// Save Playlist to file
-  virtual ULONG SavePlaylist(const char* url, Playable& playlist, const char* format, bool relative) = 0;
-  /// call special decoder dialog to edit ID3-data of the given file
-  virtual ULONG EditMeta(HWND owner, const char* url) = 0;*/
 
   /// Initialize the decoder.
   /// @exception ModuleException Something went wrong.
   virtual void InitPlugin();
-  // Uninitialize the decoder. Return TRUE on success.
+  /// Uninitialize the decoder. Return TRUE on success.
   virtual bool UninitPlugin();
-  // Implementation of CL_PLUGIN::is_initialized.
+  /// Implementation of CL_PLUGIN::is_initialized.
   virtual bool IsInitialized() const   { return W != NULL; }
-  // Getter to the decoder entry points.
-  //const DecoderProcs& GetProcs() const { return *this; }
   // Overloaded for parameter recognition
   virtual void GetParams(stringmap_own& map) const;
   virtual bool SetParam(const char* param, const xstring& value);
 
   /// Return a combination of DECODER_* flags to determine what kind of objects are supported.
   DECODER_TYPE GetObjectTypes() const  { return Type; }
-  // Checks whether a decoder claims to support a certain URL.
+  /// Checks whether a decoder claims to support a certain URL.
   bool         IsFileSupported(const char* file, const char* eatype) const;
   /// Get Supported EA types or NULL
   const vector<const DECODER_FILETYPE>& GetFileTypes() const { return FileTypeList; }
@@ -158,6 +150,7 @@ class Decoder : public Plugin, protected DecoderProcs
   static int_ptr<Decoder> FindInstance(const Module& module);
   /// Return the \c Decoder instance on \a module. Create a new one if required.
   /// @exception ModuleException Something went wrong.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Decoder> GetInstance(Module& module);
   /// Return the \c Decoder instance by module name.
   /// The function will only return ordinary when the decoder is found, currently configured and enabled.

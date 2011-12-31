@@ -295,7 +295,8 @@ int_ptr<Filter> Filter::FindInstance(const Module& module)
 }
 
 int_ptr<Filter> Filter::GetInstance(Module& module)
-{ if ((module.GetParams().type & PLUGIN_FILTER) == 0)
+{ ASSERT(getTID() == 1);
+  if ((module.GetParams().type & PLUGIN_FILTER) == 0)
     throw ModuleException("Cannot load plug-in %s as filter.", module.Key.cdata());
   Mutex::Lock lock(Module::Mtx);
   Filter* fil = module.Fil;

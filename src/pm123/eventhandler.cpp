@@ -47,9 +47,7 @@ void EventHandler::Post(MESSAGE_TYPE level, const xstring& msg)
   int_ptr<DispatchTable> dp(LocalHandlers);
   if (dp)
   { // Get Thread-ID
-    PTIB ptib;
-    DosGetInfoBlocks(&ptib, NULL);
-    ULONG tid = ptib->tib_ptib2->tib2_ultid;
+    ULONG tid = getTID();
     // lookup
     if (dp->size() >= tid)
     { Handler lh = (*dp)[tid-1];
@@ -78,9 +76,7 @@ void EventHandler::PostFormat(MESSAGE_TYPE level, const char* format, ...)
 
 EventHandler::Handler EventHandler::SetLocalHandler(Handler eh)
 { // Get Thread-ID
-  PTIB ptib;
-  DosGetInfoBlocks(&ptib, NULL);
-  ULONG tid = ptib->tib_ptib2->tib2_ultid;
+  ULONG tid = getTID();
 
   Mutex::Lock lock(LocalMtx);
   int_ptr<DispatchTable> dp(LocalHandlers);

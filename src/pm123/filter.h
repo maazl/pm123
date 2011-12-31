@@ -91,6 +91,7 @@ class Filter : public Plugin, protected FilterProcs
   static int_ptr<Filter> FindInstance(const Module& module);
   /// Return the \c Filter instance on \a module. Create a new one if required.
   /// @return the plug-in or NULL if it cannot be instantiated.
+  /// @remarks This function must be called from thread 1.
   static int_ptr<Filter> GetInstance(Module& module);
 };
 
