@@ -412,12 +412,12 @@ void Playable::DoLoadInfo(JobSet& job)
   if (what2)
   { deccbdata children(*this);
     int rc = DecoderFileInfo(what2, info, &children);
-    upd.Extend((InfoFlags)what2);
-    DEBUGLOG(("Playable::DoLoadInfo - rc = %i\n", rc));
+    upd.Extend(what2);
+    DEBUGLOG(("Playable::DoLoadInfo - rc = %i, what2 = %x\n", rc, what2));
     
     // Update information, but only if still in service.
     Mutex::Lock lock(Mtx);
-    InfoFlags changed = UpdateInfo(info, upd);
+    InfoFlags changed = UpdateInfo(info, what2);
     // update children
     if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
     { EnsurePlaylist();
@@ -430,7 +430,7 @@ void Playable::DoLoadInfo(JobSet& job)
       }
     }
     // Raise the first bunch of change events.
-    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit((InfoFlags)what2), changed));
+    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit(what2), changed));
   }
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
@@ -454,6 +454,9 @@ void Playable::DoLoadInfo(JobSet& job)
   if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
   { // Always render aggregate info of invalid items, because this is cheap.
     info.Rpl.invalid = 1;
+    /* Invalid items do not count
+    if (Info.Phys.filesize > 0)
+      info.Drpl.totalsize += Info.Phys.filesize;*/
     upd.Extend(IF_Aggreg);
 
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
@@ -484,18 +487,23 @@ void Playable::DoLoadInfo(JobSet& job)
     if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
     { // Always calculate RPL info of song items, because this is cheap.
       info.Rpl.songs   = 1;
-      upd.Extend(IF_Rpl);
       // ... the same does not apply to DRPL info.
-      info.Drpl.totallength = Info.Obj.songlength;
-      if (info.Drpl.totallength < 0)
-      { info.Drpl.totallength = 0;
-        info.Drpl.unk_length  = 1;
-      }
-      info.Drpl.totalsize   = Info.Phys.filesize;
-      if (info.Drpl.totallength < 0)
-      { info.Drpl.totallength = 0;
-        info.Drpl.unk_size    = 1;
-      }
+      if (!Info.InfoStat.Check(IF_Obj, REL_Invalid))
+      { // IF_Obj is available
+        upd.Extend(IF_Aggreg);
+        info.Drpl.totallength = Info.Obj.songlength;
+        if (info.Drpl.totallength < 0)
+        { info.Drpl.totallength = 0;
+          info.Drpl.unk_length  = 1;
+        }
+        info.Drpl.totalsize   = Info.Phys.filesize;
+        if (info.Drpl.totallength < 0)
+        { info.Drpl.totallength = 0;
+          info.Drpl.unk_size    = 1;
+        }
+      } else
+        // IF_Obj is not available
+        upd.Extend(IF_Rpl);
     } else
     { // Cannot automatically calculate RPL info of hybrid items.
       info.Rpl.unknown = 1;
