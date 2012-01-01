@@ -519,28 +519,19 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   PluginList decoders(PLUGIN_DECODER);
   Plugin::GetPlugins(decoders);
   bool* checked = (bool*)alloca(sizeof(bool) * decoders.size());
+  memset(checked, 0, sizeof *checked * decoders.size());
   PHYS_INFO& phys = *info.phys;
   TECH_INFO& tech = *info.tech;
 
-  memset(checked, 0, sizeof *checked * decoders.size());
-
-  DECODER_TYPE type_mask;
   InfoFlags whatrq = what;
 
   // Try XIO123 first.
-  XSTAT st;
-  st.size = -1;
-  st.mtime = (time_t)-1;
-  *st.type = 0;
   XFILE* handle = xio_fopen(URL, "rbU");
+  XSTAT st;
+  *st.type = 0;
+  int err = 0;
   if (handle)
   { // We got a handle
-    switch (xio_protocol(handle))
-    {case XIO_PROTOCOL_FILE:
-      type_mask = DECODER_FILENAME; break;
-     default:
-      type_mask = DECODER_URL; break;
-    }
     if (xio_fstat(handle, &st) == 0)
     { whatrq &= ~IF_Phys;
       what |= IF_Phys;
@@ -548,10 +539,9 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
       phys.tstmp = st.mtime;
       phys.attributes = PATTR_WRITABLE * !(st.attr & S_IAREAD);
     }
-  } else if (is_cdda(URL))
-    type_mask = DECODER_TRACK;
-  else
-    type_mask = DECODER_OTHER;
+  } else
+    err = xio_errno();
+  DECODER_TYPE type_mask = Decoder::GetURLType(URL);
 
   ULONG rc;
   Decoder* dp;
@@ -607,13 +597,20 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   }
 
   // No decoder found
+  if (err)
+  { tech.info = xio_strerror(err);
+    whatdec = IF_Decoder;
+    rc = PLUGIN_NO_READ;
+    goto ok;
+  }
   if (handle)
     xio_fclose(handle);
-  info.tech->info = "Cannot find a decoder that supports this item.";
+  tech.info = "Cannot find a decoder that supports this item.";
   // Even in case of an error the requested information is in fact available.
-  what = IF_Decoder|IF_Aggreg;
+  what = IF_Decoder;
   tech.attributes = TATTR_INVALID;
   return PLUGIN_NO_PLAY;
+
  ok:
   if (handle)
     xio_fclose(handle);

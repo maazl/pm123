@@ -341,6 +341,7 @@ class xstring
   const char& operator[](size_t i) const    { ASSERT(i <= length()); return cstr[i]; } // Access to \0 terminator allowed
   bool        equals(const xstring& r) const { return Ctx.xstring_api->compare(this, &r) == 0; }
   int         compareTo(const xstring& r) const { return Ctx.xstring_api->compare(this, &r); }
+  static int  compare(const xstring& l, const xstring& r) { return l.compareTo(r); }
   void        reset()                       { Ctx.xstring_api->free(this); }
   void        assign(xstring& r)            { Ctx.xstring_api->copy(this, &r); } // Helper to disambiguate calls.
   void        assign(const xstring& r)      { Ctx.xstring_api->copy(this, &r); }

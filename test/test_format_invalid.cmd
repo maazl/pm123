@@ -8,7 +8,7 @@ CALL Assert 'data.filesize'
 CALL Assert 'data.filetime'
 CALL Assert 'data.samplerate'
 CALL Assert 'data.channels'
-CALL Assert 'POS("invalid", data.fileattr)', '\= 0', data.fileattr
+CALL Assert 'POS("invalid", data.fileattr)', '\= 0', reply
 CALL Assert 'data.songlength'
 CALL Assert 'data.bitrate'
 

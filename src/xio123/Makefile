@@ -10,7 +10,7 @@ TARGET  = all2
 
 OBJECTS = xio$(CO) xio_file$(CO) xio_http$(CO) xio_ftp$(CO) xio_cddb$(CO) xio_protocol$(CO)
 OBJECTS = $(OBJECTS) xio_url$(CO) xio_socket$(CO) xio_syncbuffer$(CO) xio_asyncbuffer$(CO) xio_buffer$(CO)
-LIBS    = $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
+LIBS    = $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\cpp\xstring$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
 SYSLIBS = $(LIBS_TCP)
 DEF     = xio$(LDEF_SUFFX)
 

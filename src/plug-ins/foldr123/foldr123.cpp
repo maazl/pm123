@@ -76,12 +76,13 @@ static PARAMETERS defaults =
    0  // default
 };*/
 
+static const DECODER_FILETYPE dec_type = { "Folder", NULL, "", DECODER_FILENAME|DECODER_PLAYLIST };
 
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
-{ *types = NULL;
-  *count = 0;
+{ *types = &dec_type;
+  *count = 1;
 
-  return DECODER_OTHER|DECODER_PLAYLIST;
+  return DECODER_FILENAME|DECODER_PLAYLIST;
 }
 
 ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,

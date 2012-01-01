@@ -45,7 +45,8 @@ extern "C" {
 #define XIO_MAX_FILETYPE  128
 
 typedef enum
-{ XIO_PROTOCOL_FILE
+{ XIO_PROTOCOL_NONE
+, XIO_PROTOCOL_FILE
 , XIO_PROTOCOL_HTTP
 , XIO_PROTOCOL_FTP
 , XIO_PROTOCOL_CDDB
@@ -257,6 +258,12 @@ xio_can_seek( XFILE* x );
  * @return exactly one of the XIO_FILE, XIO_ */
 XIO_PROTOCOL DLLENTRY
 xio_protocol( XFILE* x );
+
+/** Returns the protocol of this URL.
+ * The function does no I/O and does not check anything but the protocol header of an URL.
+ * @return The identified protocol or XIO_PROTOCOL_NONE if unsupported. */
+XIO_PROTOCOL DLLENTRY
+xio_urlprotocol( const char* url );
 
 
 /** Returns the read-ahead buffer size. */

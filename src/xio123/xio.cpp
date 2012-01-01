@@ -40,6 +40,7 @@
 #include <utilfct.h>
 #include <plugin.h> // For WM_METADATA
 #include <debuglog.h>
+#include <cpp/container/stringmap.h>
 
 #include "xio.h"
 #include "xio_protocol.h"
@@ -99,11 +100,6 @@ xio_fopen( const char* filename, const char* mode )
     x->protocol = new XIOsocket();
   else
     x->protocol = new XIOfile();
-
-  if( !x->protocol ) {
-    delete x;
-    return NULL;
-  }
 
   if( strchr( mode, 'r' )) {
     if( strchr( mode, '+' )) {
@@ -736,6 +732,20 @@ xio_protocol( XFILE* x )
   #endif
   return x->protocol->protocol();
 }
+
+XIO_PROTOCOL DLLENTRY
+xio_urlprotocol( const char* url )
+{ strmap<8,XIO_PROTOCOL> map[] =
+  { { "cddbp:", XIO_PROTOCOL_CDDB }
+  , { "file:",  XIO_PROTOCOL_FILE }
+  , { "ftp:",   XIO_PROTOCOL_FTP  }
+  , { "http:",  XIO_PROTOCOL_HTTP }
+  , { "tcpip:", XIO_PROTOCOL_SOCKET }
+  };
+  strmap<8,XIO_PROTOCOL>* p = mapsearcha(map, url);
+  return p ? p->Val : XIO_PROTOCOL_NONE;
+}
+
 
 /* Returns the read-ahead buffer size. */
 int DLLENTRY

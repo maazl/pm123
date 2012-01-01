@@ -26,13 +26,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* This is the core interface to the plug-ins. It loads the plug-ins and
- * virtualizes them if required to refect always the most recent interface
- * level to the application.
- */
-
 #define  INCL_PM
 
+#include <xio.h> // GCC Bug: must be included first
 #include "decoder.h"
 #include "controller.h" // for starting position work around
 #include "glue.h" // out_playing_pos
@@ -45,7 +41,6 @@
 #include <wildcards.h>
 #include <cpp/url123.h>
 #include "pm123.h" // for hab
-#include <sys/stat.h> // TODO: replace by xio
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
@@ -81,7 +76,7 @@ void Decoder::FillFileTypeCache()
       else
         FileTypeCache = ft->eatype;
     }
-    if (ft->extension && *ft->extension)
+    if (ft->extension)
     { if (FileExtensionCache)
         FileExtensionCache = FileExtensionCache+";"+ft->extension;
       else
@@ -148,6 +143,18 @@ bool Decoder::UninitPlugin()
   return true;
 }
 
+DECODER_TYPE Decoder:: GetURLType(const char* url)
+{ switch (xio_urlprotocol(url))
+  {case XIO_PROTOCOL_FILE:
+    return DECODER_FILENAME;
+   case XIO_PROTOCOL_HTTP:
+   case XIO_PROTOCOL_FTP:
+    return DECODER_URL;
+   default:
+    return is_cdda(url) ? DECODER_TRACK : DECODER_OTHER;
+  }
+}
+
 bool Decoder::IsFileSupported(const char* file, const char* type) const
 { DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %s) - %s, %s\n", this, ModRef->Key.cdata(),
     file, type, FileTypeCache.cdata(), FileExtensionCache.cdata()));
@@ -163,7 +170,7 @@ bool Decoder::IsFileSupported(const char* file, const char* type) const
   } }
 
   // Try file type match
-  if (FileTypeCache && type)
+  if (FileTypeCache && type && *type)
   { do
     { size_t len = strcspn(type, "\t;");
       if (wildcardfit(FileTypeCache, xstring(type, len)))

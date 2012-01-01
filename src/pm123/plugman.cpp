@@ -183,13 +183,15 @@ proxy_obj_invalidate(const char* url, int what)
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_obj_supported(const char* url, const char* eatype)
-{ // Get list of decoders
+{ const DECODER_TYPE type = Decoder::GetURLType(url);
+  // Get list of decoders
   PluginList decoders(PLUGIN_DECODER);
   Plugin::GetPlugins(decoders);
   // Seek for match
   for (size_t i = 0; i < decoders.size(); i++)
   { Decoder* dp = (Decoder*)decoders[i].get();
-    if (dp->IsFileSupported(url, eatype))
+    if ( (dp->GetObjectTypes() & type)
+      && ((type & ~DECODER_FILENAME) || dp->IsFileSupported(url, eatype)) )
       return true;
   }
   return false;

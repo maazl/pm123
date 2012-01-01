@@ -116,6 +116,8 @@ class Decoder : public Plugin, protected DecoderProcs
 
   /// Return a combination of DECODER_* flags to determine what kind of objects are supported.
   DECODER_TYPE GetObjectTypes() const  { return Type; }
+  /// Return the decoder type required for an URL.
+  static DECODER_TYPE GetURLType(const char* url);
   /// Checks whether a decoder claims to support a certain URL.
   bool         IsFileSupported(const char* file, const char* eatype) const;
   /// Get Supported EA types or NULL

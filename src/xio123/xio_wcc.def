@@ -27,6 +27,7 @@ EXPORT xio_set_connect_timeout  .31
 EXPORT xio_set_socket_timeout   .32
 EXPORT xio_set_metacallback     .33
 EXPORT xio_protocol             .34
+EXPORT xio_urlprotocol          .35
 
 EXPORT xio_fopen                .40
 EXPORT xio_fread                .41

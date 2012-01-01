@@ -404,7 +404,7 @@ class sco_arr
   sco_arr(const sco_arr<T>&);
   void operator=(const sco_arr<T>&);
  public:
-  /// Initialze a empty array.
+  /// Initialize a empty array.
   sco_arr()                             : Ptr(NULL), Size(0) {};
   /// Allocates an array of size.
   sco_arr(size_t size)                  : Ptr(new T[size]), Size(size) {}

@@ -77,8 +77,8 @@ class stringmap_own : public stringmap
 };
 
 
-/* Lightweight structure for string based dispatching.
- * The structure has a POD layout and starts with a null terminated C string.
+/** @brief Lightweight structure for string based dispatching.
+ * @details The structure has a POD layout and starts with a null terminated C string.
  * This allows a conversion of strmap* to char*. In fact you can search
  * in a sorted array of strmap with bsearch and strcmp.
  * Once you got a match you have an object of an arbitrary type V.
@@ -90,6 +90,8 @@ struct strmap
   V    Val;
 };
 
+/** Compares \a str against \a abbrev and returns 0 if \a str starts with \a abbrev.
+ */
 int TFNENTRY strabbrevicmp(const char* str, const char* abbrev);
 
 template <class T>

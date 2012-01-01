@@ -38,6 +38,6 @@ stringset_own& stringset_own::operator=(const stringset_own& r)
 }
 
 
-int strabbrevicmp(const char* str, const char* abbrev)
+int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)
 { return strnicmp(str, abbrev, strlen(abbrev));
 }
