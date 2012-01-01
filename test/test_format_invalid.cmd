@@ -21,6 +21,16 @@ CALL Assert 'data.invalid', '= 1'
 CALL Assert 'data.totalsize', '= 0'
 CALL Assert 'data.totallength', '= 0'
 
+CALL 'pipecmd' 'info format 'dir'\data\dir1\test.invalid'
+reply = result
+CALL Parse result
+CALL Assert 'data.filesize', '= 0'
+CALL Assert 'data.samplerate'
+CALL Assert 'data.channels'
+CALL Assert 'POS("invalid", data.flags)', '\= 0', reply
+CALL Assert 'data.songlength'
+CALL Assert 'data.bitrate'
+
 EXIT
 
 Parse: PROCEDURE EXPOSE data.
