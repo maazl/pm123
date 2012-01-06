@@ -66,9 +66,8 @@ stream can the decoder play:<br>
     <tt> DECODER_URL</tt> (2) - Decoder can play internet URIs
 (http, ftp, etc.).<br>
     <tt> DECODER_TRACK</tt> (4) - Decoder can play CD tracks, i.e. cdda
-URIs. (deprecated, use <tt> DECODER_OTHER</tt>)<br>
-    <tt> DECODER_OTHER</tt> (8) - Decoder can play other
-URLs.<br>
+URIs.<br>
+    <tt> DECODER_OTHER</tt> (8) - Decoder can play something else.<br>
     <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
     <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can read playlists.<br>
     <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
@@ -224,7 +223,7 @@ this kind of information.</p>
 <strong>X</strong> = required if requested by the PM123<br>
 Q = may be requested by the PM123<br>
 <em>C</em>&nbsp;= my be cached and returned by the decoder<br>
-O = may be overridden by a playlist item<br>
+O = may be overridden by a playlist item
 </p>
 <p style="float: right;">
 </p>
@@ -238,10 +237,8 @@ O = may be overridden by a playlist item<br>
     </tr>
     <tr>
       <td><code>phys</code></td>
-      <td align="center"><strong>X</strong><br>
-      </td>
-      <td align="center"><strong>X</strong><br>
-      </td>
+      <td align="center"><strong>X</strong> </td>
+      <td align="center"><strong>X</strong> </td>
       <td align="center"><em></em><em>C</em></td>
     </tr>
     <tr>

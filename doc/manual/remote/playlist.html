@@ -37,8 +37,7 @@ is specified, you can skip more than one item at once.</td>
 playlist.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_prev"></a>pl
-      </tt><tt>prev</tt>
+      <td><tt><a name="pl_prev"></a>pl </tt><tt>prev</tt>
 [<var><tt>&lt;count&gt;</tt></var>] <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td>Navigate to the previous item in the current
 playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
@@ -51,7 +50,7 @@ playlist.</td>
  href="#note2">(2.)</a></sup></small></td>
       <td>Reset the current item of the playlist. The current
 location is now before the start or past the end respectively.</td>
-      <td>&nbsp;</td>
+      <td>URL of the current item or an empty line if none.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_current"></a>pl current</tt></td>
@@ -69,7 +68,9 @@ location is now before the start or past the end respectively.</td>
 playlist.<br>
 Be careful, because the index changes when the playlist is modified and
 you might be not the only one that modifies a playlist.</td>
-      <td>Index starting from 1 or empty in case of no current item.</td>
+      <td>Index starting from <tt>1</tt> or empty in case of no
+current item.<br>
+If the item is detached from the playlist the return value is <tt>0</tt>.</td>
     </tr>
     <tr>
       <td><tt><a name="use"></a>use</tt></td>

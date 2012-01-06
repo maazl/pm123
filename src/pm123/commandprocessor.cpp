@@ -1101,7 +1101,8 @@ void CommandProcessor::CmdPlPrev()
 }
 
 void CommandProcessor::CmdPlReset()
-{ CurItem = NULL;
+{ CmdPlItem();
+  CurItem = NULL;
 }
 
 void CommandProcessor::CmdPlCurrent()
@@ -1115,17 +1116,8 @@ void CommandProcessor::CmdPlItem()
 }
 
 void CommandProcessor::CmdPlIndex()
-{ if (CurPlaylist)
-  { int ix = 0;
-    int_ptr<PlayableInstance> cur = CurItem;
-    // TODO: Full table scan should be replaced
-    while (cur)
-    { ++ix;
-      cur = CurPlaylist->GetPrev(cur);
-    }
-    if (ix)
-      Reply.append(ix);
-  }
+{ if (CurItem)
+    Reply.append(CurItem->GetIndex());
 }
 
 void CommandProcessor::CmdUse()
@@ -1139,16 +1131,18 @@ void CommandProcessor::CmdUse()
 
 void CommandProcessor::CmdPlClear()
 { if (CurPlaylist)
-  { CurPlaylist->Clear();
-    Reply.append('1');
+  { CurPlaylist->RequestInfo(IF_Obj, PRI_Sync);
+    Reply.append(CurPlaylist->GetInfo().obj->num_items);
+    CurPlaylist->Clear();
   }
 }
 
 void CommandProcessor::CmdPlAdd()
 { if (CurPlaylist)
-  { URLTokenizer tok(Request);
+  { CurPlaylist->RequestInfo(IF_Child, PRI_Sync);
+    URLTokenizer tok(Request);
     const char* url;
-    int count;
+    int count = 0;
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
     while (tok.Next(url))
     { if (!url)
@@ -1192,9 +1186,10 @@ int CommandProcessor::PlFlatInsert(const url123& url)
 
 void CommandProcessor::PlDir(bool recursive)
 { if (CurPlaylist)
-  { URLTokenizer tok(Request);
+  { CurPlaylist->RequestInfo(IF_Child, PRI_Sync);
+    URLTokenizer tok(Request);
     const char* curl;
-    int count;
+    int count = 0;
     while (tok.Next(curl))
     { url123 url = ParseURL(curl);
       if (strchr(url, '?'))

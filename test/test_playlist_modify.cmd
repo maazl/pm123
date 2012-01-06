@@ -3,20 +3,18 @@ dir = TRANSLATE(DIRECTORY())
 dirurl =  'FILE:///'TRANSLATE(dir,'/','\')
 
 CALL CallPipe 'reset'
-CALL Assert 'result', '= ""'
-
 CALL CallPipe 'pl clear'
-CALL Assert 'result', '= ""'
+
 CALL CallPipe 'pl next'
 CALL Assert 'result', '= ""'
 
 CALL CallPipe 'pl add "'dirurl'/DATA/TEST.OGG"'
-CALL Assert 'result', '= ""'
+CALL Assert 'result', '= "1"'
 CALL CallPipe 'pl prev'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/TEST.OGG"'
 
 CALL CallPipe 'pl add "'dirurl'/DATA/TEST2.OGG" "'dirurl'/DATA/TEST3.OGG"'
-CALL Assert 'result', '= ""'
+CALL Assert 'result', '= "2"'
 CALL CallPipe 'pl item'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/TEST.OGG"'
 CALL CallPipe 'pl prev'
@@ -28,13 +26,18 @@ CALL CallPipe 'pl remove'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/TEST.OGG"'
 
 CALL CallPipe 'dir "'dirurl'/DATA/DIR1"'
-CALL Assert 'result', '= ""'
+CALL Assert 'result', '= "1"'
 CALL CallPipe 'pl prev'
 CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/DIR1/TEST.OGG"'
 CALL CallPipe 'pl index'
 CALL Assert 'result', '= "2"'
 
 CALL CallPipe 'rdir "'dirurl'/DATA/DIR1"'
+CALL Assert 'result', '= "3"'
+CALL CallPipe 'pl index'
+CALL Assert 'result', '= "5"'
+CALL CallPipe 'pl item'
+CALL Assert 'TRANSLATE(result)', '= "'dirurl'/DATA/DIR1/TEST.OGG"'
 
 EXIT
 
