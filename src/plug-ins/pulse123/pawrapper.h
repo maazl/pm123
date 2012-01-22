@@ -36,6 +36,7 @@
 #include <pulse/introspect.h>
 #include <cpp/cpputil.h>
 #include <cpp/event.h>
+#include <cpp/xstring.h>
 #include <limits.h>
 
 #include <plugin.h>

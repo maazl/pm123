@@ -21,7 +21,7 @@
 vcedit_state*
 vcedit_new_state( void )
 {
-  vcedit_state *state = malloc( sizeof( vcedit_state ));
+  vcedit_state *state = (vcedit_state*)malloc( sizeof( vcedit_state ));
   memset( state, 0, sizeof( vcedit_state ));
 
   return state;
@@ -122,7 +122,7 @@ commentheader_out( vorbis_comment* vc, char* vendor, ogg_packet* op )
   }
   oggpack_write( &opb, 1, 1 );
 
-  op->packet = _ogg_malloc( oggpack_bytes( &opb ));
+  op->packet = (unsigned char*)_ogg_malloc( oggpack_bytes( &opb ));
   memcpy( op->packet, opb.buffer, oggpack_bytes( &opb ));
 
   op->bytes = oggpack_bytes( &opb );
@@ -137,15 +137,15 @@ commentheader_out( vorbis_comment* vc, char* vendor, ogg_packet* op )
 static int
 blocksize( vcedit_state* s, ogg_packet* p )
 {
-  int this = vorbis_packet_blocksize( s->vi, p );
-  int ret  = ( this + s->prevW ) / 4;
+  int that = vorbis_packet_blocksize( s->vi, p );
+  int ret  = ( that + s->prevW ) / 4;
 
   if( !s->prevW ) {
-    s->prevW = this;
+    s->prevW = that;
     return 0;
   }
 
-  s->prevW = this;
+  s->prevW = that;
   return ret;
 }
 
@@ -204,7 +204,7 @@ vcedit_open_callbacks( vcedit_state* state, void* in,
   state->read = read_func;
   state->write = write_func;
 
-  state->oy = malloc( sizeof( ogg_sync_state ));
+  state->oy = (ogg_sync_state*)malloc( sizeof( ogg_sync_state ));
   ogg_sync_init( state->oy );
 
   for(;;)
@@ -231,13 +231,13 @@ vcedit_open_callbacks( vcedit_state* state, void* in,
 
   state->serial = ogg_page_serialno( &og );
 
-  state->os = malloc( sizeof( ogg_stream_state ));
+  state->os = (ogg_stream_state*)malloc( sizeof( ogg_stream_state ));
   ogg_stream_init( state->os, state->serial );
 
-  state->vi = malloc( sizeof( vorbis_info ));
+  state->vi = (vorbis_info*)malloc( sizeof( vorbis_info ));
   vorbis_info_init( state->vi );
 
-  state->vc = malloc( sizeof( vorbis_comment ));
+  state->vc = (vorbis_comment*)malloc( sizeof( vorbis_comment ));
   vorbis_comment_init( state->vc );
 
   if( ogg_stream_pagein( state->os, &og ) < 0 ) {
@@ -257,7 +257,7 @@ vcedit_open_callbacks( vcedit_state* state, void* in,
   }
 
   state->mainlen = header_main.bytes;
-  state->mainbuf = malloc( state->mainlen );
+  state->mainbuf = (unsigned char*)malloc( state->mainlen );
   memcpy( state->mainbuf, header_main.packet, header_main.bytes );
 
   i = 0;
@@ -284,7 +284,7 @@ vcedit_open_callbacks( vcedit_state* state, void* in,
           vorbis_synthesis_headerin( state->vi, state->vc, header );
           if( i == 1 ) {
             state->booklen = header->bytes;
-            state->bookbuf = malloc( state->booklen );
+            state->bookbuf = (unsigned char*)malloc( state->booklen );
             memcpy( state->bookbuf, header->packet, header->bytes );
           }
           i++;
@@ -303,7 +303,7 @@ vcedit_open_callbacks( vcedit_state* state, void* in,
   }
 
   /* Copy the vendor tag */
-  state->vendor = malloc( strlen( state->vc->vendor ) + 1 );
+  state->vendor = (char*)malloc( strlen( state->vc->vendor ) + 1 );
   strcpy( state->vendor, state->vc->vendor );
 
   /* Headers are done! */

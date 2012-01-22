@@ -25,5 +25,17 @@ wavplay$(LBI): $(DEF)
 clean:  $(MDUMMY)
 	-@del wavplay$(LBI) wavplay.dll $(OBJECTS) 2> nul
 
-wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h
+wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h ..\..\utils\debuglog.h
 wavplay.h:	..\..\snd123\src\sndfile.h ..\..\include\format.h ..\..\xio123\xio.h
+..\..\snd123\src\sndfile.h:	..\..\include\config.h
+..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
+..\..\include\format.h:	..\..\include\plugin.h ..\..\utils\cpp\xstring.h
+..\..\include\plugin.h:	..\..\include\config.h
+..\..\utils\cpp\xstring.h:	..\..\utils\cpp\smartptr.h ..\..\include\plugin.h
+..\..\utils\cpp\smartptr.h:	..\..\include\config.h ..\..\utils\cpp\cpputil.h ..\..\utils\cpp\mutex.h ..\..\utils\debuglog.h
+..\..\utils\cpp\mutex.h:	..\..\include\config.h ..\..\utils\interlocked.h ..\..\utils\debuglog.h
+..\..\utils\interlocked.h:	..\..\include\config.h
+..\..\utils\debuglog.h:	..\..\utils\errorstr.h
+..\..\xio123\xio.h:	..\..\include\config.h
+..\..\include\decoder_plug.h:	..\..\include\format.h ..\..\include\output_plug.h
+..\..\utils\utilfct.h:	..\..\include\config.h ..\..\utils\errorstr.h ..\..\utils\minmax.h ..\..\utils\strutils.h

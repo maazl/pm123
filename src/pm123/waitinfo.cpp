@@ -109,7 +109,8 @@ void WaitInfo::CommitInfo(InfoFlags what)
 ****************************************************************************/
 
 bool WaitAggregateInfo::Wait(APlayable& inst, AggregateInfo& ai, InfoFlags what, Reliability rel, long ms)
-{ Inst = &inst;
+{ ASSERT((what & ~IF_Aggreg) == 0);
+  Inst = &inst;
   AI = &ai;
   Rel = rel;
   Start(inst, what);
@@ -118,7 +119,10 @@ bool WaitAggregateInfo::Wait(APlayable& inst, AggregateInfo& ai, InfoFlags what,
 }
 
 void WaitAggregateInfo::CommitInfo(InfoFlags what)
-{ InfoFlags rq = what;
-  Inst->DoRequestAI(*AI, rq, PRI_None, Rel);
-  WaitLoadInfo::CommitInfo(what & ~rq);
+{ InfoFlags rq = what & IF_Aggreg;
+  if (rq)
+  { Inst->DoRequestAI(*AI, rq, PRI_None, Rel);
+    what &= ~rq;
+  }
+  WaitLoadInfo::CommitInfo(what);
 }

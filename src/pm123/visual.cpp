@@ -66,6 +66,10 @@ const PLUGIN_PROCS Visual::VisualCallbacks =
   &dec_length
 };
 
+Visual::~Visual()
+{ ModRef->Vis = NULL;
+}
+
 /* Assigns the addresses of the visual plug-in procedures. */
 void Visual::LoadPlugin()
 { const Module& mod = *ModRef;

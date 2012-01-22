@@ -113,7 +113,7 @@ class Glue
   // 4 visual interface (C style)
   friend PM123_TIME DLLENTRY out_playing_pos  ();
   friend BOOL   DLLENTRY   out_playing_data   ();
-  friend ULONG  DLLENTRY   out_playing_samples(FORMAT_INFO2* info, float* buf, int len );
+  friend ULONG  DLLENTRY   out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
 
  private: // glue
   PROXYFUNCDEF int DLLENTRY glue_request_buffer(void* a, const FORMAT_INFO2* format, float** buf);
@@ -409,7 +409,6 @@ void out_set_volume( double volume )
 { if (!Glue::initialized)
     return; // can't help
   Glue::params.Volume = volume;
-  Glue::params.Amplifier = 1.0;
   Glue::out_command( OUTPUT_VOLUME );
 }
 
@@ -435,10 +434,10 @@ BOOL out_trash()
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
-ULONG DLLENTRY out_playing_samples(FORMAT_INFO2* info, float* buf, int len)
+ULONG DLLENTRY out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
 { if (!Glue::initialized)
     return (ULONG)-1; // N/A
-  return (*Glue::procs.output_playing_samples)( Glue::procs.A, info, buf, len );
+  return (*Glue::procs.output_playing_samples)(Glue::procs.A, offset, cb, param);
 }
 
 /* Returns time in ms. */

@@ -594,7 +594,7 @@ Decoder::~Decoder()
 }
 
 
-PROXYFUNCIMP(void DLLENTRY, Decoder)MetaCallback(int type, const char* metabuff, long pos, void* arg)
+PROXYFUNCIMP(void DLLENTRY, Decoder)MetaCallback(XIO_META type, const char* metabuff, long pos, void* arg)
 { ((Decoder*)arg)->UpdateMeta = true;
 }
 

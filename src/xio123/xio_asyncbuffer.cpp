@@ -413,7 +413,7 @@ int XIOasyncbuffer::chsize( long size, long offset64 )
   return rc;
 }
 
-void XIOasyncbuffer::metacallback(int type, const char* metabuff, long pos, long pos64)
+void XIOasyncbuffer::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
 { Mutex::Lock lock(mtx_access);
   XIObuffer::metacallback(type, metabuff, pos, pos64);
 };

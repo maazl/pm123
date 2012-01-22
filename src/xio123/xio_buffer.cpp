@@ -227,7 +227,7 @@ void XIObuffer::obs_execute()
   s_obs_tail = NULL;
 }
 
-void XIObuffer::metacallback(int type, const char* metabuff, long pos, long pos64)
+void XIObuffer::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
 { obs_entry* entry = new obs_entry(type, metabuff, pos, pos64);
   if (s_obs_tail)
     s_obs_tail->link = entry;

@@ -314,6 +314,7 @@ class xstring
 #else
 /* When compiling in plug-in context provide a xstring proxy implementation.
  */
+#include <plugin.h>
 
 /** For the proxy to work a global symbol Ctx with the parameter ctx of plugin_init must be supplied.
  */

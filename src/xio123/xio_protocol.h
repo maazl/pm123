@@ -85,7 +85,7 @@ class XPROTOCOL {
   // Interface for observing meta data changes
   struct Iobserver
   { virtual ~Iobserver() {}
-    virtual void metacallback(int type, const char* metabuff, long pos, long pos64) = 0;
+    virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64) = 0;
   };
  
  public: 

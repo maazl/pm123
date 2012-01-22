@@ -316,6 +316,8 @@ class Playable
   #ifdef DEBUG_LOG
   static  void              RPDebugDump();
   #endif
+  /// The repository owns the objects. This function will effectively cancel the ownership
+  /// for a list of objects.
   static  void              DetachObjects(const vector<Playable>& list);
  public:
   /// Seek whether an URL is already loaded.

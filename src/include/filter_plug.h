@@ -103,25 +103,25 @@ typedef struct _FILTER_PARAMS2
 
   /* virtual output interface
    * To virtualize one of these functions replace the pointer at the filter_init call. */
-  ULONG  DLLENTRYP(output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  ULONG  DLLENTRYP(output_playing_samples)( void* a, FORMAT_INFO2* info, float* buf, int len );
-  int    DLLENTRYP(output_request_buffer)( void* a, const FORMAT_INFO2* format, float** buf );
-  void   DLLENTRYP(output_commit_buffer)( void* a, int len, PM123_TIME posmarker );
-  PM123_TIME DLLENTRYP(output_playing_pos)( void* a );
-  BOOL   DLLENTRYP(output_playing_data)( void* a );
+  ULONG  DLLENTRYP(output_command)(void* a, ULONG msg, OUTPUT_PARAMS2* info);
+  ULONG  DLLENTRYP(output_playing_samples)(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  int    DLLENTRYP(output_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void   DLLENTRYP(output_commit_buffer)(void* a, int len, PM123_TIME posmarker);
+  PM123_TIME DLLENTRYP(output_playing_pos)(void* a);
+  BOOL   DLLENTRYP(output_playing_data)(void* a);
   void*  a;  /* only to be used with the precedent functions */
   
   /* callback event
    * To virtualize these function replace the pointer at the filter_init call. */
-  void  DLLENTRYP(output_event)( void* w, OUTEVENTTYPE event ); 
+  void  DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event);
   void* w;  /* only to be used with the precedent function */
 
 } FILTER_PARAMS2;
 
 /* returns 0 -> ok */
-ULONG DLLENTRY filter_init  ( void** f, FILTER_PARAMS2* params );
-void  DLLENTRY filter_update( void*  f, const FILTER_PARAMS2* params );
-BOOL  DLLENTRY filter_uninit( void*  f );
+ULONG DLLENTRY filter_init  (void** f, FILTER_PARAMS2* params);
+void  DLLENTRY filter_update(void* f, const FILTER_PARAMS2* params);
+BOOL  DLLENTRY filter_uninit(void* f);
 
 #endif /* Level 3 interface */
 

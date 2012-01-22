@@ -1975,9 +1975,9 @@ void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
   // Currently a NOP
 }*/
 
-void GUI::ViewMessage(xstring info, bool error)
-{ if (info)
-    WinPostMsg(HPlayer, WMP_DISPLAY_MESSAGE, MPFROMP(info.toCstr()), MPFROMLONG(error));
+void GUI::PostMessage(MESSAGE_TYPE type, xstring text)
+{ if (text)
+    WinPostMsg(HPlayer, WMP_DISPLAY_MESSAGE, MPFROMP(text.toCstr()), MPFROMLONG(type));
 }
 
 void GUI::Show(bool visible)

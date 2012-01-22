@@ -66,13 +66,22 @@ class AtomicUnsigned
   operator unsigned  () const           { return data; }
   unsigned get       () const           { return data; }
   bool     operator! () const           { return !data; }
-  /*bool     operator==(unsigned r) const { return data == r; }
-  bool     operator!=(unsigned r) const { return data != r; }
-  bool     operator< (unsigned r) const { return data <  r; }
-  bool     operator<=(unsigned r) const { return data <= r; }
-  bool     operator> (unsigned r) const { return data >  r; }
-  bool     operator>=(unsigned r) const { return data >= r; }*/
 };
 
+template <class T>
+class AtomicPtr
+{ volatile unsigned data;
+ public:
+           AtomicPtr(T* ptr = NULL) : data(ptr) {}
+  // atomic operations
+  T*       swap(T* n)                   { return (T*)InterlockedXch(&data, (unsigned)n); }
+  bool     replace(T* o, T* n)          { return (bool)InterlockedCxc(&data, (unsigned)o, (unsigned)n); }
+  // non atomic methods
+  AtomicPtr& operator=(T* r)            { data = (unsigned)r; return *this; }
+  void     set       (T* r)             { data = (unsigned)r; }
+  operator T*        () const           { return (T*)data; }
+  T*       get       () const           { return (T*)data; }
+  bool     operator! () const           { return !data; }
+};
 
 #endif

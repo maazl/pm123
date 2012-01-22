@@ -71,6 +71,7 @@ class Filter : public Plugin, protected FilterProcs
   /// @exception ModuleException Something went wrong.
   virtual void LoadPlugin();
  public:
+  virtual ~Filter();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
   virtual bool InitPlugin();
   // Uninitialize the filter.

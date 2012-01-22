@@ -74,7 +74,9 @@ static USHORT amp_message_box( HWND owner, const char* title,
     style |=  MB_APPLMODAL;
   }
 
-  return WinMessageBox(HWND_DESKTOP, owner, (PSZ)message, padded_title, 0, style);
+  USHORT rc = WinMessageBox(HWND_DESKTOP, owner, (PSZ)message, padded_title, 0, style);
+  PMASSERT(rc != MBID_ERROR);
+  return rc;
 }
 
 

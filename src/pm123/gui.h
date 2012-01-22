@@ -104,7 +104,7 @@ class GUI
   static void      Add2MRU(Playable& list, size_t max, APlayable& ps);
 
  public: // Manipulating interface   
-  static void      ViewMessage(xstring info, bool error);
+  static void      PostMessage(MESSAGE_TYPE type, xstring text);
   // Tells the help manager to display a specific help window.
   // TODO: should move to dialog.cpp
   static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("ShowHelp(%u)\n", resid));

@@ -25,7 +25,6 @@ analyzer.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
 clean:  $(MDUMMY)
 	-@del analyzer$(LBI) analyzer.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-analyzer.cpp:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_plug.h ..\..\include\plugin.h analyzer.h colormap.h specana.h ..\..\utils\debuglog.h
 ..\..\utils\utilfct.h:	..\..\include\config.h ..\..\utils\errorstr.h ..\..\utils\minmax.h ..\..\utils\strutils.h
 ..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
 ..\..\include\format.h:	..\..\include\plugin.h
@@ -38,5 +37,4 @@ analyzer.cpp:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_
 ..\..\include\visual_plug.h:	..\..\include\format.h
 specana.h:	..\..\include\format.h
 colormap.cpp:	analyzer.h colormap.h ..\..\utils\debuglog.h
-specana.cpp:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h ..\..\utils\debuglog.h
 ..\..\fft123\api\fftw3.h:	..\..\include\config.h

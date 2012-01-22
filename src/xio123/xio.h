@@ -232,7 +232,7 @@ xio_strerror( int errnum );
 /** Sets a callback function that is notified when meta information
  * changes in the stream. */
 void DLLENTRY
-xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg );
+xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(XIO_META type, const char* metabuff, long pos, void* arg), void* arg );
 
 /** Returns a specified meta information if it is
  * provided by associated stream. */
@@ -241,7 +241,7 @@ xio_get_metainfo( XFILE* x, XIO_META type, char* result, int size );
 
 /** @deprecated use xio_set_metacallback instead.
  * @details Sets a handle of a window that are to be notified of changes
- * in the state of the library. set_observer is mutually exlusive
+ * in the state of the library. set_observer is mutually exclusive
  * with xio_set_metacallback.
  */
 void DLLENTRY

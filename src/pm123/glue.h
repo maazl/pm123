@@ -90,9 +90,9 @@ BOOL  out_trash( );
 *  Thread safe
 *
 ****************************************************************************/
-ULONG DLLENTRY out_playing_samples( FORMAT_INFO2* info, float* buf, int len );
-PM123_TIME DLLENTRY out_playing_pos( );
-BOOL  DLLENTRY out_playing_data( );
+ULONG DLLENTRY out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+PM123_TIME DLLENTRY out_playing_pos();
+BOOL  DLLENTRY out_playing_data();
 
 
 #endif /* PM123_GLUE_H */

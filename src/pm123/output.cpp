@@ -52,6 +52,10 @@
 
 delegate<void, const PluginEventArgs> Output::PluginDeleg(&Output::PluginNotification);
 
+Output::~Output()
+{ ModRef->Out = NULL;
+}
+
 void Output::PluginNotification(void*, const PluginEventArgs& args)
 { if (args.Plug.PluginType == PLUGIN_OUTPUT)
   { switch(args.Operation)
@@ -135,7 +139,7 @@ class OutputProxy1 : public Output, protected ProxyHelper
   PROXYFUNCDEF int        DLLENTRY proxy_1_output_request_buffer (OutputProxy1* op, void* a, const FORMAT_INFO2* format, float** buf);
   PROXYFUNCDEF void       DLLENTRY proxy_1_output_commit_buffer  (OutputProxy1* op, void* a, int len, PM123_TIME posmarker);
   PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_output_playing_pos    (OutputProxy1* op, void* a);
-  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_playing_samples(OutputProxy1* op, void* a, FORMAT_INFO2* info, float* buf, int len);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_playing_samples(OutputProxy1* op, void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   /// Convert the range [0,voutput_buffer_level[ to 16 bit audio and send it to the output.
   void         SendSamples(void* a);
@@ -215,7 +219,6 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
   params.error_display         = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
   params.info_display          = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
   params.volume                = (char)(info->Volume*100+.5);
-  params.amplifier             = info->Amplifier;
   params.pause                 = info->Pause;
   params.temp_playingpos       = TstmpF2I(info->PlayingPos);
 
@@ -323,17 +326,29 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
-proxy_1_output_playing_samples(OutputProxy1* op, void* a, FORMAT_INFO2* info, float* buf, int len)
-{ DEBUGLOG2(("proxy_1_output_playing_samples(%p{%s}, %p, %p, %p, %i) - %p \n", op, op == NULL ? NULL : op->ModuleName.cdata(), a, info, buf, len));
+proxy_1_output_playing_samples(OutputProxy1* op, void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+{ DEBUGLOG2(("proxy_1_output_playing_samples(%p{%s}, %p, %f, %p, %p) - %p \n",
+    op, op == NULL ? NULL : op->ModuleName.cdata(), a, offset, cb, param));
   FORMAT_INFO fmt = { sizeof(FORMAT_INFO) };
-  int clen = len * sizeof(short);
-  ULONG rc = (*op->voutput_playing_samples)(a, &fmt, (char*)buf + clen, clen);
+  union
+  { float f[4096];
+    short s[8192]; // Only the second half of the buffer is used.
+  } buf;
+  ULONG rc = (*op->voutput_playing_samples)(a, &fmt, (char*)buf.s + sizeof buf / 2, sizeof buf / 2);
   if (rc != 0)
     return rc;
-  info->samplerate = fmt.samplerate;
-  info->channels   = fmt.channels;
-  // convert samples to float
-  ProxyHelper::Short2Float(buf, (short*)((char*)buf + clen), len);
+
+  // Only support 16 bps
+  if (fmt.bits != 16)
+    return 1;
+  // Convert samples
+  ProxyHelper::Short2Float(buf.f, buf.s + countof(buf.s) / 2, countof(buf.f));
+
+  FORMAT_INFO2 fmt2;
+  fmt2.channels   = fmt.channels;
+  fmt2.samplerate = fmt.samplerate;
+  BOOL done = TRUE;
+  (*cb)(param, &fmt2, buf.f, countof(buf.f) / fmt2.channels, proxy_1_output_playing_pos(op, a), &done);
   return 0;
 }
 

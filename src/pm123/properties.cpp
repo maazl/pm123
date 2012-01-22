@@ -691,14 +691,18 @@ MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
         { PluginList def(List.Type);
-          def.LoadDefaults();
+          const xstring& err = def.LoadDefaults();
+          if (err)
+            EventHandler::Post(MSG_ERROR, err);
           Plugin::SetPluginList(def);
           // The GUI is updated by the PluginChange event.
         }
         break;
        case PB_UNDO:
         { PluginList list(List.Type);
-          list.Deserialize(UndoCfg);
+          const xstring& err = list.Deserialize(UndoCfg);
+          if (err)
+            EventHandler::Post(MSG_ERROR, err);
           Plugin::SetPluginList(list);
           // The GUI is updated by the PluginChange event.
         }

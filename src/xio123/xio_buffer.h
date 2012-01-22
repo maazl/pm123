@@ -38,12 +38,12 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   // Observer class to handle meta info callbacks and delay them until the
   // appropriate part of the buffer is read.
   struct obs_entry
-  { int         type;
+  { XIO_META    type;
     char*       metabuff;
     const long  pos;
     const long  pos64;
     obs_entry*  link;
-    obs_entry(int type, const char* metabuff, long pos, long pos64);
+    obs_entry(XIO_META type, const char* metabuff, long pos, long pos64);
     ~obs_entry() { free(metabuff); }
     char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
   };
@@ -68,7 +68,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   // Execute the observer entries up to file_pos
   void         obs_execute();
   // Observer callback. Called from the function chain->read(). 
-  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+  virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64);
   #ifdef DEBUG_LOG
   void         obs_dump() const;
   #endif
@@ -93,7 +93,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
 };
 
 
-inline XIObuffer::obs_entry::obs_entry(int type, const char* metabuff, long pos, long pos64)
+inline XIObuffer::obs_entry::obs_entry(XIO_META type, const char* metabuff, long pos, long pos64)
 : type(type),
   metabuff(strdup(metabuff)),
   pos(pos),

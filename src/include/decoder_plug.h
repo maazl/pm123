@@ -22,61 +22,97 @@ extern "C" {
  * Definitions common to all interface levels.
  *
  ***************************************************************************/
+
+/** Initialize a decoder instance.
+ * @param w Return a handle in \a *w.
+ * @return Return PLUGIN_OK on success. */
 int  DLLENTRY decoder_init  (void** w);
+/** Destroy initialized decoder instance.
+ * @param w Handle received by \c decoder_init.
+ * @return TRUE: success */
 BOOL DLLENTRY decoder_uninit(void*  w);
 
-/* returns ORed values */
+/** Decoder flags, valued can be ored. */
 typedef enum
-{ DECODER_FILENAME = 0x0001, /* Decoder can play a regular file. (file:) */
-  DECODER_URL      = 0x0002, /* Decoder can play a Internet stream or file. (http:, https:, ftp:) */
-  DECODER_TRACK    = 0x0004, /* Decoder can play a CD track. (cd: cdda:) */
-  DECODER_OTHER    = 0x0008, /* Decoder can play something else. */
-  #if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL >= 2
-  DECODER_SONG     = 0x0100, /* Decoder can play songs with this file type. */
-  DECODER_PLAYLIST = 0x0200, /* Decoder can play playlists with this file type. */
-  DECODER_WRITABLE = 0x1000, /* Decoder can save items of this type. */
-  DECODER_METAINFO = 0x2000  /* Decoder can save a meta info. */
-  #endif
+{ /** Decoder can play a regular file. (file:) */
+  DECODER_FILENAME = 0x0001,
+  /** Decoder can play a Internet stream or file. (http:, https:, ftp:) */
+  DECODER_URL      = 0x0002,
+  /** Decoder can play a CD track. (cd: cdda:) */
+  DECODER_TRACK    = 0x0004,
+  /** Decoder can play something else. */
+  DECODER_OTHER    = 0x0008,
+  /** Decoder can play songs with this file type. */
+  DECODER_SONG     = 0x0100,
+  /** Decoder can play playlists with this file type. */
+  DECODER_PLAYLIST = 0x0200,
+  /** Decoder can save items of this type. */
+  DECODER_WRITABLE = 0x1000,
+  /** Decoder can save a meta info. */
+  DECODER_METAINFO = 0x2000
 } DECODER_TYPE;
 
+/** Decoder commands */
 typedef enum
-{
-  DECODER_PLAY     = 1, /* returns 101 -> already playing
-                                   102 -> error, decoder killed and restarted */
-  DECODER_STOP     = 2, /* returns 101 -> already stopped
-                                   102 -> error, decoder killed (and stopped) */
+{ /** Start decoding, returns 101 -> already playing, 102 -> error, decoder killed and restarted */
+  DECODER_PLAY     = 1,
+  /** Stop decoding, returns 101 -> already stopped, 102 -> error, decoder killed (and stopped) */
+  DECODER_STOP     = 2,
+  /** Fast forward and rewind */
   DECODER_FFWD     = 3,
-  #if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
-  DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */
-  #endif
+  /** Rewind for Level 1 plug-ins
+   * @deprecated Level 2 and above plug-ins always send \c DECODER_FFWD */
+  DECODER_REW      = 4,
+  /** Jump to a certain location within a song. */
   DECODER_JUMPTO   = 5,
+  /** Initialize decoder instance to decode a new song. */
   DECODER_SETUP    = 6,
-  DECODER_EQ       = 7, /* obsolete, no longer used since PM123 1.40b */
-  DECODER_BUFFER   = 8, /* obsolete, don't used anymore */
+  /** Set equalizer parameters.
+   * @deprecated Obsolete, no longer suppoerted since PM123 1.40b */
+  DECODER_EQ       = 7,
+  /** @deprecated Obsolete, don't used anymore */
+  DECODER_BUFFER   = 8,
+  /** Save the raw stream into a file. */
   DECODER_SAVEDATA = 9
 } DECMSGTYPE;
 
+/** Decoder events */
 typedef enum
-{ DECEVENT_PLAYSTOP   = 1, /* The decoder finished decoding */
-  DECEVENT_PLAYERROR  = 2, /* A playback error occured so that PM123 should know to stop immediately */
-  DECEVENT_SEEKSTOP   = 3, /* JUMPTO operation is completed */
-  DECEVENT_CHANGETECH = 4, /* change samplingrate, param points to TECH_INFO structure */
-  DECEVENT_CHANGEOBJ  = 5, /* change song length, param points to OBJ_INFO structure */
-  DECEVENT_CHANGEMETA = 6  /* change metadata, param points to META_INFO structure */
+{ /** The decoder finished decoding */
+  DECEVENT_PLAYSTOP   = 1,
+  /** A decoder error occurred so that PM123 should know to stop immediately */
+  DECEVENT_PLAYERROR  = 2,
+  /** \c DECODER_JUMPTO operation has completed */
+  DECEVENT_SEEKSTOP   = 3,
+  /** On the fly change of samplingrate, param points to TECH_INFO structure */
+  DECEVENT_CHANGETECH = 4,
+  /** On the fly change of song length, param points to OBJ_INFO structure */
+  DECEVENT_CHANGEOBJ  = 5,
+  /** On the fly change of metadata, param points to META_INFO structure */
+  DECEVENT_CHANGEMETA = 6
 } DECEVENTTYPE;
 
+/** Decoder states */
 typedef enum
-{ DECODER_STOPPED  = 0,
+{ /** Decoder instance is idle. */
+  DECODER_STOPPED  = 0,
+  /** Decoder instance is decoding. */
   DECODER_PLAYING  = 1,
+  /** Decoder instance has received a \c DECODER_PLAY command but has not yet started decoding. */
   DECODER_STARTING = 2,
+  /** Decoder instance has been suspended */
   DECODER_PAUSED   = 3,
+  /** Decoder instance has received a \c DECODER_STOP command, but the decoder thread has not terminated so far. */
   DECODER_STOPPING = 4,
+  /** The decoder instance is in an invalid state and should be destroyed with \c decoder_uninit. */
   DECODER_ERROR    = 200
 } DECODERSTATE;
 
+/** Query the current state of a decoder instance */
 ULONG DLLENTRY decoder_status(void* w);
 
-/* See haveinfo field of the DECODER_INFO structure. */
+/** Flags to address individual fields of the meta information.
+ * See \c haveinfo field of the \c DECODER_INFO structure. */
 typedef enum
 { DECODER_HAVE_NONE       = 0x0000
 , DECODER_HAVE_TITLE      = 0x0001
@@ -94,6 +130,10 @@ typedef enum
 } DECODERMETA;
 
 #if PLUGIN_INTERFACE_LEVEL > 0
+/** Invoke decoder specific dialog to edit the meta information of an object.
+ * @param owner Owner window handle
+ * @param url Object to edit
+ * @return Success code. See PDK documentation */
 ULONG DLLENTRY decoder_editmeta(HWND owner, const char* url);
 #endif
 
@@ -314,12 +354,12 @@ typedef struct _DECODER_PARAMS2
   DECFASTMODE  Fast;        /* fast forward/rewind */
 
   /* --- DECODER_SETUP */
-  /* specify a function which the decoder should use for output */
-  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
-  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  /* decoder events */
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
-  void* A;                  /* only to be used with the precedent functions */
+    /* specify a function which the decoder should use for output */
+    int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+    void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+    /* decoder events */
+    void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+    void* A;                  /* only to be used with the precedent functions */
 
   /* --- DECODER_SAVEDATA */
   xstring      SaveFilename;
@@ -334,13 +374,11 @@ void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
 PM123_TIME DLLENTRY decoder_length(void* w);
 
 
-/* Callback of decoder_fileinfo. Called once per item.
- */
+/** Callback of \c decoder_fileinfo. Called once per item. */
 typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
   const INFO_BUNDLE* info, int cached, int reliable);
 
-/* Callback of decoder_savelist. Called once per item.
- */
+/** Callback of \c decoder_savelist. Called once per item. */
 typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
   const INFO_BUNDLE** info, int* cached, int* reliable);
 

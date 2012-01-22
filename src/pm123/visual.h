@@ -83,6 +83,7 @@ class Visual : public Plugin, protected VisualProcs
   /// @exception ModuleException Something went wrong.
   void         LoadPlugin();
  public:
+  virtual ~Visual();
   /// Initialize the plug-in.
   /// @param hwnd PM123 window handle
   /// @return true on success

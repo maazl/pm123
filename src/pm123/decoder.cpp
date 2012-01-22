@@ -801,7 +801,6 @@ void DecoderProxy1::CommandCallback(Ctrl::ControlCommand* cmd)
 
 Decoder::~Decoder()
 { Mutex::Lock lock(Module::Mtx);
-  ASSERT(ModRef->Dec == this);
   ModRef->Dec = NULL;
 }
 

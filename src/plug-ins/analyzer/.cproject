@@ -37,6 +37,12 @@
 									<listOptionValue builtIn="false" value="_System"/>
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
+									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
+									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
+									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
+									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
+									<listOptionValue builtIn="false" value="DEBUG=1"/>
+									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.884438037" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

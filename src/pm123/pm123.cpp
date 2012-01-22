@@ -84,9 +84,10 @@ void amp_fail(const char* fmt, ...)
 
 static void amp_default_message_handler(MESSAGE_TYPE type, const xstring& msg)
 { HWND owner = GUI::GetFrameWindow();
-  if (owner == NULLHANDLE)
-    owner = HWND_DESKTOP; // GUI not yet initialized
-  amp_message(owner, type, msg);
+  if (owner != NULLHANDLE)
+    GUI::PostMessage(type, msg);
+  else // GUI not yet initialized
+    amp_message(HWND_DESKTOP, type, msg);
 }
 
 
@@ -282,7 +283,7 @@ int main(int argc, char** argv)
     do
     { const url123& url = cwd.makeAbsolute(*spp);
       if (!url)
-        GUI::ViewMessage(xstring::sprintf("Invalid file or URL: '%s'", *spp), true);
+        EventHandler::PostFormat(MSG_ERROR, "Invalid file or URL: '%s'", *spp);
       else
         lhp->AddItem(Playable::GetByURL(url));
     } while (++spp != epp);

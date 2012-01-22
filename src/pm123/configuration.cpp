@@ -130,17 +130,15 @@ HINI                       Cfg::HIni;
 
 void Cfg::LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
 { PluginList list(type);
+  xstring err;
   if (ini_query_xstring(HIni, INI_SECTION, key, Current.*cfg))
-  { const xstring& err = list.Deserialize(Current.*cfg);
-    if (err)
-    { EventHandler::Post(MSG_ERROR, err);
-      if (!list.size())
-        goto fail;
-    }
+  { err = list.Deserialize(Current.*cfg);
+    if (err && !list.size())
+      list.LoadDefaults();
   } else
-  {fail:
-    list.LoadDefaults();
-  }
+    err = list.LoadDefaults();
+  if (err)
+    EventHandler::Post(MSG_ERROR, err);
   Plugin::SetPluginList(list);
 }
 

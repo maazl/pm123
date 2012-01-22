@@ -1846,36 +1846,32 @@ void CommandProcessor::CmdPluginUnload()
 
 bool CommandProcessor::ReplacePluginList(PluginList& list)
 { DEBUGLOG(("CommandProcessor(%p)::ReplacePluginList({%x,...}) - %s\n", this, list.Type, Request));
-  try
-  { // set plug-in list
-    if (stricmp(Request, "@default") == 0)
-      list.LoadDefaults();
-    else if (stricmp(Request, "@empty") == 0)
-      list.clear();
-    else
-    { // Replace \t by \n
-      char* cp = Request;
-      while ((cp = strchr(cp, '\t')) != NULL)
-      { *cp = '\n';
-        while (*++cp == '\t');
-      }
-      const xstring& err = list.Deserialize(Request);
-      if (err)
-      { MessageHandler(this, MSG_ERROR, err);
-        Reply.clear();
-        return false;
-      }
-    }
-    Plugin::SetPluginList(list);
-    // Clear the list that now contains the old plug-ins.
-    // At this point the references are released and the modules are free.
+  xstring err;
+  // set plug-in list
+  if (stricmp(Request, "@default") == 0)
+    err = list.LoadDefaults();
+  else if (stricmp(Request, "@empty") == 0)
     list.clear();
-    return true;
-  } catch (const ModuleException& ex)
-  { MessageHandler(this, MSG_ERROR, ex.GetErrorText());
+  else
+  { // Replace \t by \n
+    char* cp = Request;
+    while ((cp = strchr(cp, '\t')) != NULL)
+    { *cp = '\n';
+      while (*++cp == '\t');
+    }
+    err = list.Deserialize(Request);
+  }
+  if (err)
+  { MessageHandler(this, MSG_ERROR, err);
     Reply.clear();
     return false;
   }
+
+  Plugin::SetPluginList(list);
+  // Clear the list that now contains the old plug-ins.
+  // At this point the references are released and the modules are free.
+  list.clear();
+  return true;
 }
 
 void CommandProcessor::CmdPluginList()

@@ -2,6 +2,7 @@
 #define PM123_VISUAL_PLUG_H
 
 #include <format.h>
+#include <output_plug.h>
 
 #if PLUGIN_INTERFACE_LEVEL < 3
 #error "The old visual plug-in interface is no longer supported." \
@@ -18,11 +19,11 @@ extern "C" {
    on some of these functions */
 typedef struct _PLUGIN_PROCS
 {
-  ULONG  DLLENTRYP(output_playing_samples)( FORMAT_INFO2* info, float* buf, int len );
-  BOOL   DLLENTRYP(decoder_playing)( void );
-  double DLLENTRYP(output_playing_pos)( void );
-  ULONG  DLLENTRYP(decoder_status)( void );
-  double DLLENTRYP(decoder_length)( void );
+  ULONG  DLLENTRYP(output_playing_samples)(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  BOOL   DLLENTRYP(decoder_playing)(void);
+  double DLLENTRYP(output_playing_pos)(void);
+  ULONG  DLLENTRYP(decoder_status)(void);
+  double DLLENTRYP(decoder_length)(void);
 
 } PLUGIN_PROCS;
 

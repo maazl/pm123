@@ -72,7 +72,6 @@ class WaitInfo : private WaitLoadInfo
   int_ptr<APlayable>        Inst;
   Reliability               Rel;
  private:
-  void                      InfoChangeEvent(const PlayableChangeArgs& args);
   virtual void              CommitInfo(InfoFlags what);
  public:
   bool                      Wait(APlayable& inst, InfoFlags what, Reliability rel, long ms = -1);
@@ -84,7 +83,6 @@ class WaitAggregateInfo : private WaitLoadInfo
   AggregateInfo*            AI;
   Reliability               Rel;
  private:
-  void                      InfoChangeEvent(const PlayableChangeArgs& args);
   virtual void              CommitInfo(InfoFlags what);
  public:
   bool                      Wait(APlayable& inst, AggregateInfo& ai, InfoFlags what, Reliability rel, long ms = -1);

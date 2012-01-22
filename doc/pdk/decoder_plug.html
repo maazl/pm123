@@ -169,12 +169,12 @@ play that. PM123 will try other decoders if available.</li>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
-      <th>Bit in <tt>*<var>what</var></tt>
+      <th>bit in <tt>*<var>what</var></tt>
 on input</th>
-      <th>Bit in <tt>*<var>what</var></tt>
+      <th>bit in <tt>*<var>what</var></tt>
 on return</th>
-      <th>Corresponding info available</th>
-      <th>Corresponding fields in&nbsp;<tt>INFO_BUNDLE</tt></th>
+      <th>corresponding info available</th>
+      <th>corresponding fields in&nbsp;<tt>INFO_BUNDLE</tt></th>
     </tr>
     <tr>
       <td align="center">reset</td>
@@ -192,13 +192,13 @@ on return</th>
       <td align="center">don't care</td>
       <td align="center">set</td>
       <td align="center">no</td>
-      <td>unmodified</td>
+      <td>leave unmodified</td>
     </tr>
     <tr>
       <td align="center">don't care</td>
       <td align="center">set</td>
       <td align="center">yes</td>
-      <td>filled with valid content</td>
+      <td>fill with valid content</td>
     </tr>
   </tbody>
 </table>
@@ -210,7 +210,7 @@ corresponding bit in <tt>*<var>what</var></tt>
 and return the information if applicable. This avoids redundant calls
 to <tt>decoder_fileinfo</tt>.</p>
 <p>PM123 does not need all informations for all kind of objects. <em>The
-aggregate type <b>recursive playlist information</b> is never
+aggregate type recursive playlist information is never
 requested
 explicitly by PM123.</em> PM123 will also never request <tt>INFO_PHYS</tt>
 if a <var><tt>handle</tt></var> is not <tt>NULL</tt>. However, a
@@ -504,7 +504,7 @@ indicates a permanent error. PM123 stops the playback in this case.</li>
 <p>If you get a smaller buffer as you need to pass your data you
 should call <code>output_request_buffer</code> and <code>output_commit_buffer</code>
 again until all your data is consumed. There is no guaranteed minimum
-size of the buffer. You should not expect this to get very small
+size of the buffer, but you should not expect this to get very small
 buffers quite often.</p>
 <h4><a name="output_commit_buffer"></a>output_commit_buffer</h4>
 <blockquote>

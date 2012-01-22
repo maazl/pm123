@@ -309,14 +309,8 @@ class PluginList : public vector_int<Plugin>
   PluginList(const PluginList& r) : vector_int<Plugin>(r), Type(r.Type) {}
   PluginList&     operator=(const PluginList& r) { ASSERT(Type == r.Type); vector_int<Plugin>::operator=(r); return *this; }
 
-  /*/// Append a new plug-in to the list.
-  void            append(Plugin* plugin);*/
   /// Check whether a plug-in is already in the list.
   bool            contains(const Plugin* plugin) const { return find(plugin) != NULL; }
-
-  /*/// Remove the plug-in from the list.
-  /// @return true on success.
-  bool            remove(Plugin* plugin);*/
 
   /// @brief Serialize plug-in list to a string.
   /// @details This implicitly calls Serialize for each plug-in in the list.
@@ -327,8 +321,9 @@ class PluginList : public vector_int<Plugin>
   xstring         Deserialize(const char* str);
 
   /// Reset the list to the default of this plug-in flavor.
+  /// @return \c NULL on success and an error text on error.
   /// @remarks This function must be called from thread 1.
-  void            LoadDefaults();
+  xstring         LoadDefaults();
 };
 
 

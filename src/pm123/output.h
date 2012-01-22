@@ -55,17 +55,17 @@
 struct OutputProcs
 { void*  A;
   ULONG  DLLENTRYP(output_init           )(void** a);
-  ULONG  DLLENTRYP(output_uninit         )(void*  a);
-  ULONG  DLLENTRYP(output_command        )(void*  a, ULONG msg, OUTPUT_PARAMS2* info);
-  int    DLLENTRYP(output_request_buffer )(void*  a, const FORMAT_INFO2* format, float** buf);
-  void   DLLENTRYP(output_commit_buffer  )(void*  a, int len, double posmarker);
-  ULONG  DLLENTRYP(output_playing_samples)(void*  a, FORMAT_INFO2* info, float* buf, int len);
-  double DLLENTRYP(output_playing_pos    )(void*  a);
-  BOOL   DLLENTRYP(output_playing_data   )(void*  a);
+  ULONG  DLLENTRYP(output_uninit         )(void* a);
+  ULONG  DLLENTRYP(output_command        )(void* a, ULONG msg, OUTPUT_PARAMS2* info);
+  int    DLLENTRYP(output_request_buffer )(void* a, const FORMAT_INFO2* format, float** buf);
+  void   DLLENTRYP(output_commit_buffer  )(void* a, int len, double posmarker);
+  ULONG  DLLENTRYP(output_playing_samples)(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  double DLLENTRYP(output_playing_pos    )(void* a);
+  BOOL   DLLENTRYP(output_playing_data   )(void* a);
          OutputProcs()                    { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
-// specialized class for output plug-ins
+/// Specialized class for output plug-ins
 class Output
 : public    Plugin,
   protected OutputProcs
@@ -81,9 +81,10 @@ class Output
   /// @exception ModuleException Something went wrong.
   virtual void LoadPlugin();
  public:
-  // Initialize the output plug-in. Return TRUE on success.
+  virtual ~Output();
+  /// Initialize the output plug-in. Return TRUE on success.
   virtual bool InitPlugin();
-  // Uninitialize the output plug-in. Return TRUE on success.
+  /// Uninitialize the output plug-in. Return TRUE on success.
   virtual bool UninitPlugin();
   virtual bool IsInitialized() const  { return A != NULL; }
   /// Getter to the entry points of this plug-in.
@@ -97,7 +98,7 @@ class Output
   /// @remarks This function must be called from thread 1.
   static int_ptr<Output> GetInstance(Module& module);
 
-  // initialize global services
+  /// initialize global services
   static void  Init();
   static void  Uninit()               { PluginDeleg.detach(); }
 };

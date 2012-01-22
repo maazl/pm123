@@ -217,7 +217,7 @@ class Decoder : public MPG123
 
  private:
   /// Call back function, invoked by XIO library when meta data arrives.
-  PROXYFUNCDEF void DLLENTRY MetaCallback(int type, const char* metabuff, long pos, void* arg);
+  PROXYFUNCDEF void DLLENTRY MetaCallback(XIO_META type, const char* metabuff, long pos, void* arg);
   /// Stub to get the right calling convention.
   PROXYFUNCDEF void TFNENTRY ThreadStub(void* arg);
   /// Worker thread

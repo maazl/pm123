@@ -41,6 +41,10 @@
 *
 ****************************************************************************/
 
+Filter::~Filter()
+{ ModRef->Fil = NULL;
+}
+
 /* Assigns the addresses of the filter plug-in procedures. */
 void Filter::LoadPlugin()
 { const Module& mod = *ModRef;

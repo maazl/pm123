@@ -34,23 +34,23 @@
 #define  INCL_WIN
 #define  INCL_GPI
 #define  INCL_OS2MM
+#define  PLUGIN_INTERFACE_LEVEL 3
 #include <os2.h>
 #include <os2me.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <dive.h>
 #include <fourcc.h>
+#include <float.h>
 #include <math.h>
 #include <string.h>
 #include <malloc.h>
-
-#define PLUGIN_INTERFACE_LEVEL 3
 
 #include <utilfct.h>
 #include <format.h>
 #include <visual_plug.h>
 #include <plugin.h>
-
+#include <fftw3.h>
 #include <limits.h>
 
 #ifndef M_PI
@@ -80,16 +80,18 @@
 #define BARS_CY         3
 #define BARS_SPACE      1
 
+#define UM_UPDATE       WM_USER // Update analyzer
+
 
 /* environment data */
 static  VISPLUGININIT plug;
-static  const PLUGIN_CONTEXT* context;
+PLUGIN_CONTEXT Ctx;
 
 #define load_prf_value(var) \
-  context->plugin_api->profile_query(#var, &var, sizeof var)
+  Ctx.plugin_api->profile_query(#var, &var, sizeof var)
 
 #define save_prf_value(var) \
-  context->plugin_api->profile_write(#var, &var, sizeof var)
+  Ctx.plugin_api->profile_write(#var, &var, sizeof var)
 
 
 /* configuration data */
@@ -110,22 +112,24 @@ static  HDIVE  hdive;
 static  ULONG  image_id;
 static  RGB2   palette[CLR_SIZE];
 
+ULONG DLLENTRYP(OutPlayingPamples)(PM123_TIME, OUTPUT_PLAYING_BUFFER_CB, void*) = NULL;
+
 /* working set initialized by init_bands */
-static  int    last_samplerate;
-static  float  relative_falloff_speed;
-static  int    numsamples; // FFT length
-static  WIN_FN windowfunc; // desired window function
-static  float* amps;       // FFT data
-static  int    amps_count; // FFT data size
-static  float* bars;       // destination channels
-static  int    bars_count; // destination channel count
-static  int*   scale;      // mapping FFT data -> destination channels
+static  int    LastSamplerate = 0;
+static  float  RelativeFalloffSpeed;
+static  float* Data       = NULL; // RAW sample data (always single channel)
+static  int    NumSamples = 0;    // FFT length
+static  WIN_FN WindowFunc;        // desired window function
+static  float* Amps       = NULL; // FFT data
+static  int    AmpsCount  = 0;    // FFT data size
+static  float* Bars       = NULL; // destination channels
+static  int    barsCount  = 0;    // destination channel count
+static  int*   Scale      = NULL; // mapping FFT data -> destination channels
 /* internal state */
-static  BOOL   is_stopped;
-static  BOOL   needinit;
-static  BOOL   needclear;
-static  FORMAT_INFO2 lastformat;
-static  BOOL   destroy_pending = FALSE;
+static  bool   IsStopped;
+static  bool   NeedInit;
+static  bool   NeedClear;
+static  bool   DestroyPending = false;
 
 
 /********** read palette data **********************************************/
@@ -140,24 +144,23 @@ typedef struct
 } interpolation_data;
 
 /* transfer interpolation data into palette */
-static BOOL do_interpolation(const interpolation_data* src)
+static bool do_interpolation(const interpolation_data* src)
 { if (src->osc_entr == 0 || src->ana_entr == 0 || src->spc_entr == 0)
-    return FALSE;
+    return false;
   // oscilloscope colors
   interpolate(palette + CLR_OSC_DIMMEST, CLR_OSC_BRIGHT - CLR_OSC_DIMMEST +1, src->osc_tab, src->osc_entr);
   // analyzer colors
   interpolate(palette + CLR_ANA_BOTTOM, CLR_ANA_TOP - CLR_ANA_BOTTOM +1, src->ana_tab, src->ana_entr);
   // spectroscope colors
   interpolate(palette + CLR_SPC_BOTTOM, CLR_SPC_TOP - CLR_SPC_BOTTOM +1, src->spc_tab, src->spc_entr);
-  return TRUE;
+  return true;
 }
 
 /* Removes comments */
-static BOOL
-uncomment_slash( char *something )
+static bool uncomment_slash( char *something )
 {
-  BOOL inquotes = FALSE;
-  BOOL nonwhitespace = FALSE;
+  bool inquotes = false;
+  bool nonwhitespace = false;
 
   for (;; ++something)
   { switch (*something)
@@ -177,26 +180,25 @@ uncomment_slash( char *something )
      case '\"':
       inquotes = !inquotes;
     }
-    nonwhitespace = TRUE;
+    nonwhitespace = true;
   }
 }
 
 /* Reads RGB colors from specified file. */
-static BOOL read_color(const char* line, RGB2* color)
+static bool read_color(const char* line, RGB2* color)
 {
   int  r,g,b;
-
   if (sscanf(line, "%d,%d,%d", &r, &g, &b ) != 3)
-    return FALSE;
+    return false;
 
   color->bRed   = r;
   color->bGreen = g;
   color->bBlue  = b;
-  return TRUE;
+  return true;
 }
 
 /* Reads a palette from a stream */
-static BOOL read_palette( FILE* dat )
+static bool read_palette( FILE* dat )
 {
   char line[256];
   color_entry* cur = NULL; // The NULL value is nonsens but gcc claims that cur might be uninitialized otherwide.
@@ -204,7 +206,7 @@ static BOOL read_palette( FILE* dat )
   RGB2 color;
 
   if (!fgets( line, sizeof( line ), dat ))
-    return FALSE;
+    return false;
 
   memset(palette, 0, sizeof palette);
   ipd.osc_entr = 0;
@@ -216,7 +218,7 @@ static BOOL read_palette( FILE* dat )
   { // new file format
     int version;
     if (sscanf(line+11, "%d", &version) != 1 || version > 21)
-      return FALSE;
+      return false;
     DEBUGLOG(("NF: %d\n", version));
 
     // some defaults
@@ -288,15 +290,15 @@ static BOOL read_palette( FILE* dat )
       switch (i)
       {case 1:
         if (!read_color( line, &palette[CLR_BGR_BLACK] ))
-          return FALSE;
+          return false;
         goto c2;
        case 2:
         if (!read_color( line, &palette[CLR_BGR_GREY] ))
-          return FALSE;
+          return false;
         goto c2;
        case 24:
         if (!read_color( line, &palette[CLR_ANA_BARS] ))
-          return FALSE;
+          return false;
         goto OK;
        case 3:
         cur = ipd.ana_tab;
@@ -312,7 +314,7 @@ static BOOL read_palette( FILE* dat )
         // scope colors
         cur->Pos = (i - 19) / 4.;
       if (!read_color( line, &color ))
-        return FALSE;
+        return false;
       RGB2YDCyl(&cur->Color, &color);
       ++cur;
      c2:
@@ -321,7 +323,7 @@ static BOOL read_palette( FILE* dat )
     } while (fgets( line, sizeof( line ), dat ));
 
     if (i != 23)
-      return FALSE;
+      return false;
     palette[CLR_ANA_BARS] = palette[CLR_ANA_TOP];
    OK:
     ipd.osc_entr = 5;
@@ -384,43 +386,47 @@ static void load_default_palette(void)
 /********** filter design ***************************************************/
 
 /* Free memory used by spectrum analyzer bands. */
-static void
-free_bands( void )
-{
-  DEBUGLOG(("INI: free_bands %p %p %p\n", amps, bars, scale));
-  free( amps  );
-  free( bars  );
-  free( scale );
-
-  amps_count = 0;
-  bars_count = 0;
-  amps       = NULL;
-  bars       = NULL;
-  scale      = NULL;
+static void free_bands()
+{ DEBUGLOG(("analyzer:free_bands %p %p %p %p\n", Data, Amps, Bars, Scale));
+  NumSamples = 0;
+  AmpsCount = 0;
+  barsCount = 0;
+  fftwf_free(Data);
+  delete[] Amps;
+  delete[] Bars;
+  delete[] Scale;
+  Data  = NULL;
+  Amps  = NULL;
+  Bars  = NULL;
+  Scale = NULL;
 }
 
 /* Initializes spectrum analyzer bands. */
-static BOOL init_bands(int samplerate)
+static void init_bands(int samplerate)
 {
   int    i;
   double step = 0;
   int    highfreq;
 
+  // By default there are by far too many FP exceptions
+  _control87( EM_INVALID  | EM_DENORMAL  | EM_ZERODIVIDE |
+              EM_OVERFLOW | EM_UNDERFLOW | EM_INEXACT, MCW_EM );
+
   DEBUGLOG(("INI: samplerate = %d\n", samplerate));
-  relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
+  RelativeFalloffSpeed = (float)cfg.falloff_speed / plug.cy;
 
   if ( cfg.default_mode == active_cfg.default_mode
      && cfg.display_freq == active_cfg.display_freq
      && cfg.display_lowfreq == active_cfg.display_lowfreq
      && cfg.highprec_mode == active_cfg.highprec_mode
-     && last_samplerate == samplerate
-     && amps != NULL && bars != NULL && scale != NULL )
+     && LastSamplerate == samplerate
+     && Amps != NULL && Bars != NULL && Scale != NULL )
   { active_cfg = cfg; // no major change
     DEBUGLOG(("INI: minor change\n"));
-    return TRUE;
+    return;
   }
   active_cfg = cfg;
-  last_samplerate = samplerate;
+  LastSamplerate = samplerate;
   free_bands();
 
   // calculate number of channels = bars, FFT length and some other specific parameters
@@ -428,44 +434,51 @@ static BOOL init_bands(int samplerate)
   // Note that this will create an scale index out of bounds if the FFT winwow size is larger than the sampling rate (very unlikely).
   if (highfreq > active_cfg.display_freq)
     highfreq = active_cfg.display_freq;
-  windowfunc = WINFN_HAMMING;
+  WindowFunc = WINFN_HAMMING;
   switch (active_cfg.default_mode)
-  {default:
+  {case SHOW_OSCILLOSCOPE:
+    NumSamples = plug.cx << 1;
+    Data = (float*)fftwf_malloc(NumSamples * sizeof *Data);
+   default:
     DEBUGLOG(("no FFT mode: %d\n", active_cfg.default_mode));
-    return TRUE;
+    return;
+
    case SHOW_ANALYZER:
    case SHOW_SPECTROSCOPE:
-    bars_count = plug.cx;
-    numsamples = (bars_count * samplerate << active_cfg.highprec_mode) / (highfreq - active_cfg.display_lowfreq);
+    barsCount = plug.cx;
+    NumSamples = (barsCount * samplerate << active_cfg.highprec_mode) / (highfreq - active_cfg.display_lowfreq);
     break;
+
    case SHOW_BARS:
-    bars_count = (plug.cx + BARS_SPACE) / (BARS_CY + BARS_SPACE);
+    barsCount = (plug.cx + BARS_SPACE) / (BARS_CY + BARS_SPACE);
     goto logcommon;
+
    case SHOW_LOGSPECSCOPE:
-    bars_count = plug.cy;
+    barsCount = plug.cy;
    logcommon:
-    step = log((double)highfreq / active_cfg.display_lowfreq) / bars_count; // limit range to the nyquist frequency
-    numsamples = (int)(samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode));
+    step = log((double)highfreq / active_cfg.display_lowfreq) / barsCount; // limit range to the nyquist frequency
+    NumSamples = (int)(samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode));
   }
-  DEBUGLOG(("INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, bars_count, numsamples));
+  DEBUGLOG(("INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, barsCount, NumSamples));
 
   // round up FFT length to the next power of 2
-  frexp(numsamples-1, &numsamples); // floor(log2(numsamples-1))+1
-  numsamples = 1 << numsamples; // 2**x
+  frexp(NumSamples-1, &NumSamples); // floor(log2(numsamples-1))+1
+  NumSamples = 1 << NumSamples; // 2**x
+  AmpsCount = (NumSamples >> 1) +1;
 
   // initialize woring set
-  amps_count = (numsamples >> 1) +1;
-  amps       = (float*)malloc(amps_count * sizeof *amps);
-  bars       = (float*)malloc(bars_count * sizeof *bars);
-  scale      = (int*)malloc((bars_count+1) * sizeof *scale);
-  memset(bars, 0, bars_count * sizeof *bars);
+  Data  = (float*)fftwf_malloc(NumSamples * sizeof *Data);
+  Amps  = new float[AmpsCount];
+  Bars  = new float[barsCount];
+  Scale = new int[barsCount+1];
+  memset(Bars, 0, barsCount * sizeof *Bars);
 
   if (step != 0)
   { // logarithmic frequency scale
-    double factor = (double)active_cfg.display_lowfreq * numsamples / samplerate;
-    int* sp = scale;
+    double factor = (double)active_cfg.display_lowfreq * NumSamples / samplerate;
+    int* sp = Scale;
     *sp++ = (int)ceil(factor);
-    for (i = 1; i <= bars_count; i++)
+    for (i = 1; i <= barsCount; i++)
     { *sp = (int)ceil(exp(step * i) * factor);
       if (sp[0] <= sp[-1])
       { if (i == 1 || sp[-2] < sp[0]-1)
@@ -477,11 +490,11 @@ static BOOL init_bands(int samplerate)
     }
   } else
   { // linear frequency scale
-    double factor = (double)numsamples / samplerate;
-    int* sp = scale;
-    step = (highfreq - active_cfg.display_lowfreq) / bars_count;
+    double factor = (double)NumSamples / samplerate;
+    int* sp = Scale;
+    step = (highfreq - active_cfg.display_lowfreq) / barsCount;
     *sp++ = (int)ceil(active_cfg.display_lowfreq * factor);
-    for (i = 1; i <= bars_count; i++)
+    for (i = 1; i <= barsCount; i++)
     { *sp = (int)ceil((i * step + active_cfg.display_lowfreq) * factor);
       if (sp[0] <= sp[-1])
         sp[0] = sp[-1] +1;
@@ -490,45 +503,37 @@ static BOOL init_bands(int samplerate)
   }
   #ifdef DEBUG_LOG
   DEBUGLOG(("INITSCALE: st = %f,\n", step));
-  for (i = 0; i <= bars_count; ++i)
-    DEBUGLOG2((" %d", scale[i]));
-  DEBUGLOG(("\n"));
+  for (i = 0; i <= barsCount; ++i)
+    DEBUGLOG2((" %d", Scale[i]));
   #endif
-
-  return TRUE;
 }
 
 
 /********** analyzer updates ************************************************/
 
-static void
-clear_analyzer( void )
+static void clear_analyzer()
 {
   ULONG cx, cy;
   char* image;
 
   ORASSERT(DiveBeginImageBufferAccess( hdive, image_id, &image, &cx, &cy ));
   memset( image, 0, cx * cy );
-  if (bars != NULL)
-    memset(bars , 0, bars_count * sizeof *bars);
+  if (Bars != NULL)
+    memset(Bars , 0, barsCount * sizeof *Bars);
   ORASSERT(DiveEndImageBufferAccess( hdive, image_id ));
   ORASSERT(DiveBlitImage( hdive, image_id, 0 ));
 }
 
-static BOOL do_analysis(void)
-{retry:
-  switch (specana_do(numsamples, WINFN_HAMMING, amps, &lastformat))
-  {case SPECANA_NEWFORMAT:
-    DEBUGLOG(("specana_do NEWFORMAT\n"));
-    init_bands(lastformat.samplerate);
-    goto retry;
-   default:
+/// Do FFT analysis of captured samples
+static bool do_analysis()
+{ switch (specana_do(Data, NumSamples, WINFN_HAMMING, Amps))
+  {default:
     DEBUGLOG(("specana_do ERROR\n"));
    case SPECANA_UNCHANGED:
     DEBUGLOG(("specana_do UNCHANGED\n"));
-    return FALSE;
+    return false;
    case SPECANA_OK:
-    return TRUE;
+    return true;
   }
 }
 
@@ -537,22 +542,22 @@ static float get_barvalue(int* scp)
 { float a = 0;
   int e;
   for (e = scp[0]; e < scp[1]; e++)
-    a += amps[e];
+    a += Amps[e];
   return log10( a / (scp[1] - scp[0]) // nornalize for number of added channels
-    * sqrt(scp[0] * last_samplerate / (double)numsamples) // scale by sqrt(frequency / 100)
+    * sqrt(scp[0] * LastSamplerate / (double)NumSamples) // Scale by sqrt(frequency / 100)
     + 1E-5 );
 }
 
-INLINE void update_barvalue(float* val, float z)
+static inline void update_barvalue(float* val, float z)
 { if (z < 0)
     z = 0;
    else if (z >= 1)
     z = .999999;
 
-  if( !active_cfg.falloff || *val-relative_falloff_speed <= z )
+  if( !active_cfg.falloff || *val-RelativeFalloffSpeed <= z )
     *val = z;
    else
-    *val -= relative_falloff_speed;
+    *val -= RelativeFalloffSpeed;
 }
 
 static void draw_grid(char* image, unsigned long image_cx)
@@ -566,45 +571,26 @@ static void draw_grid(char* image, unsigned long image_cx)
 /* Do the regular update of the analysis window.
  * This is called at the WM_TIMER event of the analyzer window.
  */
-static void update_analyzer(void)
-{
+static void update_analyzer()
+{ DEBUGLOG2(("analyzer:update_analyzer %lu %d %d\n", hdive, needinit, needclear));
+
   long i, x, y;
   unsigned long image_cx, image_cy;
   char* image = NULL;
 
-  DEBUGLOG2(("analyzer:update_analyzer %lu %d %d\n", hdive, needinit, needclear));
-
-  if( decoderPlaying() == 0 )
-  { if ( !is_stopped )
-    { is_stopped = TRUE;
-      if (bars != NULL)
-        memset(bars,  0, bars_count * sizeof *bars);
-    }
-    return;
-  }
-  // now _decoderPlaying() == 1
-
-  // update initialization ?
-  if (needinit)
-  { if (decoderPlayingSamples(&lastformat, NULL, 0) != 0)
-      return; // can't help
-    needinit = FALSE;
-    init_bands(lastformat.samplerate);
-  }
   // do fft analysis?
   if (active_cfg.default_mode == SHOW_DISABLED)
     return;
-  if ( active_cfg.default_mode != SHOW_OSCILLOSCOPE
-     && !do_analysis() )
+  if (active_cfg.default_mode != SHOW_OSCILLOSCOPE && !do_analysis())
     return; // no changes or error
 
   ORASSERT(DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy ));
 
-  if (needclear)
+  if (NeedClear)
   { memset( image, 0, image_cx * image_cy );
-    if (bars != NULL)
-      memset(bars , 0, bars_count * sizeof *bars);
-    needclear = FALSE;
+    if (Bars != NULL)
+      memset(Bars , 0, barsCount * sizeof *Bars);
+    NeedClear = false;
   }
 
   DEBUGLOG(("analyzer:update_analyzer: before switch %d %p\n", active_cfg.default_mode, image));
@@ -615,11 +601,11 @@ static void update_analyzer(void)
 
     for( x = 0; x < plug.cx; x++ )
     {
-      update_barvalue( bars+x, .3 + .5 * get_barvalue(scale + x) ); // 40dB range [-12dB..+28dB]
+      update_barvalue( Bars+x, .3 + .5 * get_barvalue(Scale + x) ); // 40dB range [-12dB..+28dB]
 
-      for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
+      for( y = (int)(Bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        int color = (int)(( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-bars[x]))) + CLR_ANA_BOTTOM;
+        int color = (int)(( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-Bars[x]))) + CLR_ANA_BOTTOM;
         image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
       }
     }
@@ -629,12 +615,12 @@ static void update_analyzer(void)
     memset( image, 0, image_cx * image_cy );
     draw_grid(image, image_cx);
 
-    for( i = 0; i < bars_count; i++ )
+    for( i = 0; i < barsCount; i++ )
     {
-      update_barvalue( bars+i, .3 + .5 * get_barvalue(scale + i) ); // 40dB range [-12dB..+28dB]
+      update_barvalue( Bars+i, .3 + .5 * get_barvalue(Scale + i) ); // 40dB range [-12dB..+28dB]
       //fprintf(stderr, "B: %d %d %f %f\n", i, bars_count, get_barvalue(scale + i), bars[i]);
 
-      for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
+      for( y = (int)(Bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
         char* ip = image + (plug.cy - y -1) * image_cx + (BARS_CY + BARS_SPACE) * i;
         int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy-1) + CLR_ANA_BOTTOM;
@@ -648,7 +634,7 @@ static void update_analyzer(void)
 
    case SHOW_SPECTROSCOPE:
     { char* ip = image + (plug.cy-1) * image_cx; // bottom line
-      if (is_stopped)
+      if (IsStopped)
         // first call after restart
         memset(image, 0, (plug.cy-1) * image_cx);
        else
@@ -656,53 +642,42 @@ static void update_analyzer(void)
         memmove(image, image+image_cx, (plug.cy-1) * image_cx);
 
       for( x = 0; x < plug.cx; x++ )
-      { update_barvalue( bars+x, .4 + .4 * get_barvalue(scale + x) ); // 50dB range [-20dB..+30dB]
-        ip[x] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x]) + CLR_SPC_BOTTOM;
+      { update_barvalue( Bars+x, .4 + .4 * get_barvalue(Scale + x) ); // 50dB range [-20dB..+30dB]
+        ip[x] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * Bars[x]) + CLR_SPC_BOTTOM;
       }
     }
     break;
 
    case SHOW_LOGSPECSCOPE:
     { char* ip = image + (plug.cx-1); // last pixel, first line
-      if (is_stopped)
+      if (IsStopped)
         // first call after restart
         memset(image, 0, plug.cy*image_cx);
        else
         // move image left one pixel
         memmove(image, image+1, plug.cy*image_cx -1);
 
-      for( i = 0; i < bars_count; i++ )
-      { update_barvalue( bars+i, .4 + .4 * get_barvalue(scale + i) ); // 50dB range [-20dB..+30dB]
-        ip[(plug.cy-i-1)*image_cx] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i]) + CLR_SPC_BOTTOM;
+      for( i = 0; i < barsCount; i++ )
+      { update_barvalue( Bars+i, .4 + .4 * get_barvalue(Scale + i) ); // 50dB range [-20dB..+30dB]
+        ip[(plug.cy-i-1)*image_cx] = (char)(( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * Bars[i]) + CLR_SPC_BOTTOM;
       }
     }
     break;
 
    case SHOW_OSCILLOSCOPE:
-    { int   len, channels;
-      float* sample;
+    { float* sample = Data;
 
       memset( image, 0, image_cx * image_cy );
       draw_grid(image, image_cx);
 
-     scope_redo:
-      channels = lastformat.channels;
-      len = (channels * plug.cx) << 1;
-      sample = (float*)alloca( len * sizeof(float) );
-      decoderPlayingSamples( &lastformat, sample, len );
-      if (lastformat.channels != channels ) // check again...
-        goto scope_redo;
-
       for( x = 0; x < plug.cx; x++ )
       {
         int color;
-        double z = 0;
-        for( i = lastformat.channels << 1; i; --i )
-          z += *sample++;
+        double z = *sample++;
 
-        y = (long)(image_cy * (1 + z / channels) / 2);
+        y = (long)(image_cy * (1 + z) / 2);
         if (y >= 0 && y < image_cy)
-        { color = (int)(( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * fabs(z) / channels) + CLR_OSC_DIMMEST;
+        { color = (int)(( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * fabs(z)) + CLR_OSC_DIMMEST;
           image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
         }
       }
@@ -715,110 +690,86 @@ static void update_analyzer(void)
     ORASSERT(DiveBlitImage( hdive, image_id, 0 ));
   }
   DEBUGLOG(("analyzer:update_analyzer at end\n"));
-  is_stopped = FALSE;
+  IsStopped = false;
 }
 
+/********** interface to the output plug-in *********************************/
 
-/********** plug-in interface, GUI stuff ************************************/
+/// Number of samples stored by outputsamplescb. -1 => no request pending.
+static int stored_samples = -1;
 
-/* Returns information about plug-in. */
-int DLLENTRY
-plugin_query(PLUGIN_QUERYPARAM* query)
-{
-  query->type         = PLUGIN_VISUAL;
-  query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
-  query->desc         = "Spectrum Analyzer 2.10";
-  query->configurable = TRUE;
-  query->interface    = PLUGIN_INTERFACE_LEVEL;
-  return 0;
-}
+static void DLLENTRY output_samples_cb(void* arg, const FORMAT_INFO2* format, const float* samples, int count, PM123_TIME pos, BOOL* done)
+{ DEBUGLOG(("analyzer:output_samples_cb(%p, {%i, %i}, %p, %i, %f, *%d) - %i, %i\n",
+    arg, format->samplerate, format->channels, samples, count, pos, *done, stored_samples, NumSamples));
 
-/* init plug-in */
-int DLLENTRY
-plugin_init( const PLUGIN_CONTEXT* ctx )
-{
-  context = ctx;
-  return 0;
-}
+  if (stored_samples < 0)
+  { *done = TRUE;
+    return;
+  }
 
-/* Processes messages of the configuration dialog. */
-static MRESULT EXPENTRY
-cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg )
-  {
-    case WM_INITDLG:
-    {
-      hconfigure = hwnd;
-      do_warpsans( hwnd );
+  if (NeedInit || LastSamplerate != format->samplerate)
+  { init_bands(format->samplerate);
+    NeedInit = false;
+  }
 
-      WinCheckButton( hwnd, RB_ANALYZER + cfg.default_mode, TRUE );
-      WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );
-      WinCheckButton( hwnd, CB_HIGHPREC, cfg.highprec_mode );
+  if (!Data || count == 0)
+  { // something went wrong
+    *done = TRUE;
+    if (hanalyzer)
+      WinPostMsg(hanalyzer, UM_UPDATE, MPFROMLONG(FALSE), 0);
+    return;
+  }
 
-      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETLIMITS,
-                         MPFROMLONG( 24 ), MPFROMLONG( 5 )); // lower values may decrease speed significantly
-      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETCURRENTVALUE,
-                         MPFROMLONG( (cfg.display_freq+500)/1000 ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETLIMITS,
-                         MPFROMLONG( 200 ), MPFROMLONG( 1 ));
-      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETCURRENTVALUE,
-                         MPFROMLONG( 1000 / cfg.update_delay ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_FALLOFF,   SPBM_SETLIMITS,
-                         MPFROMLONG( plug.cy ), MPFROMLONG( 1 ));
-      WinSendDlgItemMsg( hwnd, SB_FALLOFF,   SPBM_SETCURRENTVALUE,
-                         MPFROMLONG( cfg.falloff_speed ), 0 );
+  float* dp = Data + stored_samples;
+  stored_samples += count;
+  if (stored_samples >= NumSamples)
+  { // we got enough samples
+    count = NumSamples - stored_samples + count;
+    *done = TRUE;
+  } else if (*done)
+    // not enough samples => pad with zero
+    memset(dp + count, 0, (NumSamples - stored_samples) * sizeof(float));
+
+  // copy samples
+  switch (format->channels)
+  {case 1:
+    memcpy(dp, samples, count * sizeof(float));
+    break;
+   case 2:
+    { float* dpe = dp + count;
+      while (dp != dpe)
+      { *dp++ = (samples[0] + samples[1]) / 2;
+        samples += 2;
+      }
       break;
-   }
-
-    case WM_DESTROY:
-    {
-      ULONG value;
-
-      cfg.default_mode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_ANALYZER,
-                                                        BM_QUERYCHECKINDEX, 0, 0 ));
-
-      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_QUERYVALUE,
-                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-
-      cfg.update_delay = 1000 / value;
-
-      WinStopTimer ( hab, hanalyzer, TID_USERMAX - 1 );
-      WinStartTimer( hab, hanalyzer, TID_USERMAX - 1, cfg.update_delay );
-
-      cfg.falloff = WinQueryButtonCheckstate( hwnd, CB_FALLOFF );
-
-      WinSendDlgItemMsg( hwnd, SB_FALLOFF, SPBM_QUERYVALUE,
-                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-
-      cfg.falloff_speed = value;
-
-      WinSendDlgItemMsg( hwnd, SB_MAXFREQ, SPBM_QUERYVALUE,
-                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-
-      cfg.display_freq = value*1000;
-
-      cfg.highprec_mode = WinQueryButtonCheckstate( hwnd, CB_HIGHPREC );
-
-      needinit = TRUE;
-      needclear = TRUE;
-
-      hconfigure  = NULLHANDLE;
+    }
+   default:
+    { float* dpe = dp + count;
+      while (dp != dpe)
+      { float s;
+        int ch = format->channels;
+        while (ch)
+          s += *samples++;
+        *dp++ = s / format->channels;
+      }
       break;
     }
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+
+  if (*done && hanalyzer)
+    WinPostMsg(hanalyzer, UM_UPDATE, MPFROMLONG(TRUE), 0);
 }
 
-/* Configure plug-in. */
-void DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
-{
-  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+/// Request samples from the output plug-in
+static inline void request_samples()
+{ DEBUGLOG(("analyzer:request_samples() - %i\n", stored_samples));
+  // Avoid more than one request at a time.
+  if ( InterlockedCxc((volatile unsigned*)&stored_samples, (unsigned)-1, 0) == (unsigned)-1
+    && (*OutPlayingPamples)(0, &output_samples_cb, NULL) )
+    stored_samples = -1;
 }
 
-static MRESULT EXPENTRY
-plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+static MRESULT EXPENTRY plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -888,6 +839,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         WinReleasePS ( hps );
         WinStartTimer( hab, hanalyzer, TID_UPDATE, cfg.update_delay );
+        stored_samples = -1;
       }
       break;
 
@@ -903,19 +855,21 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( ++cfg.default_mode > SHOW_DISABLED ) {
         cfg.default_mode = SHOW_ANALYZER;
       }
-      needclear = TRUE;
-      needinit = TRUE;
+      NeedClear = true;
+      NeedInit = true;
 
       DEBUGLOG(("CLICK! %d\n", cfg.default_mode));
       break;
 
     case WM_TIMER:
       DEBUGLOG2(("analyzer:plg_win_proc: WM_TIMER %u\n", SHORT1FROMMP(mp1)));
+      if (cfg.default_mode != SHOW_DISABLED)
+        request_samples();
+      break;
+
+    case UM_UPDATE:
       update_analyzer();
-      if (needclear)
-      { clear_analyzer();
-        needclear = FALSE;
-      }
+      stored_samples = -1;
       break;
 
     case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
@@ -933,7 +887,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       hanalyzer = 0;
 
-      destroy_pending = FALSE;
+      DestroyPending = false;
       break;
 
     default:
@@ -950,7 +904,7 @@ HWND DLLENTRY vis_init( const VISPLUGININIT* init )
 
   DEBUGLOG(("analyzer:vis_init: %s\n", plug.param));
   // wait for old instances to complete destruction, since many variables are static.
-  for (i = 0; destroy_pending; ++i)
+  for (i = 0; DestroyPending; ++i)
   { if (i > 10)
       return 0; // can't help
     DosSleep(1);
@@ -972,7 +926,7 @@ HWND DLLENTRY vis_init( const VISPLUGININIT* init )
   load_prf_value( cfg.falloff );
   load_prf_value( cfg.falloff_speed );
   load_prf_value( cfg.display_freq );
-  context->plugin_api->profile_query( "cfg.display_percent", &display_percent, sizeof display_percent);
+  Ctx.plugin_api->profile_query( "cfg.display_percent", &display_percent, sizeof display_percent);
   load_prf_value( cfg.highprec_mode );
 
   DEBUGLOG(("vis_init: %d, %d\n", cfg.display_freq, display_percent));
@@ -992,19 +946,19 @@ HWND DLLENTRY vis_init( const VISPLUGININIT* init )
 
 
   // First get the routines
-  decoderPlayingSamples = init->procs->output_playing_samples;
-  decoderPlaying        = init->procs->decoder_playing;
+  OutPlayingPamples = init->procs->output_playing_samples;
 
   hab = 0;
   hconfigure = 0;
   hanalyzer = 0;
   hdive = 0;
   image_id = 0;
-  is_stopped = TRUE;
-  last_samplerate = 0;
-  needinit = TRUE;
-  needclear = TRUE;
-  is_stopped = FALSE;
+  IsStopped = true;
+  LastSamplerate = 0;
+  NeedInit = true;
+  NeedClear = true;
+  IsStopped = false;
+  stored_samples = -1;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {
@@ -1060,8 +1014,7 @@ HWND DLLENTRY vis_init( const VISPLUGININIT* init )
   return hanalyzer;
 }
 
-int DLLENTRY
-plugin_deinit( int unload )
+int DLLENTRY plugin_deinit( int unload )
 {
   DEBUGLOG(("analyzer:plugin_deinit(%u)\n", unload));
   save_prf_value( cfg.update_delay );
@@ -1071,7 +1024,7 @@ plugin_deinit( int unload )
   save_prf_value( cfg.display_freq );
   save_prf_value( cfg.highprec_mode );
 
-  destroy_pending = TRUE;
+  DestroyPending = true;
   WinStopTimer( hab, hanalyzer, TID_UPDATE );
 
   if (hconfigure)
@@ -1081,6 +1034,99 @@ plugin_deinit( int unload )
   // continue in window procedure
 
   return 0;
+}
+
+/********** plug-in interface, GUI stuff ************************************/
+
+/* Returns information about plug-in. */
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
+{
+  query->type         = PLUGIN_VISUAL;
+  query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
+  query->desc         = "Spectrum Analyzer 2.10";
+  query->configurable = TRUE;
+  query->interface    = PLUGIN_INTERFACE_LEVEL;
+  return 0;
+}
+
+/* init plug-in */
+int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
+{ Ctx = *ctx;
+  return 0;
+}
+
+/* Processes messages of the configuration dialog. */
+static MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{
+  switch( msg )
+  {
+    case WM_INITDLG:
+    {
+      hconfigure = hwnd;
+      do_warpsans( hwnd );
+
+      WinCheckButton( hwnd, RB_ANALYZER + cfg.default_mode, TRUE );
+      WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );
+      WinCheckButton( hwnd, CB_HIGHPREC, cfg.highprec_mode );
+
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETLIMITS,
+                         MPFROMLONG( 24 ), MPFROMLONG( 5 )); // lower values may decrease speed significantly
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETCURRENTVALUE,
+                         MPFROMLONG( (cfg.display_freq+500)/1000 ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETLIMITS,
+                         MPFROMLONG( 200 ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETCURRENTVALUE,
+                         MPFROMLONG( 1000 / cfg.update_delay ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_FALLOFF,   SPBM_SETLIMITS,
+                         MPFROMLONG( plug.cy ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_FALLOFF,   SPBM_SETCURRENTVALUE,
+                         MPFROMLONG( cfg.falloff_speed ), 0 );
+      break;
+   }
+
+    case WM_DESTROY:
+    {
+      ULONG value;
+
+      cfg.default_mode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_ANALYZER,
+                                                        BM_QUERYCHECKINDEX, 0, 0 ));
+
+      WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_QUERYVALUE,
+                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+
+      cfg.update_delay = 1000 / value;
+
+      WinStopTimer ( hab, hanalyzer, TID_USERMAX - 1 );
+      WinStartTimer( hab, hanalyzer, TID_USERMAX - 1, cfg.update_delay );
+
+      cfg.falloff = WinQueryButtonCheckstate( hwnd, CB_FALLOFF );
+
+      WinSendDlgItemMsg( hwnd, SB_FALLOFF, SPBM_QUERYVALUE,
+                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+
+      cfg.falloff_speed = value;
+
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ, SPBM_QUERYVALUE,
+                         MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+
+      cfg.display_freq = value*1000;
+
+      cfg.highprec_mode = WinQueryButtonCheckstate( hwnd, CB_HIGHPREC );
+
+      NeedInit = true;
+      NeedClear = true;
+
+      hconfigure  = NULLHANDLE;
+      break;
+    }
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+/* Configure plug-in. */
+void DLLENTRY plugin_configure( HWND hwnd, HMODULE module )
+{
+  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

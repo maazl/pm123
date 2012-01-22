@@ -595,16 +595,16 @@ xio_strerror( int errnum )
 // C-API for 32 bit callbacks.
 class XIOmetacallback32 : public XPROTOCOL::Iobserver
 {private:
-  void DLLENTRYP2(const Callback)(int type, const char* metabuff, long pos, void* arg);
+  void DLLENTRYP2(const Callback)(XIO_META type, const char* metabuff, long pos, void* arg);
   void* const Arg;
  public:
-  XIOmetacallback32(void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg)
+  XIOmetacallback32(void DLLENTRYP(callback)(XIO_META type, const char* metabuff, long pos, void* arg), void* arg)
   : Callback(callback), Arg(arg)
   { DEBUGLOG(("xio:XIOmetacallback32(%p)::XIOmetacallback32(%p, %p)\n", this, callback, arg)); }
-  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+  virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64);
 };
 
-void XIOmetacallback32::metacallback(int type, const char* metabuff, long pos, long pos64)
+void XIOmetacallback32::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
 { DEBUGLOG(("xio:XIOmetacallback32(%p)::metacallback(%i, %s, %lx,%lx, %p)\n",
     this, type, metabuff, pos, pos64));
   (*Callback)(type, metabuff, pos, Arg);
@@ -613,7 +613,7 @@ void XIOmetacallback32::metacallback(int type, const char* metabuff, long pos, l
 /* Sets a callback function that is notified when meta information
    changes in the stream. */
 void DLLENTRY
-xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg )
+xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(XIO_META type, const char* metabuff, long pos, void* arg), void* arg )
 { DEBUGLOG(("xio_set_metacallback(%p, %p, %p)\n", x, callback, arg));
   ASSERT(x && x->serial == XIO_SERIAL);
   #ifdef NDEBUG
@@ -663,10 +663,10 @@ class XIOobserveremulation : public XPROTOCOL::Iobserver
   { DEBUGLOG(("xio:XIOobserveremulation(%p)::XIOobserveremulation(%lu, %p, %i)\n",
       this, window, buffer, buffer_size));
   }
-  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+  virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64);
 };
 
-void XIOobserveremulation::metacallback(int type, const char* metabuff, long pos, long pos64)
+void XIOobserveremulation::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
 { DEBUGLOG(("xio:XIOobserveremulation(%p)::metacallback(%i, %s, %lx,%lx, %p)\n",
     this, type, metabuff, pos, pos64));
   if (type == XIO_META_TITLE)

@@ -106,8 +106,8 @@ void DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker)
 { return ((PlaybackWorker*)a)->CommitBuffer(len, posmarker);
 }
 
-ULONG DLLENTRY output_playing_samples(void* a, FORMAT_INFO2* info, float* buf, int len)
-{ return ((PlaybackWorker*)a)->GetCurrentSamples(info, buf, len);
+ULONG DLLENTRY output_playing_samples(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+{ return ((PlaybackWorker*)a)->GetCurrentSamples(offset, cb, param);
 }
 
 /// Returns the playing position.

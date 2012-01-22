@@ -114,44 +114,51 @@ BOOL   DLLENTRY output_playing_data(void* a);
  *
  ***************************************************************************/
 #if PLUGIN_INTERFACE_LEVEL >= 3
-
 typedef enum
-{ OUTEVENT_END_OF_DATA,   // The flush signal is passed to the ouput plugin and the last sample has been played
+{ OUTEVENT_END_OF_DATA,   // The flush signal is passed to the ouput plug-in and the last sample has been played
   OUTEVENT_LOW_WATER,     // The buffers of the output plug-in are getting low. Try to speed up the data source.
   OUTEVENT_HIGH_WATER,    // The buffers of the output plug-in are sufficiently filled.
   OUTEVENT_PLAY_ERROR     // The plug-in detected a fatal error stop immediately.
 } OUTEVENTTYPE; 
 
+/** Parameter block for \c output_command. */
 typedef struct _OUTPUT_PARAMS2
 {
-  /* callback event */
+  /** Event callback. See documentation. */
   void DLLENTRYP(OutEvent)(void* w, OUTEVENTTYPE event);
-  void* W;  /* only to be used with the precedent function */
+  /** Only to be used with the OutEvent function. */
+  void* W;
 
-  /* --- OUTPUT_VOLUME */
-  float Volume;           // [0...1]
-  float Amplifier;
+  /** --- \c OUTPUT_VOLUME, [0...1] */
+  float Volume;
 
-  /* --- OUTPUT_PAUSE */
+  /** --- \c OUTPUT_PAUSE */
   BOOL  Pause;
 
-  /* --- OUTPUT_TRASH_BUFFERS and OUTPUT_OPEN and OUTPUT_CLOSE */
-  PM123_TIME  PlayingPos; // related playing position
+  /** Related playing position for \c OUTPUT_TRASH_BUFFERS, \c OUTPUT_OPEN and \c OUTPUT_CLOSE */
+  PM123_TIME  PlayingPos;
 
-  /* --- OUTPUT_SETUP and OUTPUT_OPEN */
-  xstring URL;            // filename, URL or track now being played,
-                          // useful for disk output
-                          
-  const INFO_BUNDLE_CV* Info;// Information on the object to play.
+  /** Filename, URL or track now being played, useful for disk output.
+   * Related commands: \c OUTPUT_SETUP and \c OUTPUT_OPEN */
+  xstring URL;
+
+  /** Information on the object to play. */
+  const INFO_BUNDLE_CV* Info;
 
 } OUTPUT_PARAMS2;
+
+/** Callback of \c output_playing_samples. Called once per buffer.
+ * Return true as long as you want more samples.
+ * @remarks The function might be called from synchronized context. */
+typedef void DLLENTRYP(OUTPUT_PLAYING_BUFFER_CB)(void* param, const FORMAT_INFO2* format,
+  const float* samples, int count, PM123_TIME pos, BOOL* done);
 
 ULONG  DLLENTRY output_command(void* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info);
 int    DLLENTRY output_request_buffer(void* a, const FORMAT_INFO2* format, float** buf);
 void   DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker);
 PM123_TIME DLLENTRY output_playing_pos(void* a);
 
-ULONG  DLLENTRY output_playing_samples(void* a, FORMAT_INFO2* info, float* buf, int len);
+ULONG  DLLENTRY output_playing_samples(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
 BOOL   DLLENTRY output_playing_data(void* a);
 
 #endif /* level 3 interface */

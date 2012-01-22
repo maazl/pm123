@@ -590,12 +590,12 @@ xstring PluginList::Deserialize(const char* str)
   return err.length() ? err : xstring();
 }
 
-void PluginList::LoadDefaults()
+xstring PluginList::LoadDefaults()
 { const char* def;
   switch (Type)
   {default:
     clear();
-    return;
+    return xstring();
    case PLUGIN_DECODER:
     def = Cfg::Default.decoders_list;
     break;
@@ -609,7 +609,7 @@ void PluginList::LoadDefaults()
     def = Cfg::Default.visuals_list;
     break;
   }
-  Deserialize(def);
+  return Deserialize(def);
 }
 
 

@@ -32,6 +32,7 @@
 #include "pulse123.h"
 #include "pawrapper.h"
 #include <cpp/smartptr.h>
+#include <cpp/mutex.h>
 #include <charset.h>
 //#include <os2.h>
 
@@ -41,26 +42,52 @@ class PlaybackWorker
   class BackupBuffer
   {private:
     struct Entry
-    { uint64_t       WriteIndex;
+    { /// Location of \c Data in bytes from the start of the stream.
+      /// @remarks Since pulse123 only supports 32 bit audio this is always
+      /// sizeof(float) * channels * samplerate * time_since_stream_start
+      uint64_t       WriteIndex;
+      /// Logical position of \c Data within the stream-
       PM123_TIME     Pos;
-      int            Channels;
-      int            SampleRate;
+      /// Format of the samples \e before \c Data.
+      FORMAT_INFO2   Format;
+      /// Data pointer. Points \e after the samples where this index entry relies to.
       size_t         Data;
     };
-
-    Entry            BufferQueue[200];
+    /// Mutex to protect this instance
+    Mutex            Mtx;
+    /// Ring buffer for index entries that point into DataBuffer.
+    /// @remarks The used part of the ring buffer is ordered by \c WriteIndex.
+    Entry            BufferQueue[20];
+    /// Current start index in \c BufferQueue. It points to the oldest buffer.
     size_t           BufferLow;
-    size_t           BufferHigh; // exclusive bound
+    /// Current end index in \c BufferQueue. It points behind the buffer.
+    size_t           BufferHigh;
+    /// Maximum write index so far.
     uint64_t         MaxWriteIndex;
-    float            DataBuffer[131072];
-    size_t           DataHigh;
+    /// Ring buffer for sample data. The buffer is managed by BufferQueue.
+    float            DataBuffer[65536];
    private:
+    /// Return the index of the \c Entry after or at the write index \a wi.
+    /// @return BufferLow => \a wi is before the first buffer.\n
+    /// BufferHigh => \a wi is in or behind the last buffer.
     size_t           FindByWriteIndex(uint64_t wi) const;
    public:
+    /// Clear the buffer.
     void             Reset();
+    /// Create empty buffer.
+    BackupBuffer()   { Reset(); }
+    /// Put samples into the buffer
+    /// @param wi    Write index after the last sample.
+    /// @param pos   Logical position behind the last sample.
+    /// @param channels Number of channels.
+    /// @param rate  Sample rate.
+    /// @param data  Pointer to the first sample of the first channel.
+    /// @param count Number of values (not samples!).
     void             StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const float* data, size_t count);
-    PM123_TIME       GetPosByWriteIndex(uint64_t wi) const;
-    bool             GetDataByWriteIndex(uint64_t wi, float* data, size_t samples, int& channels, int& rate) const;
+    /// Calculate the logical position of the write index \a wi.
+    PM123_TIME       GetPosByWriteIndex(uint64_t wi);
+    /// Retrieve sample data starting at write index \a wi.
+    bool             GetDataByWriteIndex(uint64_t wi, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
   };
 
  private:
@@ -97,7 +124,7 @@ class PlaybackWorker
 
   BOOL  IsPlaying() throw();
   PM123_TIME GetPosition() throw();
-  ULONG GetCurrentSamples(FORMAT_INFO2* info, float* buf, int len) throw();
+  ULONG GetCurrentSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param) throw();
 
  private:
   void  DrainOpCompletion(const int& success);

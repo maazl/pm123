@@ -33,6 +33,7 @@
 // For some reason the above include does not work.
 # define UINT32_MAX     (4294967295U)
 
+#include <cpp/cpputil.h>
 #include <stdarg.h>
 #include <debuglog.h>
 
@@ -41,7 +42,8 @@ void PlaybackWorker::BackupBuffer::Reset()
 { BufferLow = 0;
   BufferHigh = 0;
   MaxWriteIndex = 0;
-  DataHigh = 0;
+  BufferQueue[countof(BufferQueue)-1].Data = 0;
+  memset(DataBuffer, 0, sizeof DataBuffer);
 }
 
 size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
@@ -50,7 +52,7 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
   size_t l = BufferLow;
   size_t r = BufferHigh;
   while (l != r)
-  { size_t m = (l + r + (sizeof BufferQueue/sizeof *BufferQueue)*(l > r)) / 2 % (sizeof BufferQueue/sizeof *BufferQueue);
+  { size_t m = (l + r + countof(BufferQueue)*(l > r)) / 2 % countof(BufferQueue);
     const Entry* ep = BufferQueue + m;
     if (ep->WriteIndex > wi)
     { // too far
@@ -61,10 +63,10 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
       return m;
     } else
     { // before
-      l = (m + 1) % (sizeof BufferQueue/sizeof *BufferQueue);
+      l = (m + 1) % countof(BufferQueue);
     }
   }
-  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: no match %u\n", l));
+  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: no match %u -> %Lu\n", l, BufferQueue[l].WriteIndex));
   return l;
 }
 
@@ -93,50 +95,64 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
 }*/
 
 void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const float* data, size_t count)
-{ DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData(%Lu, %f, %i, %i, %p, %u) - [%u,%u[ %u\n",
-    wi, pos, channels, rate, data, count, BufferLow, BufferHigh, DataHigh));
+{ DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData(%Lu, %f, %i, %i, %p, %u) - [%u,%u[\n",
+    wi, pos, channels, rate, data, count, BufferLow, BufferHigh));
+  Mutex::Lock lock(Mtx);
   if (wi <= MaxWriteIndex)
   { // Discard any data beyond the current write index.
     BufferHigh = FindByWriteIndex(wi);
   }
   MaxWriteIndex = wi;
-  Entry* ep = BufferQueue + BufferHigh;
-  size_t newbufhigh = (BufferHigh + 1) % (sizeof BufferQueue/sizeof *BufferQueue);
-  if (newbufhigh == BufferLow)
-  { // Overflow => discard one old buffer
-    BufferLow = (BufferLow + 1) % (sizeof BufferQueue/sizeof *BufferQueue);
-  }
+  size_t lastbufhigh = (BufferHigh + countof(BufferQueue)-1) % countof(BufferQueue);
+  Entry* ep = BufferQueue + lastbufhigh;
+  size_t datahigh = ep->Data;
+
+  // Ensure enough space
   while (BufferLow != BufferHigh)
-  { size_t space = (BufferQueue[BufferLow].Data + sizeof DataBuffer/sizeof *DataBuffer - DataHigh) % (sizeof DataBuffer/sizeof *DataBuffer);
-    if (space > count)
+  { if ((BufferQueue[BufferLow].Data + countof(DataBuffer) - datahigh) % countof(DataBuffer) > count)
       break;
-    BufferLow = (BufferLow + 1) % (sizeof BufferQueue/sizeof *BufferQueue);
+    BufferLow = (BufferLow + 1) % countof(BufferQueue);
   }
+  // Join descriptors?
+  if (BufferLow == BufferHigh)
+    datahigh = 0;
+  else if ( ep->Format.channels == channels && ep->Format.samplerate == rate
+         && fabs(ep->Pos + count * channels - pos) < 1E-6 )
+    goto join;
+  { // new buffer
+    size_t newbufhigh = (BufferHigh + 1) % countof(BufferQueue);
+    if (newbufhigh == BufferLow)
+    { // Overflow => discard one old buffer
+      BufferLow = (BufferLow + 1) % countof(BufferQueue);
+    }
+    ep = BufferQueue + BufferHigh;
+    BufferHigh = newbufhigh;
+    ep->Format.channels = channels;
+    ep->Format.samplerate = rate;
+  }
+ join:
   ep->WriteIndex = wi;
   ep->Pos = pos;
-  ep->Channels = channels;
-  ep->SampleRate = rate;
-  ep->Data = (DataHigh + count * channels) % (sizeof DataBuffer/sizeof *DataBuffer);
-  if (ep->Data < DataHigh)
-  { // memory wrap
-    memcpy(DataBuffer + DataHigh, data, (sizeof DataBuffer/sizeof *DataBuffer - DataHigh) * sizeof (float));
-    memcpy(DataBuffer, data + sizeof DataBuffer/sizeof *DataBuffer - DataHigh, ep->Data * sizeof (float));
+  ep->Data = datahigh + count*channels;
+  if (ep->Data >= countof(DataBuffer))
+  { ep->Data -= countof(DataBuffer);
+    // memory wrap
+    memcpy(DataBuffer + datahigh, data, (countof(DataBuffer) - datahigh) * sizeof(float));
+    memcpy(DataBuffer, data + countof(DataBuffer) - datahigh, ep->Data * sizeof(float));
   } else
-    memcpy(DataBuffer + DataHigh, data, count);
-  BufferHigh = newbufhigh;
-  DataHigh = ep->Data;
-  //DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData: [%u,%u[ time = %Lu\n", BufferLow, BufferHigh, ep->Time));
+    memcpy(DataBuffer + datahigh, data, count);
+  DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData: [%u,%u[ time = %f\n", BufferLow, BufferHigh, ep->Pos));
 }
 
-PM123_TIME PlaybackWorker::BackupBuffer::GetPosByWriteIndex(uint64_t wi) const
-{ if (wi > MaxWriteIndex)
+PM123_TIME PlaybackWorker::BackupBuffer::GetPosByWriteIndex(uint64_t wi)
+{ Mutex::Lock lock(Mtx);
+  if (wi > MaxWriteIndex)
   { // Error: negative latency???
     DEBUGLOG(("PlaybackWorker::BackupBuffer::GetPosByWriteIndex(%Lu): negative Latency", wi));
     return 0;
   }
-  size_t p = FindByWriteIndex(wi);
-  const Entry* ep = BufferQueue + p;
-  return ep->Pos - (PM123_TIME)(ep->WriteIndex - wi) / sizeof(float) / ep->Channels / ep->SampleRate;
+  const Entry& e = BufferQueue[FindByWriteIndex(wi)];
+  return e.Pos - (PM123_TIME)(e.WriteIndex - wi) / (sizeof(float) * e.Format.channels * e.Format.samplerate);
 }
 
 /*PM123_TIME PlaybackWorker::BackupBuffer::GetPosByTimeIndex(pa_usec_t time) const
@@ -150,20 +166,46 @@ PM123_TIME PlaybackWorker::BackupBuffer::GetPosByWriteIndex(uint64_t wi) const
   return ep->Pos - (ep->Time - time) / 1E6;
 }*/
 
-bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, float* data, size_t samples, int& channels, int& rate) const
-{ if (wi > MaxWriteIndex)
+bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+{ DEBUGLOG(("PlaybackWorker::BackupBuffer::GetDataByWriteIndex(%Lu, %p, %p)\n", wi, cb, param));
+  Mutex::Lock lock(Mtx);
+  if (wi > MaxWriteIndex)
     return false; // Error: negative latency???
   size_t p = FindByWriteIndex(wi);
+  ASSERT(p != BufferHigh);
   const Entry* ep = BufferQueue + p;
-  channels = ep->Channels;
-  rate = ep->SampleRate;
-  size_t datastart = (ep->Data + sizeof DataBuffer/sizeof *DataBuffer - (ep->WriteIndex - wi) / sizeof(float)) % (sizeof DataBuffer/sizeof *DataBuffer);
-  size_t dataend = (datastart + samples) % (sizeof DataBuffer/sizeof *DataBuffer);
-  if (datastart > dataend)
-  { memcpy(data, DataBuffer + datastart, (sizeof DataBuffer/sizeof *DataBuffer - datastart) * sizeof(float));
-    memcpy(data + (sizeof DataBuffer/sizeof *DataBuffer - datastart), DataBuffer, dataend * sizeof(float));
-  } else
-    memcpy(data, DataBuffer + datastart, samples * sizeof(float));
+  size_t before = (ep->WriteIndex - wi) / sizeof(float); // Requested samples start at /before/ values before ep->Data.
+  size_t datastart = (ep->Data - before) % countof(DataBuffer);
+  if (p == BufferLow)
+  { size_t datahigh = BufferHigh == 0 ? BufferQueue[countof(BufferQueue)-1].Data : BufferQueue[BufferHigh-1].Data;
+    if (before > (ep->Data - datahigh - 1) % countof(DataBuffer) + 1)
+      datastart = datahigh;
+  }
+  for (;;)
+  { p = (p + 1) % countof(BufferQueue);
+    BOOL done = p == BufferHigh;
+    if (datastart > ep->Data)
+    { size_t count = (ep->Data - datastart + countof(DataBuffer)) / ep->Format.channels;
+      size_t count2 = ep->Data / ep->Format.channels;
+      DEBUGLOG(("PlaybackWorker::BackupBuffer::GetDataByWriteIndex: from %u to %u, count = %u, count2 = %u\n", datastart, ep->Data, count, count2));
+      (*cb)(param, &ep->Format, DataBuffer + datastart, count - count2, ep->Pos - (PM123_TIME)count / ep->Format.samplerate, &done);
+      if (done)
+        break;
+      (*cb)(param, &ep->Format, DataBuffer, count2, ep->Pos - (PM123_TIME)count2 / ep->Format.samplerate, &done);
+    } else
+    { size_t count = (ep->Data - datastart) / ep->Format.channels;
+      if (count == 0)
+        count = countof(DataBuffer);
+      DEBUGLOG(("PlaybackWorker::BackupBuffer::GetDataByWriteIndex: from %u to %u, count = %u\n", datastart, ep->Data, count));
+      (*cb)(param, &ep->Format, DataBuffer + datastart, count, ep->Pos - (PM123_TIME)count / ep->Format.samplerate, &done);
+    }
+    if (done)
+      break;
+    // next
+    before = 0;
+    datastart = ep->Data;
+    ep = BufferQueue + p;
+  }
   return true;
 }
 
@@ -327,7 +369,8 @@ void PlaybackWorker::CommitBuffer(int len, PM123_TIME pos) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::CommitBuffer(%i, %f) - %p\n", this, len, pos, LastBuffer));
   ASSERT(LastBuffer);
   try
-  { uint64_t wi = Stream.Write(LastBuffer, len * sizeof(float) * SS.channels);
+  { len *= SS.channels;
+    uint64_t wi = Stream.Write(LastBuffer, len * sizeof(float));
     Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, LastBuffer, len);
     TrashFlag = false;
     LastBuffer = NULL;
@@ -357,16 +400,16 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
   return TimeOffset;
 }
 
-ULONG PlaybackWorker::GetCurrentSamples(FORMAT_INFO2* info, float* buf, int len) throw()
-{ DEBUGLOG(("PlaybackWorker(%p)::GetCurrentSamples(%p, %p, %i,)\n", this, info, buf, len));
+ULONG PlaybackWorker::GetCurrentSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param) throw()
+{ DEBUGLOG(("PlaybackWorker(%p)::GetCurrentSamples(%f, %p, %p)\n", this, offset, cb, param));
   try
   { if (TrashFlag || Stream.GetState() != PA_STREAM_READY)
       return 1;
-    double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
-    return !Buffer.GetDataByWriteIndex((uint64_t)tmp + WriteIndexOffset, buf, len, info->channels, info->samplerate);
+    double tmp = Stream.GetTime()/1E6 * (sizeof(float) * SS.channels * SS.rate);
+    return !Buffer.GetDataByWriteIndex((uint64_t)tmp + WriteIndexOffset, cb, param);
   } catch (const PAException& ex)
   { // We ignore errors here
-    DEBUGLOG(("PlaybackWorker::GetCurrentSamples: %s\n", ex.GetMessage().cdata()));
+    DEBUGLOG(("PlaybackWorker::GetCurrentSamples: error %s\n", ex.GetMessage().cdata()));
     return 1;
   }
 }

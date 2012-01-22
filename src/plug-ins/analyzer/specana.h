@@ -34,6 +34,7 @@
 #define SPECANA_H_
 
 #include <format.h>
+#include <output_plug.h>
 
 
 typedef enum
@@ -44,34 +45,24 @@ typedef enum
 typedef enum
 { SPECANA_OK,
   SPECANA_UNCHANGED,
-  SPECANA_NEWFORMAT,
   SPECANA_ERROR
 } SPECANA_RET; 
 
-/* entry points
-   The must be set before calling specana_do.
-*/
-extern ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO2* info, float* buf, int len );
-extern BOOL  DLLENTRYP(decoderPlaying)( void );
 
-
-/* analyse samples
+/** analyse samples
+   samples: sample data to analyze
    numsamples: number of samples to analyse, must be a power of 2
    winfn:   desired windowing function
    *bands:  destination, size must be numsamples/2+1
-   info:    pointer to FORMAT_INFO area.
-   *info:   in:  last FORMAT_INFO. This may be completely zero if there is no last FORMAT_INFO.
-            out: current FORMAT_INFO.
    returns: SPECANA_OK: OK data read
             SPECANA_UNCHANGED: Data would be the same than on the last call.
-            SPECANA_NEWFORMAT: *info has changed, no analysis done
             SPECANA_ERROR: unhandled error, do not try any longer
    Remarks: The function automatically initializes the internal structures
    when it is called initially or when numsamples changed since the last call.
    This will take longer than a usual call.
 */
-SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO2* info);
-/* explicitly uninitialize, free internal resources */
+SPECANA_RET specana_do(float* samles, int numsamples, WIN_FN winfn, float* bands);
+/** explicitly uninitialize, free internal resources */
 void specana_uninit(void);
 
 

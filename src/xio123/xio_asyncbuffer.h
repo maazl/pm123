@@ -73,7 +73,7 @@ class XIOasyncbuffer : public XIObuffer
 
  protected:
   // Observer callback. Called from the function chain->read(). 
-  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+  virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64);
   // Core logic of seek. Supports only SEEK_SET.
   virtual long do_seek( long offset, long* offset64 );
 
