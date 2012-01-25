@@ -10,6 +10,7 @@ CALL 'pipecmd' 'write meta set album=testalbum'
 CALL 'pipecmd' 'write meta set comment=testcomment'||'1b1b1b'x||'n'||'1b'x||'r'
 CALL 'pipecmd' 'write meta set track=17'
 CALL 'pipecmd' 'write meta to 'dir'\work\test.ogg'
+SAY result
 CALL Equal LEFT(result, LENGTH(result)-2), 0
 step = 2
 CALL 'pipecmd' 'info meta 'dir'\work\test.ogg'
@@ -24,6 +25,7 @@ CALL Check track, '17'
 CALL Check copyright, 'TestCopyright1'
 step = 3
 CALL 'pipecmd' 'info refresh 'dir'\work\test.ogg'
+CALL Equal result, ''
 CALL 'pipecmd' 'info meta 'dir'\work\test.ogg'
 CALL Parse result
 CALL Check title, 'testtitle'
@@ -104,10 +106,10 @@ Check: PROCEDURE EXPOSE data. step
   field = ARG(1)
   IF ARG(2,'o') THEN DO
     IF SYMBOL('DATA.'field) = 'VAR' THEN
-      EXIT 'Step 'step': Did not expect key' field': 'data.field' 'C2X(data.field)
+      EXIT 'Step 'step': Did not expect key 'field' but found 'data.field' 'C2X(data.field)
     END
   ELSE IF data.field \= ARG(2) THEN
-    EXIT 'Step 'step': Expected 'field ARG(2)': 'data.field' 'C2X(data.field)
+    EXIT 'Step 'step': Expected 'field'='ARG(2)' found 'data.field' 'C2X(data.field)
   RETURN
 
 Equal: PROCEDURE EXPOSE step
