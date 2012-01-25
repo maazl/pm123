@@ -162,7 +162,7 @@ ogg_set_string( vorbis_comment* comment, const char* source, char* type )
 
   vorbis_comment_clear_tag(comment, type);
 
-  if (!*source) // Do not create empty comment tags
+  if (!source || !*source) // Do not create empty comment tags
     return;
 
   ch_convert( CH_CP_NONE, source, 1208, string, sizeof( string ), 0 );

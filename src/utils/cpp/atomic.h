@@ -70,17 +70,17 @@ class AtomicUnsigned
 
 template <class T>
 class AtomicPtr
-{ volatile unsigned data;
+{ T* volatile data;
  public:
            AtomicPtr(T* ptr = NULL) : data(ptr) {}
   // atomic operations
-  T*       swap(T* n)                   { return (T*)InterlockedXch(&data, (unsigned)n); }
-  bool     replace(T* o, T* n)          { return (bool)InterlockedCxc(&data, (unsigned)o, (unsigned)n); }
+  T*       swap(T* n)                   { return InterlockedXch(&data, n); }
+  bool     replace(T* o, T* n)          { return (bool)InterlockedCxc(&data, o, n); }
   // non atomic methods
-  AtomicPtr& operator=(T* r)            { data = (unsigned)r; return *this; }
-  void     set       (T* r)             { data = (unsigned)r; }
-  operator T*        () const           { return (T*)data; }
-  T*       get       () const           { return (T*)data; }
+  AtomicPtr& operator=(T* r)            { data = r; return *this; }
+  void     set       (T* r)             { data = r; }
+  operator T*        () const           { return data; }
+  T*       get       () const           { return data; }
   bool     operator! () const           { return !data; }
 };
 

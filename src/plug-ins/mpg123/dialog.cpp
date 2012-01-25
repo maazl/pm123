@@ -1159,8 +1159,8 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 // Edits a ID3 tag for the specified file.
-ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
-{ DEBUGLOG(("mpg123:decoder_editmeta(%p, %s)\n", owner, filename));
+ULONG DLLENTRY decoder_editmeta( HWND owner, const char* url )
+{ DEBUGLOG(("mpg123:decoder_editmeta(%p, %s)\n", owner, url));
 
   HMODULE module;
   ULONG   rc;
@@ -1169,7 +1169,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
 
  cont_edit:
   // open file
-  ID3 id3file(filename);
+  ID3 id3file(url);
   PLUGIN_RC ret = id3file.Open("r+bU");
   if (ret != PLUGIN_OK)
   { Ctx.plugin_api->message_display(MSG_ERROR, id3file.GetLastError());
@@ -1226,10 +1226,10 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   workarea.autowrite_tagv2 = TRUE;
   
   DosQueryModFromEIP( &module, &rc, 0, NULL, &rc, (ULONG)&decoder_editmeta ); 
-  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, id3_dlg_proc, module, DLG_ID3TAG, 0 );
+  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, &id3_dlg_proc, module, DLG_ID3TAG, 0 );
   DEBUGLOG(("mpg123:decoder_editmeta: WinLoadDlg: %p (%p) - %p\n", hwnd, WinGetLastError(0), module));
   xstring caption;
-  caption.sprintf("ID3 Tag Editor - %s", sfnameext2(filename));
+  caption.sprintf("ID3 Tag Editor - %s", sfnameext2(url));
   WinSetWindowText( hwnd, caption );
 
   HWND book = WinWindowFromID( hwnd, NB_ID3TAG );
@@ -1238,17 +1238,17 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   //WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
   //            MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
 
-  HWND page01 = WinLoadDlg( book, book, id3all_page_dlg_proc, module, DLG_ID3ALL, 0 );
+  HWND page01 = WinLoadDlg( book, book, &id3all_page_dlg_proc, module, DLG_ID3ALL, 0 );
   do_warpsans( page01 );
   WinSetWindowPtr( page01, QWL_USER, &workarea );
   PMRASSERT( nb_append_tab( book, page01, "All Tags", NULL, 0 ));
 
-  HWND page02 = WinLoadDlg( book, book, id3v1_page_dlg_proc, module, DLG_ID3V1, 0 );
+  HWND page02 = WinLoadDlg( book, book, &id3v1_page_dlg_proc, module, DLG_ID3V1, 0 );
   do_warpsans( page02 );
   WinSetWindowPtr( page02, QWL_USER, &workarea );
   PMRASSERT( nb_append_tab( book, page02, "ID3v1.x", NULL, 0 ));
 
-  HWND page03 = WinLoadDlg( book, book, id3v2_page_dlg_proc, module, DLG_ID3V2, 0 );
+  HWND page03 = WinLoadDlg( book, book, &id3v2_page_dlg_proc, module, DLG_ID3V2, 0 );
   do_warpsans( page03 );
   WinSetWindowPtr( page03, QWL_USER, &workarea );
   PMRASSERT( nb_append_tab( book, page03, "ID3v2.x", NULL, 0 ));
@@ -1327,8 +1327,8 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     if (!errmsg && savename)
     { // Must replace the file.
       // Preserve EAs.
-      eacopy(filename, savename);
-      errmsg = MPG123::ReplaceFile(savename, filename);
+      eacopy(surl2file(url), surl2file(savename));
+      errmsg = MPG123::ReplaceFile(savename, url);
     }
     
     if (errmsg)

@@ -1098,8 +1098,8 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
 
   if (!errortext && *savename)
   { // Must replace the file.
-    eacopy( url, savename );
-    *errortext = MPG123::ReplaceFile( savename, url );
+    eacopy(surl2file(url), surl2file(savename));
+    *errortext = MPG123::ReplaceFile(savename, url);
   }
   return *errortext ? PLUGIN_ERROR : PLUGIN_OK;
 }
