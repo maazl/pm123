@@ -591,6 +591,8 @@ Decoder::Decoder()
 
 Decoder::~Decoder()
 { Stop();
+  // we need to synchronize the decoder thread, before we discard memory.
+  wait_thread(DecTID, 5000);
 }
 
 
@@ -616,6 +618,8 @@ void Decoder::ThreadFunc()
 
  done:
   DecMutex.Release();
+  Status = DECODER_STOPPED;
+  DecTID = -1;
   return;
 
  wait:
@@ -656,9 +660,10 @@ void Decoder::ThreadFunc()
     goto done;
   if (count <= 0)
   { // Error
-    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, NULL);
     state = ST_ERROR;
-    goto wait;
+    DecMutex.Release();
+    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, NULL);
+    goto start;
   }
 
   size_t done;
@@ -668,24 +673,29 @@ void Decoder::ThreadFunc()
   done /= Channels * sizeof *buffer;
   switch (rc)
   {case MPG123_DONE:
+    state = ST_EOF;
     if (done)
     { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
+      DecMutex.Release();
       (*OutCommitBuffer)(OutParam, done, pos);
-    }
+    } else
+      DecMutex.Release();
     (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
-    state = ST_EOF;
-    goto wait;
+    goto start;
    default:
     LastError = mpg123_strerror(MPEG);
-    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
     state = ST_ERROR;
-    goto wait;
+    DecMutex.Release();
+    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
+    goto start;
    case MPG123_NEW_FORMAT:
     // fetch format
     ReadFrameInfo();
    case MPG123_OK:
-     PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
-     (*OutCommitBuffer)(OutParam, done, pos);
+    PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
+    DecMutex.Release();
+    (*OutCommitBuffer)(OutParam, done, pos);
+    DecMutex.Request();
   }
   // Update stream length?
   if (upd_len)
@@ -752,11 +762,9 @@ PLUGIN_RC Decoder::Stop()
 
   Status = DECODER_STOPPING;
   DecEvent.Set();
-  wait_thread(DecTID, 5000);
+  //wait_thread(DecTID, 5000);
 
   Mutex::Lock lock(DecMutex);
-  Status = DECODER_STOPPED;
-  DecTID = -1;
 
   Close();
   if (XSave)

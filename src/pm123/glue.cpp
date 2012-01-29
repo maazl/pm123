@@ -329,7 +329,8 @@ ULONG dec_play(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123
 ULONG dec_stop()
 { Glue::url = NULL;
   ULONG rc = Glue::dec_command(DECODER_STOP);
-  Glue::dec_set_active(NULL);
+  // Do not deactivate the decoder immediately.
+  // Glue::dec_set_active(NULL);
   return rc;
 }
 

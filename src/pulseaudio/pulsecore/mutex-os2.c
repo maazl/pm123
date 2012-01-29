@@ -76,28 +76,36 @@ void pa_mutex_unlock(pa_mutex *m) {
 
 typedef struct cond_wait_entry {
     struct cond_wait_entry* link;
-    TID                     id;
+    unsigned state;
 } cond_wait_entry;
 
 struct pa_cond {
     /// Pointer to linked list of cond_wait_entry.
     cond_wait_entry* volatile wait_queue;
+    HEV event_sem;
 };
 
 pa_cond *pa_cond_new(void) {
     pa_cond *c;
+    APIRET rc;
 
     c = pa_xnew(pa_cond, 1);
     c->wait_queue = NULL;
+    rc = DosCreateEventSem(NULL, &c->event_sem, 0, FALSE);
+    pa_assert(rc == 0);
 
     DEBUGLOG(("pa_cond_new() - %p\n", c));
     return c;
 }
 
 void pa_cond_free(pa_cond *c) {
+    APIRET rc;
+
     pa_assert(c);
     DEBUGLOG(("pa_cond_free(%p{%p})\n", c, c->wait_queue));
     pa_assert(c->wait_queue == NULL);
+    rc = DosCloseEventSem(c->event_sem);
+    pa_assert(rc == 0);
 
     pa_xfree(c);
 }
@@ -105,19 +113,18 @@ void pa_cond_free(pa_cond *c) {
 void pa_cond_signal(pa_cond *c, int broadcast) {
     cond_wait_entry* we;
     cond_wait_entry* old;
-    APIRET rc;
+    ULONG dummy;
 
     pa_assert(c);
     DEBUGLOG(("pa_cond_signal(%p{%p}, %i) - %p\n", c, c->wait_queue, broadcast));
 
     if (broadcast) {
-        we = (cond_wait_entry*)InterlockedXch(
-            (volatile unsigned*)&c->wait_queue, NULL);
+        we = (cond_wait_entry*)InterlockedXch((volatile unsigned*)&c->wait_queue, NULL);
         // wake all threads
         while (we) {
-            rc = DosResumeThread(we->id);
-            pa_assert(rc == 0);
-            we = we->link;
+            old = we->link;
+            we->state = 1;
+            we = old;
         }
 
     } else {
@@ -127,47 +134,43 @@ void pa_cond_signal(pa_cond *c, int broadcast) {
             if (we == NULL)
                 return;
             old = we;
-            we = (cond_wait_entry*)InterlockedCxc(
-                (volatile unsigned*)&c->wait_queue,
-                (unsigned)old, (unsigned)we->link);
+            we = (cond_wait_entry*)InterlockedCxc((volatile unsigned*)&c->wait_queue, (unsigned)old, (unsigned)we->link);
         } while (we != old);
         // wake one thread
-        rc = DosResumeThread(we->id);
-        pa_assert(rc == 0);
+        we->state = 1;
     }
-
+    DosPostEventSem(c->event_sem);
+    DosResetEventSem(c->event_sem, &dummy);
 }
 
 int pa_cond_wait(pa_cond *c, pa_mutex *m) {
     cond_wait_entry wait;
-    PTIB tib;
     cond_wait_entry* old;
     APIRET rc;
+    ULONG dummy;
 
-    assert(c);
     DEBUGLOG(("pa_cond_wait(%p{%p}, %p)\n", c, c->wait_queue, m));
+    assert(c);
     assert(m);
 
     // Enqueue wait item
-    DosGetInfoBlocks(&tib, NULL);
-    wait.id = tib->tib_ptib2->tib2_ultid;
-    wait.link = c->wait_queue;
+    wait.state = 0;
+    do
+    { wait.link = c->wait_queue;
+      // CXC loop
+      do {
+          old = wait.link;
+          wait.link = (cond_wait_entry*)InterlockedCxc((volatile unsigned*)&c->wait_queue, (unsigned)old, (unsigned)&wait);
+      } while (wait.link != old);
 
-    // CXC loop
-    do {
-        old = wait.link;
-        wait.link = (cond_wait_entry*)InterlockedCxc(
-            (volatile unsigned*)&c->wait_queue,
-            (unsigned)old, (unsigned)&wait);
-    } while (wait.link != old);
+      pa_mutex_unlock(m);
 
-    pa_mutex_unlock(m);
+      rc = DosWaitEventSem(c->event_sem, SEM_INDEFINITE_WAIT);
+      DEBUGLOG(("pa_cond_wait resume - %lu, %u\n", rc, wait.state));
+      DosResetEventSem(c->event_sem, &dummy);
 
-    rc = DosSuspendThread(wait.id);
-    DEBUGLOG(("pa_cond_wait resume - %lu\n", rc));
-    pa_assert(rc == 0);
-
-    pa_mutex_lock(m);
+      pa_mutex_lock(m);
+    } while (!wait.state); // Retry?
 
     return 0;
 }

@@ -481,7 +481,8 @@ the optimal case the samples can be placed immediately in the output
 buffers of the audio device.</p>
 <p>You must call <code>output_request_buffer</code>
 and <code>output_commit_buffer</code> alternately to
-pass the samples to the next plug-in. Anything else is an error.</p>
+pass the samples to the next plug-in. Anything else is an error. Note
+that any of the two functions might block.</p>
 <h4><a name="output_request_buffer"></a>output_request_buffer</h4>
 <blockquote>
   <pre>int (DLLENTRYP <b>output_request_buffer</b>)(void* <var>a</var>, const <a

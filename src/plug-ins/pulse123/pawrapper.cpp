@@ -153,6 +153,7 @@ PAContext::~PAContext()
 { DEBUGLOG(("PAContext(%p{%p})::~PAContext()\n", this, Context));
   if (Context)
   { pa_context_disconnect(Context);
+    MainloopSignal(false);
     pa_context_unref(Context);
     MainloopUnref();
   }

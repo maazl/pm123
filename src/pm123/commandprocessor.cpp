@@ -269,6 +269,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdQuery();
   void CmdCurrent();
   void CmdStatus();
+  void CmdTime();
   void CmdLocation();
 
   // PLAYLIST
@@ -462,6 +463,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "skin",           &CommandProcessor::CmdSkin          }
 , { "status",         &CommandProcessor::CmdStatus        }
 , { "stop",           &CommandProcessor::CmdStop          }
+, { "time",           &CommandProcessor::CmdTime          }
 , { "use",            &CommandProcessor::CmdUse           }
 , { "version",        &CommandProcessor::CmdVersion       }
 , { "volume",         &CommandProcessor::CmdVolume        }
@@ -1040,6 +1042,14 @@ void CommandProcessor::CmdStatus()
       break;
     }
   }
+}
+
+void CommandProcessor::CmdTime()
+{ SongIterator loc;
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, 0));
+  if (cmd->Flags == Ctrl::RC_OK)
+    Reply.appendf("%f", loc.GetPosition());
+  cmd->Destroy();
 }
 
 void CommandProcessor::CmdLocation()
