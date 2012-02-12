@@ -98,6 +98,8 @@ to older DLL versions. Use the API change log below for reference.
 #ifndef GBM_H
 #define	GBM_H
 
+#include <config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -245,12 +247,12 @@ typedef struct
 
 #if defined(__OS2__) || defined(OS2)
   #define  GBMEXPORT
-  #define  GBMENTRY_SYS  _System
-  #define  GBMENTRY      _Optlink
+  #define  GBMENTRY_SYS DLLENTRY
+  #define  GBMENTRY
   #ifdef __IBMC__
-    #define GBMENTRYP  * _Optlink
+    #define GBMENTRYP  * DLLENTRY
   #else
-    #define GBMENTRYP  _Optlink *
+    #define GBMENTRYP  DLLENTRY *
   #endif
 #elif defined(WIN32)
   #define GBMEXPORT   __declspec(dllexport)

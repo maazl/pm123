@@ -43,7 +43,7 @@ gbmconv.exe: gbmconv$(CO) $(LIBS) libgbm$(LBO) libgbmtool$(LBO)
 clean: $(MDUMMY)
 	-@del gbm123$(LBI) gbm123.dll gbmconv.exe $(OBJECTS) 2> nul
 
-gbm.c:		gbm.h gbmhelp.h gbmpbm.h gbmpgm.h gbmpnm.h gbmppm.h gbmpng.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
+gbm.c:		..\include\sys\io.h gbm.h gbmhelp.h gbmpbm.h gbmpgm.h gbmpnm.h gbmppm.h gbmpng.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
 gbmbmp.c:	gbm.h gbmhelp.h gbmdesc.h
 gbmbpp.c:	gbm.h gbmerr.h gbmtrunc.h gbmht.h gbmhist.h gbmmcut.h gbmtool.h
 gbmconv.c:	gbm.h gbmtool.h
