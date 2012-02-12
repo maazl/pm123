@@ -44,7 +44,7 @@
 #include "dependencyinfo.h"
 #include "copyright.h"
 #include "plugman.h"
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 #include <fileutil.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>

@@ -117,7 +117,7 @@ void TechInfo::Assign(const volatile TECH_INFO& r)
 }
 
 bool TechInfo::CmpAssign(const TECH_INFO& r)
-{ return memcmpcpy(this, &r, offsetof(TECH_INFO, info)) != ~0U
+{ return (memcmpcpy(this, &r, offsetof(TECH_INFO, info)) != ~0U)
     | xstring_cmpassign(&info,    r.info.cdata())
     | xstring_cmpassign(&format,  r.format.cdata())
     | xstring_cmpassign(&decoder, r.decoder.cdata());
@@ -200,7 +200,7 @@ bool MetaInfo::CmpAssign(const META_INFO& r)
        | xstring_cmpassign(&genre,     r.genre.cdata())
        | xstring_cmpassign(&track,     r.track.cdata())
        | xstring_cmpassign(&copyright, r.copyright.cdata())
-       | memcmpcpy(&track_gain, &r.track_gain, sizeof *this - offsetof(META_INFO, track_gain)) != ~0U;
+       | (memcmpcpy(&track_gain, &r.track_gain, sizeof *this - offsetof(META_INFO, track_gain)) != ~0U);
 }
 
 bool operator==(const META_INFO& l, const META_INFO& r)
@@ -233,7 +233,7 @@ void AttrInfo::Assign(const volatile ATTR_INFO& r)
 }
 
 bool AttrInfo::CmpAssign(const ATTR_INFO& r)
-{ bool ret = ploptions != r.ploptions
+{ bool ret = (ploptions != r.ploptions)
            | xstring_cmpassign(&at, r.at.cdata());
   ploptions = r.ploptions;
   return ret;
@@ -341,9 +341,9 @@ bool ItemInfo::CmpAssign(const ITEM_INFO& r)
 { bool ret = xstring_cmpassign(&alias, r.alias.cdata())
            | xstring_cmpassign(&start, r.start.cdata())
            | xstring_cmpassign(&stop,  r.stop.cdata())
-           | pregap  != r.pregap
-           | postgap != r.postgap
-           | gain    != r.gain;
+           | (pregap  != r.pregap)
+           | (postgap != r.postgap)
+           | (gain    != r.gain);
   pregap  = r.pregap;
   postgap = r.postgap;
   gain    = r.gain;

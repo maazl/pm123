@@ -214,7 +214,7 @@ class Ctrl
     QEntry(ControlCommand* cmd) : Cmd(cmd) {}
   };
 
- private: // working set
+ protected: // working set
   static bool          Playing;               // True if a song is currently playing (not decoding)
   static bool          Paused;                // True if the current song is paused
   static DECFASTMODE   Scan;                  // Current scan mode

@@ -331,6 +331,7 @@ class PAStream
   pa_buffer_attr     Attr;
  protected:
   pa_stream*         Stream;
+  bool Terminate;
  private:
   int WaitReadyPending;
 
@@ -338,7 +339,7 @@ class PAStream
   PAStream(const PAStream& r);
   void operator=(const PAStream& r);
  protected:
-  PAStream()                                    : Stream(NULL), WaitReadyPending(0) { memset(&Attr, -1, sizeof Attr); }
+  PAStream()                                    : Stream(NULL), Terminate(false), WaitReadyPending(0) { memset(&Attr, -1, sizeof Attr); }
   //PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map = NULL, pa_proplist* props = NULL);
   void Create(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props)
     throw(PAContextException);

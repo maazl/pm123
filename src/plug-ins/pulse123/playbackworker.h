@@ -110,8 +110,8 @@ class PlaybackWorker
 
  public:
   PlaybackWorker() throw();
+  ~PlaybackWorker();
   ULONG Init() throw();
-  //~Worker()                                     { Stream; pa_context_disconnect(Context); }
   ULONG Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
              void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw();
   ULONG Close() throw();

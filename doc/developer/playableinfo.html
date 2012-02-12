@@ -17,7 +17,8 @@ observed
 individually. The groups fit into the following categories:</p>
 <ol>
   <li>
-    <p><b>Object information </b>The object information lies on the
+    <p><b>Object information<br>
+    </b>The object information lies on the
 entity <a href="playableclasses.html#Playable">URL</a>. It
 consists of<br>
 - <a href="../pdk/datatype.html#PHYS_INFO">Physical
@@ -54,7 +55,7 @@ recursive
 playlist information</a>.<br>
 The aggregate information also applies to song items that cannot
 contain sub items in the way that it takes care of <em>slices</em>
-- unlike the Detailed song information. </p>
+- unlike the detailed object information. </p>
     <p>Unlike all other kind of information the aggregate
 information should be requested by <em><tt>RequestAggregateInfo</tt></em>.<br>
 Furthermore it does not have its own events for each call stack. The
@@ -168,8 +169,7 @@ event with <tt>Loaded</tt> and maybe&nbsp;<tt>Changed</tt></em>.
 Note that the information might have been invalidated meanwhile and
 therefore may not have the desired reliability at the point of this
 event. You need to reschedule the requst if this is not suitable. But
-beware of infinite loops.
-    </p>
+beware of infinite loops. </p>
   </li>
   <li>
     <p><font color="red"><b>Invalidate</b></font>

@@ -552,7 +552,7 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   DECODER_TYPE type_mask = Decoder::GetURLType(URL);
 
   ULONG rc;
-  Decoder* dp;
+  Decoder* dp = NULL;
   int whatdec;
   size_t i;
   // First checks decoders supporting the specified type of files.

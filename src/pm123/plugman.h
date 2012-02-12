@@ -58,9 +58,12 @@
 class Plugin;
 class PluginList;
 class stringmap_own;
+class Decoder;
+class Filter;
+class Output;
+class Visual;
 
 FLAGSATTRIBUTE(PLUGIN_TYPE);
-
 
 class ModuleException
 { xstring Error;

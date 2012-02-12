@@ -153,8 +153,11 @@ PAContext::~PAContext()
 { DEBUGLOG(("PAContext(%p{%p})::~PAContext()\n", this, Context));
   if (Context)
   { pa_context_disconnect(Context);
-    MainloopSignal(false);
+    { Lock lock;
+      MainloopSignal();
+    }
     pa_context_unref(Context);
+    //Context = NULL;
     MainloopUnref();
   }
 }
@@ -243,7 +246,10 @@ PAStream::~PAStream()
 { DEBUGLOG(("PAStream(%p{%p})::~PAStream()\n", this, Stream));
   if (Stream)
   { PAContext::Lock lock;
+    Terminate = true;
     pa_stream_disconnect(Stream);
+    if (WaitReadyPending)
+      PAContext::MainloopSignal();
     pa_stream_unref(Stream);
   }
 }
@@ -256,6 +262,8 @@ throw(PAContextException)
   // Discard any existing connection first
   if (Stream)
   { pa_stream_disconnect(Stream);
+    if (WaitReadyPending)
+      PAContext::MainloopSignal();
     pa_stream_unref(Stream);
   }
 
@@ -263,13 +271,17 @@ throw(PAContextException)
   if (!Stream)
     throw PAContextException(context.GetContext(), xstring().sprintf("Failed to initialize stream %s for context: %s", name, pa_strerror(pa_context_errno(context.GetContext()))));
   pa_stream_set_state_callback(Stream, &PAStream::StateCB, this);
+  Terminate = false;
 }
 
 void PAStream::Disconnect() throw()
 { DEBUGLOG(("PAStream(%p{%p})::Disconnect()\n", this, Stream));
   if (Stream)
   { PAContext::Lock lock;
+    Terminate = true;
     pa_stream_disconnect(Stream);
+    if (WaitReadyPending)
+      PAContext::MainloopSignal();
   }
 }
 
@@ -278,13 +290,16 @@ void PAStream::WaitReady() throw(PAStreamException)
   PAContext::Lock lock;
 
   for (;;)
-  { DEBUGLOG(("PAStream::WaitReady - %i\n", pa_stream_get_state(Stream)));
+  { if(Terminate)
+      goto term;
+    DEBUGLOG(("PAStream::WaitReady - %i\n", pa_stream_get_state(Stream)));
     switch (pa_stream_get_state(Stream))
     {case PA_STREAM_READY:
       return;
      case PA_STREAM_FAILED:
       throw PAStreamException(Stream, "Failed to connect stream");
      case PA_STREAM_TERMINATED:
+     term:
       throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
      default:
       throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has not been connected");
@@ -375,7 +390,9 @@ throw(PAStreamException)
   for (;;)
   { size_t len;
     for (;;)
-    { len = WritableSize();
+    { if (Terminate)
+        throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
+      len = WritableSize();
       DEBUGLOG(("PASinkInput::Write - %u writable bytes\n", len));
       if (len)
         break;

@@ -278,7 +278,7 @@ class InfoBundle
   //                       InfoBundle(const INFO_BUNDLE& r) { *this = r; }
   // Assignment
   //void                   operator=(const INFO_BUNDLE& r);
-  operator const INFO_BUNDLE_CV&() const { return *(INFO_BUNDLE_CV*)(INFO_BUNDLE*)this; }
+  operator const INFO_BUNDLE_CV&() const { return (INFO_BUNDLE_CV&)(INFO_BUNDLE&)*this; }
  
   // Returns a bit vector with all valid pointers in info.
   // This will never return IF_Child or any of IF_Basic. 

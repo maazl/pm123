@@ -38,7 +38,6 @@
 #include "gui.h"
 #include "pm123.rc.h"
 #include "dialog.h"
-#include "glue.h"
 #include "configuration.h"
 #include "eventhandler.h"
 #include <decoder_plug.h>
@@ -47,7 +46,7 @@
 
 #include <cpp/container/inst_index.h>
 #include <cpp/pmutils.h>
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -215,7 +214,7 @@ class InfoDialog
       VDELEGATE     VDErrorHandler;
       friend void DLLENTRY InfoDialogMetaWriteErrorHandler(StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
      public:
-      StatusReport() : OldHandler(EventHandler::SetLocalHandler(vdelegate(&VDErrorHandler, &InfoDialogMetaWriteErrorHandler, this))) {}
+      StatusReport();
       ~StatusReport() { EventHandler::SetLocalHandler(OldHandler); }
     };
     // Friend nightmare because InfoDialogMetaWriteErrorHandler can't be a static member function.
@@ -273,6 +272,13 @@ class InfoDialog
   static int_ptr<InfoDialog> GetByKey(const KeyType& obj)
                     { return Repository::GetByKey(obj, &InfoDialog::Factory); }
 };
+
+void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg::StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
+
+inline InfoDialog::MetaWriteDlg::StatusReport::StatusReport()
+: OldHandler(EventHandler::SetLocalHandler(vdelegate(&VDErrorHandler, &InfoDialogMetaWriteErrorHandler, this)))
+{}
+
 
 /****************************************************************************
 *
@@ -699,6 +705,10 @@ InfoDialog::MetaWriteDlg::~MetaWriteDlg()
   }
 }
 
+void TFNENTRY InfoDialogMetaWriteWorkerStub(void* arg)
+{ ((InfoDialog::MetaWriteDlg*)arg)->Worker();
+}
+
 MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
@@ -811,10 +821,6 @@ void InfoDialog::MetaWriteDlg::Worker()
   }
   PostMsg(UM_STATUS, MPFROMLONG(-1), MPFROMLONG(0));
   DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker completed\n", this));
-}
-
-void TFNENTRY InfoDialogMetaWriteWorkerStub(void* arg)
-{ ((InfoDialog::MetaWriteDlg*)arg)->Worker();
 }
 
 

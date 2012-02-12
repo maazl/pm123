@@ -227,14 +227,9 @@ ULONG PlaybackWorker::Init() throw()
   }
 }
 
-/*Worker::~Worker()
-{ if (Context)
-    pa_context_disconnect(Context);
-  if (Mainloop)
-  { pa_threaded_mainloop_stop(Mainloop);
-    pa_threaded_mainloop_free(Mainloop);
-  }
-}*/
+PlaybackWorker::~PlaybackWorker()
+{ DEBUGLOG(("PlaybackWorker(%p)::~PlaybackWorker()\n", this));
+}
 
 ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
                            void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw()

@@ -168,7 +168,7 @@ class ManagedDialog : public BASE, public IVref_count
   // If you overload OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
-  ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DF_None) : BASE(rid, module, flags) {}
+  ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DialogBase::DF_None) : BASE(rid, module, flags) {}
 };
 
 template <class BASE>

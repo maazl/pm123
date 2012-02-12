@@ -47,23 +47,23 @@
 *
 ****************************************************************************/
 
-static ULONG DLLENTRY dec_status()
+static ULONG DLLENTRY DecStatus()
 { if (!Ctrl::IsPlaying())
     return DECODER_STOPPED;
   return Ctrl::IsPaused() ? DECODER_PAUSED : DECODER_PLAYING;
 }
 
-static PM123_TIME DLLENTRY dec_length()
+static PM123_TIME DLLENTRY DecLength()
 { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
   return song ? song->GetInfo().obj->songlength : -1;
 }
 
 const PLUGIN_PROCS Visual::VisualCallbacks =
-{ &out_playing_samples,
-  &out_playing_data,
-  &out_playing_pos,
-  &dec_status,
-  &dec_length
+{ &Glue::OutPlayingSamples,
+  &Glue::OutPlayingData,
+  &Glue::OutPlayingPos,
+  &DecStatus,
+  &DecLength
 };
 
 Visual::~Visual()

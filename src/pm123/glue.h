@@ -42,58 +42,76 @@
 
 /****************************************************************************
 *
-*  Control interface for the decoder engine
-*  Not thread safe
+* virtual output interface, including filter plug-ins
+* This class logically connects the decoder and the output interface.
 *
 ****************************************************************************/
-/// Invoke decoder to play an URL
-ULONG dec_play(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
-/// Stop the current decoder immediately
-ULONG dec_stop();
-/// Set fast forward/rewind mode
-ULONG dec_fast(DECFASTMODE mode);
-/// Jump to absolute position
-ULONG dec_jump(PM123_TIME location);
-/// Set savefilename to save the raw stream data
-ULONG dec_save(const char* file);
-/// get the minimum sample position of a block from the decoder since the last dec_play
-PM123_TIME dec_minpos();
-/// get the maximum sample position of a block from the decoder since the last dec_play
-PM123_TIME dec_maxpos();
-/// Decoder events
-typedef struct
-{ DECEVENTTYPE type;
-  void*        param;
-} dec_event_args;
-extern event<const dec_event_args> dec_event;
+class Glue
+{public:
+  /// Decoder event arguments
+  typedef struct
+  { DECEVENTTYPE Type;
+    void*        Param;
+  } DecEventArgs;
 
-/// Output events
-extern event<const OUTEVENTTYPE> out_event;
+ protected:
+  static PM123_TIME MinPos;            // minimum sample position of a block from the decoder since the last dec_play
+  static PM123_TIME MaxPos;            // maximum sample position of a block from the decoder since the last dec_play
+  /// Decoder events
+  static event<const DecEventArgs> DecEvent;
+  /// Output events
+  static event<const OUTEVENTTYPE> OutEvent;
 
+ public: // Control interface for the decoder engine, not thread safe
+  /// Invoke decoder to play an URL
+  static ULONG DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
+  /// Stop the current decoder immediately
+  static ULONG DecStop();
+  /// Close decoder plug-in. This may block until the decoder thread has ended.
+  static void  DecClose();
+  /// Set fast forward/rewind mode
+  static ULONG DecFast(DECFASTMODE mode);
+  /// Jump to absolute position
+  static ULONG DecJump(PM123_TIME location);
+  /// Set savefilename to save the raw stream data
+  static ULONG DecSave(const char* file);
+  /// get the minimum sample position of a block from the decoder since the last dec_play
+  static PM123_TIME DecMinPos() { return MinPos; }
+  /// get the maximum sample position of a block from the decoder since the last dec_play
+  static PM123_TIME DecMaxPos() { return MaxPos; }
 
-/****************************************************************************
-*
-*  Control interface for the output engine
-*  Not thread safe
-*
-****************************************************************************/
-ULONG out_setup( const APlayable& song );
-ULONG out_close( );
-void  out_set_volume( double volume ); // volume: [0,1]
-ULONG out_pause( BOOL pause );
-BOOL  out_flush( );
-BOOL  out_trash( );
+  /// Decoder events
+  static event_pub<const DecEventArgs>& GetDecEvent() { return DecEvent; }
+  /// Output events
+  static event_pub<const OUTEVENTTYPE>& GetOutEvent() { return OutEvent; }
 
-/****************************************************************************
-*
-*  Status interface for the output engine
-*  Thread safe
-*
-****************************************************************************/
-ULONG DLLENTRY out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
-PM123_TIME DLLENTRY out_playing_pos();
-BOOL  DLLENTRY out_playing_data();
+ public: // Control interface for the output engine, not thread safe
+  /// Prepare output for playback of \a song.
+  /// If the output is already initialized this signals only the start of a new song.
+  static ULONG OutSetup(const APlayable& song);
+  /// Disconnect output, release waiting threads.
+  static bool  OutDisconnect();
+  /// Close the filter chain including the output plug-in.
+  /// If the playback has not yet completed, discard all remaining buffers.
+  /// \c OutClose must release all semaphores in the \c output_request_buffer and \c output_commit_buffer callbacks.
+  /// The function may return an error in this case.
+  static ULONG OutClose();
+  /// Adjust output volume.
+  static void  OutSetVolume(double volume); // volume: [0,1]
+  /// Pause output.
+  static ULONG OutPause(bool pause);
+  /// Send Signal to the filter chain to flush all buffers and complete playing.
+  /// When the last sample has been played OUTEVENT_END_OF_DATA is sent.
+  static bool  OutFlush();
+  /// Tell the filter chain to discard all internal buffers.
+  /// @remarks This is e.g. used after a seek command.
+  static bool  OutTrash();
 
+ public: // Status interface for the output engine, thread safe
+  PROXYFUNCDEF PM123_TIME DLLENTRY OutPlayingPos();
+  PROXYFUNCDEF BOOL       DLLENTRY OutPlayingData();
+  PROXYFUNCDEF ULONG      DLLENTRY OutPlayingSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+};
 
 #endif /* PM123_GLUE_H */
 

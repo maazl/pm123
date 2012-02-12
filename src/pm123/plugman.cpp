@@ -46,7 +46,7 @@
 #include "pm123.h" // for startpath
 #include <cpp/container/inst_index.h>
 #include <cpp/url123.h>
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 #include <fileutil.h>
 
 //#define DEBUG_LOG 1

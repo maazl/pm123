@@ -1,11 +1,12 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Asynchronous request service</title>
-
-
-
-  
+<html>
+<head>
+  <title>Asynchronous request service</title>
   <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
-  <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type"></head><body>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+</head>
+<body>
 <h2>PM123 Playable object handling - Asynchronous request service</h2>
 <p>In general <strong>all kind of information about any playable object</strong>
 except for the usage information <strong>is retrieved asynchronously</strong>.
@@ -28,6 +29,8 @@ the callback handler</em>.<br>
   </li>
   <li>Deregister your observer unless you need it for other purposes.</li>
 </ol>
+The helper classes <tt>WaitInfo</tt> and <tt>WaitAggregateInfo</tt>
+will assist the above steps.
 <p>Normally
 you should <em>never wait synchronously</em> for an information to
 become
@@ -37,6 +40,8 @@ this in threads that serve GUI windows or you will block the SIQ.</p>
 a "local echo". Instead you should apply the change to the playable
 object and wait for the update notification of your own change to
 refresh the GUI. This has the advantage that you are also synchronized
-to changes made by other windows or even by the <a href="../manual/remote.html">remote interface</a>.<br>
+to changes made by other windows or even by the <a
+ href="../manual/remote.html">remote interface</a>.<br>
 </p>
-</body></html>
+</body>
+</html>

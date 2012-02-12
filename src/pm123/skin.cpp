@@ -285,7 +285,7 @@ bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData 
   int   file;
   int   filetype;
   int   cb;
-  char* opt = "";
+  const char* opt = "";
 
   if( gbm_guess_filetype( filename, &filetype ) != GBM_ERR_OK ) {
     EventHandler::PostFormat(MSG_ERROR, "Unable deduce bitmap format from file extension:\n%s\n", filename);

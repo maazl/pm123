@@ -10,7 +10,7 @@ CALL 'pipecmd' 'write meta set album=testalbum'
 CALL 'pipecmd' 'write meta set comment=testcomment'||'1b1b1b'x||'n'||'1b'x||'r'
 CALL 'pipecmd' 'write meta set track=17'
 CALL 'pipecmd' 'write meta to 'dir'\work\test.ogg'
-SAY result
+/*SAY result*/
 CALL Equal LEFT(result, LENGTH(result)-2), 0
 step = 2
 CALL 'pipecmd' 'info meta 'dir'\work\test.ogg'

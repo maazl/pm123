@@ -35,7 +35,6 @@
 #include "pm123.rc.h"
 #include "configuration.h"
 #include "dialog.h"
-#include "glue.h"
 #include "plugman.h"
 #include "decoder.h"
 #include <utilfct.h>

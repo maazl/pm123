@@ -64,13 +64,6 @@ DialogBase::~DialogBase()
     WinDestroyWindow(GetHwnd());
 }
 
-void DialogBase::StartDialog(HWND owner, HWND parent)
-{ DEBUGLOG(("DialogBase(%p)::StartDialog(%p, %p)\n", this, owner, parent));
-  // initialize dialog
-  init_dlg_struct ids = { sizeof(init_dlg_struct), this };
-  PMRASSERT(WinLoadDlg(parent, owner, wb_DlgProcStub, ResModule, DlgRID, &ids));
-}
-
 MRESULT EXPENTRY wb_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("DialogBase::DlgProcStub(%x, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
   DialogBase* pb;
@@ -103,6 +96,13 @@ MRESULT EXPENTRY wb_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
   }
   return r;
+}
+
+void DialogBase::StartDialog(HWND owner, HWND parent)
+{ DEBUGLOG(("DialogBase(%p)::StartDialog(%p, %p)\n", this, owner, parent));
+  // initialize dialog
+  init_dlg_struct ids = { sizeof(init_dlg_struct), this };
+  PMRASSERT(WinLoadDlg(parent, owner, wb_DlgProcStub, ResModule, DlgRID, &ids));
 }
 
 MRESULT DialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)

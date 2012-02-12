@@ -34,7 +34,7 @@
 #include "pm123.h" // HAB
 #include "pm123.rc.h"
 #include "playlistmenu.h"
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 #include <utilfct.h>
 
 #include <debuglog.h>

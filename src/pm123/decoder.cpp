@@ -35,7 +35,7 @@
 #include "configuration.h"
 #include "eventhandler.h"
 #include "proxyhelper.h"
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 #include <charset.h>
 #include <fileutil.h>
 #include <wildcards.h>
@@ -534,7 +534,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
     op->juststarted = 0;
     DecoderProxy1::DestroyProxyWindow(op->hwnd);
     op->hwnd = NULLHANDLE;
-    op->temppos = out_playing_pos();
+    op->temppos = Glue::OutPlayingPos();
     break;
 
    case DECODER_FFWD:
@@ -551,7 +551,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
     par1.ffwd                = params->Fast == DECFAST_FORWARD;
     par1.rew                 = params->Fast == DECFAST_REWIND;
     msg = (op->lastfast|params->Fast) == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
-    op->temppos  = out_playing_pos();
+    op->temppos  = Glue::OutPlayingPos();
     op->lastfast = params->Fast;
     break;
 

@@ -160,7 +160,7 @@ struct BMPBUTTON
   int   id_t_pos;         /* Button position for tiny mode.                 */
   int   state;            /* Button state.                                  */
   BOOL  sticky;           /* Is this a sticky button.                       */
-  char* help;             /* Button description.                            */
+  const char* help;       /* Button description.                            */
 
 };
 

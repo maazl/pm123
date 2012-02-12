@@ -126,7 +126,7 @@ type the input has been.</p>
  href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>format</var>, float** <var>buf</var>)</pre>
 <ul>
   <li><tt><var>a</var></tt> - Decoder instance created with <a
- href="output_plug.html#output_init"><tt>output_init</tt></a>.<tt><var><br>
+ href="output_plug.html#output_init"><tt>output_init</tt></a>.<tt><var>
     </var></tt></li>
   <li><tt><var>format</var></tt> - format of buf.<br>
 This may change during playback but not within a buffer. </li>
@@ -197,12 +197,10 @@ If in doubt pass zero, then all returned samples will be in the future,
 well for an infinitesimal small time. ;-)</li>
   <li><tt><var>cb</var></tt> - Callback that receives the data
 currently played. In general there is more than one callback if the
-audio buffer is fragmented.<br>
-  </li>
+audio buffer is fragmented. </li>
   <li><tt><var>param</var></tt> - First parameter to <tt>*<var>cb</var></tt>.</li>
   <li><i>return</i> - <tt>PLUGIN_OK</tt> on success, any other value
-is an error. The callback will not be used in case of an error.<br>
-  </li>
+is an error. The callback will not be used in case of an error. </li>
 </ul>
 This function is used by visual plug-ins so the user can visualize what
 is currently being played. It requests the currently playing samples
@@ -214,31 +212,27 @@ creates exactly one callback with <tt>done = TRUE</tt>.
   <pre><a name="OUTPUT_PLAYING_BUFFER_CB"></a>typedef void (DLLENTRY* <b>OUTPUT_PLAYING_BUFFER_CB</b>)(void* <var>param</var>, const FORMAT_INFO2* <var>format</var>, const float* <var>samples</var>, int <var>count</var>,<br>                                                  PM123_TIME <var>pos</var>, BOOL* <var>done</var>);</pre>
 </blockquote>
 <p>This callback receives chunks of sample data that is currently
-played by the output plug-in.<br>
+played by the output plug-in.
 </p>
 <ul>
   <li><tt><var>param</var></tt> - User parameter passed to <a
  href="#output_playing_samples"><tt>output_playing_samples</tt></a>.</li>
   <li><var><tt>format</tt></var> - Format of the samples in the buffer.
 Note the the format might change between invocations of the callback if
-the source format changed at a certain time index.<br>
-  </li>
+the source format changed at a certain time index. </li>
   <li><tt><var>samples</var></tt> - Sample data. The samples of multi
 channel output is multiplexed. The buffer size depends on the number of
 channels (see <var><tt>format</tt></var>). The buffer is only valid
-for the time of the callback.<br>
-  </li>
+for the time of the callback. </li>
   <li><tt><var>count</var></tt> - Number of samples in the buffer. <var><tt>count</tt></var>
 might be <tt>0</tt> with <tt><var>done</var> = TRUE</tt> in case of
-late errors, e.g if the output has stopped.<br>
-  </li>
+late errors, e.g if the output has stopped. </li>
   <li><tt><var>pos</var></tt> - Time index of the first sample with an
 arbitrary offset.</li>
   <li><var><tt>done</tt></var> - Flag that indicates that this is the
 last callback and the plug-in has no more data. The callee may also
 explicitly set this flag to <tt>TRUE</tt> to abort the traversal of
-audio buffers if it received sufficient data.<br>
-  </li>
+audio buffers if it received sufficient data. </li>
 </ul>
 <h3><a name="level_1"></a>Interface revision level 0 and 1 (deprecated)</h3>
 <p>This interface revisions should not be used for development because
@@ -361,8 +355,7 @@ played. </li>
 in <var><tt>buf</tt></var>.</li>
   <li><i>return value</i><br>
     <tt>PLUGIN_OK</tt> (<tt>0</tt>) = O.K.<br>
-other = error<br>
-  </li>
+other = error </li>
 </ul>
 <p>
 This function is used by visual plug-ins so the user can visualize what

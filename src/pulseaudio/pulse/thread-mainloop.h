@@ -275,7 +275,7 @@ void pa_threaded_mainloop_lock(pa_threaded_mainloop *m);
 /** Unlock the event loop object, inverse of pa_threaded_mainloop_lock() */
 void pa_threaded_mainloop_unlock(pa_threaded_mainloop *m);
 
-/** Wait for an event to be signalled by the event loop thread. You
+/** Wait for an event to be signaled by the event loop thread. You
  * can use this to pass data from the event loop thread to the main
  * thread in synchronized fashion. This function may not be called
  * inside the event loop thread. Prior to this call the event loop
@@ -307,7 +307,7 @@ int pa_threaded_mainloop_get_retval(pa_threaded_mainloop *m);
     and is destroyed when the loop is freed. */
 pa_mainloop_api* pa_threaded_mainloop_get_api(pa_threaded_mainloop*m);
 
-/** Returns non-zero when called from withing the event loop thread. \since 0.9.7 */
+/** Returns non-zero when called from within the event loop thread. \since 0.9.7 */
 int pa_threaded_mainloop_in_thread(pa_threaded_mainloop *m);
 
 PA_C_DECL_END

@@ -7,7 +7,7 @@
 <body>
 <h2>PM123's internal structure</h2>
 <p>PM123 consists of several logical <em>components</em> that <em>run
-asynchronously in seperate threads</em>. This keeps the user interface
+asynchronously in separate threads</em>. This keeps the user interface
 responsive even in case of a job with longer duration like a network
 timeout.</p>
 <p>The components are:</p>
@@ -38,9 +38,9 @@ play-back relevant activities. These are:</p>
   <li><em>Load</em> new objects into the player.</li>
   <li><em>Navigation</em> (jump, fast forward, rewind).</li>
   <li>Saving of the input stream.</li>
-  <li>Invokation of decoders, filters and output plug-ins.</li>
+  <li>Invocation of decoders, filters and output plug-ins.</li>
   <li>Advance to the next item in playlist mode.</li>
-  <li>Prefech items in playlist mode.</li>
+  <li>Prefetch items in playlist mode.</li>
   <li>Keep the playing position.</li>
 </ul>
 <p>The Play Controller receives all instructions by a <em>command queue</em>.
@@ -50,9 +50,9 @@ intercepted by commands from another source.</p>
 <p>Changes in the play status are immediatle reflected to all observers
 by asynchronous notifications, except for the playing position, which
 obviously changes continously. The playing position has to be polled
-explicitely.</p>
+explicitly.</p>
 <p>When an item completed to decode in playlist mode, the Play
-Controller imediately starts to decode the next playlist item even if
+Controller immediately starts to decode the next playlist item even if
 the current item is not yet played completely. This results in a <em>pipeline
 of prefetched items</em> which may contain multiple items if they are
 short enough.</p>
@@ -63,25 +63,26 @@ the filter plug-ins and finally to the output plug-in. The plug-in
 chain is connected by the <a href="#play_controller">Play Controller</a>
 when the playback starts. It is not disconnected between playlist items
 to prevent gaps between songs. But different decoders may be attached
-to the chain when the input format changes.</p>
-<p>The decoder engine alsways has exactly one active decoder. If
+to input of the chain when the played item changes.</p>
+<p>The decoder engine always has exactly one active decoder. If
 playback is stopped, the decoder engine terminates.</p>
-<p>PM123 allways works internally with 16 bits per sample raw PCM data,
+<p>PM123 always works internally with 32 bits per sample and channel
+PCM data,
 to keep the complexity of the filter plug-ins low. If an older decoder
 returns data in a different format it is converted on the fly.</p>
 <h3><a name="user_interface"></a>The User Interface</h3>
-<p>The User Interfaces controlls the <em>application windows</em> like
+<p>The User Interfaces controls the <em>application windows</em> like
 <a href="../manual/mainwin.html">Main Window</a>, <a
  href="../manual/playlist.html">Playlist</a> and <a
  href="../manual/manager.html">Playlist Manager</a>, <a
  href="../manual/bookmark.html">Bookmarks</a> and <a
  href="../manual/infodialog.html#metainfo">Tag Editor</a>. Almost any
-actions are executed in the asyncronously <a href="#play_controller">Play
+actions are executed asynchronously in the <a href="#play_controller">Play
 Controller</a> or the <a href="#object_repository">Object Repository</a>.
 Only actions, that only affect the User Interface itself or that are
 edit operations like modification of playlists or song tags, are
 performed directly.</p>
-<p>The User interface windows are synchronized by the <a
+<p>The User Interface windows are synchronized by the <a
  href="#object_repository">Object Repository</a>. Any changes to the
 Object Repository are immediately reflected to the User Interface by
 notifications (also called events). It makes no difference whether the
@@ -99,7 +100,8 @@ simultaneously.</p>
 <h3><a name="object_repository"></a>The Object Repository</h3>
 <p>The Object Repository keeps track of the <em>physical information</em>,
 <em>technical information</em> (including <em>playlist content</em>)
-and <em>meta information</em> of all playable objects in PM123. The <em>primary
+and <em>meta information</em> of all playable or enumerable objects in
+PM123. The <em>primary
 key</em> of all repository objects is their <em>URL</em>. None of the
 above information on playable objects may exists outside the Object
 Repository.</p>
@@ -120,7 +122,7 @@ many workers are on the way.</p>
  href="#user_interface">User Interface</a> when information in the
 repository is refreshed. <em>Edit operations</em> are applied directly
 to the items in the Object Repository and then the resulting change is
-again signalled to the User Interface by the notification mechanism.</p>
+again signaled to the User Interface by the notification mechanism.</p>
 <p>The <em>object lifetime</em> of repository objects is managed
 automatically. If no other component (including other playable objects)
 holds a strong reference to a repository object, the object is removed

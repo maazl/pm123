@@ -78,7 +78,8 @@ typedef enum
 
 /** Decoder events */
 typedef enum
-{ /** The decoder finished decoding */
+{ /** The decoder finished decoding, either because the end of the file is reached
+   * or because of a \c DECODER_STOP command. */
   DECEVENT_PLAYSTOP   = 1,
   /** A decoder error occurred so that PM123 should know to stop immediately */
   DECEVENT_PLAYERROR  = 2,
@@ -98,14 +99,14 @@ typedef enum
   DECODER_STOPPED  = 0,
   /** Decoder instance is decoding. */
   DECODER_PLAYING  = 1,
-  /** Decoder instance has received a \c DECODER_PLAY command but has not yet started decoding. */
+  /** Decoder instance has received a \c DECODER_PLAY command, but has not yet started decoding. */
   DECODER_STARTING = 2,
   /** Decoder instance has been suspended */
   DECODER_PAUSED   = 3,
   /** Decoder instance has received a \c DECODER_STOP command, but the decoder thread has not terminated so far. */
   DECODER_STOPPING = 4,
   /** The decoder instance is in an invalid state and should be destroyed with \c decoder_uninit. */
-  DECODER_ERROR    = 200
+  DECODER_ERROR    = 9
 } DECODERSTATE;
 
 /** Query the current state of a decoder instance */

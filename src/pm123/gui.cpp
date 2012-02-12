@@ -256,6 +256,11 @@ void PostMsgWorker::OnCompleted()
 PostMsgWorker DelayedAltSliderDragWorker;
 
 
+void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override)
+{ DEBUGLOG(("GUI_LoadFileCallback(%p, %s)\n", param, url));
+  ((LoadHelper*)param)->AddItem(Playable::GetByURL(url123(url)));
+}
+
 MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { // Adjust calling convention
   if (msg == WM_CREATE)
@@ -595,7 +600,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Playable* root = CurrentRoot();
         if (mask & UPD_TIMERS)
           RefreshTimers(hps);
-        if (mask & UPD_TOTALS|UPD_PLINDEX)
+        if (mask & (UPD_TOTALS|UPD_PLINDEX))
         { int index = 0; // TODO: is_playlist ? index+1 : 0;
           bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
         }
@@ -1275,11 +1280,6 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
     PMRASSERT(WinPostMsg(HPlayer, WMP_ARRANGEDOCKING, 0, 0));
 }
 
-
-void DLLENTRY GUI_LoadFileCallback(void* param, const char* url)
-{ DEBUGLOG(("GUI_LoadFileCallback(%p, %s)\n", param, url));
-  ((LoadHelper*)param)->AddItem(Playable::GetByURL(url123(url)));
-}
 
 /* Returns TRUE if the save stream feature has been enabled. */
 void GUIImp::SaveStream(HWND hwnd, BOOL enable)

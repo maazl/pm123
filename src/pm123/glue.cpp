@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2011 Marcel Mueller
+ * Copyright 2006-2012 Marcel Mueller
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
@@ -40,174 +40,150 @@
 #include <debuglog.h>
 
 
-/****************************************************************************
-*
-* global events
-*
-****************************************************************************/
+PM123_TIME Glue::MinPos;
+PM123_TIME Glue::MaxPos;
 
-event<const dec_event_args>   dec_event;
-event<const OUTEVENTTYPE>     out_event;
+event<const Glue::DecEventArgs> Glue::DecEvent;
+event<const OUTEVENTTYPE> Glue::OutEvent;
 
 
 /****************************************************************************
 *
-* virtual output interface, including filter plug-ins
-* This class logically connects the decoder and the output interface.
+* Private implementation of class Glue
 *
 ****************************************************************************/
+class GlueImp : private Glue
+{ friend class Glue;
+ private:
+  enum
+  { FLG_PlaystopSent       // DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
+  };
 
-class Glue
-{private:
-  static const dec_event_args ev_playstop;
+  static const DecEventArgs CEVPlayStop;
 
-  static BOOL              initialized;       // whether the following vars are true
-  static OutputProcs       procs;             // entry points of the filter chain
-  static OUTPUT_PARAMS2    params;            // parameters for output_command
-  static DECODER_PARAMS2   dparams;           // parameters for decoder_command
-  static xstring           url;               // current URL
-  static PM123_TIME        stoptime;          // time index where to stop the current playback
-  static volatile unsigned playstopsent;      // DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
-  static PM123_TIME        posoffset;         // Offset to posmarker parameter to make the output timeline monotonic
-  static FORMAT_INFO2      last_format;       // Format of last request_buffer
-  static PM123_TIME        minpos;            // minimum sample position of a block from the decoder since the last dec_play
-  static PM123_TIME        maxpos;            // maximum sample position of a block from the decoder since the last dec_play
-  static int_ptr<Output>   output;            // currently initialized output plug-in.
-  static PluginList        filters;           // List of initialized visual plug-ins.
-  static int_ptr<Decoder>  decoder;           // currently active decoder plug-in.
-  static delegate<void,const PluginEventArgs> plugin_deleg;
+  static bool              Initialized;       // whether the following vars are valid
+  static AtomicUnsigned    Flags;
+  static xstring           Url;               // current URL
+  static PM123_TIME        StopTime;          // time index where to stop the current playback
+  static PM123_TIME        PosOffset;         // Offset to posmarker parameter to make the output timeline monotonic
+  static FORMAT_INFO2      LastFormat;        // Format of last request_buffer
+  static int_ptr<Output>   OutPlug;           // currently initialized output plug-in.
+  static PluginList        FilterPlugs;       // List of initialized visual plug-ins.
+  static int_ptr<Decoder>  DecPlug;           // currently active decoder plug-in.
+  static OutputProcs       Procs;             // entry points of the filter chain
+  static OUTPUT_PARAMS2    OParams;           // parameters for output_command
+  static DECODER_PARAMS2   DParams;           // parameters for decoder_command
+  static delegate<void,const PluginEventArgs> PluginDeleg;
 
  private:
   /// Virtualize output procedures by invoking the filter plug-in no \a i.
-  static void              virtualize         (int i);
-  // setup the entire filter chain
-  static ULONG             init();
-  // uninitialize the filter chain
-  static void              uninit();
+  static void              Virtualize(int i);
+  /// setup the entire filter chain
+  static ULONG             Init();
+  /// uninitialize the filter chain
+  static void              Uninit();
   /// Select the currently active decoder
   /// @exception ModuleException Something went wrong.
-  static void              dec_set_active     (const char* name);
-  // Send command to the current decoder using the current content of dparams.
-  static ULONG             dec_command        (DECMSGTYPE msg);
-  // Send command to the current output and filter chain using the current content of params.
-  static ULONG             out_command        (ULONG msg)
-                                              { return (*procs.output_command)(procs.A, msg, &params); }
+  static void              DecSetActive(const char* name);
+  /// Send command to the current decoder using the current content of dparams.
+  static ULONG             DecCommand(DECMSGTYPE msg);
+  /// Send command to the current output and filter chain using the current content of params.
+  static ULONG             OutCommand(ULONG msg)
+                                              { return (*Procs.output_command)(Procs.A, msg, &OParams); }
   /// Handle plug-in changes while playing.
-  static void              plugin_notification(void*, const PluginEventArgs& args);
- public:
-  // output control interface (C style)
-  friend ULONG             out_setup          (const APlayable& song);
-  friend ULONG             out_close          ();
-  friend void              out_set_volume     (double volume);
-  friend ULONG             out_pause          (BOOL pause);
-  friend BOOL              out_flush          ();
-  friend BOOL              out_trash          ();
-  // decoder control interface (C style)
-  friend ULONG             dec_play           (const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
-  friend ULONG             dec_stop           ();
-  friend ULONG             dec_fast           (DECFASTMODE mode);
-  friend ULONG             dec_jump           (PM123_TIME pos);
-  friend ULONG             dec_save           (const char* file);
-  friend PM123_TIME        dec_minpos         ();
-  friend PM123_TIME        dec_maxpos         ();
-  // 4 visual interface (C style)
-  friend PM123_TIME DLLENTRY out_playing_pos  ();
-  friend BOOL   DLLENTRY   out_playing_data   ();
-  friend ULONG  DLLENTRY   out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  static void              PluginNotification(void*, const PluginEventArgs& args);
 
  private: // glue
-  PROXYFUNCDEF int DLLENTRY glue_request_buffer(void* a, const FORMAT_INFO2* format, float** buf);
-  PROXYFUNCDEF void DLLENTRY glue_commit_buffer(void* a, int len, PM123_TIME posmarker);
+  PROXYFUNCDEF int DLLENTRY GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf);
+  PROXYFUNCDEF void DLLENTRY GlueCommitBuffer(void* a, int len, PM123_TIME posmarker);
   // 4 callback interface
-  PROXYFUNCDEF void DLLENTRY dec_event_handler(void* a, DECEVENTTYPE event, void* param);
-  PROXYFUNCDEF void DLLENTRY out_event_handler(void* w, OUTEVENTTYPE event);
+  PROXYFUNCDEF void DLLENTRY DecEventHandler(void* a, DECEVENTTYPE event, void* param);
+  PROXYFUNCDEF void DLLENTRY OutEventHandler(void* w, OUTEVENTTYPE event);
 };
 
 // statics
-const dec_event_args Glue::ev_playstop = { DECEVENT_PLAYSTOP, NULL };
+const GlueImp::DecEventArgs GlueImp::CEVPlayStop = { DECEVENT_PLAYSTOP, NULL };
 
-BOOL              Glue::initialized = false;
-OutputProcs       Glue::procs;
-OUTPUT_PARAMS2    Glue::params = {0};
-DECODER_PARAMS2   Glue::dparams = {(const char*)NULL};
-xstring           Glue::url;
-PM123_TIME        Glue::stoptime;
-volatile unsigned Glue::playstopsent;
-PM123_TIME        Glue::posoffset;
-FORMAT_INFO2      Glue::last_format;
-PM123_TIME        Glue::minpos;
-PM123_TIME        Glue::maxpos;
-int_ptr<Output>   Glue::output;
-PluginList        Glue::filters(PLUGIN_FILTER);
-int_ptr<Decoder>  Glue::decoder;
-delegate<void,const PluginEventArgs> Glue::plugin_deleg(&Glue::plugin_notification);
+bool              GlueImp::Initialized = false;
+AtomicUnsigned    GlueImp::Flags(0);
+xstring           GlueImp::Url;
+PM123_TIME        GlueImp::StopTime;
+PM123_TIME        GlueImp::PosOffset;
+FORMAT_INFO2      GlueImp::LastFormat;
+int_ptr<Output>   GlueImp::OutPlug;
+PluginList        GlueImp::FilterPlugs(PLUGIN_FILTER);
+int_ptr<Decoder>  GlueImp::DecPlug;
+OutputProcs       GlueImp::Procs;
+OUTPUT_PARAMS2    GlueImp::OParams = {0};
+DECODER_PARAMS2   GlueImp::DParams = {(const char*)NULL};
+delegate<void,const PluginEventArgs> GlueImp::PluginDeleg(&GlueImp::PluginNotification);
 
 
-void Glue::virtualize(int i)
-{ DEBUGLOG(("Glue::virtualize(%i) - %p\n", i, params.Info));
+void GlueImp::Virtualize(int i)
+{ DEBUGLOG(("GlueImp::Virtualize(%i) - %p\n", i, OParams.Info));
   if (i < 0)
     return;
 
-  Filter& fil = (Filter&)*filters[i];
-  // virtualize procedures
+  Filter& fil = (Filter&)*FilterPlugs[i];
+  // Virtualize procedures
   FILTER_PARAMS2 par;
   par.size                   = sizeof par;
-  par.output_command         = procs.output_command;
-  par.output_playing_samples = procs.output_playing_samples;
-  par.output_request_buffer  = procs.output_request_buffer;
-  par.output_commit_buffer   = procs.output_commit_buffer;
-  par.output_playing_pos     = procs.output_playing_pos;
-  par.output_playing_data    = procs.output_playing_data;
-  par.a                      = procs.A;
-  par.output_event           = params.OutEvent;
-  par.w                      = params.W;
+  par.output_command         = Procs.output_command;
+  par.output_playing_samples = Procs.output_playing_samples;
+  par.output_request_buffer  = Procs.output_request_buffer;
+  par.output_commit_buffer   = Procs.output_commit_buffer;
+  par.output_playing_pos     = Procs.output_playing_pos;
+  par.output_playing_data    = Procs.output_playing_data;
+  par.a                      = Procs.A;
+  par.output_event           = OParams.OutEvent;
+  par.w                      = OParams.W;
   if (!fil.Initialize(&par))
   { EventHandler::PostFormat(MSG_WARNING, "The filter plug-in %s failed to initialize.", fil.ModRef->Key.cdata());
-    filters.erase(i);
-    virtualize(i-1);
+    FilterPlugs.erase(i);
+    Virtualize(i-1);
     return;
   }
   // store new entry points
-  procs.output_command         = par.output_command;
-  procs.output_playing_samples = par.output_playing_samples;
-  procs.output_request_buffer  = par.output_request_buffer;
-  procs.output_commit_buffer   = par.output_commit_buffer;
-  procs.output_playing_pos     = par.output_playing_pos;
-  procs.output_playing_data    = par.output_playing_data;
-  procs.A                      = fil.GetProcs().F;
-  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = params.OutEvent;
+  Procs.output_command         = par.output_command;
+  Procs.output_playing_samples = par.output_playing_samples;
+  Procs.output_request_buffer  = par.output_request_buffer;
+  Procs.output_commit_buffer   = par.output_commit_buffer;
+  Procs.output_playing_pos     = par.output_playing_pos;
+  Procs.output_playing_data    = par.output_playing_data;
+  Procs.A                      = fil.GetProcs().F;
+  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = OParams.OutEvent;
   // next filter
-  virtualize(i-1);
+  Virtualize(i-1);
   // store new callback if virtualized by the plug-in.
   BOOL vcallback = par.output_event != last_output_event;
   last_output_event = par.output_event; // swap...
-  par.output_event  = params.OutEvent;
-  par.w             = params.W;
+  par.output_event  = OParams.OutEvent;
+  par.w             = OParams.W;
   if (vcallback)
   { // set params for next instance.
-    params.OutEvent = last_output_event;
-    params.W        = fil.GetProcs().F;
-    DEBUGLOG(("Glue::virtualize: callback virtualized: %p %p\n", params.OutEvent, params.W));
+    OParams.OutEvent = last_output_event;
+    OParams.W        = fil.GetProcs().F;
+    DEBUGLOG(("Glue::Virtualize: callback virtualized: %p %p\n", OParams.OutEvent, OParams.W));
   }
   if (par.output_event != last_output_event)
   { // now update the decoder event
     (*fil.GetProcs().filter_update)(fil.GetProcs().F, &par);
-    DEBUGLOG(("Glue::virtualize: callback update: %p %p\n", par.output_event, par.w));
+    DEBUGLOG(("Glue::Virtualize: callback update: %p %p\n", par.output_event, par.w));
   }
 }
 
 // setup filter chain
-ULONG Glue::init()
-{ DEBUGLOG(("Glue::init\n"));
+ULONG GlueImp::Init()
+{ DEBUGLOG(("GlueImp::Init\n"));
 
-  Plugin::GetChangeEvent() += plugin_deleg;
+  Plugin::GetChangeEvent() += PluginDeleg;
 
   // setup callback handlers
-  params.OutEvent  = &out_event_handler;
+  OParams.OutEvent  = &OutEventHandler;
   //params.W         = NULL; // not required
 
   // setup callback handlers
-  dparams.DecEvent = &dec_event_handler;
+  DParams.DecEvent = &DecEventHandler;
   //dparams.save_filename   = NULL;
 
   // Fetch current active output
@@ -218,296 +194,299 @@ ULONG Glue::init()
       return (ULONG)-1;  // ??
     }
     ASSERT(outputs.size() == 1);
-    output = (Output*)outputs[0].get();
+    OutPlug = (Output*)outputs[0].get();
   }
 
   // initially only the output plugin
-  output->InitPlugin();
-  procs = output->GetProcs();
+  OutPlug->InitPlugin();
+  Procs = OutPlug->GetProcs();
   // setup filters
-  Plugin::GetPlugins(filters);
-  virtualize(filters.size()-1);
-  // setup output
-  ULONG rc = out_command(OUTPUT_SETUP);
+  Plugin::GetPlugins(FilterPlugs);
+  Virtualize(FilterPlugs.size()-1);
+  // setup OutPlug
+  ULONG rc = OutCommand(OUTPUT_SETUP);
   if (rc == 0)
-    initialized = TRUE;
+    Initialized = true;
   else
-    uninit(); // deinit filters
+    Uninit(); // deinit filters
   return rc;
 }
 
-void Glue::uninit()
-{ DEBUGLOG(("Glue::uninit\n"));
+void GlueImp::Uninit()
+{ DEBUGLOG(("GlueImp::Uninit\n"));
 
-  plugin_deleg.detach();
+  PluginDeleg.detach();
 
-  initialized = FALSE;
+  Initialized = false;
   // uninitialize filter chain
-  foreach (const int_ptr<Plugin>*, fpp, filters)
+  foreach (const int_ptr<Plugin>*, fpp, FilterPlugs)
   { Filter& fil = (Filter&)**fpp;
     if (fil.IsInitialized())
       fil.UninitPlugin();
   }
   // Uninitialize output
-  output->UninitPlugin();
-  output.reset();
+  OutPlug->UninitPlugin();
+  OutPlug.reset();
 }
 
-void Glue::dec_set_active(const char* name)
-{ // Uninit current decoder if any
-  if (decoder && decoder->IsInitialized())
-  { int_ptr<Decoder> dp(decoder);
-    decoder.reset();
+void GlueImp::DecSetActive(const char* name)
+{ // Uninit current DecPlug if any
+  if (DecPlug && DecPlug->IsInitialized())
+  { int_ptr<Decoder> dp(DecPlug);
+    DecPlug.reset();
     dp->UninitPlugin();
   }
   if (name == NULL)
     return;
-  // Find new decoder
+  // Find new DecPlug
   int_ptr<Decoder> pd(Decoder::GetDecoder(name));
   pd->InitPlugin();
-  decoder = pd;
+  DecPlug = pd;
 }
 
-ULONG Glue::dec_command(DECMSGTYPE msg)
-{ DEBUGLOG(("dec_command(%d)\n", msg));
-  if (decoder == NULL)
-    return 3; // no decoder active
-  ULONG ret = decoder->DecoderCommand(msg, &dparams);
-  DEBUGLOG(("dec_command: %lu\n", ret));
+ULONG GlueImp::DecCommand(DECMSGTYPE msg)
+{ DEBUGLOG(("DecCommand(%d)\n", msg));
+  if (DecPlug == NULL)
+    return 3; // no DecPlug active
+  ULONG ret = DecPlug->DecoderCommand(msg, &DParams);
+  DEBUGLOG(("DecCommand: %lu\n", ret));
   return ret;
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
+ULONG Glue::DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
 {
   const xstring& url = song.GetPlayable().URL;
-  DEBUGLOG(("dec_play(&%p{%s}, %f, %f,%g)\n", &song, url.cdata(), offset, start, stop));
+  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%g)\n", &song, url.cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
-  // set active decoder
+  // set active DecPlug
   try
-  { Glue::dec_set_active(xstring(song.GetInfo().tech->decoder));
+  { GlueImp::DecSetActive(xstring(song.GetInfo().tech->decoder));
   } catch (const ModuleException& ex)
   { EventHandler::Post(MSG_ERROR, ex.GetErrorText());
     return (ULONG)-2;
   }
 
-  Glue::stoptime     = stop;
-  Glue::playstopsent = FALSE;
-  Glue::posoffset    = offset;
-  Glue::minpos       = 1E99;
-  Glue::maxpos       = 0;
+  GlueImp::StopTime     = stop;
+  GlueImp::Flags.bitrst(GlueImp::FLG_PlaystopSent);
+  GlueImp::PosOffset    = offset;
+  GlueImp::MinPos       = 1E99;
+  GlueImp::MaxPos       = 0;
 
-  Glue::dparams.URL              = url;
-  Glue::dparams.JumpTo           = start;
-  Glue::dparams.OutRequestBuffer = &PROXYFUNCREF(Glue)glue_request_buffer;
-  Glue::dparams.OutCommitBuffer  = &PROXYFUNCREF(Glue)glue_commit_buffer;
-  Glue::dparams.A                = Glue::procs.A;
+  GlueImp::DParams.URL              = url;
+  GlueImp::DParams.JumpTo           = start;
+  GlueImp::DParams.OutRequestBuffer = &PROXYFUNCREF(GlueImp)GlueRequestBuffer;
+  GlueImp::DParams.OutCommitBuffer  = &PROXYFUNCREF(GlueImp)GlueCommitBuffer;
+  GlueImp::DParams.A                = GlueImp::Procs.A;
 
-  ULONG rc = Glue::dec_command(DECODER_SETUP);
+  ULONG rc = GlueImp::DecCommand(DECODER_SETUP);
   if (rc != 0)
-  { Glue::dec_set_active(NULL);
+  { GlueImp::DecSetActive(NULL);
     return rc;
   }
-  Glue::url = url;
+  GlueImp::Url = url;
 
-  Glue::dec_command(DECODER_SAVEDATA);
+  GlueImp::DecCommand(DECODER_SAVEDATA);
 
-  rc = Glue::dec_command(DECODER_PLAY);
+  rc = GlueImp::DecCommand(DECODER_PLAY);
   if (rc != 0)
-    Glue::dec_set_active(NULL);
+    GlueImp::DecSetActive(NULL);
   else
   { // TODO: I hate this delay with a spinlock.
     int cnt = 0;
-    while (Glue::decoder->DecoderStatus() == DECODER_STARTING)
+    while (GlueImp::DecPlug->DecoderStatus() == DECODER_STARTING)
     { DEBUGLOG(("dec_play - waiting for Spinlock\n"));
       DosSleep(++cnt > 10);
   } }
   return rc;
 }
 
-/* stop the current decoder immediately */
-ULONG dec_stop()
-{ Glue::url = NULL;
-  ULONG rc = Glue::dec_command(DECODER_STOP);
-  // Do not deactivate the decoder immediately.
-  // Glue::dec_set_active(NULL);
+/* stop the current DecPlug immediately */
+ULONG Glue::DecStop()
+{ GlueImp::Url = NULL;
+  ULONG rc = GlueImp::DecCommand(DECODER_STOP);
+  // Do not deactivate the DecPlug immediately.
   return rc;
 }
 
+void Glue::DecClose()
+{ GlueImp::DecSetActive(NULL);
+}
+
 /* set fast forward/rewind mode */
-ULONG dec_fast(DECFASTMODE mode)
-{ Glue::dparams.Fast = mode;
-  return Glue::dec_command(DECODER_FFWD);
+ULONG Glue::DecFast(DECFASTMODE mode)
+{ GlueImp::DParams.Fast = mode;
+  return GlueImp::DecCommand(DECODER_FFWD);
 }
 
 /* jump to absolute position */
-ULONG dec_jump(PM123_TIME location)
+ULONG Glue::DecJump(PM123_TIME location)
 { // Discard stop time if we seek beyond this point.
-  if (location >= Glue::stoptime)
-    Glue::stoptime = 1E99;
-  Glue::dparams.JumpTo = location;
-  ULONG rc = Glue::dec_command(DECODER_JUMPTO);
-  if (rc == 0 && Glue::initialized)
-  { Glue::params.PlayingPos = location;
-    Glue::out_command(OUTPUT_TRASH_BUFFERS);
+  if (location >= GlueImp::StopTime)
+    GlueImp::StopTime = 1E99;
+  GlueImp::DParams.JumpTo = location;
+  ULONG rc = GlueImp::DecCommand(DECODER_JUMPTO);
+  if (rc == 0 && GlueImp::Initialized)
+  { GlueImp::OParams.PlayingPos = location;
+    GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   }
   return rc;
 }
 
 /* set savefilename to save the raw stream data */
-ULONG dec_save(const char* file)
+ULONG Glue::DecSave(const char* file)
 { if (file != NULL && *file == 0)
     file = NULL;
-  Glue::dparams.SaveFilename = file;
-  ULONG status = Glue::decoder ? Glue::decoder->DecoderStatus() : 0;
+  GlueImp::DParams.SaveFilename = file;
+  ULONG status = GlueImp::DecPlug ? GlueImp::DecPlug->DecoderStatus() : 0;
   return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
-   ? Glue::dec_command( DECODER_SAVEDATA )
+   ? GlueImp::DecCommand(DECODER_SAVEDATA)
    : 0;
-}
-
-PM123_TIME dec_minpos()
-{ return Glue::minpos;
-}
-
-PM123_TIME dec_maxpos()
-{ return Glue::maxpos;
 }
 
 
 /* setup new output stage or change the properties of the current one */
-ULONG out_setup( const APlayable& song )
+ULONG Glue::OutSetup(const APlayable& song)
 { const INFO_BUNDLE_CV& info = song.GetInfo();
-  DEBUGLOG(("out_setup(&%p{%s,{%i,%i,%x...}})\n",
+  DEBUGLOG(("Glue::OutSetup(&%p{%s,{%i,%i,%x...}})\n",
     &song, song.GetPlayable().URL.cdata(), info.tech->samplerate, info.tech->channels, info.tech->attributes));
-  Glue::params.URL        = song.GetPlayable().URL;
-  Glue::params.Info       = &info;
+  GlueImp::OParams.URL        = song.GetPlayable().URL;
+  GlueImp::OParams.Info       = &info;
   // TODO: is this position correct?
-  Glue::params.PlayingPos = Glue::posoffset;
+  GlueImp::OParams.PlayingPos = GlueImp::PosOffset;
   
-  if (!Glue::initialized)
-  { ULONG rc = Glue::init(); // here we initiate the setup of the filter chain
+  if (!GlueImp::Initialized)
+  { ULONG rc = GlueImp::Init(); // here we initiate the setup of the filter chain
     if (rc != 0)
       return rc;
   }
-  DEBUGLOG(("out_setup before out_command %p\n", Glue::params.Info));
-  return Glue::out_command( OUTPUT_OPEN );
+  DEBUGLOG(("Glue::OutSetup before OutCommand %p\n", GlueImp::OParams.Info));
+  return GlueImp::OutCommand(OUTPUT_OPEN);
 }
 
-/* closes output device and uninitializes all filter and output plug-ins */
-ULONG out_close()
-{ if (!Glue::initialized)
+/*bool Glue::OutDisconnect()
+{ if (!GlueImp::Initialized)
+    return false;
+  GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
+  return true;
+}*/
+
+/* closes OutPlug device and uninitializes all filter and output plug-ins */
+ULONG Glue::OutClose()
+{ if (!GlueImp::Initialized)
     return (ULONG)-1;
-  Glue::params.PlayingPos = (*Glue::procs.output_playing_pos)( Glue::procs.A );
-  Glue::initialized = FALSE; // Disconnect decoder
-  Glue::out_command( OUTPUT_TRASH_BUFFERS );
-  ULONG rc = Glue::out_command( OUTPUT_CLOSE );
-  Glue::uninit(); // Hmm, is it a good advise to do this in case of an error?
+  GlueImp::OParams.PlayingPos = (*GlueImp::Procs.output_playing_pos)(GlueImp::Procs.A);
+  GlueImp::Initialized = false;
+  GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
+  ULONG rc = GlueImp::OutCommand(OUTPUT_CLOSE);
+  GlueImp::Uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
 }
 
-/* adjust output volume */
-void out_set_volume( double volume )
-{ if (!Glue::initialized)
+/* adjust OutPlug volume */
+void Glue::OutSetVolume(double volume)
+{ if (!GlueImp::Initialized)
     return; // can't help
-  Glue::params.Volume = volume;
-  Glue::out_command( OUTPUT_VOLUME );
+  GlueImp::OParams.Volume = volume;
+  GlueImp::OutCommand(OUTPUT_VOLUME);
 }
 
-ULONG out_pause( BOOL pause )
-{ if (!Glue::initialized)
+ULONG Glue::OutPause(bool pause)
+{ if (!GlueImp::Initialized)
     return (ULONG)-1; // error
-  Glue::params.Pause = pause;
-  return Glue::out_command( OUTPUT_PAUSE );
+  GlueImp::OParams.Pause = pause;
+  return GlueImp::OutCommand(OUTPUT_PAUSE);
 }
 
-BOOL out_flush()
-{ if (!Glue::initialized)
+bool Glue::OutFlush()
+{ if (!GlueImp::Initialized)
     return FALSE;
-  (*Glue::procs.output_request_buffer)(Glue::procs.A, NULL, NULL);
+  (*GlueImp::Procs.output_request_buffer)(GlueImp::Procs.A, NULL, NULL);
   return TRUE;
 }
 
-BOOL out_trash()
-{ if (!Glue::initialized)
+bool Glue::OutTrash()
+{ if (!GlueImp::Initialized)
     return FALSE;
-  Glue::out_command( OUTPUT_TRASH_BUFFERS );
+  GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   return TRUE;
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
-ULONG DLLENTRY out_playing_samples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
-{ if (!Glue::initialized)
+PROXYFUNCIMP(ULONG DLLENTRY, Glue)
+OutPlayingSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+{ if (!GlueImp::Initialized)
     return (ULONG)-1; // N/A
-  return (*Glue::procs.output_playing_samples)(Glue::procs.A, offset, cb, param);
+  return (*GlueImp::Procs.output_playing_samples)(GlueImp::Procs.A, offset, cb, param);
 }
 
 /* Returns time in ms. */
-PM123_TIME DLLENTRY out_playing_pos()
-{ if (!Glue::initialized)
+PROXYFUNCIMP(PM123_TIME DLLENTRY, Glue) OutPlayingPos()
+{ if (!GlueImp::Initialized)
     return 0; // ??
-  return (*Glue::procs.output_playing_pos)(Glue::procs.A);
+  return (*GlueImp::Procs.output_playing_pos)(GlueImp::Procs.A);
 }
 
-/* if the output is playing. */
-BOOL DLLENTRY out_playing_data()
-{ if (!Glue::initialized)
+/* if the OutPlug is playing. */
+PROXYFUNCIMP(BOOL DLLENTRY, Glue) OutPlayingData()
+{ if (!GlueImp::Initialized)
     return FALSE;
-  return (*Glue::procs.output_playing_data)(Glue::procs.A);
+  return (*GlueImp::Procs.output_playing_data)(GlueImp::Procs.A);
 }
 
-PROXYFUNCIMP(int DLLENTRY, Glue)
-glue_request_buffer(void* a, const FORMAT_INFO2* format, float** buf)
-{ if (!Glue::initialized)
+PROXYFUNCIMP(int DLLENTRY, GlueImp)
+GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
+{ if (!GlueImp::Initialized)
     return 0;
   // do not pass flush, signal DECEVENT_PLAYSTOP instead.
   if (buf == NULL)
-  { if (InterlockedXch(&Glue::playstopsent, TRUE) == FALSE)
-      dec_event(Glue::ev_playstop);
+  { if (!GlueImp::Flags.bitset(GlueImp::FLG_PlaystopSent))
+      DecEvent(GlueImp::CEVPlayStop);
     return 0;
   }
   // We are beyond the end?
-  if (Glue::playstopsent)
+  if (GlueImp::Flags.bit(GlueImp::FLG_PlaystopSent))
     return 0;
   // pass request to output
-  Glue::last_format = *format;
-  return (*Glue::procs.output_request_buffer)(a, format, buf);
+  GlueImp::LastFormat = *format;
+  return (*GlueImp::Procs.output_request_buffer)(a, format, buf);
 }
 
-PROXYFUNCIMP(void DLLENTRY, Glue)
-glue_commit_buffer(void* a, int len, PM123_TIME posmarker)
-{ if (!Glue::initialized)
+PROXYFUNCIMP(void DLLENTRY, GlueImp)
+GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
+{ if (!GlueImp::Initialized)
     return;
   bool send_playstop = false;
-  PM123_TIME pos_e = posmarker + (PM123_TIME)len / Glue::last_format.samplerate;
+  PM123_TIME pos_e = posmarker + (PM123_TIME)len / GlueImp::LastFormat.samplerate;
 
   // check stop offset
-  if (pos_e >= Glue::stoptime)
-  { pos_e = Glue::stoptime;
+  if (pos_e >= GlueImp::StopTime)
+  { pos_e = GlueImp::StopTime;
     // calcutate fractional part
-    len = posmarker >= Glue::stoptime
+    len = posmarker >= GlueImp::StopTime
       ? 0 // begin is already beyond the limit => cancel request
-      : (int)((Glue::stoptime - posmarker) * Glue::last_format.samplerate +.5);
+      : (int)((GlueImp::StopTime - posmarker) * GlueImp::LastFormat.samplerate +.5);
     // Signal DECEVENT_PLAYSTOP if not yet sent.
-    send_playstop = InterlockedXch(&Glue::playstopsent, TRUE) == FALSE;
+    send_playstop = !GlueImp::Flags.bitset(GlueImp::FLG_PlaystopSent);
   }
 
   // update min/max
-  if (Glue::minpos > posmarker)
-    Glue::minpos = posmarker;
-  if (Glue::maxpos < pos_e)
-    Glue::maxpos = pos_e;
+  if (GlueImp::MinPos > posmarker)
+    GlueImp::MinPos = posmarker;
+  if (GlueImp::MaxPos < pos_e)
+    GlueImp::MaxPos = pos_e;
 
   // pass to the output
-  (*Glue::procs.output_commit_buffer)(a, len, posmarker + Glue::posoffset);
+  (*GlueImp::Procs.output_commit_buffer)(a, len, posmarker + GlueImp::PosOffset);
 
   // Signal DECEVENT_PLAYSTOP ?
   if (send_playstop)
-    dec_event(Glue::ev_playstop);
+    DecEvent(GlueImp::CEVPlayStop);
 }
 
-PROXYFUNCIMP(void DLLENTRY, Glue)
-dec_event_handler( void* a, DECEVENTTYPE event, void* param )
-{ DEBUGLOG(("plugman:dec_event_handler(%p, %d, %p)\n", a, event, param));
+PROXYFUNCIMP(void DLLENTRY, GlueImp)
+DecEventHandler(void* a, DECEVENTTYPE event, void* param)
+{ DEBUGLOG(("GlueImp::DecEventHandler(%p, %d, %p)\n", a, event, param));
   // We handle some event here immediately.
   switch (event)
   {case DECEVENT_CHANGEOBJ:
@@ -523,36 +502,36 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
     // From the playlist view, metadata changes should be immediately visible.
     // But during playback the change should be delayed until the apropriate buffer is really played.
     // The latter cannot be implemented with the current backend.
-    if (Glue::url)
-    { int_ptr<Playable> pp = Playable::FindByURL(Glue::url);
+    if (GlueImp::Url)
+    { int_ptr<Playable> pp = Playable::FindByURL(GlueImp::Url);
       if (pp)
         pp->SetMetaInfo((META_INFO*)param);
     }
     break;
 
    case DECEVENT_PLAYSTOP:
-    Glue::stoptime = 0;
+    GlueImp::StopTime = 0;
     // discard if already sent
-    if (InterlockedXch(&Glue::playstopsent, TRUE))
+    if (GlueImp::Flags.bitset(GlueImp::FLG_PlaystopSent))
       return;
    default: // avoid warnings
     break;
   }
-  const dec_event_args args = { event, param };
-  dec_event(args);
+  const DecEventArgs args = { event, param };
+  DecEvent(args);
 }
 
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
-PROXYFUNCIMP(void DLLENTRY, Glue)
-out_event_handler( void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("plugman:out_event_handler(%p, %d)\n", w, event));
-  out_event(event);
-  // route high/low water events to the decoder (if any)
+PROXYFUNCIMP(void DLLENTRY, GlueImp)
+OutEventHandler(void* w, OUTEVENTTYPE event)
+{ DEBUGLOG(("GlueImp::OutEventHandler(%p, %d)\n", w, event));
+  OutEvent(event);
+  // route high/low water events to the DecPlug (if any)
   switch (event)
   {case OUTEVENT_LOW_WATER:
    case OUTEVENT_HIGH_WATER:
-    { if (decoder != NULL)
-        decoder->DecoderEvent(event);
+    { if (DecPlug != NULL)
+        GlueImp::DecPlug->DecoderEvent(event);
       break;
     }
    default: // avoid warnings
@@ -563,8 +542,8 @@ out_event_handler( void* w, OUTEVENTTYPE event )
 
 static time_t nomsgtill = 0;
 
-void Glue::plugin_notification(void*, const PluginEventArgs& args)
-{ DEBUGLOG(("Glue::plugin_notification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
+void GlueImp::PluginNotification(void*, const PluginEventArgs& args)
+{ DEBUGLOG(("GlueImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
   switch (args.Operation)
   {case PluginEventArgs::Load:
    case PluginEventArgs::Unload:

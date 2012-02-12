@@ -30,7 +30,7 @@
 #include "infobundle.h"
 #include "eventhandler.h"
 #include "proxyhelper.h"
-#include <cpp/vdelegate.h>
+#include <cpp/cppvdelegate.h>
 
 #include <debuglog.h>
 

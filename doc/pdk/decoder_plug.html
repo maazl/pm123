@@ -374,6 +374,11 @@ means success.<br>
     <tt>PLUGIN_FAILED</tt> (<tt>-1</tt>)
 means the decoder was not initialized successfully.</li>
 </ul>
+The <tt>decoder_init</tt> function is called when PM123 needs the
+specified decoder
+to play the stream demanded by the user. So only one decoder plug-in is
+active at any given time. It should initialize the necessary semaphores
+and threads.
 <blockquote>
   <pre>BOOL DLLENTRY <b>decoder_uninit</b>(void *<var>w</var>)</pre>
 </blockquote>
@@ -382,13 +387,12 @@ means the decoder was not initialized successfully.</li>
   </li>
   <li>return value: <tt>TRUE</tt> = success</li>
 </ul>
-<p>Init function is called when PM123 needs the specified decoder
-to play the stream demanded by the user. So only one decoder plug-in is
-active at any given time. It should initialize the necessary semaphores
-and threads. <code>decoder_uninit</code> is called when
+<p><code>decoder_uninit</code> is called when
 another decoder
 than yours is needed, and should destroy the decoder's thread,
-semaphores, other opened handles and free allocated memory for <tt><var>w</var></tt>.</p>
+semaphores, other opened handles and free allocated memory for <tt><var>w</var></tt>.
+The decoder must not execute any callback function like <tt>output_request_buffer</tt>
+from another thread when <tt>decoder_uninit</tt> has returned.</p>
 <h4><a name="decoder_command"></a>decoder_command</h4>
 <blockquote>
   <pre>ULONG DLLENTRY <b>decoder_command</b>(void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var>)</pre>
@@ -448,7 +452,8 @@ interface</h3>
     <tt>DECODER_STOPPED<br>
 DECODER_PLAYING<br>
 DECODER_STARTING<br>
-DECODER_PAUSED</tt></li>
+DECODER_PAUSED<br>
+DECODER_STOPPING</tt></li>
 </ul>
 <h4><a name="decoder_length"></a>decoder_length</h4>
 <blockquote>
@@ -493,9 +498,7 @@ that any of the two functions might block.</p>
 from <code>DECODER_PARAMS2</code>.</li>
   <li><tt><var>format</var></tt> - format
 of the passed samples. The data at <code>*<var>format</var></code>
-need not to be valid after this call returned until <a
- href="#decoder_command"><tt>decoder_command</tt></a>
-with <tt>DECODER_STOP</tt> returned.</li>
+need not to be valid after this call returned.</li>
   <li><tt><var>buf</var></tt> [out] -
 pointer to receive a memory location where to store the decoded samples.</li>
   <li><var>return value</var> - the number of samples
@@ -505,7 +508,7 @@ indicates a permanent error. PM123 stops the playback in this case.</li>
 <p>If you get a smaller buffer as you need to pass your data you
 should call <code>output_request_buffer</code> and <code>output_commit_buffer</code>
 again until all your data is consumed. There is no guaranteed minimum
-size of the buffer, but you should not expect this to get very small
+size of the buffer, but you should not expect to get very small
 buffers quite often.</p>
 <h4><a name="output_commit_buffer"></a>output_commit_buffer</h4>
 <blockquote>
@@ -543,7 +546,8 @@ conditions:</p>
 <ul>
   <li><code><b>DECEVENT_PLAYSTOP</b></code>
 when the stream has finished decoding and the last sample has been
-passed to <code>output_commit_buffer</code>.</li>
+passed to <code>output_commit_buffer</code> or when the decoder
+received a <tt>DECODER_STOP</tt> command.</li>
   <li><code><b>DECEVENT_PLAYERROR</b></code>
 when a playback error occurred so that PM123 should know to stop
 immediately.</li>
@@ -566,6 +570,9 @@ keeps the bitrate of the entire stream. </li>
 is sent whenever streaming metadata is updated. <var>param</var>
 must point to a <code>META_INFO</code> structure.</li>
 </ul>
+Once a decoder raised a <tt>DECODER_PLAYSTOP</tt> or <tt>DECODER_ERROR</tt>
+event it shall not use any callback functions until it receives a <tt>DECODER_PLAY</tt>
+command.<br>
 <h4><a name="decoder_event"></a>decoder_event</h4>
 <blockquote>
   <pre>void DLLENTRY <b>decoder_event</b>(void* <var>w</var>, OUTEVENTTYPE <var>event</var>)</pre>

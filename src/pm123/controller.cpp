@@ -92,11 +92,10 @@ class CtrlImp
   static AtomicUnsigned       Pending;
 
   // Delegates for the tracked events of the decoder, the output and the current song.
-  static delegate<void, const dec_event_args>        DecEventDelegate;
+  static delegate<void, const Glue::DecEventArgs>    DecEventDelegate;
   static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
   //static delegate<void, const PlayableChangeArgs>    CurrentSongDelegate;
   static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
-  //static delegate<void, const CallstackEntry>        SongIteratorDelegate;
 
   // Occasionally used constant.
   static const vector_int<PlayableInstance> EmptyStack;
@@ -128,8 +127,6 @@ class CtrlImp
   /// @remarks Precondition: The output must have been initialized.
   /// The function does not return unless the decoder is decoding or an error occurred.
   static ULONG DecoderStart(APlayable& ps, PM123_TIME offset);
-  /// Stops decoding and deinitializes the decoder plug-in.
-  static void  DecoderStop();
   /// Initializes the output for playing pp.
   /// The playable object is needed for naming purposes.
   static ULONG OutputStart(APlayable& pp);
@@ -168,7 +165,7 @@ class CtrlImp
   /// Worker thread that processes the message queue.
   static void  Worker();
   /// Event handler for decoder events.
-  static void  DecEventHandler(void*, const dec_event_args& args);
+  static void  DecEventHandler(void*, const Glue::DecEventArgs& args);
   /// Event handler for output events.
   static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
   /// Event handler for tracking modifications of the currently playing song.
@@ -236,9 +233,9 @@ Ctrl::ControlCommand* CtrlImp::CurCmd    = NULL;
 AtomicUnsigned        CtrlImp::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
-delegate<void, const dec_event_args>        CtrlImp::DecEventDelegate(&CtrlImp::DecEventHandler);
-delegate<void, const OUTEVENTTYPE>          CtrlImp::OutEventDelegate(&CtrlImp::OutEventHandler);
-delegate<void, const PlayableChangeArgs>    CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
+delegate<void, const Glue::DecEventArgs> CtrlImp::DecEventDelegate(&CtrlImp::DecEventHandler);
+delegate<void, const OUTEVENTTYPE>       CtrlImp::OutEventDelegate(&CtrlImp::OutEventHandler);
+delegate<void, const PlayableChangeArgs> CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
 
 const vector_int<PlayableInstance> CtrlImp::EmptyStack;
 JobSet CtrlImp::SyncJob(PRI_Sync);
@@ -318,13 +315,13 @@ void CtrlImp::SetVolume()
 { double volume = Volume;
   if (Scan)
     volume *= 3./5.;
-  out_set_volume(volume);
+  Glue::OutSetVolume(volume);
 }
 
 ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
 { DEBUGLOG(("Ctrl::DecoderStart(&%p{%p})\n", &ps, &ps.GetPlayable()));
   SetVolume();
-  dec_save(Savename);
+  Glue::DecSave(Savename);
 
   PM123_TIME start = 0;
   PM123_TIME stop  = 1E99;
@@ -350,33 +347,19 @@ ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
       start = 0;
   }
 
-  ULONG rc = dec_play(ps, offset, start, stop);
+  ULONG rc = Glue::DecPlay(ps, offset, start, stop);
   if (rc != 0)
     return rc;
 
   if (Scan != DECFAST_NORMAL_PLAY)
-    dec_fast(Scan);
+    Glue::DecFast(Scan);
   DEBUGLOG(("Ctrl::DecoderStart - completed\n"));
   return 0;
 }
 
-void CtrlImp::DecoderStop()
-{ DEBUGLOG(("Ctrl::DecoderStop()\n"));
-  // stop decoder
-  dec_stop();
-
-  // TODO: CRAP? => we disconnect decoder instead
-  /*int cnt = 0;
-  while (dec_status() != DECODER_STOPPED && dec_status() != DECODER_ERROR)
-  { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
-    DosSleep( ++cnt > 10 );
-  }*/
-  DEBUGLOG(("Ctrl::DecoderStop - completed\n"));
-}
-
 ULONG CtrlImp::OutputStart(APlayable& pp)
 { DEBUGLOG(("Ctrl::OutputStart(&%p)\n", &pp));
-  ULONG rc = out_setup( pp );
+  ULONG rc = Glue::OutSetup(pp);
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   return rc;
 }
@@ -386,7 +369,7 @@ void CtrlImp::OutputStop()
   // Clear prefetch list
   PrefetchClear(true);
   // close output
-  out_close();
+  Glue::OutClose();
   // reset offset
   if (PrefetchList.size())
     Current()->Offset = 0;
@@ -452,7 +435,7 @@ void CtrlImp::NavigateCore(Location& si)
   { DEBUGLOG(("Ctrl::NavigateCore - seek to %f\n", Current()->Loc.GetPosition()));
     // only location is different => seek only
     if (Playing)
-    { ULONG rc = dec_jump(si.GetPosition());
+    { ULONG rc = Glue::DecJump(si.GetPosition());
       if (rc)
       { ReplyDecoderError(rc);
         return;
@@ -465,8 +448,8 @@ void CtrlImp::NavigateCore(Location& si)
   DEBUGLOG(("Ctrl::NavigateCore - Navigate - %u\n", Playing));
   // Navigate to another item
   if (Playing)
-  { DecoderStop();
-    out_trash(); // discard buffers
+  { Glue::DecStop();
+    Glue::OutTrash(); // discard buffers
     PrefetchClear(true);
   }
   { // Mutex because Current is modified.
@@ -489,6 +472,7 @@ void CtrlImp::NavigateCore(Location& si)
   { ULONG rc = DecoderStart(ps, 0);
     if (rc)
     { OutputStop();
+      Glue::DecClose();
       Playing = false;
       Pending |= EV_PlayStop;
       ReplyDecoderError(rc);
@@ -567,7 +551,7 @@ void CtrlImp::CheckPrefetch(double pos)
 PM123_TIME CtrlImp::FetchCurrentSongTime()
 { DEBUGLOG(("Ctrl::FetchCurrentSongTime() - %u\n", Playing));
   if (Playing)
-  { PM123_TIME time = out_playing_pos();
+  { PM123_TIME time = Glue::OutPlayingPos();
     // Check whether the output played a prefetched item completely.
     CheckPrefetch(time);
     return time - Current()->Offset; // relocate playing position
@@ -575,9 +559,9 @@ PM123_TIME CtrlImp::FetchCurrentSongTime()
     return Current()->Loc.GetPosition();
 }
 
-void CtrlImp::DecEventHandler(void*, const dec_event_args& args)
-{ DEBUGLOG(("Ctrl::DecEventHandler(, {%i, %p})\n", args.type, args.param));
-  switch (args.type)
+void CtrlImp::DecEventHandler(void*, const Glue::DecEventArgs& args)
+{ DEBUGLOG(("Ctrl::DecEventHandler(, {%i, %p})\n", args.Type, args.Param));
+  switch (args.Type)
   {case DECEVENT_PLAYSTOP:
     // Well, same as on play error.
    case DECEVENT_PLAYERROR:
@@ -659,7 +643,7 @@ void CtrlImp::MsgPause()
     return;
   }
   if (SetFlag(Paused))
-  { out_pause(Paused);
+  { Glue::OutPause(Paused);
     Pending |= EV_Pause;
   }
 }
@@ -687,13 +671,13 @@ void CtrlImp::MsgScan()
   { if (Playing)
     { // => Decoder
       // TODO: discard prefetch buffer.
-      ULONG rc = dec_fast(newscan);
+      ULONG rc = Glue::DecFast(newscan);
       if (rc)
       { ReplyDecoderError(rc);
         return;
       } else // if (cfg.trash)
         // Going back in the stream to what is currently playing.
-        dec_jump(FetchCurrentSongTime());
+        Glue::DecJump(FetchCurrentSongTime());
 
     } else if (Flags & Op_Set)
     { Reply(RC_NotPlaying);
@@ -774,6 +758,7 @@ void CtrlImp::MsgPlayStop()
     rc = DecoderStart(Current()->Loc.GetCurrent(), 0);
     if (rc)
     { OutputStop();
+      Glue::DecClose();
       Playing = false;
       ReplyOutputError(rc);
       return;
@@ -781,7 +766,9 @@ void CtrlImp::MsgPlayStop()
 
   } else
   { // stop playback
-    DecoderStop();
+    Glue::DecStop();
+    Glue::OutTrash();
+    Glue::DecClose();
     OutputStop();
 
     Flags = Op_Clear;
@@ -790,7 +777,7 @@ void CtrlImp::MsgPlayStop()
     Flags = Op_Reset;
     MsgScan();
 
-    while (out_playing_data())
+    while (Glue::OutPlayingData())
     { DEBUGLOG(("Ctrl::MsgPlayStop - Spinlock\n"));
       DosSleep(1);
     }
@@ -982,7 +969,7 @@ void CtrlImp::MsgSave()
   Savename = StrArg;
 
   if (Playing)
-  { ULONG rc = dec_save(Savename);
+  { ULONG rc = Glue::DecSave(Savename);
     if (rc)
     { ReplyDecoderError(rc);
       return;
@@ -1037,17 +1024,18 @@ void CtrlImp::MsgDecStop()
   { // Song, no repeat => stop
    eol:
     DEBUGLOG(("Ctrl::MsgDecStop: flush\n"));
-    DecoderStop();
-    out_flush();
+    Glue::DecStop();
+    Glue::OutFlush();
     // Continue at OUTEVENT_END_OF_DATA
     Reply(RC_OK);
     return;
   }
 
-  PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + dec_maxpos(), Current()->Loc);
-  pep->Offset += dec_maxpos();
+  PM123_TIME max = Glue::DecMaxPos();
+  PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + max, Current()->Loc);
+  pep->Offset += max;
   int dir = Scan == DECFAST_REWIND ? -1 : 1; // DecoderStop resets scan mode
-  DecoderStop();
+  Glue::DecStop();
 
   // Navigation
   if (!(GetRoot()->GetInfo().tech->attributes & TATTR_SONG))
@@ -1058,6 +1046,9 @@ void CtrlImp::MsgDecStop()
       goto eol; // end of list => same as end of song
     }
   }
+  // Avoid to open more than one decoder instance at a time.
+  Glue::DecClose();
+
   APlayable& ps = pep->Loc.GetCurrent();
   // store result
   Mutex::Lock lock(PLMtx);
@@ -1069,6 +1060,7 @@ void CtrlImp::MsgDecStop()
   if (rc)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
+    Glue::DecClose();
     Playing = false;
     Pending |= EV_PlayStop;
     ReplyDecoderError(rc);
@@ -1182,8 +1174,8 @@ bool Ctrl::QueueTraverse(bool (*action)(const ControlCommand& cmd, void* arg), v
 
 void Ctrl::Init()
 { DEBUGLOG(("Ctrl::Init()\n"));
-  dec_event += CtrlImp::DecEventDelegate;
-  out_event += CtrlImp::OutEventDelegate;
+  Glue::GetDecEvent() += CtrlImp::DecEventDelegate;
+  Glue::GetOutEvent() += CtrlImp::OutEventDelegate;
   CtrlImp::WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
   ASSERT((int)CtrlImp::WorkerTID != -1);
   // load the state
