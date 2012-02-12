@@ -308,7 +308,7 @@ class vector_int : public vector<T>
   T*                operator[](size_t where) const { return vector<T>::operator[](where); } // = return ((const int_ptr<T>&)at(where)).get();
   /// @brief Access an element by it's index.
   /// @details Precondition: \a where in [0,size()), Performance: O(1)
-  int_ptr<T>&       operator[](size_t where)       { return (int_ptr<T>&)at(where); }
+  int_ptr<T>&       operator[](size_t where)       { return (int_ptr<T>&)vector_base::at(where); }
   /// @brief Get a constant iterator that points to the first element or past the end if the vector is empty.
   /// @details Precondition: none, Performance: O(1)
   const int_ptr<T>* begin() const                  { return (const int_ptr<T>*)vector_base::begin(); }
@@ -317,10 +317,10 @@ class vector_int : public vector<T>
   int_ptr<T>*       begin()                        { return (int_ptr<T>*)vector_base::begin(); }
   /// @brief Get a constant iterator that points past the end.
   /// @details Precondition: none, Performance: O(1)
-  const int_ptr<T>* end() const                    { return begin() + size(); }
+  const int_ptr<T>* end() const                    { return begin() + vector_base::size(); }
   /// @brief Get a iterator that points past the end.
   /// @details Precondition: none, Performance: O(1)
-  int_ptr<T>*       end()                          { return begin() + size(); }
+  int_ptr<T>*       end()                          { return begin() + vector_base::size(); }
   /// @brief Finds an element is in the list. Uses instance equality.
   /// @param elem Element to find.
   /// @return Iterator to the found element or \c NULL if not found.

@@ -106,7 +106,7 @@ inline T* sorted_vector<T,K,C>::find(const K& key) const
 template <class T, class K, sorted_vector_comparer>
 inline T*& sorted_vector<T,K,C>::get(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : (insert(pos) = NULL);
+  return binary_search(key, pos) ? (*this)[pos] : (vector<T>::insert(pos) = NULL);
 }
 
 template <class T, class K, sorted_vector_comparer>
@@ -196,7 +196,7 @@ inline int_ptr<T> sorted_vector_int<T,K,C>::find(const K& key) const
 template <class T, class K, sorted_vector_comparer>
 inline int_ptr<T>& sorted_vector_int<T,K,C>::get(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : insert(pos);
+  return binary_search(key, pos) ? (*this)[pos] : vector_int<T>::insert(pos);
 }
 
 template <class T, class K, sorted_vector_comparer>

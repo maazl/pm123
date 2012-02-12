@@ -141,7 +141,7 @@ T* inst_index<T,K,C>::RemoveWithKey(const T& elem, K& key)
 }
 
 template <class T, class K, int (*C)(const T&, const K&)>
-inst_index<T,K,C>::IndexType inst_index<T,K,C>::Index;
+sorted_vector<T,K,C>/*inst_index<T,K,C>::IndexType*/ inst_index<T,K,C>::Index;
 template <class T, class K, int (*C)(const T&, const K&)>
 Mutex inst_index<T,K,C>::Mtx;
 

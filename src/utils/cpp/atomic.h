@@ -39,7 +39,6 @@
 *  Wrapper class around primitive functions to do atomic operations.
 *
 *****************************************************************************/
-
 class AtomicUnsigned
 {private:
   volatile unsigned data;
@@ -66,6 +65,7 @@ class AtomicUnsigned
   operator unsigned  () const           { return data; }
   unsigned get       () const           { return data; }
   bool     operator! () const           { return !data; }
+  bool     bit(unsigned n) const        { return (data & (1 << n)) != 0; }
 };
 
 template <class T>

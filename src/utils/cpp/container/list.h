@@ -159,9 +159,9 @@ class list_own : public list<T>
 
 template <class T>
 void list_own<T>::clear()
-{ T* cur = next(NULL);
+{ T* cur = list<T>::next(NULL);
   while (cur)
-  { T* nxt = next(cur);
+  { T* nxt = list<T>::next(cur);
     delete cur;
     cur = nxt;
   }
