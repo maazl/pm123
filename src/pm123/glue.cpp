@@ -198,17 +198,21 @@ ULONG GlueImp::Init()
   }
 
   // initially only the output plugin
-  OutPlug->InitPlugin();
+  ULONG rc = OutPlug->InitPlugin();
+  if (rc != PLUGIN_OK)
+    goto fail;
   Procs = OutPlug->GetProcs();
   // setup filters
   Plugin::GetPlugins(FilterPlugs);
   Virtualize(FilterPlugs.size()-1);
   // setup OutPlug
-  ULONG rc = OutCommand(OUTPUT_SETUP);
-  if (rc == 0)
+  rc = OutCommand(OUTPUT_SETUP);
+  if (rc == PLUGIN_OK)
     Initialized = true;
   else
+  {fail:
     Uninit(); // deinit filters
+  }
   return rc;
 }
 
@@ -363,13 +367,6 @@ ULONG Glue::OutSetup(const APlayable& song)
   DEBUGLOG(("Glue::OutSetup before OutCommand %p\n", GlueImp::OParams.Info));
   return GlueImp::OutCommand(OUTPUT_OPEN);
 }
-
-/*bool Glue::OutDisconnect()
-{ if (!GlueImp::Initialized)
-    return false;
-  GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
-  return true;
-}*/
 
 /* closes OutPlug device and uninitializes all filter and output plug-ins */
 ULONG Glue::OutClose()

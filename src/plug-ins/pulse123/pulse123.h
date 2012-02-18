@@ -32,8 +32,15 @@
 
 #define PLUGIN_INTERFACE_LEVEL 3
 
+#ifndef RC_INVOKED
 #include <output_plug.h>
+#endif
 
+#define DLG_CONFIG  100
+
+#define GB_GENERIC  1000
+#define ST_GENERIC  1001
+#define CB_PBSERVER 2001
 
 #endif /* PM123_PULSE123_H */
 

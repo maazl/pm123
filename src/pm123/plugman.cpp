@@ -157,9 +157,16 @@ ModuleImp::~ModuleImp()
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength)
 { ULONG len = maxlength;
-  return PrfQueryProfileData(Cfg::GetHIni(), mp->Key, key, data, &len)
-      && PrfQueryProfileSize(Cfg::GetHIni(), mp->Key, key, &len)
-    ? (int)len : -1;
+  if (maxlength > 0)
+  { len = maxlength;
+    if (!PrfQueryProfileData(Cfg::GetHIni(), mp->Key, key, data, &len))
+      return -1;
+    if (len < maxlength)
+      return len;
+  }
+  if (!PrfQueryProfileSize(Cfg::GetHIni(), mp->Key, key, &len))
+    return -1;
+  return len;
 }
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)

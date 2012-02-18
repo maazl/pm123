@@ -83,7 +83,7 @@ class Output
  public:
   virtual ~Output();
   /// Initialize the output plug-in. Return TRUE on success.
-  virtual bool InitPlugin();
+  virtual ULONG InitPlugin();
   /// Uninitialize the output plug-in. Return TRUE on success.
   virtual bool UninitPlugin();
   virtual bool IsInitialized() const  { return A != NULL; }

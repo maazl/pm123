@@ -28,23 +28,48 @@
 
 #define  INCL_DOS
 #define  INCL_WIN
+#define  INCL_PM
 
 #include "pulse123.h"
 #include "playbackworker.h"
 #include <plugin.h>
-//#include <os2.h>
+#include <utilfct.h>
+#include <cpp/pmutils.h>
+#include <os2.h>
 
 #include <debuglog.h>
 
 PLUGIN_CONTEXT Ctx;
+
+// Configuration
+xstring PlaybackServer;
+
+inline xstring ini_query(const char* key)
+{ int len = (*Ctx.plugin_api->profile_query)(key, NULL, 0);
+  xstring ret;
+  if (len >= 0)
+  { char* cp = ret.allocate(len);
+    (*Ctx.plugin_api->profile_query)(key, cp, len);
+  }
+  return ret;
+}
+
+#define ini_load(var) var = ini_query(#var)
+
+inline void ini_write(const char* key, const char* value)
+{ int len = value ? strlen(value) : 0;
+  (*Ctx.plugin_api->profile_write)(key, value, len);
+}
+
+#define ini_save(var) ini_write(#var, var)
 
 
 /// Returns information about plug-in.
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
 { query->type         = PLUGIN_OUTPUT;
   query->author       = "Marcel Mueller";
-  query->desc         = "Pulseaudio for PM123 V0.9";
-  query->configurable = FALSE;
+  query->desc         = "PulseAudio for PM123 V1.0";
+  query->configurable = TRUE;
   query->interface    = PLUGIN_INTERFACE_LEVEL;
   return 0;
 }
@@ -52,6 +77,9 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
 /// init plug-in
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 { Ctx = *ctx;
+
+  ini_load(PlaybackServer);
+
   return 0;
 }
 
@@ -59,7 +87,7 @@ int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
 { PlaybackWorker* w = new PlaybackWorker();
-  ULONG ret = w->Init();
+  ULONG ret = w->Init(PlaybackServer);
   if (ret == 0)
     *A = w;
   return ret;
@@ -121,111 +149,70 @@ BOOL DLLENTRY output_playing_data(void* A)
 }
 
 
-/* Default dialog procedure for the directorys browse dialog.
-MRESULT EXPENTRY
-cfg_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+/* Processes messages of the configuration dialog. */
+static MRESULT EXPENTRY cfg_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 {
-  FILEDLG* filedialog =
-    (FILEDLG*)WinQueryWindowULong( hwnd, QWL_USER );
-
-  switch( msg )
+  switch (msg)
   {
-    case WM_INITDLG:
-      WinEnableControl( hwnd, DID_OK, TRUE  );
-      do_warpsans( hwnd );
-      break;
-
-    case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == DID_FILENAME_ED && SHORT2FROMMP(mp1) == EN_CHANGE ) {
-        // Prevents DID_OK from being greyed out.
-        return 0;
-      }
-      break;
-
-    case WM_COMMAND:
-      if( SHORT1FROMMP(mp1) == DID_OK )
-      {
-        if( !is_root( filedialog->szFullFile )) {
-          filedialog->szFullFile[strlen(filedialog->szFullFile)-1] = 0;
-        }
-
-        filedialog->lReturn    = DID_OK;
-        filedialog->ulFQFCount = 1;
-
-        WinDismissDlg( hwnd, DID_OK );
-        return 0;
-      }
-      break;
-  }
-  return WinDefFileDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/ Processes messages of the configuration dialog. *
-MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  static HMODULE module;
-
-  switch( msg ) {
-    case WM_INITDLG:
-      module = (HMODULE)mp2;
-      WinSetDlgItemText( hwnd, EF_FILENAME, outpath );
-      do_warpsans( hwnd );
-      break;
-
-    case WM_COMMAND:
-      switch( SHORT1FROMMP( mp1 )) {
-        case PB_BROWSE:
-        {
-          FILEDLG filedialog;
-
-          memset( &filedialog, 0, sizeof( FILEDLG ));
-          filedialog.cbSize     = sizeof( FILEDLG );
-          filedialog.fl         = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
-          filedialog.pszTitle   = "Output directory";
-          filedialog.hMod       = module;
-          filedialog.usDlgId    = DLG_BROWSE;
-          filedialog.pfnDlgProc = cfg_file_dlg_proc;
-
-          WinQueryDlgItemText( hwnd, EF_FILENAME,
-                               sizeof( filedialog.szFullFile ), filedialog.szFullFile );
-
-          if( *filedialog.szFullFile &&
-               filedialog.szFullFile[ strlen( filedialog.szFullFile ) - 1 ] != '\\' )
-          {
-            strcat( filedialog.szFullFile, "\\" );
-          }
-
-          WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
-
-          if( filedialog.lReturn == DID_OK ) {
-            WinSetDlgItemText( hwnd, EF_FILENAME, filedialog.szFullFile );
-          }
-          return 0;
-        }
-
-        case DID_OK:
-        {
-          WinQueryDlgItemText( hwnd, EF_FILENAME, sizeof( outpath ), outpath );
-
-          if( *outpath && outpath[ strlen( outpath ) - 1 ] == '\\' && !is_root( outpath )) {
-            outpath[ strlen( outpath ) - 1 ] = 0;
-          }
-
-          context->plugin_api->profile_write( "outpath", outpath, strlen(outpath) );
+   case WM_INITDLG:
+    do_warpsans(hwnd);
+    { // Populate MRU list
+      HWND ctrl = WinWindowFromID(hwnd, CB_PBSERVER);
+      char key[] = "PlaybackServer#";
+      for (key[sizeof key -2] = '0'; key[sizeof key -2] <= '9'; ++key[sizeof key -2])
+      { xstring url = ini_query(key);
+        if (!url)
           break;
+        WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(url.cdata()));
+      }
+      // Set current value
+      if (PlaybackServer)
+        PMRASSERT(WinSetWindowText(ctrl, PlaybackServer.cdata()));
+    }
+    break;
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case DID_OK:
+      { HWND ctrl = WinWindowFromID(hwnd, CB_PBSERVER);
+        PlaybackServer = WinQueryWindowXText(ctrl);
+        ini_save(PlaybackServer);
+        // update MRU list
+        if (PlaybackServer && *PlaybackServer)
+        { char key[] = "PlaybackServer0";
+          ini_write(key, PlaybackServer);
+          int i = 0;
+          int len = 0;
+          xstring url;
+          while (++key[sizeof key -2] <= '9')
+          { if (len >= 0)
+            {skip:
+              url.reset();
+              len = (SHORT)SHORT1FROMMR(WinSendMsg(ctrl, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
+              if (len >= 0)
+              { WinSendMsg(ctrl, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
+                DEBUGLOG(("pulse123:cfg_dlg_proc save MRU %i: (%i) %s\n", i, len, url.cdata()));
+                ++i;
+                if (url == PlaybackServer)
+                  goto skip;
+              }
+            }
+            ini_write(key, url);
+          }
         }
       }
       break;
+    }
+    break;
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return WinDefDlgProc(hwnd, msg, mp1, mp2);
 }
 
-* Configure plug-in. *
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module ) {
-  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, (PVOID)module );
-  return 0;
-}*/
+/* Configure plug-in. */
+void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
+{
+  WinDlgBox(HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIG, (PVOID)module);
+}
 
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

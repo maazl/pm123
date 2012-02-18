@@ -211,15 +211,20 @@ bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, OUTPUT_PLAYI
 
 
 PlaybackWorker::PlaybackWorker() throw()
-: Server("tcp:192.168.121.137:4713")
-, Volume(PA_VOLUME_INVALID)
+: Volume(PA_VOLUME_INVALID)
 , DrainOpDeleg(DrainOp.Completion(), *this, &PlaybackWorker::DrainOpCompletion)
 { DEBUGLOG(("PlaybackWorker(%p)::PlaybackWorker()\n", this));
 }
 
-ULONG PlaybackWorker::Init() throw()
-{ try
-  { Context.Connect("PM123", Server);
+ULONG PlaybackWorker::Init(const xstring& server) throw()
+{ DEBUGLOG(("PlaybackWorker(%p)::Init(%s)\n", this, server.cdata()));
+  Server = server;
+  try
+  { if (!Server || !*Server)
+      throw PAException(PLUGIN_ERROR,
+        "You need to configure a destination server before using pulse123.\n"
+        "Go to \"Plug-ins/PulseAudio for PM123\" from the main context menu.");
+    Context.Connect("PM123", Server);
     return PLUGIN_OK;
   } catch (const PAException& ex)
   { Error(ex.GetMessage());

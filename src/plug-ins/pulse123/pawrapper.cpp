@@ -315,6 +315,8 @@ void PAStream::WaitReady() throw(PAStreamException)
 pa_usec_t PAStream::GetTime() throw (PAStreamException)
 { pa_usec_t time;
   PAContext::Lock lock;
+  if (GetState() != PA_STREAM_READY)
+    return 0;
   int err = pa_stream_get_time(Stream, &time);
   if (err)
     throw PAStreamException(Stream, err, "GetTime failed");
@@ -324,6 +326,8 @@ pa_usec_t PAStream::GetTime() throw (PAStreamException)
 void PAStream::Cork(bool pause) throw (PAStreamException)
 { DEBUGLOG(("PAStream(%p{%p})::Cork(%u)\n", this, Stream, pause));
   PAContext::Lock lock;
+  if (GetState() != PA_STREAM_READY)
+    return;
   pa_operation* op = pa_stream_cork(Stream, pause, NULL, NULL);
   if (op == NULL)
     throw PAStreamException(Stream, "Cork failed for stream");
@@ -333,6 +337,8 @@ void PAStream::Cork(bool pause) throw (PAStreamException)
 void PAStream::Flush() throw (PAStreamException)
 { DEBUGLOG(("PAStream(%p{%p})::Flush()\n", this, Stream));
   PAContext::Lock lock;
+  if (GetState() != PA_STREAM_READY)
+    return;
   pa_operation* op = pa_stream_flush(Stream, NULL, NULL);
   if (op == NULL)
     throw PAStreamException(Stream, "Flush failed for stream");

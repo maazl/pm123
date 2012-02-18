@@ -361,6 +361,8 @@ ULONG CtrlImp::OutputStart(APlayable& pp)
 { DEBUGLOG(("Ctrl::OutputStart(&%p)\n", &pp));
   ULONG rc = Glue::OutSetup(pp);
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
+  if (rc != PLUGIN_OK)
+    Glue::OutClose();
   return rc;
 }
 

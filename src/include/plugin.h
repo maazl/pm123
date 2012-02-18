@@ -109,12 +109,23 @@ typedef struct
 { /** message function */
   void DLLENTRYP(message_display)(MESSAGE_TYPE type, const char* msg);
 
-  /** retrieve configuration setting */
+  /** Retrieve configuration setting
+   * @param key Name of the configuration parameter.
+   * @param data Target buffer where the data should be stored.
+   * @param maxlength Maximum number of bytes to store in \a *data.
+   * You may pass \c 0 to query the data size.
+   * @return length of the data or -1 if the key does not exist.
+   * When the data size exceeds \a maxlength then the real data length is returned
+   * but only \a maxlength bytes are stored. */
   int DLLENTRYP(profile_query)(const char* key, void* data, int maxlength);
-  /** store configuration setting */
+  /** Store configuration setting
+   * @param key Name of the configuration parameter.
+   * @param data Data to write in the profile. Pass \c NULL to delete a key.
+   * @param len Length of the data in \a *data.
+   * @return \c 0 on error */
   int DLLENTRYP(profile_write)(const char* key, const void* data, int length);
 
-  /** execute remote command
+  /** Execute remote command
    * See the documentation of remote commands for a description. */
   const char* DLLENTRYP(exec_command)(const char* cmd);
   /** Invalidate object properties

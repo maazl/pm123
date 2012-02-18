@@ -45,11 +45,12 @@ play-back relevant activities. These are:</p>
 </ul>
 <p>The Play Controller receives all instructions by a <em>command queue</em>.
 The queue is always processed in order. Multiple commands may be linked
-togehter. Linked commands are placed as unit in the queue and cannot be
+together. Linked commands are placed as unit in the queue and cannot be
 intercepted by commands from another source.</p>
-<p>Changes in the play status are immediatle reflected to all observers
+<p>Changes in the play status are immediately reflected to all
+observers
 by asynchronous notifications, except for the playing position, which
-obviously changes continously. The playing position has to be polled
+obviously changes continuously. The playing position has to be polled
 explicitly.</p>
 <p>When an item completed to decode in playlist mode, the Play
 Controller immediately starts to decode the next playlist item even if
@@ -57,7 +58,7 @@ the current item is not yet played completely. This results in a <em>pipeline
 of prefetched items</em> which may contain multiple items if they are
 short enough.</p>
 <h3><a name="decoder_engine" id="decoder_engine"></a>The Player Engine</h3>
-<p>Once a decoder plug-in begins to decode an item, it starts a <em>seperate
+<p>Once a decoder plug-in begins to decode an item, it starts a <em>separate
 thread</em> that sends the decoded data through the data interface to
 the filter plug-ins and finally to the output plug-in. The plug-in
 chain is connected by the <a href="#play_controller">Play Controller</a>

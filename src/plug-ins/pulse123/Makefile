@@ -20,9 +20,11 @@ LIBS     = $(LIBS) $(TOPDIR)\fft123\fft123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO)
 DEF      = pulse123$(LDEF_SUFFX)
+RESOURCE = pulse123$(RES)
 
-$(TARGET): $(OBJECTS) $(DEF) $(LIBS)
+$(TARGET): $(OBJECTS) $(DEF) $(LIBS) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 
 pulse123$(LBI): $(DEF)

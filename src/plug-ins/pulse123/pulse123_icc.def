@@ -15,3 +15,4 @@ EXPORTS
 
    plugin_query     @10
    plugin_init      @11
+   plugin_configure    @12

@@ -111,7 +111,7 @@ class PlaybackWorker
  public:
   PlaybackWorker() throw();
   ~PlaybackWorker();
-  ULONG Init() throw();
+  ULONG Init(const xstring& server) throw();
   ULONG Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
              void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw();
   ULONG Close() throw();

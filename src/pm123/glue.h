@@ -89,8 +89,6 @@ class Glue
   /// Prepare output for playback of \a song.
   /// If the output is already initialized this signals only the start of a new song.
   static ULONG OutSetup(const APlayable& song);
-  /// Disconnect output, release waiting threads.
-  static bool  OutDisconnect();
   /// Close the filter chain including the output plug-in.
   /// If the playback has not yet completed, discard all remaining buffers.
   /// \c OutClose must release all semaphores in the \c output_request_buffer and \c output_commit_buffer callbacks.

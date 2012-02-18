@@ -11,4 +11,6 @@ EXPORT   output_playing_pos       .6
 EXPORT   output_playing_data      .7
 EXPORT   output_playing_samples   .8
 
-EXPORT plugin_query      .10
+EXPORT plugin_query     .10
+EXPORT plugin_init      .11
+EXPORT plugin_configure .12

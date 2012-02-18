@@ -87,15 +87,15 @@ void Output::LoadPlugin()
   mod.LoadMandatoryFunction(&output_commit_buffer,   "output_commit_buffer");
 }
 
-bool Output::InitPlugin()
+ULONG Output::InitPlugin()
 { DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, ModRef->Key.cdata()));
 
-  if ((*output_init)(&A) != 0)
-  { A = NULL;
-    return false;
-  }
-  RaisePluginChange(PluginEventArgs::Init);
-  return true;
+  ULONG rc = (*output_init)(&A);
+  if (rc != 0)
+    A = NULL;
+  else
+    RaisePluginChange(PluginEventArgs::Init);
+  return rc;
 }
 
 bool Output::UninitPlugin()
