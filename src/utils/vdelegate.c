@@ -31,7 +31,7 @@
 
 static const VDELEGATE vdtempl =
 { 0x31, 0xc9,                         /* xor ecx, ecx              */
-  0xb1, 0x00,                         /* mov ecx, 0                */
+  0xb1, 0x00,                         /* mov cl, 0                 */
   0xff, 0x74, 0x24, 0x00,             /* push dword [esp+0x00]     */
   0xe2, 0xfa,                         /* loop $-4                  */
   0x68, 0x00, 0x00, 0x00, 0x00,       /* push dword 0x0            */
@@ -49,7 +49,7 @@ static const VDELEGATE vdtempl =
 
 V_FUNC mkvdelegate(VDELEGATE* dg, V_FUNC func, int count, void* ptr)
 { memcpy(dg, &vdtempl, sizeof *dg);
-  (*dg)[DELEGATE_OFF_COUNT3] += (*dg)[DELEGATE_OFF_COUNT2] = ((*dg)[DELEGATE_OFF_COUNT1] = count) << 2;
+  (*dg)[DELEGATE_OFF_COUNT3] += (*dg)[DELEGATE_OFF_COUNT2] = ((*dg)[DELEGATE_OFF_COUNT1] = count) >> 2;
   *(void**)(*dg + DELEGATE_OFF_PTR) = ptr;
   *(int*)(*dg + DELEGATE_OFF_FUNC) = (char*)func - (char*)(*dg + DELEGATE_OFF_REF);
   return count ? (V_FUNC)dg : (V_FUNC)(*dg + DELEGATE_OFF_NOPAR);
