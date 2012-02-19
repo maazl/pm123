@@ -31,7 +31,6 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
-									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/pulseaudio&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1053245929" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="HAVE_CONFIG_H"/>
@@ -219,6 +218,6 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="pulse.null.2082683180" name="pulse"/>
+		<project id="pulseaudio.null.2082683180" name="pulseaudio"/>
 	</storageModule>
 </cproject>
