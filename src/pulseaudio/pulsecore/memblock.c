@@ -720,7 +720,12 @@ pa_mempool* pa_mempool_new(pa_bool_t shared, size_t size) {
         p->block_size = PA_PAGE_SIZE;
 
     if (size <= 0)
+#if OS_IS_OS2
+        // OS/2 has limited virtual memory of 512 MB, so do not allocate the maximum by default.
+        p->n_blocks = PA_MEMPOOL_SLOTS_MAX / 4;
+#else
         p->n_blocks = PA_MEMPOOL_SLOTS_MAX;
+#endif
     else {
         p->n_blocks = (unsigned) (size / p->block_size);
 

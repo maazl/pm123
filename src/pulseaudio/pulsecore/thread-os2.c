@@ -36,6 +36,8 @@
 
 #include "thread.h"
 
+#include <interlocked.h>
+
 #include <debuglog.h>
 
 /* We pass the thread ID directly as a pointer.
@@ -45,8 +47,10 @@ struct pa_thread {
     char* name;
 };*/
 
-#define TLS_USERDATA 0
-#define TLS_NAME     1
+enum
+{ TLS_USERDATA,
+  TLS_NAME
+};
 
 /* Index of registered TLS objects.
  * These objects are of type pa_free_cb_t. */
@@ -91,6 +95,23 @@ static void *tls_set(unsigned ix, TID tid, void *userdata) {
     return r;
 }
 
+static void tls_destroy(pa_dynarray* arr)
+{ unsigned ix = 0;
+  unsigned ixe = pa_dynarray_size(arr);
+  while (ix < ixe) {
+      pa_free_cb_t cb = pa_dynarray_get(tls_index, ix);
+      DEBUGLOG(("thread-os2:tls_destroy: %i -> cb=%p\n", ix, cb));
+      if (cb && cb != &no_op_free) {
+          void* data = pa_dynarray_get(arr, ix);
+          DEBUGLOG(("thread-os2:tls_destroy: %i -> data=%p\n", ix, data));
+          if (data)
+              (*cb)(data);
+      }
+      ++ix;
+  }
+  pa_dynarray_free(arr, NULL, NULL);
+}
+
 
 static void APIENTRY internal_thread_func(ULONG param) {
     pa_thread_func_t tfn = (pa_thread_func_t)param;
@@ -109,29 +130,23 @@ static void APIENTRY monitor_thread_func(ULONG param) {
     DEBUGLOG(("thread-os2:monitor_thread_func()\n"));
 
     do {
-        pa_dynarray* arr;
+        pa_dynarray* arr = NULL;
         tid = 0;
         DosWaitThread(&tid, DCWW_WAIT);
         DEBUGLOG(("thread-os2:monitor_thread_func: thread %lu has ended\n", tid));
 
-        arr = tls_data[tid];
-        if (arr) {
-            unsigned ix = 0;
-            unsigned ixe = pa_dynarray_size(arr);
-            while (ix < ixe) {
-                pa_free_cb_t cb = pa_dynarray_get(tls_index, ix);
-                DEBUGLOG(("thread-os2:monitor_thread_func: %i -> cb=%p\n", ix, cb));
-                if (cb && cb != &no_op_free) {
-                    void* data = pa_dynarray_get(arr, ix);
-                    DEBUGLOG(("thread-os2:monitor_thread_func: %i -> data=%p\n", ix, data));
-                    if (data)
-                        (*cb)(data);
-                }
-                ++ix;
-            }
-            pa_dynarray_free(arr, NULL, NULL);
-            tls_data[tid] = NULL;
+        if (!tls_data[tid])
+          continue;
+        DosEnterCritSec();
+        if (DosWaitThread(&tid, DCWW_NOWAIT) == 0)
+        { arr = tls_data[tid];
+          tls_data[tid] = NULL;
         }
+        DosExitCritSec();
+
+        if (arr)
+            tls_destroy(arr);
+
     } while (tid != 1);
     /* If thread 1 dies OS/2 will terminate the application */
 }
@@ -165,12 +180,17 @@ pa_thread* pa_thread_new(const char* name, pa_thread_func_t thread_func, void *u
 
     init();
 
-    APIRET rc = DosCreateThread(&id, internal_thread_func, (ULONG)thread_func, CREATE_SUSPENDED, 4096*1024);
-    if (rc != 0)
-    {   pa_log_error("ERROR: failed to create thread: %u", rc);
-        return NULL;
+    {   APIRET rc = DosCreateThread(&id, internal_thread_func, (ULONG)thread_func, CREATE_SUSPENDED, 4096*1024);
+        if (rc != 0)
+        {   pa_log_error("ERROR: failed to create thread: %u", rc);
+            return NULL;
+        }
     }
-
+    /* Free old TLS data of previous thread if any. */
+    {   pa_dynarray* arr = (pa_dynarray*)InterlockedXch((volatile unsigned*)&tls_data[id], NULL);
+        if (arr)
+            tls_destroy(arr);
+    }
     /* Store userdata in TLS too. */
     tls_set(TLS_USERDATA, id, userdata);
     if (name)
@@ -179,7 +199,7 @@ pa_thread* pa_thread_new(const char* name, pa_thread_func_t thread_func, void *u
     DEBUGLOG(("pa_thread_new: resume new thread %lu\n", id));
     DosResumeThread(id);
     return (pa_thread*)id;
-}
+ }
 
 int pa_thread_is_running(pa_thread *t) {
     APIRET r;
