@@ -26,42 +26,18 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define  INCL_DOS
-#define  INCL_WIN
-#define  INCL_PM
 
 #include "pulse123.h"
 #include "playbackworker.h"
+#include "configuration.h"
+#include "dialog.h"
 #include <plugin.h>
-#include <utilfct.h>
-#include <cpp/pmutils.h>
 #include <os2.h>
 
 #include <debuglog.h>
 
+
 PLUGIN_CONTEXT Ctx;
-
-// Configuration
-xstring PlaybackServer;
-
-inline xstring ini_query(const char* key)
-{ int len = (*Ctx.plugin_api->profile_query)(key, NULL, 0);
-  xstring ret;
-  if (len >= 0)
-  { char* cp = ret.allocate(len);
-    (*Ctx.plugin_api->profile_query)(key, cp, len);
-  }
-  return ret;
-}
-
-#define ini_load(var) var = ini_query(#var)
-
-inline void ini_write(const char* key, const char* value)
-{ int len = value ? strlen(value) : 0;
-  (*Ctx.plugin_api->profile_write)(key, value, len);
-}
-
-#define ini_save(var) ini_write(#var, var)
 
 
 /// Returns information about plug-in.
@@ -78,7 +54,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 { Ctx = *ctx;
 
-  ini_load(PlaybackServer);
+  Configuration.Load();
 
   return 0;
 }
@@ -87,7 +63,7 @@ int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
 { PlaybackWorker* w = new PlaybackWorker();
-  ULONG ret = w->Init(PlaybackServer);
+  ULONG ret = w->Init(Configuration.PlaybackServer);
   if (ret == 0)
     *A = w;
   return ret;
@@ -149,69 +125,10 @@ BOOL DLLENTRY output_playing_data(void* A)
 }
 
 
-/* Processes messages of the configuration dialog. */
-static MRESULT EXPENTRY cfg_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  switch (msg)
-  {
-   case WM_INITDLG:
-    do_warpsans(hwnd);
-    { // Populate MRU list
-      HWND ctrl = WinWindowFromID(hwnd, CB_PBSERVER);
-      char key[] = "PlaybackServer#";
-      for (key[sizeof key -2] = '0'; key[sizeof key -2] <= '9'; ++key[sizeof key -2])
-      { xstring url = ini_query(key);
-        if (!url)
-          break;
-        WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(url.cdata()));
-      }
-      // Set current value
-      if (PlaybackServer)
-        PMRASSERT(WinSetWindowText(ctrl, PlaybackServer.cdata()));
-    }
-    break;
-
-   case WM_COMMAND:
-    switch (SHORT1FROMMP(mp1))
-    {case DID_OK:
-      { HWND ctrl = WinWindowFromID(hwnd, CB_PBSERVER);
-        PlaybackServer = WinQueryWindowXText(ctrl);
-        ini_save(PlaybackServer);
-        // update MRU list
-        if (PlaybackServer && *PlaybackServer)
-        { char key[] = "PlaybackServer0";
-          ini_write(key, PlaybackServer);
-          int i = 0;
-          int len = 0;
-          xstring url;
-          while (++key[sizeof key -2] <= '9')
-          { if (len >= 0)
-            {skip:
-              url.reset();
-              len = (SHORT)SHORT1FROMMR(WinSendMsg(ctrl, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
-              if (len >= 0)
-              { WinSendMsg(ctrl, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
-                DEBUGLOG(("pulse123:cfg_dlg_proc save MRU %i: (%i) %s\n", i, len, url.cdata()));
-                ++i;
-                if (url == PlaybackServer)
-                  goto skip;
-              }
-            }
-            ini_write(key, url);
-          }
-        }
-      }
-      break;
-    }
-    break;
-  }
-  return WinDefDlgProc(hwnd, msg, mp1, mp2);
-}
-
 /* Configure plug-in. */
 void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
-  WinDlgBox(HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIG, (PVOID)module);
+  ConfigDialog(hwnd, module).Process();
 }
 
 

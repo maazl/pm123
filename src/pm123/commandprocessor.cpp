@@ -155,8 +155,8 @@ class CommandProcessor : public ACommandProcessor
   };
 
   struct SyntaxException
-  { const xstring Text;
-    SyntaxException(const xstring& text) : Text(text) {}
+  { xstring Text;
+    SyntaxException(const char* text, ...);
   };
 
  private: // state
@@ -475,6 +475,12 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 char CommandProcessor::Cmd_QueryDefault[] = ""; // This object is identified by instance
 char CommandProcessor::Cmd_SetDefault[] = ""; // This object is identified by instance
 
+CommandProcessor::SyntaxException::SyntaxException(const char* fmt, ...)
+{ va_list va;
+  va_start(va, fmt);
+  Text.vsprintf(fmt, va);
+  va_end(va);
+}
 
 CommandProcessor::CommandProcessor()
 : CurPlaylist(&GUI::GetDefaultPL())
@@ -648,7 +654,7 @@ Ctrl::Op CommandProcessor::ParseBool(const char* arg)
   };
   const strmap<7,Ctrl::Op>* op = mapsearch(opmap, arg);
   if (!op)
-    throw SyntaxException(xstring::sprintf("Expected boolean value {0|1|on|off|true|false|yes|no|toggle} but found \"%s\".", arg));
+    throw SyntaxException("Expected boolean value {0|1|on|off|true|false|yes|no|toggle} but found \"%s\".", arg);
   return op->Val;
 }
 
@@ -656,7 +662,7 @@ int CommandProcessor::ParseInt(const char* arg)
 { int v;
   size_t n;
   if (sscanf(arg, "%i%n", &v, &n) != 1 || n != strlen(arg))
-    throw SyntaxException(xstring::sprintf("Argument \"%s\" is not an integer.", arg));
+    throw SyntaxException("Argument \"%s\" is not an integer.", arg);
   return v;
 }
 
@@ -665,7 +671,7 @@ double CommandProcessor::ParseDouble(const char* arg)
   size_t n;
   if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
     return v;
-  throw SyntaxException(xstring::sprintf("Argument \"%s\" is not an floating point number.", arg));
+  throw SyntaxException("Argument \"%s\" is not an floating point number.", arg);
 }
 
 static const strmap<5,cfg_disp> dispmap[] =
@@ -677,14 +683,14 @@ static const strmap<5,cfg_disp> dispmap[] =
 cfg_disp CommandProcessor::ParseDisp(const char* arg)
 { const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
   if (!mp)
-    throw SyntaxException(xstring::sprintf("Expected {file|info|tag|url} but found \"%s\".", arg));
+    throw SyntaxException("Expected {file|info|tag|url} but found \"%s\".", arg);
   return mp->Val;
 }
 
 url123 CommandProcessor::ParseURL(const char* url)
 { url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
   if (!ret)
-    throw SyntaxException(xstring::sprintf("Argument \"%s\" is no valid URL or file name.", url));
+    throw SyntaxException("Argument \"%s\" is no valid URL or file name.", url);
   // Directory?
   if (ret[ret.length()-1] != '/' && is_dir(ret))
     ret = ret + "/";
@@ -707,7 +713,7 @@ int_ptr<Module> CommandProcessor::ParsePlugin(const char* arg)
   }
   int_ptr<Module> mp = Module::FindByKey(arg);
   if (!mp)
-    MessageHandler(this, MSG_ERROR, xstring::sprintf("Plug-in module \"%s\" not found.", arg));
+    MessageHandler(this, MSG_ERROR, xstring().sprintf("Plug-in module \"%s\" not found.", arg));
   return mp;
 }
 
@@ -758,7 +764,7 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
   else if (Request)
   { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
     if (!mp)
-      throw SyntaxException(xstring::sprintf("Expected {song|song,time|time} but found \"%s\".", Request));
+      throw SyntaxException("Expected {song|song,time|time} but found \"%s\".", Request);
     Cfg::ChangeAccess().*option = mp->Val;
   }
 }
@@ -781,7 +787,7 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
   else if (Request)
   { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
     if (!mp)
-      throw SyntaxException(xstring::sprintf("Expected {none|once|infinite} but found \"%s\".", Request));
+      throw SyntaxException("Expected {none|once|infinite} but found \"%s\".", Request);
     Cfg::ChangeAccess().*option = mp->Val;
   }
 }
@@ -802,7 +808,7 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
   else if (Request)
   { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
     if (!mp)
-      throw SyntaxException(xstring::sprintf("Expected {0|1|2|normal|regular|small|tiny} but found \"%s\".", Request));
+      throw SyntaxException("Expected {0|1|2|normal|regular|small|tiny} but found \"%s\".", Request);
     Cfg::ChangeAccess().*option = mp->Val;
   }
 };
@@ -829,7 +835,7 @@ void CommandProcessor::DoFontOption(void*)
     if (!cp)
     { // Skinned font
       if ((Request[0] != '1' && Request[0] != '2') || Request[1])
-        throw SyntaxException(xstring::sprintf("Expected skinned font number {1|2} but found \"%s\".", Request));
+        throw SyntaxException("Expected skinned font number {1|2} but found \"%s\".", Request);
       Cfg::ChangeAccess cfg;
       cfg.font_skinned = true;
       cfg.font         = Request[0] & 0xf;
@@ -838,7 +844,7 @@ void CommandProcessor::DoFontOption(void*)
       FATTRS fattrs = { sizeof(FATTRS), 0, 0, "", 0, 0, 16, 7, 0, 0 };
       unsigned size;
       if (!amp_string_to_font_attrs(fattrs, size, Request))
-        throw SyntaxException(xstring::sprintf("Expected font in the format <size>.<fontname>[.bold][.italic] but found \"%s\".", Request));
+        throw SyntaxException("Expected font in the format <size>.<fontname>[.bold][.italic] but found \"%s\".", Request);
       Cfg::ChangeAccess cfg;
       cfg.font_skinned = false;
       cfg.font_attrs   = fattrs;
@@ -998,7 +1004,7 @@ void CommandProcessor::CmdQuery()
   };
   const strmap<8, bool (*)()>* op = mapsearch(map, Request);
   if (!op)
-    throw SyntaxException(xstring::sprintf("Expected {forward|pause|play|repeat|rewind|shuffle} but found \"%s\".", Request));
+    throw SyntaxException("Expected {forward|pause|play|repeat|rewind|shuffle} but found \"%s\".", Request);
   Reply.append((*op->Val)());
 }
 
@@ -1010,7 +1016,7 @@ void CommandProcessor::CmdCurrent()
   };
   const strmap<5,char>* op = mapsearch(map, Request);
   if (!op)
-    throw SyntaxException(xstring::sprintf("Expected [root|song] but found \"%s\".", Request));
+    throw SyntaxException("Expected [root|song] but found \"%s\".", Request);
   int_ptr<APlayable> cur;
   switch (op->Val)
   {case 0: // current song
@@ -1060,7 +1066,7 @@ void CommandProcessor::CmdLocation()
   };
   const strmap<7, char>* op = mapsearch(map, Request);
   if (!op)
-    throw SyntaxException(xstring::sprintf("Expected [play|stopat] but found \"%s\".", Request));
+    throw SyntaxException("Expected [play|stopat] but found \"%s\".", Request);
   SongIterator loc;
   Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val));
   if (cmd->Flags == Ctrl::RC_OK)
@@ -1695,7 +1701,7 @@ PLUGIN_TYPE CommandProcessor::ParseTypeList()
   for (const char* cp = strtok(Request, ",|"); cp; cp = strtok(NULL, ",|"))
   { const strmap<8,PLUGIN_TYPE>* op = mapsearch(PluginTypeMap, cp);
     if (op == NULL)
-      throw SyntaxException(xstring::sprintf("Unknown plug-in type %s.", cp));
+      throw SyntaxException("Unknown plug-in type %s.", cp);
     type |= op->Val;
   }
   return type;
@@ -1704,7 +1710,7 @@ PLUGIN_TYPE CommandProcessor::ParseTypeList()
 PLUGIN_TYPE CommandProcessor::ParseType()
 { const strmap<8,PLUGIN_TYPE>* op = mapsearch2(PluginTypeMap+1, sizeof PluginTypeMap/sizeof *PluginTypeMap -1, Request);
   if (op == NULL)
-    throw SyntaxException(xstring::sprintf("Unknown plug-in type %s.", Request));
+    throw SyntaxException("Unknown plug-in type %s.", Request);
   return op->Val;
 }
 
@@ -1746,7 +1752,7 @@ PLUGIN_TYPE CommandProcessor::InstantiatePlugin(Module& module, const char* para
         url123::parseParameter(sm, params);
         pp->SetParams(sm);
         for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
-          MessageHandler(this, MSG_WARNING, xstring::sprintf("Ignored unknown plug-in parameter %s", (*p)->Key.cdata()));
+          MessageHandler(this, MSG_WARNING, xstring().sprintf("Ignored unknown plug-in parameter %s", (*p)->Key.cdata()));
       }
       Plugin::AppendPlugin(pp);
       return type;
@@ -1923,7 +1929,7 @@ void CommandProcessor::CmdPluginParams()
     return;
   int_ptr<Plugin> pp = Plugin::FindInstance(*pm, type);
   if (!pp)
-  { MessageHandler(this, MSG_ERROR, xstring::sprintf("Plug-in module \"%s\" is not initialized as the requested type.", Request));
+  { MessageHandler(this, MSG_ERROR, xstring().sprintf("Plug-in module \"%s\" is not initialized as the requested type.", Request));
     return;
   }
   // return current parameters

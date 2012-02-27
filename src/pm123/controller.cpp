@@ -273,18 +273,18 @@ void CtrlImp::ReplyBadArg(const char* fmt, ...)
 { Flags = RC_BadArg;
   va_list va;
   va_start(va, fmt);
-  StrArg = xstring::vsprintf(fmt, va);
+  StrArg.vsprintf(fmt, va);
   va_end(va);
 }
 void CtrlImp::ReplyDecoderError(ULONG err)
 { Flags = RC_DecPlugErr;
   NumArg = err;
-  StrArg = xstring::sprintf("Decoder plug-in failed with error code %li.", err);
+  StrArg.sprintf("Decoder plug-in failed with error code %li.", err);
 }
 void CtrlImp::ReplyOutputError(ULONG err)
 { Flags = RC_DecPlugErr;
   NumArg = err;
-  StrArg = xstring::sprintf("Output plug-in failed with error code %li.", err);
+  StrArg.sprintf("Output plug-in failed with error code %li.", err);
 }
 
 bool CtrlImp::SetFlag(bool& flag)
@@ -1132,7 +1132,7 @@ void CtrlImp::Worker()
       { ccp->StrArg.reset();
         ccp->Flags = RC_SubseqError;
       } else if ((unsigned)ccp->Cmd >= sizeof cmds / sizeof *cmds)
-      { ccp->StrArg = xstring::sprintf("Invalid control command %i", ccp->Cmd);
+      { ccp->StrArg.sprintf("Invalid control command %i", ccp->Cmd);
         ccp->Flags = RC_BadArg;
       } else
       { // Do the work

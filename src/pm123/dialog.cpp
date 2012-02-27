@@ -87,7 +87,8 @@ ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUM
   FILEDLG filedialog = { sizeof( FILEDLG ) };
   sco_ptr<APSZ_list> types(amp_file_types(DECODER_FILENAME));
 
-  xstring wintitle = xstring::sprintf(title, " file(s)");
+  xstring wintitle;
+  wintitle.sprintf(title, " file(s)");
 
   filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_MULTIPLESEL;
   filedialog.ulUser         = FDU_DIR_ENABLE|FDU_RECURSEBTN;
@@ -201,7 +202,7 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
       const xstring& text = WinQueryWindowXText(ent);
       const url123& url = amp_get_cwd().makeAbsolute(text);
       if (!url)
-      { WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
+      { WinMessageBox(HWND_DESKTOP, hwnd, xstring().sprintf("The URL \"%s\" is not well formed.", text.cdata()),
           NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
         return 0; // cancel
       }
@@ -227,7 +228,8 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
 
   do_warpsans(hwnd);
 
-  xstring wintitle = xstring::sprintf(title, " URL");
+  xstring wintitle;
+  wintitle.sprintf(title, " URL");
   WinSetWindowText(hwnd, (PSZ)&*wintitle);
   
   ULONG ret = 300;
@@ -451,7 +453,8 @@ void amp_message( HWND owner, MESSAGE_TYPE type, const char* message )
 void amp_messagef( HWND owner, MESSAGE_TYPE type, const char* format, ... )
 { va_list args;
   va_start(args, format);
-  xstring message = xstring::vsprintf(format, args);
+  xstring message;
+  message.vsprintf(format, args);
   va_end(args);
   amp_message(owner, type, message);
 }
@@ -461,9 +464,9 @@ void amp_messagef( HWND owner, MESSAGE_TYPE type, const char* format, ... )
 BOOL amp_query( HWND owner, const char* format, ... )
 { va_list args;
   va_start(args, format);
-  xstring message = xstring::vsprintf(format, args);
+  xstring message;
+  message.vsprintf(format, args);
   va_end(args);
-
   return amp_message_box(owner, "PM123 Query", message, MB_QUERY|MB_YESNO|MB_MOVEABLE) == MBID_YES;
 }
 
@@ -472,9 +475,9 @@ BOOL amp_query( HWND owner, const char* format, ... )
 USHORT amp_query3( HWND owner, const char* format, ... )
 { va_list args;
   va_start(args, format);
-  xstring message = xstring::vsprintf(format, args);
+  xstring message;
+  message.vsprintf(format, args);
   va_end(args);
-
   return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNOCANCEL | MB_MOVEABLE );
 }
 

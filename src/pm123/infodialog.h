@@ -29,8 +29,8 @@
 #ifndef PM123_INFODIALOG_H
 #define PM123_INFODIALOG_H
 
-#include "windowbase.h"
 #include "playable.h"
+#include <cpp/windowbase.h>
 #include <cpp/container/sorted_vector.h>
 
 
@@ -56,7 +56,7 @@ class AInfoDialog
     static int      compare(const KeyType& l, const KeyType& r);
   };
  protected:
-                    AInfoDialog(ULONG rid, HMODULE module) : ManagedDialog<NotebookDialogBase>(rid, module) {}
+                    AInfoDialog(ULONG rid, HMODULE module) : ManagedDialog<NotebookDialogBase>(rid, module, DF_AutoResize) {}
  public:
   virtual           ~AInfoDialog() {}
   virtual void      ShowPage(PageNo page) = 0;

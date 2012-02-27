@@ -31,7 +31,7 @@
 
 #define INCL_WIN
 #define INCL_BASE
-#include "windowbase.h"
+#include <cpp/windowbase.h>
 #include <cpp/smartptr.h>
 #include <cpp/queue.h>
 #include <cpp/container/vector.h>

@@ -135,4 +135,4 @@ class PlaybackWorker
 };
 
 
-#endif // PULSE123_WORKER_H
+#endif // PULSE123_PLAYBACKWORKER_H

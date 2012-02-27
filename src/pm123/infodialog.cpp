@@ -749,7 +749,8 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Error, worker halted
-      const xstring& errortext = xstring::sprintf("Error %lu - %s", rep->RC, rep->Text.cdata());
+      xstring errortext;
+      errortext.sprintf("Error %lu - %s", rep->RC, rep->Text.cdata());
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, errortext));
       // 'skip all' was pressed? => continue immediately
       if (SkipErrors)
@@ -883,12 +884,6 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
     break;
-
-    // does funny things
-    //case WM_WINDOWPOSCHANGED:
-    // if(((SWP*)mp1)[0].fl & SWP_SIZE)
-    //   nb_adjust(GetHwnd());
-    // break;
   }
   return AInfoDialog::DlgProc(msg, mp1, mp2);
 }
@@ -913,7 +908,7 @@ SingleInfoDialog::SingleInfoDialog(const KeyType& key)
 MRESULT SingleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
-    SetTitle(xstring::sprintf("PM123 Object info: %s", Key[0]->GetPlayable().URL.getDisplayName().cdata()));
+    SetTitle(xstring().sprintf("PM123 Object info: %s", Key[0]->GetPlayable().URL.getDisplayName().cdata()));
     // register for change event
     Key[0]->GetInfoChange() += ContentChangeDeleg;
     break;
@@ -1003,7 +998,7 @@ MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // Since we are _Multiple_InfoDialog there are at least two items.
-    SetTitle(xstring::sprintf("PM123 - %u objects: %s, %s ...", Key.size(),
+    SetTitle(xstring().sprintf("PM123 - %u objects: %s, %s ...", Key.size(),
       Key[0]->GetPlayable().URL.getShortName().cdata(), Key[1]->GetPlayable().URL.getShortName().cdata()));
     break;
   }

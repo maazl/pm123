@@ -618,9 +618,9 @@ void PlaylistMenu::RemoveMapEntry(USHORT mid)
 xstring PlaylistMenu::MakeMenuItemText(MapEntry* mapp, size_t index)
 { xstring text = mapp->Data->GetDisplayName();
   if (text.length() > 30) // limit length?
-    text = xstring(text, 0, 30) + "...";
+    text.sprintf("%.30s...", text.cdata());
   if (mapp->Flags & Enumerate) // prepend enumeration?
-    text = xstring::sprintf("%s%u %s", index<10 ? "~" : "", index, text.cdata());
+    text.sprintf("%s%u %s", index<10 ? "~" : "", index, text.cdata());
   return text;
 }
 

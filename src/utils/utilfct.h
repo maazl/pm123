@@ -188,7 +188,7 @@ typedef struct
 
 /** Adjust the result of a resize operation according to PPU_RESIZEINFO of the children.
  * This function is intended to be used at WM_ADJUSTWINDOWPOS processing.
- * If you do not have size constraints or you have the size costraints
+ * If you do not have size constraints or you have the size constraints
  * at the dialog level, then this call is not necessary. */
 void  dlg_adjust_resize(HWND hwnd, SWP* pswp);
 /** Resize the children according to PPU_RESIZEINFO.
@@ -255,7 +255,8 @@ void  en_enable( HWND hwnd, SHORT id, BOOL enable );
    the index (low word) and the total (high word) number of subpages (if any).
    Returns the new page ID or 0 on error. */
 ULONG nb_append_tab( HWND book, HWND page, const char* major, const char* minor, MPARAM index );
-/* Adjusting the position and size of a notebook window. */
+/* Adjusting the position and size of a notebook window.
+ * This function is superseded by dlg_do_resize in conjunction with PPU_RESIZEINFO. */
 BOOL  nb_adjust( HWND hwnd, SWP* pswp );
 
 /* Sets the upper and lower limit of a numeric spin button and the maximum text length */

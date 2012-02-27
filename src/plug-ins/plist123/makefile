@@ -9,7 +9,7 @@ TARGET   = plist123.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = plist123$(CO) playlistreader$(CO) playlistwriter$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = plist123$(LDEF_SUFFX)
 #RESOURCE = plist123$(RES)
 STDLIBS  = $(LIBS_MM)

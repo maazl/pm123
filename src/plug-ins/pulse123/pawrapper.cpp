@@ -64,30 +64,96 @@ void PAProplist::reference::operator=(const char* value)
 }
 
 
+PAServerInfo::PAServerInfo(const pa_server_info& r)
+: user_name(r.user_name)
+, host_name(r.host_name)
+, server_version(r.server_version)
+, server_name(r.server_name)
+, sample_spec(r.sample_spec)
+, default_sink_name(r.default_sink_name)
+, default_source_name(r.default_source_name)
+, cookie(r.cookie)
+, channel_map(r.channel_map)
+{}
+
+PAServerInfo& PAServerInfo::operator=(const pa_server_info& r)
+{ user_name = r.user_name;
+  host_name = r.host_name;
+  server_version = r.server_version;
+  server_name = r.server_name;
+  sample_spec = r.sample_spec;
+  default_sink_name = r.default_sink_name;
+  default_source_name = r.default_source_name;
+  cookie = r.cookie;
+  channel_map = r.channel_map;
+  return *this;
+}
+
+
+PASinkInfo::PASinkInfo(const pa_sink_info& r)
+: name(r.name)
+, index(r.index)
+, description(r.description)
+, sample_spec(r.sample_spec)
+, channel_map(r.channel_map)
+, owner_module(r.owner_module)
+, volume(r.volume)
+, mute(r.mute)
+, monitor_source(r.monitor_source)
+, monitor_source_name(r.monitor_source_name)
+, latency(r.latency)
+, driver(r.driver)
+, flags(r.flags)
+, proplist(r.proplist)
+, configured_latency(r.configured_latency)
+, base_volume(r.base_volume)
+, state(r.state)
+, n_volume_steps(r.n_volume_steps)
+, card(r.card)
+, ports(r.n_ports)
+, active_port(NULL)
+{ for (unsigned i = 0; i < r.n_ports; ++i)
+  { pa_sink_port_info* port = r.ports[i];
+    ports[i] = *port;
+    if (port == r.active_port)
+      active_port = ports.get() + i;
+  }
+}
+
+
 void PAOperation::Unlink()
-{ if (Operation)
+{ DEBUGLOG(("PAOperation(%p{%p})::Unlink()\n", this, Operation));
+  if (Operation)
   { PAContext::Lock lock;
     // The current pulseaudio implementation has no option to disable a callback
     // without canceling the operation. So the destruction of the Operation wrapper
     // must necessarily cancel the operation to avoid undefined bahavior of
     // the outstanding callback.
-    pa_operation_cancel(Operation);
-    if (WaitPending)
-      PAContext::MainloopSignal();
-    pa_operation_unref(Operation);
-    Operation = NULL;
+    if (Operation)
+    { pa_operation_cancel(Operation);
+      if (WaitPending)
+        PAContext::MainloopSignal();
+      pa_operation_unref(Operation);
+      Operation = NULL;
+    }
   }
+}
+
+void PAOperation::Signal()
+{ DEBUGLOG(("PAOperation(%p{%p})::Signal() - %u\n", this, Operation));
+  FinalState = PA_OPERATION_DONE;
+  pa_operation_unref(Operation);
+  Operation = NULL;
+  if (WaitPending)
+    PAContext::MainloopSignal();
 }
 
 void PAOperation::Cancel()
 { DEBUGLOG(("PAOperation(%p{%p})::Cancel()\n", this, Operation));
+  FinalState = PA_OPERATION_CANCELLED;
   // Double check: fast path without lock.
-  if (!Operation || pa_operation_get_state(Operation) != PA_OPERATION_RUNNING)
-    return;
-  PAContext::Lock lock;
-  pa_operation_cancel(Operation);
-  if (WaitPending)
-    PAContext::MainloopSignal();
+  if (GetState() == PA_OPERATION_RUNNING)
+    Unlink();
 }
 
 void PAOperation::Wait() throw (PAStateException)
@@ -100,15 +166,17 @@ void PAOperation::Wait() throw (PAStateException)
     throw PAStateException("Operation canceled");
    default:;
   }
-  WaitPending = true;
   PAContext::Lock lock;
+  ++WaitPending;
   for (;;)
   { PAContext::MainloopWait();
     DEBUGLOG(("PAOperation::Wait() - %i\n", pa_operation_get_state(Operation)));
     switch (pa_operation_get_state(Operation))
     {case PA_OPERATION_DONE:
+      --WaitPending;
       return;
      case PA_OPERATION_CANCELLED:
+      --WaitPending;
       throw PAStateException("Operation canceled");
      default:;
     }
@@ -120,16 +188,27 @@ void PABasicOperation::ContextSuccessCB(pa_context* c, int success, void* userda
   PABasicOperation& op = *(PABasicOperation*)userdata;
   op.Success = success;
   op.CompletionEvent(success);
-  if (op.WaitPending)
-    PAContext::MainloopSignal();
+  op.Signal();
 }
 void PABasicOperation::StreamSuccessCB(pa_stream* s, int success, void* userdata)
 { DEBUGLOG(("PABasicOperation::StreamSuccessCB(%p, %i, %p)\n", s, success, userdata));
   PABasicOperation& op = *(PABasicOperation*)userdata;
   op.Success = success;
   op.CompletionEvent(success);
-  if (op.WaitPending)
-    PAContext::MainloopSignal();
+  op.Signal();
+}
+
+void PAServerInfoOperation::ServerInfoCB(pa_context *c, const pa_server_info *i, void *userdata)
+{ PAServerInfoOperation& op = *(PAServerInfoOperation*)userdata;
+  op.InfoEvent(*i);
+  op.Signal();
+}
+
+void PASinkInfoOperation::SinkInfoCB(pa_context *c, const pa_sink_info *i, int eol, void *userdata)
+{ PASinkInfoOperation& op = *(PASinkInfoOperation*)userdata;
+  op.InfoEvent(Args(i, eol < 0 ? pa_context_errno(c) : 0));
+  if (eol)
+    op.Signal();
 }
 
 
@@ -151,15 +230,7 @@ volatile unsigned              PAContext::RefCount = 0;
 
 PAContext::~PAContext()
 { DEBUGLOG(("PAContext(%p{%p})::~PAContext()\n", this, Context));
-  if (Context)
-  { pa_context_disconnect(Context);
-    { Lock lock;
-      MainloopSignal();
-    }
-    pa_context_unref(Context);
-    //Context = NULL;
-    MainloopUnref();
-  }
+  Disconnect();
 }
 
 void PAContext::Connect(const char* appname, const char* server, pa_context_flags_t flags) throw(PAInternalException, PAConnectException)
@@ -180,6 +251,18 @@ void PAContext::Connect(const char* appname, const char* server, pa_context_flag
   if (pa_context_connect(Context, server, flags, NULL) != 0)
     throw PAConnectException(Context);
   //InterlockedInc(&RefCount);
+}
+
+void PAContext::Disconnect()
+{ if (!Context)
+    return;
+  { Lock lock;
+    pa_context_disconnect(Context);
+    pa_context_unref(Context);
+    MainloopSignal();
+    Context = NULL;
+  }
+  MainloopUnref();
 }
 
 void PAContext::WaitReady() throw(PAConnectException)
@@ -205,10 +288,11 @@ void PAContext::WaitReady() throw(PAConnectException)
 void PAContext::MainloopRef()
 { if (InterlockedXad(&RefCount, 1) == 0)
   { // First instance => start main loop.
-    Mainloop = pa_threaded_mainloop_new();
-    if (!Mainloop)
+    pa_threaded_mainloop* mainloop = pa_threaded_mainloop_new();
+    if (!mainloop)
       throw PAInternalException("Failed to initialize threaded mainloop.");
-    pa_threaded_mainloop_start(Mainloop);
+    pa_threaded_mainloop_start(mainloop);
+    Mainloop = mainloop;
   } else
   { // Initialized by another instance
     // Dirty spin-lock to synchronize the other thread.
@@ -218,6 +302,7 @@ void PAContext::MainloopRef()
 }
 void PAContext::MainloopUnref()
 { pa_threaded_mainloop* mainloop = Mainloop;
+  ASSERT(mainloop);
   if (InterlockedDec(&RefCount))
     return;
   // Do not destroy a mainloop that might be instantiated by another thread.
@@ -236,6 +321,31 @@ void PAContext::StateCB(pa_context* c, void* userdata)
   MainloopSignal();
 }
 
+void PAContext::GetServerInfo(PAServerInfoOperation& op) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_server_info(Context, &PAServerInfoOperation::ServerInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_server_info failed");
+}
+
+void PAContext::GetSinkInfo(PASinkInfoOperation& op) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_sink_info_list(Context, &PASinkInfoOperation::SinkInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_sink_info_list failed");
+}
+void PAContext::GetSinkInfo(PASinkInfoOperation& op, uint32_t index) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_sink_info_by_index(Context, index, &PASinkInfoOperation::SinkInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_sink_info_by_index failed");
+}
+void PAContext::GetSinkInfo(PASinkInfoOperation& op, const char* name) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_sink_info_by_name(Context, name, &PASinkInfoOperation::SinkInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_sink_info_by_name failed");
+}
 
 /*PAStream::PAStream(pa_context* context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map = NULL, pa_proplist* props = NULL)
 { memset(&Attr, -1, sizeof Attr);
@@ -326,8 +436,6 @@ pa_usec_t PAStream::GetTime() throw (PAStreamException)
 void PAStream::Cork(bool pause) throw (PAStreamException)
 { DEBUGLOG(("PAStream(%p{%p})::Cork(%u)\n", this, Stream, pause));
   PAContext::Lock lock;
-  if (GetState() != PA_STREAM_READY)
-    return;
   pa_operation* op = pa_stream_cork(Stream, pause, NULL, NULL);
   if (op == NULL)
     throw PAStreamException(Stream, "Cork failed for stream");
@@ -441,7 +549,8 @@ void PASinkInput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
 }
 
 void PASinkInput::SetVolume(pa_volume_t volume) throw (PAStreamException)
-{ SetVolume(PACVolume(pa_stream_get_sample_spec(Stream)->channels, volume));
+{ PACVolume vol(pa_stream_get_sample_spec(Stream)->channels, volume);
+  SetVolume(&vol);
 }
 
 void PASinkInput::WriteCB(pa_stream *p, size_t nbytes, void *userdata) throw()

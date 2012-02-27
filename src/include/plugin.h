@@ -143,7 +143,12 @@ typedef struct
 } PLUGIN_API; 
 
 typedef struct
-{ /** Initialize a new xstring with a C string */
+{ /** Internal allocator, do not use directly. */
+  char*    DLLENTRYP(alloc_core)(size_t s);
+  /** Internal deallocator, do not use directly. */
+  void     DLLENTRYP(free_core)(char* p);
+
+  /** Initialize a new xstring with a C string */
   xstring  DLLENTRYP(create)   (const char* cstr);
   /** Deallocate dynamic string. This will change the pointer to NULL. */
   void     DLLENTRYP(free)     (volatile xstring* dst);
@@ -182,6 +187,8 @@ typedef struct
   const XSTRING_API* xstring_api;
 
 } PLUGIN_CONTEXT;
+
+extern PLUGIN_CONTEXT Ctx;
 
 /** Query information about plug-in.
  * @return returns 0 -> ok */

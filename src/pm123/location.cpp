@@ -176,7 +176,7 @@ Location::NavigationResult Location::NavigateUp(int index)
   Position = 0;
   if (index > (int)Callstack.size())
   { Callstack.clear();
-    return xstring::sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
+    return xstring().sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
       index, Callstack.size());
   }
   Callstack.set_size(Callstack.size() - index);
@@ -234,9 +234,9 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   const Playable& pc = cur->GetPlayable();
   unsigned attr = cur->GetInfo().tech->attributes;
   if (attr & TATTR_INVALID)
-    return xstring::sprintf("Cannot navigate into invalid item %s.", pc.URL.cdata());
+    return xstring().sprintf("Cannot navigate into invalid item %s.", pc.URL.cdata());
   if (!(attr & TATTR_PLAYLIST))
-    return xstring::sprintf("Cannot navigate into song item %s.", pc.URL.cdata());
+    return xstring().sprintf("Cannot navigate into song item %s.", pc.URL.cdata());
 
   PlayableInstance* pi = NULL;
   // search item in the list
@@ -248,13 +248,13 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       if (index < 0)
         index += songs;
       if (index < 1 || index > songs)
-        return xstring::sprintf("Index %i is out of bounds. %s has %i song items",
+        return xstring().sprintf("Index %i is out of bounds. %s has %i song items",
           index, pc.URL.cdata(), songs);
       // loop until we cross the number of items
       for (;;)
       { pi = pc.GetNext(pi);
         if (pi == NULL)
-          return xstring::sprintf("Unexpected end of list %i/%i.", index, songs);
+          return xstring().sprintf("Unexpected end of list %i/%i.", index, songs);
         // Terminate loop if the number of subitems is unknown or if it is larger than the required index.
         ai = &pi->RequestAggregateInfo(exclude, what = IF_Rpl, PRI_None);
         if (what)
@@ -292,7 +292,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
         index += count + 1;
       // address by index
       if (index <= 0 || index > count)
-        return xstring::sprintf("Index %i is beyond the limits (%u) of the playlist %s.",
+        return xstring().sprintf("Index %i is beyond the limits (%u) of the playlist %s.",
           index, count, cur->GetPlayable().URL.cdata());
 
       // Speed up: start from back if closer to it
@@ -310,7 +310,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       }
       // Postcondition
       if (IsInCallstack(&pi->GetPlayable()))
-        return xstring::sprintf("Cannot navigate into the recursive item %s.",
+        return xstring().sprintf("Cannot navigate into the recursive item %s.",
           pi->GetPlayable().URL.cdata());
     }
     
@@ -323,15 +323,15 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   { // look for a certain URL
     const url123& absurl = cur->GetPlayable().URL.makeAbsolute(url);
     if (!absurl)
-      return xstring::sprintf("The URL %s cannot be understood within the context of %s.",
+      return xstring().sprintf("The URL %s cannot be understood within the context of %s.",
         url.cdata(), cur->GetPlayable().URL.cdata());
     const int_ptr<Playable>& pp = Playable::FindByURL(absurl);
     if (pp == NULL)
       // If the url is in the playlist it MUST exist in the repository, otherwise => error.
-      return xstring::sprintf("The item %s is not part of %s.",
+      return xstring().sprintf("The item %s is not part of %s.",
         url.cdata(), cur->GetPlayable().URL.cdata());
     if (IsInCallstack(pp))
-      return xstring::sprintf("Cannot navigate into the recursive item %s.",
+      return xstring().sprintf("Cannot navigate into the recursive item %s.",
         pi->GetPlayable().URL.cdata());
     
     DirFunc dirfunc;
@@ -353,7 +353,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
         { if (ret == xstring::empty)
             return ret;
           else
-            return xstring::sprintf("The item %s is not part of %s.",
+            return xstring().sprintf("The item %s is not part of %s.",
               url.cdata(), GetCurrent().GetPlayable().URL.cdata());
         }
       } while (&GetCurrent().GetPlayable() != pp || --index);
@@ -363,7 +363,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       do
       { pi = (pc.*dirfunc)(pi);
         if (pi == NULL)
-          return xstring::sprintf("The item %s is no child of %s.", 
+          return xstring().sprintf("The item %s is no child of %s.",
             url.cdata(), cur->GetPlayable().URL.cdata());
       } while (&pi->GetPlayable() != pp || --index);
     }
@@ -413,7 +413,7 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
     for(;;)
     { pi = (pc.*dirfunc)(pi);
       if (pi == NULL)
-        return xstring::sprintf("Time %f is beyond the length of %s.",
+        return xstring().sprintf("Time %f is beyond the length of %s.",
           offset*sign, pc.URL.cdata());
       // Request aggregate info
       InfoFlags what;
@@ -437,14 +437,14 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
     if (sign < 0)
     { // reverse navigation
       if (songlen < 0)
-        return xstring::sprintf("Cannot navigate from back of %s with unknown songlength.",
+        return xstring().sprintf("Cannot navigate from back of %s with unknown songlength.",
           cur->GetPlayable().URL.cdata());
       if (offset >= songlen)
-        return xstring::sprintf("Time index -%f is before the start of the song %s with length %f.",
+        return xstring().sprintf("Time index -%f is before the start of the song %s with length %f.",
           offset, cur->GetPlayable().URL.cdata(), songlen);
       offset = songlen - offset;
     } else if (songlen >= 0 && offset >= songlen)
-    { return xstring::sprintf("Time index %f is behind the end of the song %s at %f.",
+    { return xstring().sprintf("Time index %f is behind the end of the song %s at %f.",
         offset, cur->GetPlayable().URL.cdata(), songlen);
     }
     // TODO: start and stop slice
@@ -531,7 +531,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
           { size_t n;
             if (sscanf(ep, "[%u]%n", &index, &n) != 1 || n != len2 || index == 0)
             { str = ep;
-              return xstring::sprintf("Syntax: invalid index at %*s", len2, ep);
+              return xstring().sprintf("Syntax: invalid index at %*s", len2, ep);
             }
           }
         }
@@ -572,13 +572,13 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
             if (*cp != ':')
             { len2 -= cp - str;
               str = cp;
-              return xstring::sprintf("Syntax: invalid character at %*s\n", len2, cp);
+              return xstring().sprintf("Syntax: invalid character at %*s\n", len2, cp);
             }
             do
             { if (++dp == t + sizeof t / sizeof *t)
               { len2 -= cp - str;
                 str = cp;
-                return xstring::sprintf("Syntax: to many ':' at %*s\n", len2, cp);
+                return xstring().sprintf("Syntax: to many ':' at %*s\n", len2, cp);
               }
             } while (*++cp == ':');
           }
@@ -607,7 +607,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
             if (ep == NULL || sscanf(ep+1, "%u%n", &index, &n) != 1 || (int)n != str+len2-ep-2 || index == 0)
             { len2 -= ep - str;
               str = ep+1;
-              return xstring::sprintf("Syntax: invalid index at %*s", len2, ep);
+              return xstring().sprintf("Syntax: invalid index at %*s", len2, ep);
             }
             if (ep != str)
               url.assign(str, ep-str);

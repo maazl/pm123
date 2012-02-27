@@ -96,6 +96,7 @@ class DialogBase
 
   void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Dialog item functions
+  HWND              GetDlgItem(ULONG id) { return WinWindowFromID(HwndFrame, id); }
   MRESULT           SendItemMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
                     { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
   void              EnableControl(ULONG id, bool check);
@@ -165,7 +166,7 @@ class ManagedDialog : public BASE, public IVref_count
   int_ptr<IVref_count> Self;
  protected:
   virtual void      OnInit();
-  // If you overload OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
+  // If you override OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
   ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DialogBase::DF_None) : BASE(rid, module, flags) {}

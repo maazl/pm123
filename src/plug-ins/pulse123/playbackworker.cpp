@@ -265,12 +265,14 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
       pl[PA_PROP_MEDIA_ARTIST]     = ToUTF8(buf, sizeof buf, tmp = meta->artist);
       pl[PA_PROP_MEDIA_COPYRIGHT]  = ToUTF8(buf, sizeof buf, tmp = meta->copyright);
     }
-    SS.assign(PA_SAMPLE_FLOAT32LE, info->tech->channels, info->tech->samplerate);
+    SS.format = PA_SAMPLE_FLOAT32LE;
+    SS.channels = info->tech->channels;
+    SS.rate = info->tech->samplerate;
 
     // The context is automatically connected at plug-in initialization,
     // but at this point we have to synchronize the connection process.
     Context.WaitReady();
-    Stream.Connect(Context, "Out", SS, NULL, pl,
+    Stream.Connect(Context, "Out", &SS, NULL, pl,
                    NULL, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
 
     LastBuffer = NULL;

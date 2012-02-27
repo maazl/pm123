@@ -71,7 +71,7 @@
 
 #ifdef DEBUG_LOG
 xstring PlaylistBase::RecordBase::DebugName() const
-{ return xstring::sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable().URL.getShortName().cdata());
+{ return xstring().sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable().URL.getShortName().cdata());
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
@@ -720,7 +720,7 @@ void PlaylistBase::SetTitle()
     append = " [invalid]";
   else if (Content->IsInUse())
     append = " [used]";
-  DialogBase::SetTitle(xstring::sprintf("PM123: %s%s%s", Content->GetDisplayName().cdata(),
+  DialogBase::SetTitle(xstring().sprintf("PM123: %s%s%s", Content->GetDisplayName().cdata(),
     (tattr & TATTR_PLAYLIST) && Content->IsModified() ? " (*)" : "", append));
 }
 

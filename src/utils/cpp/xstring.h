@@ -40,7 +40,8 @@
 #include <cpp/smartptr.h>
 
 
-#ifdef PM123_CORE
+//#ifdef PM123_CORE
+#if 1
 /* Base implementation in the PM123 core
  * Plug-ins will use a proxy implementation below.
  */
@@ -80,31 +81,6 @@ class xstring
     friend class int_ptr<StringData>;
    public:
                  StringData()               { ((char*)this)[this[-1].Len] = 0; }
-                 StringData(const char* str){ memcpy(this, str, this[-1].Len); ((char*)this)[this[-1].Len] = 0; }
-    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
-    static void* operator new(size_t s, const char*, size_t, size_t l)
-    #else
-    static void* operator new(size_t s, size_t l)
-    #endif
-    {
-      #ifdef DEBUG_MEM
-      assert(_heapchk() == _HEAPOK);
-      #endif
-      StringData* that = (StringData*)new char[s+l+1];
-      DEBUGLOG2(("xstring::StringData::operator new(%u, %u) - %p\n", s, l, cp));
-      // Dirty early construction
-      that->Count = 0;
-      that->Len = l;
-      return that+1;
-    }
-    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
-    static void  operator delete(void* p, const char*, size_t)
-    #else
-    static void  operator delete(void* p)
-    #endif
-    { DEBUGLOG2(("xstring::StringData::operator delete(%p)\n", p));
-      delete[] (char*)((StringData*)p-1);
-    }
     /// Return the current strings length.
            size_t length() const            { return this[-1].Len; }
     /// Return the current strings content.
@@ -115,6 +91,15 @@ class xstring
     static StringData* fromPtr(char* str)   { return (StringData*)str; }
     /// Access the ix-th character in the string. No range checking is made here.
            char& operator[](size_t ix)      { return ((char*)(this))[ix]; }
+   public: // allocators, they are replaced in plug-in builds.
+    // Note that the allocators must not be inlined because they are redirected for plug-ins.
+    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+    static void* operator new(size_t s, const char*, size_t, size_t l);
+    static void  operator delete(void* p, const char*, size_t);
+    #else
+    static void* operator new(size_t s, size_t l);
+    static void  operator delete(void* p);
+    #endif
   };
  public:
   enum
@@ -129,9 +114,14 @@ class xstring
 
  private:
               xstring(StringData* ref)      : Data(ref) {}
+  /// Core module for copy allocations.
+  /// @param src source string to copy.
+  /// @param len Length of the source string.
+  static StringData* copycore(const char* src, size_t len);
+  static StringData* sprintfcore(const char* src, va_list va);
  protected:
   /// Initialize a new \c xstring instance with \a len bytes of uninitialized storage.
-  explicit    xstring(size_t len)           : Data(new(len) StringData) {}
+  explicit    xstring(size_t len)           : Data(len ? new(len) StringData : empty.Data.get()) {}
  public:
   /// Create instance with the default value NULL.
               xstring()                     {}
@@ -152,7 +142,8 @@ class xstring
               xstring(const char* str);
   /// @brief Create a new \c xstring from a C style memory block.
   /// @details The memory may contain 0-bytes. O(n).
-              xstring(const char* str, size_t len);
+              xstring(const char* str, size_t len) { if (str) Data = copycore(str, len); }
+
   /// Length of the string. The string must not be NULL!
   size_t      length() const                { return Data->length(); }
   /// Is NULL? Strongly thread-safe.
@@ -254,7 +245,7 @@ class xstring
   /// Assign new string from C-style string. Thread-safe with respect to lhs.
   void        assign(const char* str) volatile { xstring(str).swap(*this); }
   /// Assign new string from C-style string.
-  void        assign(const char* str, size_t len) { xstring(str, len).swap(*this); }
+  void        assign(const char* str, size_t len);
   /// Assign new string from C-style string. Thread-safe with respect to lhs.
   void        assign(const char* str, size_t len) volatile { xstring(str, len).swap(*this); }
   /// @brief Assign and return \c true if changed.
@@ -264,7 +255,7 @@ class xstring
   /// @return The return value points to the newly allocated content.
   /// The storage in the range [0,len) must not be modified after the current instance is either modified
   /// or passed to a copy constructor or an assignment operator.
-  char*       allocate(size_t len)          { Data = new(len) StringData; return Data->ptr(); }
+  char*       allocate(size_t len)          { Data = len ? new(len) StringData : empty.Data.get(); return Data->ptr(); }
   /// initialize to new string with defined length and defined content that might be modified before the string is used elsewhere.
   /// @return The return value points to the newly allocated content.
   /// The storage in the range [0,len) must not be modified after the current instance is either modified
@@ -294,9 +285,13 @@ class xstring
   /// @details The strings must not be NULL.
   friend const xstring operator+(const char* l,    const xstring& r);
   /// sprintf, well...
-  static const xstring sprintf(const char* fmt, ...);
+  xstring&    sprintf(const char* fmt, ...);
+  /// sprintf, well...
+  void        sprintf(const char* fmt, ...) volatile;
   /// vsprintf, well...
-  static const xstring vsprintf(const char* fmt, va_list va);
+  xstring&    vsprintf(const char* fmt, va_list va) { Data = sprintfcore(fmt, va); return *this; }
+  /// vsprintf, well...
+  void        vsprintf(const char* fmt, va_list va) volatile { Data = sprintfcore(fmt, va); }
   /// @brief Interface to C API.
   /// @details Detach the current content from the instance and return a pointer to a C style string.
   /// The reference to the content is kept active until it is placed back to a \c xstring object
@@ -444,10 +439,7 @@ inline bool operator>=(const char* l,    const xstring& r)
 }
 
 
-/** String builder for xstrings or C strings.
- * @remarks \c xstringbuilder must not refer to any non-inline function of \c xstring
- * because of the proxy implementation of \c xstring for plug-ins.
- */
+/** String builder for xstrings or C strings. */
 class xstringbuilder
 {private:
   static char* const Empty;

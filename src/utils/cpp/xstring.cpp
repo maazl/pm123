@@ -33,13 +33,14 @@
 
 #include <debuglog.h>
 
+
 // Really dirty hack to avoid static initialization problem
 static struct
 { unsigned ref;
   size_t   len;
   char     term;
 } empty_ref = { 1, 0, 0 };
-char* empty_str = &empty_ref.term;
+char* const empty_str = &empty_ref.term;
 
 const xstring& xstring::empty = *(xstring*)&empty_str;
 
@@ -55,20 +56,37 @@ int xstring::compareI(const char* l, const char* r, size_t len)
   return 0;
 }
 
+inline xstring::StringData* xstring::copycore(const char* src, size_t len)
+{ if (!len)
+    return empty.Data.get();
+  StringData* ret = new(len) StringData;
+  memcpy(ret->ptr(), src, len);
+  return ret;
+}
+
+xstring::StringData* xstring::sprintfcore(const char* fmt, va_list va)
+{ DEBUGLOG2(("xstring::sprintfcore(%s, %p)\n", fmt, va));
+  size_t len = vsnprintf(NULL, 0, fmt, va);
+  if (!len)
+    return empty.Data;
+  StringData* data = new(len) StringData;
+  vsnprintf(data->ptr(), len+1, fmt, va);
+  return data;
+}
+
 xstring::xstring(const xstring& r, size_t start)
-: Data(new (r.length()-start) StringData(r.Data->ptr() + start))
+: Data(copycore(r.Data->ptr() + start, r.length()-start))
 { ASSERT(start <= r.length());
 }
 xstring::xstring(const xstring& r, size_t start, size_t len)
-: Data(new (len) StringData(r.Data->ptr() + start))
+: Data(copycore(r.Data->ptr() + start, len))
 { ASSERT(start+len <= r.length());
 }
 xstring::xstring(const char* str)
-: Data(str == NULL ? NULL : *str ? new (strlen(str)) StringData(str) : empty.Data.get())
-{}
-xstring::xstring(const char* str, size_t len)
-: Data(str == NULL ? NULL : len ? new (len) StringData(str) : empty.Data.get())
-{}
+{ if (str)
+    Data = copycore(str, strlen(str));
+}
+
 
 bool xstring::equals(const xstring& r) const
 { if (Data == r.Data)
@@ -198,7 +216,16 @@ bool xstring::endsWithI(const char* r, size_t len) const
 
 void xstring::assign(const char* str)
 { if (str != cdata())
-    Data = str == NULL ? NULL : *str ? new (strlen(str)) StringData(str) : empty.Data.get();
+    if (str == NULL)
+      Data.reset();
+    else
+      Data = copycore(str, strlen(str));
+}
+void xstring::assign(const char* str, size_t len)
+{ if (str == NULL)
+    Data.reset();
+  else
+    Data = copycore(str, len);
 }
 
 const xstring operator+(const xstring& l, const xstring& r)
@@ -234,19 +261,18 @@ const xstring operator+(const xstring& l, const char* r)
   return x;
 }
 
-const xstring xstring::sprintf(const char* fmt, ...)
+xstring& xstring::sprintf(const char* fmt, ...)
 { va_list va;
   va_start(va, fmt);
-  xstring ret = vsprintf(fmt, va);
+  Data = sprintfcore(fmt, va);
   va_end(va);
-  return ret;
+  return *this;
 }
-
-const xstring xstring::vsprintf(const char* fmt, va_list va)
-{ DEBUGLOG2(("xstring::vsprintf(%s, %p)\n", fmt, va));
-  xstring ret(vsnprintf(NULL, 0, fmt, va));
-  vsnprintf(ret.Data->ptr(), ret.length()+1, fmt, va);
-  return ret;
+void xstring::sprintf(const char* fmt, ...) volatile
+{ va_list va;
+  va_start(va, fmt);
+  Data = sprintfcore(fmt, va);
+  va_end(va);
 }
 
 /*void xstring::assignCstr_safe(const char*volatile const& str)

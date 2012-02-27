@@ -28,6 +28,9 @@
 
 /* C++ Wrappers to PulseAudio API, incomplete */
 
+#ifndef PAWRAPPER_H
+#define PAWRAPPER_H
+
 #include <pulse/thread-mainloop.h>
 #include <pulse/context.h>
 #include <pulse/proplist.h>
@@ -99,11 +102,8 @@ class PAStreamException : public PAContextException
 
 struct PASampleSpec : public pa_sample_spec
 { PASampleSpec()                                {}
-  PASampleSpec(pa_sample_format_t format, uint8_t channels, uint32_t samplerate)
-                                                { this->format = format; this->channels = channels; rate = samplerate; }
-  void assign(pa_sample_format_t format, uint8_t channels, uint32_t samplerate)
-                                                { this->format = format; this->channels = channels; rate = samplerate; }
-  operator const pa_sample_spec*() const        { return this; }
+  PASampleSpec(const pa_sample_spec& r)         { (pa_sample_spec&)*this = r; }
+  PASampleSpec& operator=(const pa_sample_spec& r) { (pa_sample_spec&)*this = r; return *this; }
   friend bool operator==(const PASampleSpec& l, const PASampleSpec& r)
                                                 { return !!pa_sample_spec_equal(&l, &r); }
   friend bool operator!=(const PASampleSpec& l, const PASampleSpec& r)
@@ -117,13 +117,20 @@ struct PASampleSpec : public pa_sample_spec
 };
 
 struct PACVolume : public pa_cvolume
-{
-  PACVolume()                                   {}
+{ PACVolume()                                   {}
+  PACVolume(const pa_cvolume& r)                { (pa_cvolume&)*this = r; }
   PACVolume(uint8_t channels, pa_volume_t volume) { Set(channels, volume); }
-  operator const pa_cvolume*()                  { return this; }
+  PACVolume& operator=(const pa_cvolume& r)     { (pa_cvolume&)*this = r; return *this; }
 
   bool      IsValid() const                     { return pa_cvolume_valid(this); }
   void      Set(uint8_t channels, pa_volume_t volume) { this->channels = channels; pa_cvolume_set(this, channels, volume); }
+};
+
+struct PAChannelMap : public pa_channel_map
+{ PAChannelMap()                                { channels = 0; }
+  PAChannelMap(const pa_channel_map& r)         { (pa_channel_map&)*this = r; }
+  PAChannelMap& operator=(const pa_channel_map& r) { (pa_channel_map&)*this = r; return *this; }
+  // TODO
 };
 
 /**
@@ -178,12 +185,13 @@ class PAProplist
  public:
   PAProplist()                                  : PL(pa_proplist_new()) {}
   PAProplist(const PAProplist& r)               : PL(pa_proplist_copy(r.PL)) {}
+  PAProplist(const pa_proplist* r)              : PL(r ? pa_proplist_copy((pa_proplist*)r) : pa_proplist_new()) {}
   ~PAProplist()                                 { pa_proplist_free(PL); }
   PAProplist& operator=(const PAProplist& r)    { pa_proplist_update(PL, PA_UPDATE_SET, r.PL); return *this; }
   void swap(PAProplist& r)                      { pa_proplist* tmp = r.PL; r.PL = PL; PL = tmp; }
   operator pa_proplist*()                       { return PL; }
 
-  const_reference operator[](key_type key) const { return pa_proplist_gets(PL, key); }
+  const_reference operator[](key_type key) const{ return pa_proplist_gets(PL, key); }
   reference operator[](key_type key)            { return reference(PL, key); }
 
   iterator begin()                              { return begin_iterator(PL); }
@@ -201,51 +209,81 @@ class PAProplist
   void clear()                                  { pa_proplist_clear(PL); }
 };
 
-/* * Abstract interface to track all asynchronous operations.
- *
-class PAAsync
-{private: // non-copyable
-  PAAsync(const PAAsync& r);
-  void operator=(const PAAsync& r);
- public:
-  //PAOperation()                                 : Operation(NULL) {}
-  virtual ~PAAsync()                            {}
+struct PAServerInfo
+{
+  xstring            user_name;                 /**< User name of the daemon process */
+  xstring            host_name;                 /**< Host name the daemon is running on */
+  xstring            server_version;            /**< Version string of the daemon */
+  xstring            server_name;               /**< Server package name (usually "pulseaudio") */
+  PASampleSpec       sample_spec;               /**< Default sample specification */
+  xstring            default_sink_name;         /**< Name of default sink. */
+  xstring            default_source_name;       /**< Name of default sink. */
+  uint32_t           cookie;                    /**< A random cookie for identifying this instance of PulseAudio. */
+  PAChannelMap       channel_map;               /**< Default channel map. \since 0.9.15 */
 
-  virtual pa_operation_state_t GetState() const = 0;
-  virtual void Cancel() = 0;
-  virtual void Wait() = 0;
-};*/
+  PAServerInfo()                                {}
+  PAServerInfo(const pa_server_info& r);
+  PAServerInfo& operator=(const pa_server_info& r);
+};
 
-/*class PAConnect : public PAAsync
-{public:
-  pa_context_state_t GetConnectState() const    { return pa_context_get_state(Context); }
-  virtual pa_operation_state_t GetState() const = 0;
-  virtual void Cancel() = 0;
-  virtual void Wait() = 0;
-  virtual void OnStateChange(pa_context_state_t state) {}
-  virtual void OnCompleteion(PAContext c)       {}
- public:
-  static void StateCB(pa_context *c, void *userdata);
-};*/
+struct PASinkPortInfo
+{ xstring            name;                      /**< Name of this port */
+  xstring            description;               /**< Description of this port */
+  uint32_t           priority;                  /**< The higher this value is the more useful this port is as a default */
 
-class PAOperation //: public PAAsync
+  PASinkPortInfo()                              {}
+  PASinkPortInfo(const pa_sink_port_info& r)    : name(r.name), description(r.description), priority(r.priority) {}
+  PASinkPortInfo& operator=(const pa_sink_port_info& r) { name = r.name; description = r.description; priority = r.priority; return *this; }
+};
+
+struct PASinkInfo
+{ xstring            name;                      /**< Name of the sink */
+  uint32_t           index;                     /**< Index of the sink */
+  xstring            description;               /**< Description of this sink */
+  PASampleSpec       sample_spec;               /**< Sample spec of this sink */
+  PAChannelMap       channel_map;               /**< Channel map */
+  uint32_t           owner_module;              /**< Index of the owning module of this sink, or PA_INVALID_INDEX */
+  PACVolume          volume;                    /**< Volume of the sink */
+  int                mute;                      /**< Mute switch of the sink */
+  uint32_t           monitor_source;            /**< Index of the monitor source connected to this sink */
+  xstring            monitor_source_name;       /**< The name of the monitor source */
+  pa_usec_t          latency;                   /**< Length of queued audio in the output buffer. */
+  xstring            driver;                    /**< Driver name. */
+  pa_sink_flags_t    flags;                     /**< Flags */
+  PAProplist         proplist;                  /**< Property list \since 0.9.11 */
+  pa_usec_t          configured_latency;        /**< The latency this device has been configured to. \since 0.9.11 */
+  pa_volume_t        base_volume;               /**< Some kind of "base" volume that refers to unamplified/unattenuated volume in the context of the output device. \since 0.9.15 */
+  pa_sink_state_t    state;                     /**< State \since 0.9.15 */
+  uint32_t           n_volume_steps;            /**< Number of volume steps for sinks which do not support arbitrary volumes. \since 0.9.15 */
+  uint32_t           card;                      /**< Card index, or PA_INVALID_INDEX. \since 0.9.15 */
+  sco_arr<PASinkPortInfo> ports;                /**< Array of available ports. \since 0.9.16 */
+  PASinkPortInfo*    active_port;               /**< Pointer to active port in the array, or NULL \since 0.9.16 */
+
+  PASinkInfo(const pa_sink_info& r);
+};
+
+
+class PAOperation
 {protected:
   pa_operation*      Operation;
-  bool               WaitPending;
+  pa_operation_state_t FinalState;
+  int                WaitPending;
 
  protected:
   void               Unlink();
+  /// Signal command completion or error.
+  void               Signal();
  private: // non-copyable
   PAOperation(const PAOperation& r);//             : Operation(r.Operation) { pa_operation_ref(Operation); }
   PAOperation& operator=(const PAOperation& r);//  { Unlink(); Operation = r.Operation; return *this; }
  public:
-  PAOperation()                                 : Operation(NULL) {}
+  PAOperation()                                 : Operation(NULL), FinalState(PA_OPERATION_CANCELLED), WaitPending(0) {}
   //PAOperation(pa_operation* op)                 : Operation(op) {}
   ~PAOperation()                                { Unlink(); }
   void Attach(pa_operation* op)                 { Unlink(); Operation = op; }
 
   bool IsValid() const                          { return Operation != NULL; }
-  pa_operation_state_t GetState() const         { return Operation ? pa_operation_get_state(Operation) : PA_OPERATION_CANCELED; }
+  pa_operation_state_t GetState() const         { return Operation ? pa_operation_get_state(Operation) : FinalState; }
   void Cancel();
   void Wait() throw (PAStateException);
 };
@@ -264,6 +302,32 @@ class PABasicOperation : public PAOperation
 
   static void ContextSuccessCB(pa_context* c, int success, void* userdata);
   static void StreamSuccessCB(pa_stream* c, int success, void* userdata);
+};
+
+class PAServerInfoOperation : public PAOperation
+{protected:
+  event<const pa_server_info> InfoEvent;
+ public:
+  event_pub<const pa_server_info>& Info() { return InfoEvent; }
+
+  static void ServerInfoCB(pa_context *c, const pa_server_info *i, void *userdata);
+};
+
+class PASinkInfoOperation : public PAOperation
+{public:
+  struct Args
+  { /// Info about a PA sink. \c NULL in case of no more items or an error.
+    const pa_sink_info* Info;
+    /// Non-zero: error code.
+    int                 Error;
+    Args(const pa_sink_info* info, int error) : Info(info), Error(error) {}
+  };
+ protected:
+  event<const Args> InfoEvent;
+ public:
+  event_pub<const Args>& Info()         { return InfoEvent; }
+
+  static void SinkInfoCB(pa_context *c, const pa_sink_info *i, int eol, void *userdata);
 };
 
 /** Wraps a PulseAudio context.
@@ -310,15 +374,22 @@ class PAContext
   //PAContext& operator=(const PAContext& r);
 
   void Connect(const char* appname, const char* server, pa_context_flags_t flags = PA_CONTEXT_NOFLAGS) throw(PAInternalException, PAConnectException);
-  void Disconnect()                             { if (Context) pa_context_disconnect(Context); }
+  void Disconnect();
   pa_context* GetContext()                      { return Context; }
   pa_context_state_t GetState() const           { return Context ? pa_context_get_state(Context) : PA_CONTEXT_UNCONNECTED; }
+  int Errno() const                             { return Context ? pa_context_errno(Context) : PA_ERR_CONNECTIONTERMINATED; }
   void WaitReady() throw(PAConnectException);
   /// @return Observable to track context state changes.
   event_pub<const pa_context_state_t>& StateChange() { return StateChangeEvent; }
 
   static void MainloopWait()                    { pa_threaded_mainloop_wait(Mainloop); }
   static void MainloopSignal(bool wait_accept = false) { pa_threaded_mainloop_signal(Mainloop, wait_accept); }
+
+  void GetServerInfo(PAServerInfoOperation& op) throw (PAContextException);
+
+  void GetSinkInfo(PASinkInfoOperation& op) throw (PAContextException);
+  void GetSinkInfo(PASinkInfoOperation& op, uint32_t index) throw (PAContextException);
+  void GetSinkInfo(PASinkInfoOperation& op, const char* name) throw (PAContextException);
 };
 
 
@@ -371,7 +442,7 @@ class PASinkInput : public PAStream
        throw(PAContextException);
   void Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
                const char* device, pa_stream_flags_t flags, pa_volume_t volume, pa_stream* sync_stream = NULL)
-       throw(PAContextException)                { Connect(context, name, ss, map, props, device, flags, PACVolume(ss->channels, volume), sync_stream); }
+       throw(PAContextException)                { PACVolume vol(ss->channels, volume); Connect(context, name, ss, map, props, device, flags, &vol, sync_stream); }
 
   size_t WritableSize() throw (PAStreamException);
   void* BeginWrite(size_t& size) throw (PAStreamException);
@@ -393,3 +464,7 @@ class PASample : public PAStream
 {
 
 };
+
+
+#endif
+

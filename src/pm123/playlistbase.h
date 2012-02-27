@@ -31,7 +31,6 @@
 
 #define INCL_WIN
 
-#include "windowbase.h"
 #include "playable.h"
 #include "infodialog.h"
 #include "controller.h"
@@ -45,6 +44,7 @@
 #include <cpp/container/sorted_vector.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
+#include <cpp/windowbase.h>
 
 #include <os2.h>
 

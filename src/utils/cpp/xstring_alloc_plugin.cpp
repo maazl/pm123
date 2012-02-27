@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 M.Mueller
+ * Copyright 2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,50 +26,32 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  XSTRING_API_H
-#define  XSTRING_API_H
 
-#include <config.h>
+#include "xstring.h"
+#include <plugin.h>
 
-#include <format.h>
-#include <cpp/xstring.h>
+#include <debuglog.h>
 
-#include <stdarg.h>
 
-/****************************************************************************
-*
-*  Proxy functions to export xstring to plug-ins.
-*
-****************************************************************************/
-extern "C" {
+extern PLUGIN_CONTEXT Ctx;
 
-const char* DLLENTRY xstring_create(const char* cstr);
 
-void DLLENTRY xstring_free(volatile xstring* dst);
-
-unsigned DLLENTRY xstring_length(const xstring* src);
-
-char DLLENTRY xstring_equal(const xstring* src1, const xstring* src2);
-
-int  DLLENTRY xstring_compare(const xstring* src1, const xstring* src2);
-
-void DLLENTRY xstring_copy(volatile xstring* dst, const xstring* src);
-
-void DLLENTRY xstring_copy_safe(volatile xstring* dst, volatile const xstring* src);
-
-void DLLENTRY xstring_assign(volatile xstring* dst, const char* cstr);
-
-char DLLENTRY xstring_cmpassign( xstring* dst, const char* cstr );
-
-void DLLENTRY xstring_append( xstring* dst, const char* cstr );
-
-char* DLLENTRY xstring_allocate( xstring* dst, unsigned int len );
-
-void DLLENTRY xstring_sprintf( volatile xstring* dst, const char* fmt, ... );
-
-void DLLENTRY xstring_vsprintf( volatile xstring* dst, const char* fmt, va_list va );
-
-}
-
+#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+void* xstring::StringData::operator new(size_t s, const char*, size_t, size_t l)
+#else
+void* xstring::StringData::operator new(size_t s, size_t l)
 #endif
-
+{ StringData* that = (StringData*)(*Ctx.xstring_api->alloc_core)(s+l+1);
+  DEBUGLOG2(("xstring::StringData::operator new(%u, %u) - %p\n", s, l, cp));
+  // Dirty early construction
+  that->Count = 0;
+  that->Len = l;
+  return that+1;
+}
+#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+void xstring::StringData::operator delete(void* p, const char*, size_t)
+#else
+void xstring::StringData::operator delete(void* p)
+#endif
+{ (*Ctx.xstring_api->free_core)((char*)((StringData*)p-1));
+}

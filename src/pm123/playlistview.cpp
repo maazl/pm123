@@ -446,19 +446,21 @@ const xstring PlaylistView::FormatSize(double size)
       unit = 'G';
     }
   }
-  return xstring::sprintf("%lu %cB", s, unit);
+  return xstring().sprintf("%lu %cB", s, unit);
 }
 
 const xstring PlaylistView::FormatTime(double time)
 { if (time <= 0)
     return xstring::empty;
   unsigned long s = (unsigned long)time;
+  xstring ret;
   if (s < 60)
-    return xstring::sprintf("%lu s", s);
+    ret.sprintf("%lu s", s);
    else if (s < 3600)
-    return xstring::sprintf("%lu:%02lu", s/60, s%60);
+    ret.sprintf("%lu:%02lu", s/60, s%60);
    else
-    return xstring::sprintf("%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
+    ret.sprintf("%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
+  return ret;
 }
 
 double PlaylistView::ParseTime(const xstring& str)

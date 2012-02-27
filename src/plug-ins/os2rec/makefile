@@ -9,7 +9,7 @@ TARGET   = os2rec.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = os2rec$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO)
 DEF      = os2rec$(LDEF_SUFFX)
 RESOURCE = os2rec$(RES)
 STDLIBS  = $(LIBS_MM)

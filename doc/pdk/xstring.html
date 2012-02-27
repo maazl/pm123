@@ -16,9 +16,15 @@ can be <tt>NULL</tt>.</p>
 <p>The <tt>xstring</tt> API reference is accessible
 through the&nbsp;<tt>PLUGIN_CONTEXT</tt> parameter of
 the <a href="index.html#plugin_init"><tt>plugin_init</tt></a>
-call. In case you have C++ you will automatically have a <a href="#cpp">more
+call.</p>
+<p><em> In case you have C++ you will automatically have a <a
+ href="#cpp">more
 convenient
-implementation</a>.
+implementation</a>.</em> You should prefer the C++ syntax where
+available, because its implementation provides better performance. <strong>Note
+that you must link against the <tt>utils/cpputil_plugin</tt> library
+for this API to work properly within plug-ins.</strong> The <tt>utils/cpputil</tt>
+library may cause undefined behavior in plug-in code!<strong><em></em></strong>
 </p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
@@ -196,12 +202,12 @@ call. Only calling the default constructor is valid.</p>
       <th valign="top">Remarks</th>
     </tr>
     <tr>
-      <td valign="top">Create a <tt>xstring</tt> with initial value <tt>NULL</tt>.<br>
+      <td valign="top">Create a <tt>xstring</tt> with initial value <tt>NULL</tt>.
       </td>
       <td valign="top">
       <pre>xstring str;</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -209,7 +215,7 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>xstring str("bla");</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -217,15 +223,14 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>str.reset();</pre>
       </td>
-      <td valign="top">This is implicitly done by the destructor.<br>
-      </td>
+      <td valign="top">This is implicitly done by the destructor. </td>
     </tr>
     <tr>
       <td>Return the length of a <tt>xstring</tt>.</td>
       <td valign="top">
       <pre>str.size();</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -233,7 +238,7 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>str1 == str2</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -241,7 +246,7 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>str1.compareTo(str2)</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -249,7 +254,7 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>str1 = str2;</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -257,15 +262,14 @@ call. Only calling the default constructor is valid.</p>
       <td valign="top">
       <pre>volatile xstring shared;<br>str1 = shared;</pre>
       </td>
-      <td valign="top">This assignment provides strong thread safety.<br>
-      </td>
+      <td valign="top">This assignment provides strong thread safety. </td>
     </tr>
     <tr>
       <td>Assign a <tt>xstring</tt> with the value of a C string.</td>
       <td valign="top">
       <pre>str1 = "text";</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -274,7 +278,7 @@ different.</td>
       <td valign="top">
       <pre>bool changed = <br>  str1.cmpassign(str2); </pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -282,7 +286,7 @@ different.</td>
       <td valign="top">
       <pre>str1 += "append this";</pre>
       </td>
-      <td><br>
+      <td> <br>
       </td>
     </tr>
     <tr>
@@ -291,8 +295,7 @@ different.</td>
       <pre>char* cp = str1.allocate(7);</pre>
       </td>
       <td valign="top">See <tt><a
- href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt>.<br>
-      </td>
+ href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt>. </td>
     </tr>
     <tr>
       <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>xstring</tt>.</td>
@@ -300,8 +303,7 @@ different.</td>
       <pre>str1.sprintf("%i", 5);<br>xstring().sprintf("%i", 5)      </pre>
       </td>
       <td valign="top">The latter form creates a temporary, e.g. as
-function argument.<br>
-      </td>
+function argument. </td>
     </tr>
   </tbody>
 </table>

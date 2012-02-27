@@ -70,7 +70,7 @@ void EventHandler::Post(MESSAGE_TYPE level, const xstring& msg)
 void EventHandler::PostFormat(MESSAGE_TYPE level, const char* format, ...)
 { va_list va;
   va_start(va, format);
-  Post(level, xstring::vsprintf(format, va));
+  Post(level, xstring().vsprintf(format, va));
   va_end(va);
 }
 

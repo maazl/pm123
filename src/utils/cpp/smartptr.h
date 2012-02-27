@@ -418,6 +418,15 @@ class sco_arr
   size_t size() const                   { return Size; }
   /// Access the i-th array element.
   T&     operator[](size_t idx) const   { ASSERT(idx < Size); return Ptr[idx]; }
+  /// Return start iterator
+  T*     begin()                        { ASSERT(Ptr); return Ptr; }
+  /// Return start iterator
+  const T* begin() const                { ASSERT(Ptr); return Ptr; }
+  /// Return beyond the end iterator
+  T*     end()                          { ASSERT(Ptr); return Ptr + Size; }
+  /// Return beyond the end iterator
+  const T* end() const                  { ASSERT(Ptr); return Ptr + Size; }
+
   /// Frees the stored array (if any) and sets size to 0,
   void   reset()                        { delete[] Ptr; Ptr = NULL; Size = 0; }
   /// Frees the stored array (if any) and allocates a new array of size.

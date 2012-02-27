@@ -12,11 +12,11 @@ CFLAGS_USR = -DPM123_CORE
 OBJECTS  = infobundle$(CO) infostate$(CO) aplayable$(CO) waitinfo$(CO) dependencyinfo$(CO)
 OBJECTS  = $(OBJECTS) playableset$(CO) location$(CO) songiterator$(CO) collectioninfocache$(CO)
 OBJECTS  = $(OBJECTS) playableinstance$(CO) playable$(CO) playableref$(CO)
-OBJECTS  = $(OBJECTS) xstring_api$(CO) plugman$(CO) proxyhelper$(CO)
+OBJECTS  = $(OBJECTS) plugman$(CO) proxyhelper$(CO)
 OBJECTS  = $(OBJECTS) decoder$(CO) filter$(CO) output$(CO) visual$(CO) glue$(CO)
 
 OBJECTS2 = eventhandler$(CO) configuration$(CO)
-OBJECTS2 = $(OBJECTS2) windowbase$(CO) playlistbase$(CO) playlistview$(CO) playlistmanager$(CO)
+OBJECTS2 = $(OBJECTS2) playlistbase$(CO) playlistview$(CO) playlistmanager$(CO)
 OBJECTS2 = $(OBJECTS2) controller$(CO) 123_util$(CO) commandprocessor$(CO)
 OBJECTS2 = $(OBJECTS2) pipe$(CO) properties$(CO) docking$(CO) button95$(CO)
 OBJECTS2 = $(OBJECTS2) playlistmenu$(CO) filedlg$(CO) dialog$(CO) infodialog$(CO) inspector$(CO)
@@ -24,7 +24,7 @@ OBJECTS2 = $(OBJECTS2) loadhelper$(CO) skin$(CO) gui$(CO) pm123$(CO)
 
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
-LIBS     = $(TOPDIR)\utils\cpp\xstring$(LBO) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\gbm123\libgbm$(LBO)
 STDLIBS  = $(LIBS_UNI)
 

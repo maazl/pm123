@@ -9,7 +9,7 @@ TARGET   = foldr123.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = foldr123$(CO) dirscan$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil$(LBO)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO)
 DEF      = foldr123$(LDEF_SUFFX)
 #RESOURCE = foldr123$(RES)
 STDLIBS  = $(LIBS_MM)

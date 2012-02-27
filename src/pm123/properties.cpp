@@ -33,7 +33,6 @@
 #define  INCL_ERRORS
 #include "properties.h"
 #include "configuration.h"
-#include "windowbase.h"
 #include "pm123.rc.h"
 #include "eventhandler.h"
 #include "dialog.h"
@@ -48,6 +47,7 @@
 #include "pm123.h"
 #include <utilfct.h>
 #include <cpp/pmutils.h>
+#include <cpp/windowbase.h>
 #include <os2.h>
 #include <stdio.h>
 
@@ -835,7 +835,7 @@ void PropertyDialog::AboutPage::OnInit()
 
 
 PropertyDialog::PropertyDialog(HWND owner)
-: NotebookDialogBase(DLG_CONFIG, NULLHANDLE)
+: NotebookDialogBase(DLG_CONFIG, NULLHANDLE, DF_AutoResize)
 { Pages.append() = new Settings1Page(*this);
   Pages.append() = new Settings2Page(*this);
   Pages.append() = new SystemSettingsPage(*this);
@@ -878,12 +878,6 @@ MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
     case WM_DESTROY:
       Cfg::SaveWindowPos(GetHwnd());
-      break;
-
-    case WM_WINDOWPOSCHANGED:
-      if(((SWP*)mp1)->fl & SWP_SIZE ) {
-        nb_adjust( GetHwnd(), (SWP*)mp1 );
-      }
       break;
   }
   return NotebookDialogBase::DlgProc(msg, mp1, mp2);

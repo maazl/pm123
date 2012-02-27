@@ -1395,7 +1395,8 @@ void GUIImp::LoadPluginMenu(HWND hMenu)
     mi.id          = ++id;
     mi.hwndSubMenu = (HWND)NULLHANDLE;
     mi.hItem = 0;
-    const xstring& title = xstring::sprintf("%s (%s)", plug.GetParams().desc, plug.Key.cdata());
+    xstring title;
+    title.sprintf("%s (%s)", plug.GetParams().desc, plug.Key.cdata());
     WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(title.cdata()));
     DEBUGLOG2(("GUIImp::LoadPluginMenu: add \"%s\"\n", title.cdata()));
   }
@@ -1806,6 +1807,12 @@ MRESULT GUIImp::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
 }
 
 
+BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
+{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
+    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
+  return FALSE;
+}
+
 void GUIImp::Init()
 { DEBUGLOG(("GUIImp::Init()\n"));
 
@@ -2017,12 +2024,6 @@ void GUI::ShowDialog(Playable& item, DialogType dlg)
 { DEBUGLOG(("GUI::ShowDialog(&%p, %u)\n", &item, dlg));
   int_ptr<Playable> pp(&item);
   PMRASSERT(WinPostMsg(HFrame, WMP_SHOW_DIALOG, MPFROMP(pp.toCptr()), MPFROMSHORT(dlg)));
-}
-
-BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
-{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
-    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
-  return FALSE;
 }
 
 

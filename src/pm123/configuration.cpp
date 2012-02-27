@@ -456,7 +456,8 @@ void Cfg::MigrateIni(const char* inipath, const char* app)
   if (PrfQueryProfileSize(HIni, module, NULL, &len) && len)
     return; // Data already there
 
-  xstring inifile = xstring::sprintf("%s\\%s.ini", inipath, app);
+  xstring inifile;
+  inifile.sprintf("%s\\%s.ini", inipath, app);
   // Check if file exists
   HFILE fh;
   if ( DosOpen(inifile, &fh, &len, 0, 0, OPEN_ACTION_FAIL_IF_NEW|OPEN_ACTION_OPEN_IF_EXISTS,

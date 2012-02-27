@@ -212,7 +212,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_UPDATEINFO:
     { if (EmFocus.get() != (Playable*)mp1)
         return 0; // No longer neccessary, because another UM_UPDATEINFO message is in the queue or the record does no longer exists.
-      SetInfo(xstring::sprintf("%s, %s", EmFocus->URL.getDisplayName().cdata(), xstring(EmFocus->GetInfo().tech->info).cdata()));
+      SetInfo(xstring().sprintf("%s, %s", EmFocus->URL.getDisplayName().cdata(), xstring(EmFocus->GetInfo().tech->info).cdata()));
       if (EmFocus.get() == (Playable*)mp1) // double check, because EmFocus may change while SetInfo
         EmFocus = NULL;
       return 0;

@@ -241,7 +241,7 @@ xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptio
   }
   // Index only?
   if (opt & SO_IndexOnly)
-    return xstring::sprintf("[%u]", count);
+    return xstring().sprintf("[%u]", count);
   xstring ret;
   // fetch relative or absolute URL
   if (opt & SO_RelativePath)
@@ -249,7 +249,7 @@ xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptio
   else
     ret = item->GetPlayable().URL;
   // append count?
-  return xstring::sprintf(count > 1 ? "\"%s\"[%u]" : "\"%s\"", ret.cdata(), count);
+  return xstring().sprintf(count > 1 ? "\"%s\"[%u]" : "\"%s\"", ret.cdata(), count);
 }
 
 
@@ -626,7 +626,7 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   if (rc != 0)
   { phys.attributes |= PATTR_INVALID;
     if (tech.info == 0)
-      tech.info = xstring::sprintf("Decoder error %i", rc);
+      tech.info.sprintf("Decoder error %i", rc);
   }
   DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
     phys.filesize, phys.tstmp, phys.attributes,

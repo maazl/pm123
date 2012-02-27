@@ -41,7 +41,6 @@
 #include "commandprocessor.h"
 #include "configuration.h"
 #include "eventhandler.h"
-#include "xstring_api.h"
 #include "proxyhelper.h"
 #include "pm123.h" // for startpath
 #include <cpp/container/inst_index.h>
@@ -53,13 +52,94 @@
 #include <debuglog.h>
 
 
-ModuleException::ModuleException(const char* fmt, ...)
+/****************************************************************************
+*
+*  Proxy functions to export xstring to plug-ins.
+*
+****************************************************************************/
+
+static char* DLLENTRY xstring_alloc_core(size_t s)
+{ return new char[s];
+}
+
+static void DLLENTRY xstring_free_core(char* p)
+{ delete[] p;
+}
+
+static const char* DLLENTRY xstring_create(const char* cstr)
+{ return xstring(cstr).toCstr();
+}
+
+static void DLLENTRY xstring_free(volatile xstring* dst)
+{ dst->reset();
+}
+
+static unsigned DLLENTRY xstring_length(const xstring* dst)
+{ return dst->length();
+}
+
+static char DLLENTRY xstring_equal(const xstring* src1, const xstring* src2)
+{ return *src1 == *src2;
+}
+
+static int DLLENTRY xstring_compare(const xstring* src1, const xstring* src2)
+{ return src1->compareTo(*src2);
+}
+
+static void DLLENTRY xstring_copy(volatile xstring* dst, const xstring* src)
+{ *dst = *src;
+}
+
+static void DLLENTRY xstring_copy_safe(volatile xstring* dst, volatile const xstring* src)
+{ *dst = *src;
+}
+
+static void DLLENTRY xstring_assign(volatile xstring* dst, const char* cstr)
+{ *dst = cstr;
+}
+
+static char xstring_cmpassign(xstring* dst, const char* cstr)
+{ if (*dst == cstr)
+    return false;
+  *dst = cstr;
+  return true;
+}
+
+static void DLLENTRY xstring_append(xstring* dst, const char* cstr)
+{ if (*dst == NULL)
+    *dst = cstr;
+  else
+  { size_t len = strlen(cstr);
+    xstring ret;
+    char* dp = ret.allocate(dst->length() + len);
+    memcpy(dp, dst->cdata(), dst->length());
+    memcpy(dp+dst->length(), cstr, len);
+    dst->swap(ret);
+  }
+}
+
+static char* DLLENTRY xstring_allocate(xstring* dst, unsigned int len)
+{ return dst->allocate(len);
+}
+
+static void DLLENTRY xstring_vsprintf(volatile xstring* dst, const char* fmt, va_list va)
+{ dst->vsprintf(fmt, va);
+}
+
+static void DLLENTRY xstring_sprintf(volatile xstring* dst, const char* fmt, ...)
 { va_list va;
   va_start(va, fmt);
-  Error = xstring::vsprintf(fmt, va);
+  dst->vsprintf(fmt, va);
   va_end(va);
 }
 
+
+ModuleException::ModuleException(const char* fmt, ...)
+{ va_list va;
+  va_start(va, fmt);
+  Error.vsprintf(fmt, va);
+  va_end(va);
+}
 
 /****************************************************************************
 *
@@ -104,7 +184,9 @@ class ModuleImp : private Module
 
 
 const XSTRING_API ModuleImp::XstringApi =
-{ (xstring DLLENTRYP()(const char*))&xstring_create,
+{ &xstring_alloc_core,
+  &xstring_free_core,
+  (xstring DLLENTRYP()(const char*))&xstring_create,
   &xstring_free,
   &xstring_length,
   &xstring_equal,
@@ -156,7 +238,7 @@ ModuleImp::~ModuleImp()
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength)
-{ ULONG len = maxlength;
+{ ULONG len;
   if (maxlength > 0)
   { len = maxlength;
     if (!PrfQueryProfileData(Cfg::GetHIni(), mp->Key, key, data, &len))

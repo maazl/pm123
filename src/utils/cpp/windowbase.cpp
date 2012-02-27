@@ -279,4 +279,3 @@ NotebookDialogBase::PageBase* NotebookDialogBase::PageFromID(ULONG pageid)
       return *pp;
   return NULL;
 }
-

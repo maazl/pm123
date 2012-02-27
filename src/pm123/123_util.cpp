@@ -202,17 +202,18 @@ const xstring amp_string_from_drghstr(HSTR hstr)
 }
 
 const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)
-{ xstring ret = xstring::sprintf("%u.%s", size, attrs.szFacename);
+{ xstringbuilder ret;
+  ret.appendf("%u.%s", size, attrs.szFacename);
   if (attrs.fsSelection & FATTR_SEL_BOLD      )
-    ret = ret + ".Bold";
+    ret.append(".Bold");
   if (attrs.fsSelection & FATTR_SEL_UNDERSCORE)
-    ret = ret + ".Underscore";
+    ret.append(".Underscore");
   if (attrs.fsSelection & FATTR_SEL_ITALIC    )
-    ret = ret + ".Italic";
+    ret.append(".Italic");
   if (attrs.fsSelection & FATTR_SEL_OUTLINE   )
-    ret = ret + ".Outline";
+    ret.append(".Outline");
   if (attrs.fsSelection & FATTR_SEL_STRIKEOUT )
-    ret = ret + ".Strikeout";
+    ret.append(".Strikeout");
   return ret;
 }
 

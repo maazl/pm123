@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,31 +26,28 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PULSE123_H
-#define PULSE123_H
 
-#define PLUGIN_INTERFACE_LEVEL 3
+#include "xstring.h"
 
-#ifndef RC_INVOKED
-#include <output_plug.h>
+#include <debuglog.h>
 
-extern PLUGIN_CONTEXT Ctx;
 
+#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+void* xstring::StringData::operator new(size_t s, const char*, size_t, size_t l)
+#else
+void* xstring::StringData::operator new(size_t s, size_t l)
 #endif
-
-#define DLG_CONFIG   100
-#define DLG_PLAYBACK 101
-#define DLG_RECORD   102
-
-#define NB_CONFIG    200
-
-#define GB_GENERIC  1000
-#define ST_GENERIC  1001
-#define CB_PBSERVER 2000
-#define CB_PBKEEP   2001
-#define ST_STATUS   2005
-#define CB_SINK     2010
-#define CB_PORT     2011
-
-#endif /* PM123_PULSE123_H */
-
+{ StringData* that = (StringData*)new char[s+l+1];
+  DEBUGLOG2(("xstring::StringData::operator new(%u, %u) - %p\n", s, l, cp));
+  // Dirty early construction
+  that->Count = 0;
+  that->Len = l;
+  return that+1;
+}
+#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+void xstring::StringData::operator delete(void* p, const char*, size_t)
+#else
+void xstring::StringData::operator delete(void* p)
+#endif
+{ delete[] (char*)((StringData*)p-1);
+}
