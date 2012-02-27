@@ -210,15 +210,40 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       xstring oldsink = WinQueryWindowXText(ctrl);
       // delete old list
       PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
-      // insert new list
+      // insert new list and restore old value if reasonable.
+      xstring def;
+      //def.sprintf();
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP("default")), >= 0);
       /* LM_INSERTMULTITEMS seems not to work.
       LBOXINFO insert = { 0, Sinks.size() };
       // HACK: Sinks is a list of pointers to PASinkInfo.
-      // PASinkInfo starts with an xstring name.
-      // xsting is binary compatible to const char*.
+      // PASinkInfo starts with an xstring name. xsting is binary compatible to const char*.
       // So Sinks.begin() is compatible to const char** as required by LM_INSERTMULTITEMS.
       PMXASSERT(WinSendMsg(ctrl, LM_INSERTMULTITEMS, MPFROMP(&insert), MPFROMP(Sinks.begin())), >= 0);*/
-      // restore old value if reasonable.
+      if (Sinks.size() != 0)
+      { unsigned selected = 0;
+        for (unsigned i = 0; i < Sinks.size(); ++i)
+        { PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Sinks[i]->name.cdata())), >= 0);
+          if (!i && Sinks[i]->name.compareToI(oldsink) == 0)
+          { selected = i+1;
+            PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected), MPFROMSHORT(TRUE)));
+          }
+        }
+        // Otherwise set new default
+        if (selected < 0)
+          PMRASSERT(WinSetWindowText(ctrl, Server.default_sink_name));
+      }
+      PostMsg(UM_UPDATE_PORT, 0,0);
+      return 0;
+    }
+   case UM_UPDATE_PORT:
+    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_UPDATE_PORT\n"));
+      HWND ctrl = GetDlgItem(CB_PORT);
+      // save old value
+      xstring oldport = WinQueryWindowXText(ctrl);
+      // delete old list
+      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      // insert new list and restore old value if reasonable.
       if (Sinks.size() != 0)
       { int selected = -1;
         for (unsigned i = 0; i < Sinks.size(); ++i)
@@ -232,6 +257,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (selected < 0)
           PMRASSERT(WinSetWindowText(ctrl, Server.default_sink_name));
       }
+      return 0;
     }
   }
   return PageBase::DlgProc(msg, mp1, mp2);

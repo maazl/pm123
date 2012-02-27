@@ -39,15 +39,16 @@
 
 class ConfigDialog : public NotebookDialogBase
 {private:
-  enum
-  { UM_CONNECT = WM_USER+10,
-    UM_STATE_CHANGE,
-    UM_DISCOVER_SERVER,
-    UM_UPDATE_SERVER
-  };
-
   class PlaybackPage : public PageBase
   {private:
+    enum
+    { UM_CONNECT = WM_USER+500,
+      UM_STATE_CHANGE,
+      UM_DISCOVER_SERVER,
+      UM_UPDATE_SERVER,
+      UM_UPDATE_PORT
+    };
+
     xstring           PlaybackServer;
     PAContext         Context;
     PAServerInfoOperation ServerInfoOp;
