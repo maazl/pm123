@@ -1,0 +1,107 @@
+/*
+ * Copyright 2009-2009 M.Mueller
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#define  INCL_WINSYS
+#define  INCL_WINBIDI
+#define  INCL_WINSTDDLGS
+#define  INCL_WINSTDSPIN
+#define  INCL_NLS
+#define  INCL_SW
+#include <os2.h>
+#include "pulse123.h"
+#include "utilfct.h"
+
+DLGTEMPLATE DLG_CONFIG
+{
+  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 244,164, WS_VISIBLE|WS_CLIPCHILDREN|FS_SIZEBORDER,
+    FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  {
+    NOTEBOOK                                NB_CONFIG,    0, 20, 244,144, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,1,1)
+      PRESPARAMS                   MAKE_PPU_SIZE_CONSTR(124, 60,   0,  0)
+
+    DEFPUSHBUTTON   "OK",                   DID_OK,       8,  4,  52, 12, BS_DEFAULT|WS_GROUP
+    PUSHBUTTON      "Cancel",               DID_CANCEL,  64,  4,  52, 12, WS_VISIBLE
+  }
+}
+
+DLGTEMPLATE DLG_PLAYBACK
+{
+  DIALOG "Playback",                        DLG_PLAYBACK, 0, 20, 224,140, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  {
+    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 38, 216, 44, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT           "~URL",                 ST_GENERIC,   8, 66,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_PBSERVER, 64, -6, 152, 80, CBS_DROPDOWN
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT           "~Context",             ST_GENERIC,   8, 54,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 54, 152,  8, WS_TABSTOP
+    LTEXT           "Status"                ST_GENERIC,   8, 42,  52,  8, DT_BOTTOM|WS_GROUP
+    LTEXT           "",                     ST_STATUS,   64, 42, 152,  8, WS_TABSTOP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+
+    GROUPBOX " Select Target ",             GB_GENERIC,   4,  4, 216, 32, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT           "~Sink",                ST_GENERIC,   8, 20,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SINK,     64,-20, 152, 48, CBS_DROPDOWNLIST
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT           "~Port",                ST_GENERIC,   8,  8,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_PORT,     64,-20, 152, 36, CBS_DROPDOWNLIST
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+  }
+}
+
+DLGTEMPLATE DLG_RECORD
+{
+  DIALOG "Record",                          DLG_RECORD,   0, 20, 223,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  {
+    GROUPBOX " Recording defaults ",        GB_GENERIC,   4,  4, 216, 92, NOT WS_TABSTOP|WS_GROUP
+    LTEXT           "Device",               ST_GENERIC,   8, 76,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     1,           64, 40, 100, 44, CBS_DROPDOWNLIST
+    LTEXT           "Share mode",           ST_GENERIC,   8, 60,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTORADIOBUTTON "shared",               1,           64, 60,  48,  8, WS_TABSTOP
+    AUTORADIOBUTTON "exclusive",            1,          116, 60,  48,  8
+    LTEXT           "Input",                ST_GENERIC,   8, 48,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTORADIOBUTTON "mic.",                 1,           64, 48,  48,  8, WS_TABSTOP
+    AUTORADIOBUTTON "line",                 1,          116, 48,  48,  8
+    AUTORADIOBUTTON "digital",              1,          168, 48,  48,  8
+    LTEXT           "Sampling rate",        ST_GENERIC,   8, 32,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    SPINBUTTON                              1,           64, 32,  48,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT           "Hz",                   ST_GENERIC, 116, 32,  48,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    LTEXT           "Channels",             ST_GENERIC,   8, 20,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTORADIOBUTTON "~mono",                1,           64, 20,  48,  8, WS_TABSTOP
+    AUTORADIOBUTTON "~stereo",              1,          116, 20,  48,  8
+    LTEXT           "Format",               ST_GENERIC,   8,  8,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTORADIOBUTTON "~8 bit",               1,           64,  8,  48,  8, WS_TABSTOP
+    AUTORADIOBUTTON "~16 bit",              1,          116,  8,  48,  8
+    AUTORADIOBUTTON "~24 bit",              1,          168,  8,  48,  8
+  }
+}
