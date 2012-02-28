@@ -49,12 +49,12 @@ class ConfigDialog : public NotebookDialogBase
       UM_UPDATE_PORT
     };
 
-    xstring           PlaybackServer;
     PAContext         Context;
     PAServerInfoOperation ServerInfoOp;
     PAServerInfo      Server;
     PASinkInfoOperation SinkInfoOp;
     vector_own<PASinkInfo> Sinks;
+    int               SelectedSink;
 
     class_delegate<PlaybackPage,const pa_context_state_t> StateChangeDeleg;
     class_delegate<PlaybackPage,const pa_server_info> ServerInfoDeleg;

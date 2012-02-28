@@ -42,7 +42,6 @@
 
 ConfigDialog::PlaybackPage::PlaybackPage(ConfigDialog& parent)
 : PageBase(parent, DLG_PLAYBACK, parent.ResModule, DF_AutoResize)
-, PlaybackServer(Configuration.PlaybackServer)
 , StateChangeDeleg(Context.StateChange(), *this, &PlaybackPage::StateChangeHandler)
 , ServerInfoDeleg(ServerInfoOp.Info(), *this, &PlaybackPage::ServerInfoHandler)
 , SinkInfoDeleg(SinkInfoOp.Info(), *this, &PlaybackPage::SinkInfoHandler)
@@ -59,18 +58,6 @@ ConfigDialog::PlaybackPage::~PlaybackPage()
 { Cleanup();
 }
 
-ConfigDialog::RecordPage::RecordPage(ConfigDialog& parent)
-: PageBase(parent, DLG_RECORD, parent.ResModule, DF_AutoResize)
-{ MajorTitle = "Record";
-}
-
-ConfigDialog::ConfigDialog(HWND owner, HMODULE module)
-: NotebookDialogBase(DLG_CONFIG, module, DF_AutoResize)
-{ Pages.append() = new PlaybackPage(*this);
-  Pages.append() = new RecordPage(*this);
-  StartDialog(owner, NB_CONFIG);
-}
-
 MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
@@ -79,7 +66,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     do_warpsans(GetHwnd());
     { // Populate MRU list
       HWND ctrl = GetDlgItem(CB_PBSERVER);
-      WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(PlaybackServer.cdata()));
+      WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Configuration.PlaybackServer.cdata()));
       char key[] = "PlaybackServer1";
       do
       { xstring url;
@@ -89,10 +76,15 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(url.cdata()));
       } while (++key[sizeof key -2] <= '9');
       // Set current value
-      if (PlaybackServer)
-      { PMRASSERT(WinSetWindowText(ctrl, PlaybackServer.cdata()));
+      if (Configuration.PlaybackServer)
+      { PMRASSERT(WinSetWindowText(ctrl, Configuration.PlaybackServer.cdata()));
         PostMsg(UM_CONNECT, 0, 0);
       }
+      WinCheckButton(GetHwnd(), CB_PBKEEP, Configuration.KeepAlive);
+      if (Configuration.Sink)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_SINK, Configuration.Sink));
+      if (Configuration.Port)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.Port));
     }
     break;
 
@@ -100,10 +92,14 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       { HWND ctrl = GetDlgItem(CB_PBSERVER);
-        PlaybackServer = WinQueryWindowXText(ctrl);
-        ini_save(PlaybackServer);
+        Configuration.PlaybackServer = WinQueryWindowXText(ctrl);
+        Configuration.KeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
+        const xstring& sink = WinQueryDlgItemXText(GetHwnd(), CB_SINK);
+        Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
+        const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
+        Configuration.Port = port.length() && !port.startsWithI("default") ? port : xstring();
         // update MRU list
-        if (PlaybackServer && *PlaybackServer)
+        if (Configuration.PlaybackServer.length())
         { char key[] = "PlaybackServer1";
           int i = 0;
           int len = 0;
@@ -117,13 +113,14 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
               { WinSendMsg(ctrl, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
                 DEBUGLOG(("pulse123:cfg_dlg_proc save MRU %i: (%i) %s\n", i, len, url.cdata()));
                 ++i;
-                if (url == PlaybackServer)
+                if (url == Configuration.PlaybackServer)
                   goto skip;
               }
             }
             ini_write(key, url);
           } while (++key[sizeof key -2] <= '9');
         }
+        Configuration.Save();
       }
       break;
     }
@@ -134,11 +131,16 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case CB_PBSERVER:
       switch (SHORT2FROMMP(mp1))
       {case CBN_ENTER:
-        if (PlaybackServer.cmpassign(WinQueryWindowXText(HWNDFROMMP(mp2))))
-          PostMsg(UM_CONNECT, 0,0);
+        PostMsg(UM_CONNECT, 0,0);
         break;
       }
       break;
+     case CB_SINK:
+      switch (SHORT2FROMMP(mp1))
+      {case CBN_ENTER:
+        PostMsg(UM_UPDATE_PORT, 0,0);
+        break;
+      }
     }
     break;
 
@@ -146,14 +148,19 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_CONNECT\n"));
       // destroy any old connection
       Cleanup();
+      const xstring& server = WinQueryDlgItemXText(GetHwnd(), CB_PBSERVER);
+      if (!server.length())
+      { WinSetDlgItemText(GetHwnd(), ST_STATUS, "enter server name above");
+        return 0;
+      }
       // open new connection
       try
-      { Context.Connect("PM123", PlaybackServer);
+      { Context.Connect("PM123", server);
       } catch (const PAException& ex)
       { WinSetDlgItemText(GetHwnd(), ST_STATUS, ex.GetMessage());
       }
+      return 0;
     }
-    return 0;
 
    case UM_STATE_CHANGE:
     { pa_context_state_t state = (pa_context_state_t)LONGFROMMP(mp1);
@@ -210,10 +217,11 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       xstring oldsink = WinQueryWindowXText(ctrl);
       // delete old list
       PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      SelectedSink = -1;
       // insert new list and restore old value if reasonable.
       xstring def;
-      //def.sprintf();
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP("default")), >= 0);
+      def.sprintf("default (%s)", Server.default_sink_name.cdata());
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(def.cdata())), >= 0);
       /* LM_INSERTMULTITEMS seems not to work.
       LBOXINFO insert = { 0, Sinks.size() };
       // HACK: Sinks is a list of pointers to PASinkInfo.
@@ -221,42 +229,43 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // So Sinks.begin() is compatible to const char** as required by LM_INSERTMULTITEMS.
       PMXASSERT(WinSendMsg(ctrl, LM_INSERTMULTITEMS, MPFROMP(&insert), MPFROMP(Sinks.begin())), >= 0);*/
       if (Sinks.size() != 0)
-      { unsigned selected = 0;
+      { int defsink = -1;
         for (unsigned i = 0; i < Sinks.size(); ++i)
-        { PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Sinks[i]->name.cdata())), >= 0);
-          if (!i && Sinks[i]->name.compareToI(oldsink) == 0)
-          { selected = i+1;
-            PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected), MPFROMSHORT(TRUE)));
-          }
+        { PASinkInfo& sink = *Sinks[i];
+          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(sink.name.cdata())), >= 0);
+          if (SelectedSink < 0 && sink.name.compareToI(oldsink) == 0)
+            SelectedSink = i;
+          if (defsink < 0 && sink.name.compareToI(Server.default_sink_name) == 0)
+            defsink = i;
         }
-        // Otherwise set new default
-        if (selected < 0)
-          PMRASSERT(WinSetWindowText(ctrl, Server.default_sink_name));
+        PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(SelectedSink+1), MPFROMSHORT(TRUE)));        // Otherwise set new default
+        if (SelectedSink < 0)
+          SelectedSink = defsink;
       }
-      PostMsg(UM_UPDATE_PORT, 0,0);
-      return 0;
     }
    case UM_UPDATE_PORT:
-    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_UPDATE_PORT\n"));
+    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_UPDATE_PORT %i\n", SelectedSink));
       HWND ctrl = GetDlgItem(CB_PORT);
       // save old value
       xstring oldport = WinQueryWindowXText(ctrl);
       // delete old list
       PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
       // insert new list and restore old value if reasonable.
-      if (Sinks.size() != 0)
-      { int selected = -1;
-        for (unsigned i = 0; i < Sinks.size(); ++i)
-        { PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Sinks[i]->name.cdata())), >= 0);
-          if (i < 0 && Sinks[i]->name.compareToI(oldsink) == 0)
-          { PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)));
+      xstring def;
+      int selected = -1;
+      if ((unsigned)SelectedSink < Sinks.size())
+      { PASinkInfo& sink = *Sinks[SelectedSink];
+        if (sink.active_port)
+          def.sprintf("default (%s)", sink.active_port->name.cdata());
+        for (unsigned i = 0; i < sink.ports.size(); ++i)
+        { PASinkPortInfo& port = sink.ports[i];
+          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(port.name.cdata())), >= 0);
+          if (selected < 0 && port.name.compareToI(oldport) == 0)
             selected = i;
-          }
         }
-        // Otherwise set new default
-        if (selected < 0)
-          PMRASSERT(WinSetWindowText(ctrl, Server.default_sink_name));
       }
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(0), MPFROMP(def ? def.cdata() : "default")), >= 0);
+      PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected+1), MPFROMSHORT(TRUE)));
       return 0;
     }
   }
@@ -293,9 +302,21 @@ void ConfigDialog::PlaybackPage::SinkInfoHandler(const PASinkInfoOperation::Args
   PostMsg(UM_UPDATE_SERVER, MPFROMLONG(args.Error), 0);
 }
 
+ConfigDialog::RecordPage::RecordPage(ConfigDialog& parent)
+: PageBase(parent, DLG_RECORD, parent.ResModule, DF_AutoResize)
+{ MajorTitle = "Record";
+}
+
 MRESULT ConfigDialog::RecordPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+ConfigDialog::ConfigDialog(HWND owner, HMODULE module)
+: NotebookDialogBase(DLG_CONFIG, module, DF_AutoResize)
+{ Pages.append() = new PlaybackPage(*this);
+  Pages.append() = new RecordPage(*this);
+  StartDialog(owner, NB_CONFIG);
 }
 
 MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)

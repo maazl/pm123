@@ -216,9 +216,11 @@ PlaybackWorker::PlaybackWorker() throw()
 { DEBUGLOG(("PlaybackWorker(%p)::PlaybackWorker()\n", this));
 }
 
-ULONG PlaybackWorker::Init(const xstring& server) throw()
+ULONG PlaybackWorker::Init(const xstring& server, const xstring& sink, const xstring& port) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::Init(%s)\n", this, server.cdata()));
   Server = server;
+  Sink = sink;
+  Port = port;
   try
   { if (!Server || !*Server)
       throw PAException(PLUGIN_ERROR,
@@ -272,8 +274,12 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     // The context is automatically connected at plug-in initialization,
     // but at this point we have to synchronize the connection process.
     Context.WaitReady();
+    if (Port)
+    { PABasicOperation op;
+      Context.SetSinkPort(op, Sink, Port);
+    }
     Stream.Connect(Context, "Out", &SS, NULL, pl,
-                   NULL, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
+                   Sink, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
 
     LastBuffer = NULL;
     TimeOffset = pos;

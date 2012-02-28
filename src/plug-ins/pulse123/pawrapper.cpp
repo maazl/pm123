@@ -347,6 +347,13 @@ void PAContext::GetSinkInfo(PASinkInfoOperation& op, const char* name) throw (PA
     throw PAContextException(Context, "get_sink_info_by_name failed");
 }
 
+void PAContext::SetSinkPort(PABasicOperation& op, const char* sink, const char* port) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_set_sink_port_by_name(Context, sink, port, &PABasicOperation::ContextSuccessCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "pa_context_set_sink_port_by_name failed");
+}
+
 /*PAStream::PAStream(pa_context* context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map = NULL, pa_proplist* props = NULL)
 { memset(&Attr, -1, sizeof Attr);
   Stream = pa_stream_new_with_proplist(context, name, ss, map, props);
@@ -461,7 +468,7 @@ void PAStream::StateCB(pa_stream *p, void *userdata) throw()
 
 
 void PASinkInput::Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
-               const char* device, pa_stream_flags_t flags, const pa_cvolume* volume, pa_stream* sync_stream)
+  const char* device, pa_stream_flags_t flags, const pa_cvolume* volume, pa_stream* sync_stream)
 throw(PAContextException)
 { DEBUGLOG(("PASinkInput(%p{%p})::Connect(...,%s, %x, %p, %p)\n", this, Stream,
     device, flags, volume, sync_stream));

@@ -64,7 +64,7 @@ DLGTEMPLATE DLG_PLAYBACK
     LTEXT           "~Context",             ST_GENERIC,   8, 54,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
     AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 54, 152,  8, WS_TABSTOP
     LTEXT           "Status"                ST_GENERIC,   8, 42,  52,  8, DT_BOTTOM|WS_GROUP
-    LTEXT           "",                     ST_STATUS,   64, 42, 152,  8, WS_TABSTOP
+    LTEXT           "enter server name above",ST_STATUS, 64, 42, 152,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     GROUPBOX " Select Target ",             GB_GENERIC,   4,  4, 216, 32, NOT WS_TABSTOP|WS_GROUP

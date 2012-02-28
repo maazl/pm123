@@ -390,6 +390,8 @@ class PAContext
   void GetSinkInfo(PASinkInfoOperation& op) throw (PAContextException);
   void GetSinkInfo(PASinkInfoOperation& op, uint32_t index) throw (PAContextException);
   void GetSinkInfo(PASinkInfoOperation& op, const char* name) throw (PAContextException);
+
+  void SetSinkPort(PABasicOperation& op, const char* sink, const char* port) throw (PAContextException);
 };
 
 

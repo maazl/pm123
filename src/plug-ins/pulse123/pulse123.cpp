@@ -63,7 +63,7 @@ int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
 { PlaybackWorker* w = new PlaybackWorker();
-  ULONG ret = w->Init(Configuration.PlaybackServer);
+  ULONG ret = w->Init(Configuration.PlaybackServer, Configuration.Sink, Configuration.Port);
   if (ret == 0)
     *A = w;
   return ret;

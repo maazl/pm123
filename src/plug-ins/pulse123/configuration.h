@@ -32,6 +32,19 @@
 #include "pulse123.h"
 #include <cpp/xstring.h>
 
+
+// Configuration
+extern struct Cfg
+{ xstring PlaybackServer;
+  bool    KeepAlive;
+  xstring Sink;
+  xstring Port;
+
+  void    Load();
+  void    Save();
+} Configuration;
+
+
 void ini_query(const char* key, xstring& value);
 inline void ini_query(const char* key, int& value)
 { (*Ctx.plugin_api->profile_query)(key, &value, sizeof value);
@@ -52,17 +65,6 @@ inline void ini_write(const char* key, const bool value)
 { (*Ctx.plugin_api->profile_write)(key, &value, 1);
 }
 #define ini_save(var) ini_write(#var, var)
-
-// Configuration
-extern struct Cfg
-{ xstring PlaybackServer;
-  bool    KeepAlive;
-  xstring Sink;
-  xstring Port;
-
-  void    Load();
-  void    Save();
-} Configuration;
 
 
 #endif
