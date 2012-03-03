@@ -89,6 +89,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_COMMAND:
+    DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       { HWND ctrl = GetDlgItem(CB_PBSERVER);

@@ -251,13 +251,14 @@ void PAContext::Connect(const char* appname, const char* server, pa_context_flag
   if (pa_context_connect(Context, server, flags, NULL) != 0)
     throw PAConnectException(Context);
   //InterlockedInc(&RefCount);
+  DEBUGLOG(("PAContext::Connect: %p\n", Context));
 }
 
 void PAContext::Disconnect()
 { if (!Context)
     return;
   { Lock lock;
-    pa_context_disconnect(Context);
+    //pa_context_disconnect(Context);
     pa_context_unref(Context);
     MainloopSignal();
     Context = NULL;
