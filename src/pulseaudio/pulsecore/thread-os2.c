@@ -321,7 +321,7 @@ void *pa_tls_get(pa_tls *t) {
     pa_assert(t);
 
     DosGetInfoBlocks(&tib, NULL);
-    return tls_get(tib->tib_ptib2->tib2_ultid, (unsigned)t);
+    return tls_get((unsigned)t, tib->tib_ptib2->tib2_ultid);
 }
 
 void *pa_tls_set(pa_tls *t, void *userdata) {
@@ -329,5 +329,5 @@ void *pa_tls_set(pa_tls *t, void *userdata) {
     pa_assert(t);
 
     DosGetInfoBlocks(&tib, NULL);
-    return tls_set(tib->tib_ptib2->tib2_ultid, (unsigned)t, userdata);
+    return tls_set((unsigned)t, tib->tib_ptib2->tib2_ultid, userdata);
 }

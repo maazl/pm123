@@ -63,7 +63,7 @@ asyncmsgq.c:	..\..\include\config.h ..\pulse\xmalloc.h atomic.h macro.h log.h th
 ..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
 ..\pulse\xmalloc.h:	..\pulse\cdecl.h ..\pulse\gccmacro.h ..\pulse\version.h
 ..\pulse\version.h:	..\pulse\cdecl.h
-atomic.h:	macro.h ..\..\include\atomic_ops.h
+atomic.h:	macro.h ..\..\utils\atomic_ops.h
 macro.h:	..\pulse\gccmacro.h
 ..\..\include\atomic_ops.h:	..\..\include\config.h ..\..\utils\interlocked.h
 ..\..\utils\interlocked.h:	..\..\include\config.h
@@ -289,11 +289,11 @@ memtrap.c:	..\..\include\config.h ..\pulse\xmalloc.h core-util.h aupdate.h atomi
 mime-type.c:	..\..\include\config.h ..\pulse\xmalloc.h core-util.h log.h mime-type.h
 modinfo.c:	..\..\include\config.h ..\pulse\xmalloc.h core-util.h log.h macro.h ltdl-helper.h modinfo.h
 module.c:	..\..\include\config.h ..\pulse\timeval.h ..\pulse\xmalloc.h ..\pulse\proplist.h core-subscribe.h log.h core-util.h macro.h ltdl-helper.h modinfo.h module.h
-mutex-os2.c:	..\..\include\config.h ..\pulse\xmalloc.h hashmap.h mutex.h
+mutex-os2.c:	..\..\include\config.h ..\pulse\xmalloc.h hashmap.h log.h mutex.h ..\..\utils\debuglog.h
 namereg.c:	..\..\include\config.h ..\pulse\xmalloc.h source.h sink.h core-subscribe.h core-util.h macro.h hashmap.h namereg.h
 once.c:		..\..\include\config.h macro.h mutex.h log.h once.h
 parseaddr.c:	..\..\include\config.h ..\pulse\xmalloc.h ..\pulse\util.h core-util.h macro.h log.h inet_pton.h parseaddr.h
-pipe.c:		..\..\include\config.h winsock.h core-util.h pipe.h
+pipe.c:		..\..\include\config.h winsock.h core-util.h log.h pipe.h
 poll.c:		..\..\include\config.h winsock.h core-util.h ..\pulse\util.h poll.h
 protocol-http.c:	..\..\include\config.h ..\pulse\util.h ..\pulse\xmalloc.h ..\pulse\timeval.h ioline.h thread-mq.h macro.h log.h namereg.h cli-text.h shared.h core-error.h mime-type.h memblockq.h client.h source-output.h protocol-http.h
 protocol-native.c:	..\..\include\config.h ..\pulse\rtclock.h ..\pulse\timeval.h ..\pulse\version.h ..\pulse\utf8.h ..\pulse\util.h ..\pulse\xmalloc.h native-common.h packet.h client.h source-output.h sink-input.h pstream.h tagstruct.h pdispatch.h pstream-util.h authkey.h namereg.h core-scache.h core-subscribe.h log.h strlist.h shared.h sample-util.h llist.h creds.h core-util.h ipacl.h thread-mq.h hashmap.h protocol-native.h
@@ -304,4 +304,6 @@ shmasyncq.h:	..\pulse\def.h macro.h fdsem.h
 core.h:		..\pulse\mainloop-api.h ..\pulse\sample.h cpu.h memblock.h resampler.h queue.h llist.h hook-list.h sample-util.h msgobject.h
 sink-input.h:	..\pulse\sample.h hook-list.h memblockq.h resampler.h module.h client.h sink.h core.h envelope.h
 ..\..\snd123\src\sndfile.h:	..\..\include\config.h
-thread-os2.c:	..\..\include\config.h ..\pulse\xmalloc.h log.h once.h dynarray.h thread.h
+thread-os2.c:	..\..\include\config.h ..\pulse\xmalloc.h log.h once.h dynarray.h thread.h ..\..\utils\interlocked.h ..\..\utils\debuglog.h
+..\..\utils\atomic_ops.h:	..\..\include\config.h ..\..\utils\interlocked.h
+..\..\utils\debuglog.h:	..\..\utils\errorstr.h

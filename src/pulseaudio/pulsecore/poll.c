@@ -54,6 +54,8 @@
 
 #include "poll.h"
 
+#include <debuglog.h>
+
 /* Mac OSX fails to implement poll() in a working way since 10.4. IOW, for
  * several years. We need to enable a dirty workaround and emulate that call
  * with select(), just like for Windows. sic! */
@@ -93,6 +95,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
     }
 
     for (f = fds; f < &fds[nfds]; ++f) {
+        DEBUGLOG(("pa_poll: {%i, %x,}\n", f->fd, f->events));
         if (f->fd != -1) {
             if (f->events & POLLIN)
                 FD_SET (f->fd, &rset);
@@ -112,7 +115,11 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
                     SELECT_TYPE_ARG234 &wset, SELECT_TYPE_ARG234 &xset,
                     SELECT_TYPE_ARG5 (timeout == -1 ? NULL : &tv));
 
+#ifdef OS_IS_OS2
+    if ((ready == -1) && (errno == EBADF || errno == ENOTSOCK)) {
+#else
     if ((ready == -1) && (errno == EBADF)) {
+#endif
         ready = 0;
 
         FD_ZERO (&rset);
@@ -178,6 +185,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
 
         ready = 0;
         for (f = fds; f < &fds[nfds]; ++f) {
+            DEBUGLOG(("pa_poll: {%i, %x, %x}\n", f->fd, f->events, f->revents));
             f->revents = 0;
             if (f->fd != -1) {
                 if (FD_ISSET (f->fd, &rset)) {

@@ -53,6 +53,8 @@
 #include "mainloop.h"
 #include "internal.h"
 
+#include <debuglog.h>
+
 struct pa_io_event {
     pa_mainloop *mainloop;
     pa_bool_t dead:1;
@@ -956,6 +958,7 @@ int pa_mainloop_iterate(pa_mainloop *m, int block, int *retval) {
     int r;
     pa_assert(m);
 
+    DEBUGLOG(("pa_mainloop_iterate(%p, %i,)\n", m, block));
     if ((r = pa_mainloop_prepare(m, block ? -1 : 0)) < 0)
         goto quit;
 
@@ -971,6 +974,7 @@ quit:
 
     if ((r == -2) && retval)
         *retval = pa_mainloop_get_retval(m);
+    DEBUGLOG(("pa_mainloop_iterate: %i\n", r));
     return r;
 }
 
