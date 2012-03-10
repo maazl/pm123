@@ -185,7 +185,6 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
 
         ready = 0;
         for (f = fds; f < &fds[nfds]; ++f) {
-            DEBUGLOG(("pa_poll: {%i, %x, %x}\n", f->fd, f->events, f->revents));
             f->revents = 0;
             if (f->fd != -1) {
                 if (FD_ISSET (f->fd, &rset)) {
@@ -220,6 +219,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
                 if (FD_ISSET (f->fd, &xset))
                     f->revents |= POLLPRI;
             }
+            DEBUGLOG(("pa_poll: {%i, %x, %x}\n", f->fd, f->events, f->revents));
             if (f->revents)
                 ready++;
         }
