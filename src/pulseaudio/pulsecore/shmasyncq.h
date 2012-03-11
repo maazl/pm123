@@ -24,7 +24,6 @@
 
 #include <sys/types.h>
 
-#include <pulse/def.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/fdsem.h>
 

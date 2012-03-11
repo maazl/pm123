@@ -28,7 +28,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -36,6 +35,7 @@
 
 #include <pulse/gccmacro.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/socket.h>
 
 #ifndef PACKAGE
 #error "Please include config.h before including this file!"
@@ -149,6 +149,7 @@ char *pa_state_path(const char *fn, pa_bool_t prepend_machine_id);
 
 int pa_atoi(const char *s, int32_t *ret_i);
 int pa_atou(const char *s, uint32_t *ret_u);
+int pa_atol(const char *s, long *ret_l);
 int pa_atod(const char *s, double *ret_d);
 
 size_t pa_snprintf(char *str, size_t size, const char *format, ...);
@@ -268,8 +269,13 @@ size_t pa_pipe_buf(int fd);
 
 void pa_reset_personality(void);
 
+/* We abuse __OPTIMIZE__ as a check whether we are a debug build
+ * or not. If we are and are run from the build tree then we
+ * override the search path to point to our build tree */
 #if defined(__linux__) && !defined(__OPTIMIZE__)
 pa_bool_t pa_run_from_build_tree(void);
+#else
+static inline pa_bool_t pa_run_from_build_tree(void) {return FALSE;}
 #endif
 
 const char *pa_get_temp_dir(void);
@@ -284,5 +290,9 @@ void pa_nullify_stdfds(void);
 
 char *pa_read_line_from_file(const char *fn);
 pa_bool_t pa_running_in_vm(void);
+
+#ifdef OS_IS_WIN32
+char *pa_win32_get_toplevel(HANDLE handle);
+#endif
 
 #endif

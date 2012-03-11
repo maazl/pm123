@@ -28,7 +28,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 
 #include <pulse/rtclock.h>
 #include <pulse/sample.h>
@@ -46,7 +45,6 @@
 #include <pulsecore/source.h>
 #include <pulsecore/core-scache.h>
 #include <pulsecore/sample-util.h>
-#include <pulsecore/authkey.h>
 #include <pulsecore/namereg.h>
 #include <pulsecore/log.h>
 #include <pulsecore/core-util.h>
@@ -55,8 +53,8 @@
 #include <pulsecore/macro.h>
 #include <pulsecore/thread-mq.h>
 #include <pulsecore/shared.h>
-
-#include "endianmacros.h"
+#include <pulsecore/endianmacros.h>
+#include <pulsecore/memblockq.h>
 
 #include "protocol-esound.h"
 
@@ -427,7 +425,8 @@ static int esd_proto_stream_play(connection *c, esd_proto_t request, const void 
     sdata.driver = __FILE__;
     sdata.module = c->options->module;
     sdata.client = c->client;
-    sdata.sink = sink;
+    if (sink)
+        pa_sink_input_new_data_set_sink(&sdata, sink, FALSE);
     pa_sink_input_new_data_set_sample_spec(&sdata, &ss);
 
     pa_sink_input_new(&c->sink_input, c->protocol->core, &sdata);
@@ -525,7 +524,8 @@ static int esd_proto_stream_record(connection *c, esd_proto_t request, const voi
     sdata.driver = __FILE__;
     sdata.module = c->options->module;
     sdata.client = c->client;
-    sdata.source = source;
+    if (source)
+        pa_source_output_new_data_set_source(&sdata, source, FALSE);
     pa_source_output_new_data_set_sample_spec(&sdata, &ss);
 
     pa_source_output_new(&c->source_output, c->protocol->core, &sdata);

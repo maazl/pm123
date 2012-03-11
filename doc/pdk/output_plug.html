@@ -56,7 +56,10 @@ device. </li>
       <li><code>OUTPUT_SETUP</code> setup the format that <code>output_request_buffer()</code>
 will most likely receive, event callback. </li>
       <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently
-awaiting to be played. </li>
+awaiting to be played.<br>
+This message should immediately release a thread waiting at <tt>output_request_buffer</tt>
+for data to be played. This is essential to stop playback while in
+paused mode. </li>
     </ul>
   </li>
   <li><tt><var>info</var></tt> - structure that contains the parameters

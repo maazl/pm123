@@ -28,9 +28,9 @@
 #include <string.h>
 #include <errno.h>
 
-#include <pulse/xmalloc.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/core-util.h>
+#include <pulsecore/log.h>
 
 #include "memchunk.h"
 
@@ -109,4 +109,13 @@ pa_memchunk* pa_memchunk_memcpy(pa_memchunk *dst, pa_memchunk *src) {
     pa_memblock_release(src->memblock);
 
     return dst;
+}
+
+pa_bool_t pa_memchunk_isset(pa_memchunk *chunk) {
+    assert(chunk);
+
+    return
+        chunk->memblock ||
+        chunk->index > 0 ||
+        chunk->length > 0;
 }

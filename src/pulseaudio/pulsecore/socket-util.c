@@ -25,20 +25,15 @@
 #include <config.h>
 #endif
 
-#include <stdarg.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -57,22 +52,13 @@
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-
-#ifndef HAVE_INET_NTOP
-#include "inet_ntop.h"
-#endif
-
-#include "winsock.h"
-
-#include <pulse/xmalloc.h>
 
 #include <pulsecore/core-error.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/log.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/socket.h>
+#include <pulsecore/arpa-inet.h>
 
 #include "socket-util.h"
 
@@ -86,8 +72,9 @@ void pa_socket_peer_to_string(int fd, char *c, size_t l) {
 #ifndef OS_IS_WIN32
     pa_assert_se(fstat(fd, &st) == 0);
 
-    if (S_ISSOCK(st.st_mode)) {
+    if (S_ISSOCK(st.st_mode))
 #endif
+    {
         union {
 #ifdef HAVE_IPV6
             struct sockaddr_storage storage;
@@ -134,10 +121,11 @@ void pa_socket_peer_to_string(int fd, char *c, size_t l) {
             }
         }
 
-#ifndef OS_IS_WIN32
         pa_snprintf(c, l, "Unknown network client");
         return;
-    } else if (S_ISCHR(st.st_mode) && (fd == 0 || fd == 1)) {
+    }
+#ifndef OS_IS_WIN32
+    else if (S_ISCHR(st.st_mode) && (fd == 0 || fd == 1)) {
         pa_snprintf(c, l, "STDIN/STDOUT client");
         return;
     }

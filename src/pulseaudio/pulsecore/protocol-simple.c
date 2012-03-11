@@ -24,15 +24,14 @@
 #endif
 
 #include <stdlib.h>
-#include <limits.h>
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
 
 #include <pulse/xmalloc.h>
 #include <pulse/timeval.h>
 
 #include <pulsecore/sink-input.h>
+#include <pulsecore/sink.h>
 #include <pulsecore/source-output.h>
 #include <pulsecore/client.h>
 #include <pulsecore/sample-util.h>
@@ -43,6 +42,7 @@
 #include <pulsecore/thread-mq.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/shared.h>
+#include <pulsecore/memblockq.h>
 
 #include "protocol-simple.h"
 
@@ -538,7 +538,7 @@ void pa_simple_protocol_connect(pa_simple_protocol *p, pa_iochannel *io, pa_simp
         data.driver = __FILE__;
         data.module = o->module;
         data.client = c->client;
-        data.sink = sink;
+        pa_sink_input_new_data_set_sink(&data, sink, FALSE);
         pa_proplist_update(data.proplist, PA_UPDATE_MERGE, c->client->proplist);
         pa_sink_input_new_data_set_sample_spec(&data, &o->sample_spec);
 
@@ -593,7 +593,7 @@ void pa_simple_protocol_connect(pa_simple_protocol *p, pa_iochannel *io, pa_simp
         data.driver = __FILE__;
         data.module = o->module;
         data.client = c->client;
-        data.source = source;
+        pa_source_output_new_data_set_source(&data, source, FALSE);
         pa_proplist_update(data.proplist, PA_UPDATE_MERGE, c->client->proplist);
         pa_source_output_new_data_set_sample_spec(&data, &o->sample_spec);
 

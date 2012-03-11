@@ -62,6 +62,15 @@ PA_C_DECL_BEGIN
 /** For streams: logic role of this media. One of the strings "video", "music", "game", "event", "phone", "animation", "production", "a11y", "test" */
 #define PA_PROP_MEDIA_ROLE                     "media.role"
 
+/** For streams: the name of a filter that is desired, e.g. "echo-cancel" or "equalizer-sink". PulseAudio may choose to not apply the filter if it does not make sense (for example, applying echo-cancellation on a Bluetooth headset probably does not make sense. \since 1.0 */
+#define PA_PROP_FILTER_WANT "filter.want"
+
+/** For streams: the name of a filter that is desired, e.g. "echo-cancel" or "equalizer-sink". Differs from PA_PROP_FILTER_WANT in that it forces PulseAudio to apply the filter, regardless of whether PulseAudio thinks it makes sense to do so or not. If this is set, PA_PROP_FILTER_WANT is ignored. In other words, you almost certainly do not want to use this. \since 1.0 */
+#define PA_PROP_FILTER_APPLY "filter.apply"
+
+/** For streams: the name of a filter that should specifically suppressed (i.e. overrides PA_PROP_FILTER_WANT). Useful for the times that PA_PROP_FILTER_WANT is automatically added (e.g. echo-cancellation for phone streams when $VOIP_APP does it's own, internal AEC) \since 1.0 */
+#define PA_PROP_FILTER_SUPPRESS "filter.suppress"
+
 /** For event sound streams: XDG event sound name. e.g. "message-new-email" (Event sound streams are those with media.role set to "event") */
 #define PA_PROP_EVENT_ID                       "event.id"
 
@@ -244,6 +253,18 @@ PA_C_DECL_BEGIN
 
 /** For modules: a version string for the module. e.g. "0.9.15" */
 #define PA_PROP_MODULE_VERSION                 "module.version"
+
+/** For PCM formats: the sample format used as returned by pa_sample_format_to_string() \since 1.0 */
+#define PA_PROP_FORMAT_SAMPLE_FORMAT           "format.sample_format"
+
+/** For all formats: the sample rate (unsigned integer) \since 1.0 */
+#define PA_PROP_FORMAT_RATE                    "format.rate"
+
+/** For all formats: the number of channels (unsigned integer) \since 1.0 */
+#define PA_PROP_FORMAT_CHANNELS                "format.channels"
+
+/** For PCM formats: the channel map of the stream as returned by pa_channel_map_snprint() \since 1.0 */
+#define PA_PROP_FORMAT_CHANNEL_MAP             "format.channel_map"
 
 /** A property list object. Basically a dictionary with ASCII strings
  * as keys and arbitrary data as values. \since 0.9.11 */

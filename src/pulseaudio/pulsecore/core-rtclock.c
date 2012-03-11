@@ -24,6 +24,10 @@
 #include <config.h>
 #endif
 
+#ifdef OS_IS_DARWIN
+#define _POSIX_C_SOURCE 1
+#endif
+
 #include <stddef.h>
 #include <time.h>
 #include <sys/time.h>
@@ -40,12 +44,20 @@
 #include <unistd.h>
 #endif
 
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
+
 #include <pulse/timeval.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/log.h>
 #include <pulsecore/core-error.h>
 
 #include "core-rtclock.h"
+
+#ifdef OS_IS_WIN32
+static int64_t counter_freq = 0;
+#endif
 
 pa_usec_t pa_rtclock_age(const struct timeval *tv) {
     struct timeval now;
@@ -89,6 +101,17 @@ struct timeval *pa_rtclock_get(struct timeval *tv) {
     tv->tv_usec = ts.tv_nsec / PA_NSEC_PER_USEC;
 
     return tv;
+#elif defined(OS_IS_WIN32)
+    if (counter_freq > 0) {
+        LARGE_INTEGER count;
+
+        pa_assert_se(QueryPerformanceCounter(&count));
+
+        tv->tv_sec = count.QuadPart / counter_freq;
+        tv->tv_usec = (count.QuadPart % counter_freq) * PA_USEC_PER_SEC / counter_freq;
+
+        return tv;
+    }
 #endif /* HAVE_CLOCK_GETTIME */
 
     return pa_gettimeofday(tv);
@@ -118,6 +141,11 @@ pa_bool_t pa_rtclock_hrtimer(void) {
 
     pa_assert_se(clock_getres(CLOCK_REALTIME, &ts) == 0);
     return ts.tv_sec == 0 && ts.tv_nsec <= (long) (PA_HRTIMER_THRESHOLD_USEC*PA_NSEC_PER_USEC);
+
+#elif defined(OS_IS_WIN32)
+
+    if (counter_freq > 0)
+        return counter_freq >= (int64_t) (PA_USEC_PER_SEC/PA_HRTIMER_THRESHOLD_USEC);
 
 #endif /* HAVE_CLOCK_GETTIME */
 
@@ -149,18 +177,22 @@ void pa_rtclock_hrtimer_enable(void) {
         }
     }
 
+#elif defined(OS_IS_WIN32)
+    LARGE_INTEGER freq;
+
+    pa_assert_se(QueryPerformanceFrequency(&freq));
+    counter_freq = freq.QuadPart;
+
 #endif
 }
 
 struct timeval* pa_rtclock_from_wallclock(struct timeval *tv) {
-
-#ifdef HAVE_CLOCK_GETTIME
     struct timeval wc_now, rt_now;
+
+    pa_assert(tv);
 
     pa_gettimeofday(&wc_now);
     pa_rtclock_get(&rt_now);
-
-    pa_assert(tv);
 
     /* pa_timeval_sub() saturates on underflow! */
 
@@ -170,11 +202,11 @@ struct timeval* pa_rtclock_from_wallclock(struct timeval *tv) {
         pa_timeval_sub(&rt_now, pa_timeval_diff(&wc_now, tv));
 
     *tv = rt_now;
-#endif
 
     return tv;
 }
 
+#ifdef HAVE_CLOCK_GETTIME
 pa_usec_t pa_timespec_load(const struct timespec *ts) {
 
     if (PA_UNLIKELY(!ts))
@@ -199,16 +231,15 @@ struct timespec* pa_timespec_store(struct timespec *ts, pa_usec_t v) {
 
     return ts;
 }
+#endif
 
 static struct timeval* wallclock_from_rtclock(struct timeval *tv) {
-
-#ifdef HAVE_CLOCK_GETTIME
     struct timeval wc_now, rt_now;
+
+    pa_assert(tv);
 
     pa_gettimeofday(&wc_now);
     pa_rtclock_get(&rt_now);
-
-    pa_assert(tv);
 
     /* pa_timeval_sub() saturates on underflow! */
 
@@ -218,7 +249,6 @@ static struct timeval* wallclock_from_rtclock(struct timeval *tv) {
         pa_timeval_sub(&wc_now, pa_timeval_diff(&rt_now, tv));
 
     *tv = wc_now;
-#endif
 
     return tv;
 }

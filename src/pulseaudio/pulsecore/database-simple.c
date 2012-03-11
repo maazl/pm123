@@ -25,9 +25,7 @@
 #endif
 
 #include <errno.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -435,7 +433,7 @@ static int write_uint(FILE *f, const uint32_t num) {
     errno = 0;
 
     for (i = 0; i < 4; i++)
-         values[i] = (num >> (i*8)) & 0xFF;
+        values[i] = (num >> (i*8)) & 0xFF;
 
     items = fwrite(&values, sizeof(values), sizeof(uint8_t), f);
 

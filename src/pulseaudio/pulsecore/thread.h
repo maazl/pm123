@@ -24,6 +24,8 @@
 ***/
 
 #include <pulse/def.h>
+#include <pulse/gccmacro.h>
+
 #include <pulsecore/once.h>
 #include <pulsecore/core-util.h>
 
@@ -92,7 +94,7 @@ void *pa_tls_set(pa_tls *t, void *userdata);
     }                                                                   \
     struct __stupid_useless_struct_to_allow_trailing_semicolon
 
-#ifdef SUPPORT_TLS___THREAD
+#if defined(SUPPORT_TLS___THREAD) && !defined(OS_IS_WIN32)
 /* An optimized version of the above that requires no dynamic
  * allocation if the compiler supports __thread */
 #define PA_STATIC_TLS_DECLARE_NO_FREE(name)                             \

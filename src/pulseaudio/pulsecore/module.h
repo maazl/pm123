@@ -25,11 +25,10 @@
 #include <inttypes.h>
 #include <ltdl-helper.h>
 
-typedef struct pa_module pa_module;
-
 #include <pulse/proplist.h>
 
 #include <pulsecore/core.h>
+#include <pulsecore/idxset.h>
 
 struct pa_module {
     pa_core *core;

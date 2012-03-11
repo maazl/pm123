@@ -31,12 +31,9 @@
 
 #include <pulsecore/hashmap.h>
 #include <pulsecore/idxset.h>
-#include <pulsecore/sample-util.h>
-#include <pulsecore/namereg.h>
-#include <pulsecore/sink.h>
-#include <pulsecore/source.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/log.h>
 
 #include "modargs.h"
 
@@ -124,7 +121,7 @@ pa_modargs *pa_modargs_new(const char *args, const char* const* valid_keys) {
                     key_len++;
                 break;
 
-            case  VALUE_START:
+            case VALUE_START:
                 if (*p == '\'') {
                     state = VALUE_TICKS;
                     value = p+1;

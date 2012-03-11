@@ -25,10 +25,8 @@
 #endif
 
 #include <stdio.h>
-#include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -47,7 +45,7 @@
 #include <pulsecore/llist.h>
 #include <pulsecore/log.h>
 #include <pulsecore/core-error.h>
-#include <pulsecore/winsock.h>
+#include <pulsecore/socket.h>
 #include <pulsecore/macro.h>
 
 #include "mainloop.h"
@@ -153,7 +151,7 @@ static pa_io_event_flags_t map_flags_from_libc(short flags) {
 
 /* IO events */
 static pa_io_event* mainloop_io_new(
-        pa_mainloop_api*a,
+        pa_mainloop_api *a,
         int fd,
         pa_io_event_flags_t events,
         pa_io_event_cb_t callback,
@@ -246,7 +244,7 @@ static void mainloop_io_set_destroy(pa_io_event *e, pa_io_event_destroy_cb_t cal
 
 /* Defer events */
 static pa_defer_event* mainloop_defer_new(
-        pa_mainloop_api*a,
+        pa_mainloop_api *a,
         pa_defer_event_cb_t callback,
         void *userdata) {
 
@@ -333,7 +331,7 @@ static pa_usec_t make_rt(const struct timeval *tv, pa_bool_t *use_rtclock) {
 }
 
 static pa_time_event* mainloop_time_new(
-        pa_mainloop_api*a,
+        pa_mainloop_api *a,
         const struct timeval *tv,
         pa_time_event_cb_t callback,
         void *userdata) {
@@ -357,7 +355,7 @@ static pa_time_event* mainloop_time_new(
 
     if ((e->enabled = (t != PA_USEC_INVALID))) {
         e->time = t;
-        e->use_rtclock= use_rtclock;
+        e->use_rtclock = use_rtclock;
 
         m->n_enabled_time_events++;
 
@@ -440,7 +438,7 @@ static void mainloop_time_set_destroy(pa_time_event *e, pa_time_event_destroy_cb
 
 /* quit() */
 
-static void mainloop_quit(pa_mainloop_api*a, int retval) {
+static void mainloop_quit(pa_mainloop_api *a, int retval) {
     pa_mainloop *m;
 
     pa_assert(a);
@@ -593,7 +591,7 @@ static void cleanup_defer_events(pa_mainloop *m, pa_bool_t force) {
 }
 
 
-void pa_mainloop_free(pa_mainloop* m) {
+void pa_mainloop_free(pa_mainloop *m) {
     pa_assert(m);
 
     cleanup_io_events(m, TRUE);
@@ -858,10 +856,15 @@ quit:
 }
 
 static int usec_to_timeout(pa_usec_t u) {
+    int timeout;
+
     if (u == PA_USEC_INVALID)
         return -1;
 
-    return (u + PA_USEC_PER_MSEC - 1) / PA_USEC_PER_MSEC;
+    timeout = (u + PA_USEC_PER_MSEC - 1) / PA_USEC_PER_MSEC;
+    pa_assert(timeout >= 0);
+
+    return timeout;
 }
 
 int pa_mainloop_poll(pa_mainloop *m) {
@@ -1000,7 +1003,7 @@ void pa_mainloop_quit(pa_mainloop *m, int retval) {
     pa_mainloop_wakeup(m);
 }
 
-pa_mainloop_api* pa_mainloop_get_api(pa_mainloop*m) {
+pa_mainloop_api* pa_mainloop_get_api(pa_mainloop *m) {
     pa_assert(m);
 
     return &m->api;
@@ -1013,7 +1016,7 @@ void pa_mainloop_set_poll_func(pa_mainloop *m, pa_poll_func poll_func, void *use
     m->poll_func_userdata = userdata;
 }
 
-pa_bool_t pa_mainloop_is_our_api(pa_mainloop_api*m) {
+pa_bool_t pa_mainloop_is_our_api(pa_mainloop_api *m) {
     pa_assert(m);
 
     return m->io_new == mainloop_io_new;

@@ -30,12 +30,10 @@
 #include <pulsecore/macro.h>
 
 #include <xcb/xproto.h>
-#include <xcb/xcb_atom.h>
 
 #define PA_XCB_FORMAT 8
 
-static xcb_screen_t *screen_of_display(xcb_connection_t *xcb, int screen)
-{
+static xcb_screen_t *screen_of_display(xcb_connection_t *xcb, int screen) {
     const xcb_setup_t *s;
     xcb_screen_iterator_t iter;
 
@@ -50,28 +48,43 @@ static xcb_screen_t *screen_of_display(xcb_connection_t *xcb, int screen)
 
 void pa_x11_set_prop(xcb_connection_t *xcb, int screen, const char *name, const char *data) {
     xcb_screen_t *xs;
-    xcb_atom_t a;
+    xcb_intern_atom_reply_t *reply;
 
     pa_assert(xcb);
     pa_assert(name);
     pa_assert(data);
 
     if ((xs = screen_of_display(xcb, screen))) {
-        a = xcb_atom_get(xcb, name);
-        xcb_change_property(xcb, XCB_PROP_MODE_REPLACE, xs->root, a, STRING, PA_XCB_FORMAT, (int) strlen(data), (const void*) data);
+        reply = xcb_intern_atom_reply(xcb,
+                                      xcb_intern_atom(xcb, 0, strlen(name), name),
+                                      NULL);
+
+        if (reply) {
+            xcb_change_property(xcb, XCB_PROP_MODE_REPLACE, xs->root, reply->atom,
+                                XCB_ATOM_STRING, PA_XCB_FORMAT,
+                                (int) strlen(data), (const void*) data);
+
+            free(reply);
+        }
     }
 }
 
 void pa_x11_del_prop(xcb_connection_t *xcb, int screen, const char *name) {
     xcb_screen_t *xs;
-    xcb_atom_t a;
+    xcb_intern_atom_reply_t *reply;
 
     pa_assert(xcb);
     pa_assert(name);
 
     if ((xs = screen_of_display(xcb, screen))) {
-        a = xcb_atom_get(xcb, name);
-        xcb_delete_property(xcb, xs->root, a);
+        reply = xcb_intern_atom_reply(xcb,
+                                      xcb_intern_atom(xcb, 0, strlen(name), name),
+                                      NULL);
+
+        if (reply) {
+            xcb_delete_property(xcb, xs->root, reply->atom);
+            free(reply);
+        }
     }
 }
 
@@ -81,7 +94,7 @@ char* pa_x11_get_prop(xcb_connection_t *xcb, int screen, const char *name, char 
     xcb_get_property_cookie_t req;
     xcb_get_property_reply_t* prop = NULL;
     xcb_screen_t *xs;
-    xcb_atom_t a;
+    xcb_intern_atom_reply_t *reply;
 
     pa_assert(xcb);
     pa_assert(name);
@@ -99,9 +112,15 @@ char* pa_x11_get_prop(xcb_connection_t *xcb, int screen, const char *name, char 
         xs = screen_of_display(xcb, 0);
 
     if (xs) {
-        a = xcb_atom_get(xcb, name);
+        reply = xcb_intern_atom_reply(xcb,
+                                      xcb_intern_atom(xcb, 0, strlen(name), name),
+                                      NULL);
 
-        req = xcb_get_property(xcb, 0, xs->root, a, STRING, 0, (uint32_t)(l-1));
+        if (!reply)
+            goto finish;
+
+        req = xcb_get_property(xcb, 0, xs->root, reply->atom, XCB_ATOM_STRING, 0, (uint32_t)(l-1));
+        free(reply);
         prop = xcb_get_property_reply(xcb, req, NULL);
 
         if (!prop)

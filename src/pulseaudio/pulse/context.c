@@ -32,34 +32,28 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
-#include <limits.h>
-#include <locale.h>
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
 
 #include <pulse/version.h>
 #include <pulse/xmalloc.h>
-#include <pulse/utf8.h>
 #include <pulse/util.h>
 #include <pulse/i18n.h>
 #include <pulse/mainloop.h>
 #include <pulse/timeval.h>
+#include <pulse/fork-detect.h>
+#include <pulse/client-conf.h>
+#ifdef HAVE_X11
+#include <pulse/client-conf-x11.h>
+#endif
 
-#include <pulsecore/winsock.h>
 #include <pulsecore/core-error.h>
-
 #include <pulsecore/native-common.h>
 #include <pulsecore/pdispatch.h>
 #include <pulsecore/pstream.h>
@@ -69,20 +63,12 @@
 #include <pulsecore/core-rtclock.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/log.h>
-#include <pulsecore/socket-util.h>
+#include <pulsecore/socket.h>
 #include <pulsecore/creds.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/proplist-util.h>
 
 #include "internal.h"
-
-#include "client-conf.h"
-#include "fork-detect.h"
-
-#ifdef HAVE_X11
-#include "client-conf-x11.h"
-#endif
-
 #include "context.h"
 
 void pa_command_extension(pa_pdispatch *pd, uint32_t command, uint32_t tag, pa_tagstruct *t, void *userdata);
@@ -130,6 +116,9 @@ static void reset_callbacks(pa_context *c) {
 
     c->ext_device_manager.callback = NULL;
     c->ext_device_manager.userdata = NULL;
+
+    c->ext_device_restore.callback = NULL;
+    c->ext_device_restore.userdata = NULL;
 
     c->ext_stream_restore.callback = NULL;
     c->ext_stream_restore.userdata = NULL;
@@ -589,10 +578,12 @@ static char *get_old_legacy_runtime_dir(void) {
         return NULL;
     }
 
+#ifdef HAVE_GETUID
     if (st.st_uid != getuid()) {
         pa_xfree(p);
         return NULL;
     }
+#endif
 
     return p;
 }
@@ -611,10 +602,12 @@ static char *get_very_old_legacy_runtime_dir(void) {
         return NULL;
     }
 
+#ifdef HAVE_GETUID
     if (st.st_uid != getuid()) {
         pa_xfree(p);
         return NULL;
     }
+#endif
 
     return p;
 }
@@ -624,7 +617,7 @@ static pa_strlist *prepend_per_user(pa_strlist *l) {
     char *ufn;
 
 #ifdef ENABLE_LEGACY_RUNTIME_DIR
-    static char *legacy_dir;
+    char *legacy_dir;
 
     /* The very old per-user instance path (< 0.9.11). This is supported only to ease upgrades */
     if ((legacy_dir = get_very_old_legacy_runtime_dir())) {
@@ -1001,6 +994,7 @@ int pa_context_connect(
     /* Set up autospawning */
     if (!(flags & PA_CONTEXT_NOAUTOSPAWN) && c->conf->autospawn) {
 
+#ifdef HAVE_GETUID
         if (getuid() == 0)
             pa_log_debug("Not doing autospawn since we are root.");
         else {
@@ -1009,6 +1003,7 @@ int pa_context_connect(
             if (api)
                 c->spawn_api = *api;
         }
+#endif
     }
 
     pa_context_set_state(c, PA_CONTEXT_CONNECTING);
@@ -1426,10 +1421,12 @@ void pa_command_extension(pa_pdispatch *pd, uint32_t command, uint32_t tag, pa_t
         goto finish;
     }
 
-    if (!strcmp(name, "module-stream-restore"))
-        pa_ext_stream_restore_command(c, tag, t);
-    else if (!strcmp(name, "module-device-manager"))
+    if (pa_streq(name, "module-device-manager"))
         pa_ext_device_manager_command(c, tag, t);
+    else if (pa_streq(name, "module-device-restore"))
+        pa_ext_device_manager_command(c, tag, t);
+    else if (pa_streq(name, "module-stream-restore"))
+        pa_ext_stream_restore_command(c, tag, t);
     else
         pa_log(_("Received message for unknown extension '%s'"), name);
 

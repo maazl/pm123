@@ -24,19 +24,15 @@
 #include <config.h>
 #endif
 
-#include <string.h>
-
 #include <pulse/context.h>
-#include <pulse/gccmacro.h>
 #include <pulse/xmalloc.h>
+#include <pulse/fork-detect.h>
 
 #include <pulsecore/macro.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/pstream-util.h>
 
 #include "internal.h"
-#include "fork-detect.h"
-
 #include "introspect.h"
 
 /*** Statistics ***/
@@ -141,10 +137,15 @@ pa_operation* pa_context_get_server_info(pa_context *c, pa_server_info_cb_t cb, 
 static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, uint32_t tag, pa_tagstruct *t, void *userdata) {
     pa_operation *o = userdata;
     int eol = 1;
+    pa_sink_info i;
+    uint32_t j;
 
     pa_assert(pd);
     pa_assert(o);
     pa_assert(PA_REFCNT_VALUE(o) >= 1);
+
+    /* For safety incase someone use fail: outside the while loop below */
+    pa_zero(i);
 
     if (!o->context)
         goto finish;
@@ -157,11 +158,9 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
     } else {
 
         while (!pa_tagstruct_eof(t)) {
-            pa_sink_info i;
             pa_bool_t mute;
             uint32_t flags;
             uint32_t state;
-            uint32_t j;
             const char *ap = NULL;
 
             pa_zero(i);
@@ -196,9 +195,7 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
                 (o->context->version >= 16 &&
                  (pa_tagstruct_getu32(t, &i.n_ports)))) {
 
-                pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                pa_proplist_free(i.proplist);
-                goto finish;
+                goto fail;
             }
 
             if (o->context->version >= 16) {
@@ -211,11 +208,7 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
                             pa_tagstruct_gets(t, &i.ports[0][j].description) < 0 ||
                             pa_tagstruct_getu32(t, &i.ports[0][j].priority) < 0) {
 
-                            pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                            pa_xfree(i.ports[0]);
-                            pa_xfree(i.ports);
-                            pa_proplist_free(i.proplist);
-                            goto finish;
+                            goto fail;
                         }
 
                         i.ports[j] = &i.ports[0][j];
@@ -224,13 +217,8 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
                     i.ports[j] = NULL;
                 }
 
-                if (pa_tagstruct_gets(t, &ap) < 0) {
-                    pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                    pa_xfree(i.ports[0]);
-                    pa_xfree(i.ports);
-                    pa_proplist_free(i.proplist);
-                    goto finish;
-                }
+                if (pa_tagstruct_gets(t, &ap) < 0)
+                    goto fail;
 
                 if (ap) {
                     for (j = 0; j < i.n_ports; j++)
@@ -238,6 +226,22 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
                             i.active_port = i.ports[j];
                             break;
                         }
+                }
+            }
+
+            if (o->context->version >= 21) {
+                uint8_t n_formats;
+                if (pa_tagstruct_getu8(t, &n_formats) < 0 || n_formats < 1)
+                    goto fail;
+
+                i.formats = pa_xnew0(pa_format_info*, n_formats);
+
+                for (j = 0; j < n_formats; j++) {
+                    i.n_formats++;
+                    i.formats[j] = pa_format_info_new();
+
+                    if (pa_tagstruct_get_format_info(t, i.formats[j]) < 0)
+                        goto fail;
                 }
             }
 
@@ -250,6 +254,11 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
                 cb(o->context, &i, 0, o->userdata);
             }
 
+            if (i.formats) {
+                for (j = 0; j < i.n_formats; j++)
+                    pa_format_info_free(i.formats[j]);
+                pa_xfree(i.formats);
+            }
             if (i.ports) {
                 pa_xfree(i.ports[0]);
                 pa_xfree(i.ports);
@@ -266,6 +275,25 @@ static void context_get_sink_info_callback(pa_pdispatch *pd, uint32_t command, u
 finish:
     pa_operation_done(o);
     pa_operation_unref(o);
+    return;
+
+fail:
+    pa_assert(i.proplist);
+
+    pa_context_fail(o->context, PA_ERR_PROTOCOL);
+
+    if (i.formats) {
+        for (j = 0; j < i.n_formats; j++)
+            pa_format_info_free(i.formats[j]);
+        pa_xfree(i.formats);
+    }
+    if (i.ports) {
+        pa_xfree(i.ports[0]);
+        pa_xfree(i.ports);
+    }
+    pa_proplist_free(i.proplist);
+
+    goto finish;
 }
 
 pa_operation* pa_context_get_sink_info_list(pa_context *c, pa_sink_info_cb_t cb, void *userdata) {
@@ -374,10 +402,15 @@ pa_operation* pa_context_set_sink_port_by_name(pa_context *c, const char *name, 
 static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command, uint32_t tag, pa_tagstruct *t, void *userdata) {
     pa_operation *o = userdata;
     int eol = 1;
+    pa_source_info i;
+    uint32_t j;
 
     pa_assert(pd);
     pa_assert(o);
     pa_assert(PA_REFCNT_VALUE(o) >= 1);
+
+    /* For safety incase someone use fail: outside the while loop below */
+    pa_zero(i);
 
     if (!o->context)
         goto finish;
@@ -390,11 +423,9 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
     } else {
 
         while (!pa_tagstruct_eof(t)) {
-            pa_source_info i;
             pa_bool_t mute;
             uint32_t flags;
             uint32_t state;
-            unsigned j;
             const char *ap;
 
             pa_zero(i);
@@ -429,9 +460,7 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
                 (o->context->version >= 16 &&
                  (pa_tagstruct_getu32(t, &i.n_ports)))) {
 
-                pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                pa_proplist_free(i.proplist);
-                goto finish;
+                goto fail;
             }
 
             if (o->context->version >= 16) {
@@ -444,11 +473,7 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
                             pa_tagstruct_gets(t, &i.ports[0][j].description) < 0 ||
                             pa_tagstruct_getu32(t, &i.ports[0][j].priority) < 0) {
 
-                            pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                            pa_xfree(i.ports[0]);
-                            pa_xfree(i.ports);
-                            pa_proplist_free(i.proplist);
-                            goto finish;
+                            goto fail;
                         }
 
                         i.ports[j] = &i.ports[0][j];
@@ -457,13 +482,8 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
                     i.ports[j] = NULL;
                 }
 
-                if (pa_tagstruct_gets(t, &ap) < 0) {
-                    pa_context_fail(o->context, PA_ERR_PROTOCOL);
-                    pa_xfree(i.ports[0]);
-                    pa_xfree(i.ports);
-                    pa_proplist_free(i.proplist);
-                    goto finish;
-                }
+                if (pa_tagstruct_gets(t, &ap) < 0)
+                    goto fail;
 
                 if (ap) {
                     for (j = 0; j < i.n_ports; j++)
@@ -471,6 +491,22 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
                             i.active_port = i.ports[j];
                             break;
                         }
+                }
+            }
+
+            if (o->context->version >= 22) {
+                uint8_t n_formats;
+                if (pa_tagstruct_getu8(t, &n_formats) < 0 || n_formats < 1)
+                    goto fail;
+
+                i.formats = pa_xnew0(pa_format_info*, n_formats);
+
+                for (j = 0; j < n_formats; j++) {
+                    i.n_formats++;
+                    i.formats[j] = pa_format_info_new();
+
+                    if (pa_tagstruct_get_format_info(t, i.formats[j]) < 0)
+                        goto fail;
                 }
             }
 
@@ -483,6 +519,11 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
                 cb(o->context, &i, 0, o->userdata);
             }
 
+            if (i.formats) {
+                for (j = 0; j < i.n_formats; j++)
+                    pa_format_info_free(i.formats[j]);
+                pa_xfree(i.formats);
+            }
             if (i.ports) {
                 pa_xfree(i.ports[0]);
                 pa_xfree(i.ports);
@@ -499,6 +540,25 @@ static void context_get_source_info_callback(pa_pdispatch *pd, uint32_t command,
 finish:
     pa_operation_done(o);
     pa_operation_unref(o);
+    return;
+
+fail:
+    pa_assert(i.proplist);
+
+    pa_context_fail(o->context, PA_ERR_PROTOCOL);
+
+    if (i.formats) {
+        for (j = 0; j < i.n_formats; j++)
+            pa_format_info_free(i.formats[j]);
+        pa_xfree(i.formats);
+    }
+    if (i.ports) {
+        pa_xfree(i.ports[0]);
+        pa_xfree(i.ports);
+    }
+    pa_proplist_free(i.proplist);
+
+    goto finish;
 }
 
 pa_operation* pa_context_get_source_info_list(pa_context *c, pa_source_info_cb_t cb, void *userdata) {
@@ -996,10 +1056,11 @@ static void context_get_sink_input_info_callback(pa_pdispatch *pd, uint32_t comm
 
         while (!pa_tagstruct_eof(t)) {
             pa_sink_input_info i;
-            pa_bool_t mute = FALSE, corked = FALSE;
+            pa_bool_t mute = FALSE, corked = FALSE, has_volume = FALSE, volume_writable = TRUE;
 
             pa_zero(i);
             i.proplist = pa_proplist_new();
+            i.format = pa_format_info_new();
 
             if (pa_tagstruct_getu32(t, &i.index) < 0 ||
                 pa_tagstruct_gets(t, &i.name) < 0 ||
@@ -1015,15 +1076,21 @@ static void context_get_sink_input_info_callback(pa_pdispatch *pd, uint32_t comm
                 pa_tagstruct_gets(t, &i.driver) < 0 ||
                 (o->context->version >= 11 && pa_tagstruct_get_boolean(t, &mute) < 0) ||
                 (o->context->version >= 13 && pa_tagstruct_get_proplist(t, i.proplist) < 0) ||
-                (o->context->version >= 19 && pa_tagstruct_get_boolean(t, &corked) < 0)) {
+                (o->context->version >= 19 && pa_tagstruct_get_boolean(t, &corked) < 0) ||
+                (o->context->version >= 20 && (pa_tagstruct_get_boolean(t, &has_volume) < 0 ||
+                                               pa_tagstruct_get_boolean(t, &volume_writable) < 0)) ||
+                (o->context->version >= 21 && pa_tagstruct_get_format_info(t, i.format) < 0)) {
 
                 pa_context_fail(o->context, PA_ERR_PROTOCOL);
                 pa_proplist_free(i.proplist);
+                pa_format_info_free(i.format);
                 goto finish;
             }
 
             i.mute = (int) mute;
             i.corked = (int) corked;
+            i.has_volume = (int) has_volume;
+            i.volume_writable = (int) volume_writable;
 
             if (o->callback) {
                 pa_sink_input_info_cb_t cb = (pa_sink_input_info_cb_t) o->callback;
@@ -1031,6 +1098,7 @@ static void context_get_sink_input_info_callback(pa_pdispatch *pd, uint32_t comm
             }
 
             pa_proplist_free(i.proplist);
+            pa_format_info_free(i.format);
         }
     }
 
@@ -1093,10 +1161,11 @@ static void context_get_source_output_info_callback(pa_pdispatch *pd, uint32_t c
 
         while (!pa_tagstruct_eof(t)) {
             pa_source_output_info i;
-            pa_bool_t corked = FALSE;
+            pa_bool_t mute = FALSE, corked = FALSE, has_volume = FALSE, volume_writable = TRUE;
 
             pa_zero(i);
             i.proplist = pa_proplist_new();
+            i.format = pa_format_info_new();
 
             if (pa_tagstruct_getu32(t, &i.index) < 0 ||
                 pa_tagstruct_gets(t, &i.name) < 0 ||
@@ -1110,14 +1179,23 @@ static void context_get_source_output_info_callback(pa_pdispatch *pd, uint32_t c
                 pa_tagstruct_gets(t, &i.resample_method) < 0 ||
                 pa_tagstruct_gets(t, &i.driver) < 0 ||
                 (o->context->version >= 13 && pa_tagstruct_get_proplist(t, i.proplist) < 0) ||
-                (o->context->version >= 19 && pa_tagstruct_get_boolean(t, &corked) < 0)) {
+                (o->context->version >= 19 && pa_tagstruct_get_boolean(t, &corked) < 0) ||
+                (o->context->version >= 22 && (pa_tagstruct_get_cvolume(t, &i.volume) < 0 ||
+                                               pa_tagstruct_get_boolean(t, &mute) < 0 ||
+                                               pa_tagstruct_get_boolean(t, &has_volume) < 0 ||
+                                               pa_tagstruct_get_boolean(t, &volume_writable) < 0 ||
+                                               pa_tagstruct_get_format_info(t, i.format) < 0))) {
 
                 pa_context_fail(o->context, PA_ERR_PROTOCOL);
                 pa_proplist_free(i.proplist);
+                pa_format_info_free(i.format);
                 goto finish;
             }
 
+            i.mute = (int) mute;
             i.corked = (int) corked;
+            i.has_volume = (int) has_volume;
+            i.volume_writable = (int) volume_writable;
 
             if (o->callback) {
                 pa_source_output_info_cb_t cb = (pa_source_output_info_cb_t) o->callback;
@@ -1125,6 +1203,7 @@ static void context_get_source_output_info_callback(pa_pdispatch *pd, uint32_t c
             }
 
             pa_proplist_free(i.proplist);
+            pa_format_info_free(i.format);
         }
     }
 
@@ -1409,6 +1488,56 @@ pa_operation* pa_context_set_source_mute_by_name(pa_context *c, const char *name
     t = pa_tagstruct_command(c, PA_COMMAND_SET_SOURCE_MUTE, &tag);
     pa_tagstruct_putu32(t, PA_INVALID_INDEX);
     pa_tagstruct_puts(t, name);
+    pa_tagstruct_put_boolean(t, mute);
+    pa_pstream_send_tagstruct(c->pstream, t);
+    pa_pdispatch_register_reply(c->pdispatch, tag, DEFAULT_TIMEOUT, pa_context_simple_ack_callback, pa_operation_ref(o), (pa_free_cb_t) pa_operation_unref);
+
+    return o;
+}
+
+pa_operation* pa_context_set_source_output_volume(pa_context *c, uint32_t idx, const pa_cvolume *volume, pa_context_success_cb_t cb, void *userdata) {
+    pa_operation *o;
+    pa_tagstruct *t;
+    uint32_t tag;
+
+    pa_assert(c);
+    pa_assert(PA_REFCNT_VALUE(c) >= 1);
+    pa_assert(volume);
+
+    PA_CHECK_VALIDITY_RETURN_NULL(c, !pa_detect_fork(), PA_ERR_FORKED);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, c->state == PA_CONTEXT_READY, PA_ERR_BADSTATE);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, idx != PA_INVALID_INDEX, PA_ERR_INVALID);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, c->version >= 22, PA_ERR_NOTSUPPORTED);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, pa_cvolume_valid(volume), PA_ERR_INVALID);
+
+    o = pa_operation_new(c, NULL, (pa_operation_cb_t) cb, userdata);
+
+    t = pa_tagstruct_command(c, PA_COMMAND_SET_SOURCE_OUTPUT_VOLUME, &tag);
+    pa_tagstruct_putu32(t, idx);
+    pa_tagstruct_put_cvolume(t, volume);
+    pa_pstream_send_tagstruct(c->pstream, t);
+    pa_pdispatch_register_reply(c->pdispatch, tag, DEFAULT_TIMEOUT, pa_context_simple_ack_callback, pa_operation_ref(o), (pa_free_cb_t) pa_operation_unref);
+
+    return o;
+}
+
+pa_operation* pa_context_set_source_output_mute(pa_context *c, uint32_t idx, int mute, pa_context_success_cb_t cb, void *userdata) {
+    pa_operation *o;
+    pa_tagstruct *t;
+    uint32_t tag;
+
+    pa_assert(c);
+    pa_assert(PA_REFCNT_VALUE(c) >= 1);
+
+    PA_CHECK_VALIDITY_RETURN_NULL(c, !pa_detect_fork(), PA_ERR_FORKED);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, c->state == PA_CONTEXT_READY, PA_ERR_BADSTATE);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, idx != PA_INVALID_INDEX, PA_ERR_INVALID);
+    PA_CHECK_VALIDITY_RETURN_NULL(c, c->version >= 22, PA_ERR_NOTSUPPORTED);
+
+    o = pa_operation_new(c, NULL, (pa_operation_cb_t) cb, userdata);
+
+    t = pa_tagstruct_command(c, PA_COMMAND_SET_SOURCE_OUTPUT_MUTE, &tag);
+    pa_tagstruct_putu32(t, idx);
     pa_tagstruct_put_boolean(t, mute);
     pa_pstream_send_tagstruct(c->pstream, t);
     pa_pdispatch_register_reply(c->pdispatch, tag, DEFAULT_TIMEOUT, pa_context_simple_ack_callback, pa_operation_ref(o), (pa_free_cb_t) pa_operation_unref);

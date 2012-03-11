@@ -33,8 +33,6 @@
 #endif
 
 #include <pulse/xmalloc.h>
-#include <pulsecore/mutex.h>
-#include <pulsecore/once.h>
 #include <pulsecore/atomic.h>
 #include <pulsecore/macro.h>
 
@@ -73,6 +71,8 @@ static void* internal_thread_func(void *userdata) {
 
 #ifdef __linux__
     prctl(PR_SET_NAME, t->name);
+#elif defined(HAVE_PTHREAD_SETNAME_NP) && defined(OS_IS_DARWIN)
+    pthread_setname_np(t->name);
 #endif
 
     t->id = pthread_self();
@@ -177,6 +177,8 @@ void pa_thread_set_name(pa_thread *t, const char *name) {
 
 #ifdef __linux__
     prctl(PR_SET_NAME, name);
+#elif defined(HAVE_PTHREAD_SETNAME_NP) && defined(OS_IS_DARWIN)
+    pthread_setname_np(name);
 #endif
 }
 
@@ -193,6 +195,11 @@ const char *pa_thread_get_name(pa_thread *t) {
             pa_xfree(t->name);
             t->name = NULL;
         }
+    }
+#elif defined(HAVE_PTHREAD_GETNAME_NP) && defined(OS_IS_DARWIN)
+    if (!t->name) {
+        t->name = pa_xmalloc0(17);
+        pthread_getname_np(t->id, t->name, 16);
     }
 #endif
 

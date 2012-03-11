@@ -25,22 +25,14 @@
 
 #include <inttypes.h>
 
+#include <pulse/def.h>
 #include <pulse/sample.h>
 #include <pulse/channelmap.h>
 #include <pulse/volume.h>
+#include <pulse/proplist.h>
 
 #include <pulsecore/core.h>
-#include <pulsecore/idxset.h>
-#include <pulsecore/memblock.h>
-#include <pulsecore/memchunk.h>
-#include <pulsecore/module.h>
-#include <pulsecore/asyncmsgq.h>
-#include <pulsecore/msgobject.h>
-#include <pulsecore/rtpoll.h>
-/*#include <pulsecore/source-output.h>*/
-#include <pulsecore/card.h>
-#include <pulsecore/queue.h>
-#include <pulsecore/thread-mq.h>
+#include <pulsecore/macro.h>
 
 #define PA_MAX_OUTPUTS_PER_SOURCE 32
 
@@ -72,16 +64,20 @@ struct pa_source {
     pa_idxset *outputs;
     unsigned n_corked;
     pa_sink *monitor_of;                     /* may be NULL */
+    pa_source_output *output_from_master;    /* non-NULL only for filter sources */
 
     pa_volume_t base_volume; /* shall be constant */
     unsigned n_volume_steps; /* shall be constant */
 
-    pa_cvolume volume, soft_volume;
+    /* Also see http://pulseaudio.org/wiki/InternalVolumes */
+    pa_cvolume reference_volume; /* The volume exported and taken as reference base for relative source output volumes */
+    pa_cvolume real_volume;      /* The volume that the hardware is configured to  */
+    pa_cvolume soft_volume;      /* The internal software volume we apply to all PCM data while it passes through */
+
     pa_bool_t muted:1;
 
     pa_bool_t refresh_volume:1;
     pa_bool_t refresh_muted:1;
-
     pa_bool_t save_port:1;
     pa_bool_t save_volume:1;
     pa_bool_t save_muted:1;
@@ -104,31 +100,48 @@ struct pa_source {
      * context. If this is NULL a PA_SOURCE_MESSAGE_GET_VOLUME message
      * will be sent to the IO thread instead. If refresh_volume is
      * FALSE neither this function is called nor a message is sent. */
-    void (*get_volume)(pa_source *s);         /* dito */
+    void (*get_volume)(pa_source *s);         /* ditto */
 
     /* Called when the volume shall be changed. Called from main loop
      * context. If this is NULL a PA_SOURCE_MESSAGE_SET_VOLUME message
      * will be sent to the IO thread instead. */
-    void (*set_volume)(pa_source *s);         /* dito */
+    void (*set_volume)(pa_source *s);         /* ditto */
+
+    /* Source drivers that set PA_SOURCE_SYNC_VOLUME must provide this
+     * callback. This callback is not used with source that do not set
+     * PA_SOURCE_SYNC_VOLUME. This is called from the IO thread when a
+     * pending hardware volume change has to be written to the
+     * hardware. The requested volume is passed to the callback
+     * implementation in s->thread_info.current_hw_volume.
+     *
+     * The call is done inside pa_source_volume_change_apply(), which is
+     * not called automatically - it is the driver's responsibility to
+     * schedule that function to be called at the right times in the
+     * IO thread. */
+    void (*write_volume)(pa_source *s);       /* ditto */
 
     /* Called when the mute setting is queried. Called from main loop
      * context. If this is NULL a PA_SOURCE_MESSAGE_GET_MUTE message
      * will be sent to the IO thread instead. If refresh_mute is
      * FALSE neither this function is called nor a message is sent.*/
-    void (*get_mute)(pa_source *s);           /* dito */
+    void (*get_mute)(pa_source *s);           /* ditto */
 
     /* Called when the mute setting shall be changed. Called from main
      * loop context. If this is NULL a PA_SOURCE_MESSAGE_SET_MUTE
      * message will be sent to the IO thread instead. */
-    void (*set_mute)(pa_source *s);           /* dito */
+    void (*set_mute)(pa_source *s);           /* ditto */
 
     /* Called when a the requested latency is changed. Called from IO
      * thread context. */
-    void (*update_requested_latency)(pa_source *s); /* dito */
+    void (*update_requested_latency)(pa_source *s); /* ditto */
 
     /* Called whenever the port shall be changed. Called from main
      * thread. */
-    int (*set_port)(pa_source *s, pa_device_port *port); /*dito */
+    int (*set_port)(pa_source *s, pa_device_port *port); /*ditto */
+
+    /* Called to get the list of formats supported by the source, sorted
+     * in descending order of preference. */
+    pa_idxset* (*get_formats)(pa_source *s); /* ditto */
 
     /* Contains copies of the above data so that the real-time worker
      * thread can work without access locking */
@@ -152,7 +165,22 @@ struct pa_source {
         pa_usec_t max_latency; /* An upper limit for the latencies */
 
         pa_usec_t fixed_latency; /* for sources with PA_SOURCE_DYNAMIC_LATENCY this is 0 */
- } thread_info;
+
+        /* Delayed volume change events are queued here. The events
+         * are stored in expiration order. The one expiring next is in
+         * the head of the list. */
+        PA_LLIST_HEAD(pa_source_volume_change, volume_changes);
+        pa_source_volume_change *volume_changes_tail;
+        /* This value is updated in pa_source_volume_change_apply() and
+         * used only by sources with PA_SOURCE_SYNC_VOLUME. */
+        pa_cvolume current_hw_volume;
+
+        /* The amount of usec volume up events are delayed and volume
+         * down events are made earlier. */
+        uint32_t volume_change_safety_margin;
+        /* Usec delay added to all volume change events, may be negative. */
+        int32_t volume_change_extra_delay;
+} thread_info;
 
     void *userdata;
 };
@@ -164,7 +192,10 @@ typedef enum pa_source_message {
     PA_SOURCE_MESSAGE_ADD_OUTPUT,
     PA_SOURCE_MESSAGE_REMOVE_OUTPUT,
     PA_SOURCE_MESSAGE_GET_VOLUME,
+    PA_SOURCE_MESSAGE_SET_SHARED_VOLUME,
+    PA_SOURCE_MESSAGE_SET_VOLUME_SYNCED,
     PA_SOURCE_MESSAGE_SET_VOLUME,
+    PA_SOURCE_MESSAGE_SYNC_VOLUMES,
     PA_SOURCE_MESSAGE_GET_MUTE,
     PA_SOURCE_MESSAGE_SET_MUTE,
     PA_SOURCE_MESSAGE_GET_LATENCY,
@@ -178,6 +209,8 @@ typedef enum pa_source_message {
     PA_SOURCE_MESSAGE_GET_FIXED_LATENCY,
     PA_SOURCE_MESSAGE_GET_MAX_REWIND,
     PA_SOURCE_MESSAGE_SET_MAX_REWIND,
+    PA_SOURCE_MESSAGE_SET_PORT,
+    PA_SOURCE_MESSAGE_UPDATE_VOLUME_AND_MUTE,
     PA_SOURCE_MESSAGE_MAX
 } pa_source_message_t;
 
@@ -261,7 +294,14 @@ int pa_source_update_status(pa_source*s);
 int pa_source_suspend(pa_source *s, pa_bool_t suspend, pa_suspend_cause_t cause);
 int pa_source_suspend_all(pa_core *c, pa_bool_t suspend, pa_suspend_cause_t cause);
 
-void pa_source_set_volume(pa_source *source, const pa_cvolume *volume, pa_bool_t save);
+/* Use this instead of checking s->flags & PA_SOURCE_FLAT_VOLUME directly. */
+pa_bool_t pa_source_flat_volume_enabled(pa_source *s);
+
+/* Is the source in passthrough mode? (that is, is this a monitor source for a sink
+ * that has a passthrough sink input connected to it. */
+pa_bool_t pa_source_is_passthrough(pa_source *s);
+
+void pa_source_set_volume(pa_source *source, const pa_cvolume *volume, pa_bool_t sendmsg, pa_bool_t save);
 const pa_cvolume *pa_source_get_volume(pa_source *source, pa_bool_t force_refresh);
 
 void pa_source_set_mute(pa_source *source, pa_bool_t mute, pa_bool_t save);
@@ -281,6 +321,10 @@ pa_queue *pa_source_move_all_start(pa_source *s, pa_queue *q);
 void pa_source_move_all_finish(pa_source *s, pa_queue *q, pa_bool_t save);
 void pa_source_move_all_fail(pa_queue *q);
 
+pa_idxset* pa_source_get_formats(pa_source *s);
+pa_bool_t pa_source_check_format(pa_source *s, pa_format_info *f);
+pa_idxset* pa_source_check_formats(pa_source *s, pa_idxset *in_formats);
+
 /*** To be called exclusively by the source driver, from IO context */
 
 void pa_source_post(pa_source*s, const pa_memchunk *chunk);
@@ -298,6 +342,10 @@ void pa_source_set_max_rewind_within_thread(pa_source *s, size_t max_rewind);
 
 void pa_source_set_latency_range_within_thread(pa_source *s, pa_usec_t min_latency, pa_usec_t max_latency);
 void pa_source_set_fixed_latency_within_thread(pa_source *s, pa_usec_t latency);
+
+void pa_source_update_volume_and_mute(pa_source *s);
+
+pa_bool_t pa_source_volume_change_apply(pa_source *s, pa_usec_t *usec_to_next);
 
 /*** To be called exclusively by source output drivers, from IO context */
 

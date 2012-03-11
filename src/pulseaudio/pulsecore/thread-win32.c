@@ -28,7 +28,6 @@
 #include <windows.h>
 
 #include <pulse/xmalloc.h>
-#include <pulsecore/log.h>
 #include <pulsecore/once.h>
 
 #include "thread.h"
@@ -71,8 +70,9 @@ static DWORD WINAPI internal_thread_func(LPVOID param) {
     return 0;
 }
 
-pa_thread* pa_thread_new(pa_thread_func_t thread_func, void *userdata) {
+pa_thread* pa_thread_new(const char *name, pa_thread_func_t thread_func, void *userdata) {
     pa_thread *t;
+    DWORD thread_id;
 
     assert(thread_func);
 
@@ -80,7 +80,7 @@ pa_thread* pa_thread_new(pa_thread_func_t thread_func, void *userdata) {
     t->thread_func = thread_func;
     t->userdata = userdata;
 
-    t->thread = CreateThread(NULL, 0, internal_thread_func, t, 0, NULL);
+    t->thread = CreateThread(NULL, 0, internal_thread_func, t, 0, &thread_id);
 
     if (!t->thread) {
         pa_xfree(t);
@@ -121,6 +121,27 @@ int pa_thread_join(pa_thread *t) {
 pa_thread* pa_thread_self(void) {
     pa_run_once(&thread_tls_once, thread_tls_once_func);
     return pa_tls_get(thread_tls);
+}
+
+void* pa_thread_get_data(pa_thread *t) {
+    pa_assert(t);
+
+    return t->userdata;
+}
+
+void pa_thread_set_data(pa_thread *t, void *userdata) {
+    pa_assert(t);
+
+    t->userdata = userdata;
+}
+
+void pa_thread_set_name(pa_thread *t, const char *name) {
+    /* Not implemented */
+}
+
+const char *pa_thread_get_name(pa_thread *t) {
+    /* Not implemented */
+    return NULL;
 }
 
 void pa_thread_yield(void) {

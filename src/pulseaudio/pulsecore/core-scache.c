@@ -25,13 +25,13 @@
 #endif
 
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
+#include <time.h>
 
 #ifdef HAVE_GLOB_H
 #include <glob.h>
@@ -50,7 +50,6 @@
 #include <pulse/rtclock.h>
 
 #include <pulsecore/sink-input.h>
-#include <pulsecore/sample-util.h>
 #include <pulsecore/play-memchunk.h>
 #include <pulsecore/core-subscribe.h>
 #include <pulsecore/namereg.h>
@@ -60,6 +59,7 @@
 #include <pulsecore/log.h>
 #include <pulsecore/core-error.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/idxset.h>
 
 #include "core-scache.h"
 

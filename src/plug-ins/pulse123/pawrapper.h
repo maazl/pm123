@@ -44,28 +44,31 @@
 
 #include <plugin.h>
 
+#include <debuglog.h>
+
 
 class PAException
-{protected:
+{private:
   int       Error;
   xstring   Message;
  protected:
   PAException()                                 {}
+  void           SetException(int err, const xstring& message);
  public:
-  explicit PAException(int err)                 : Error(err) { if (err) Message = pa_strerror(err); }
-  PAException(int err, const xstring& message)  : Error(err), Message(message) {}
+  explicit PAException(int err)                 : Error(0) { if (err) SetException(err, pa_strerror(err)); }
+  PAException(int err, const xstring& message)  { SetException(err, message); }
   int            GetError() const               { return Error; }
   const xstring& GetMessage() const             { return Message; }
 };
 
 class PAStateException : public PAException
 {public:
-  explicit PAStateException(const xstring& message)  : PAException(PA_ERR_BADSTATE, message) {}
+  explicit PAStateException(const xstring& message) : PAException(PA_ERR_BADSTATE, message) {}
 };
 
 class PAInternalException : public PAException
 {public:
-  PAInternalException(const xstring& message)   : PAException(PA_ERR_INTERNAL, message) {}
+  explicit PAInternalException(const xstring& message) : PAException(PA_ERR_INTERNAL, message) {}
 };
 
 class PAContextException : public PAException
@@ -100,10 +103,16 @@ class PAStreamException : public PAContextException
 };*/
 
 
+struct PABufferAttr : public pa_buffer_attr
+{ PABufferAttr()                                { memset((pa_buffer_attr*)this, -1, sizeof(pa_buffer_attr)); }
+  PABufferAttr(const pa_buffer_attr& r)         { (pa_buffer_attr&)*this = r; }
+  PABufferAttr& operator=(const pa_buffer_attr& r){ (pa_buffer_attr&)*this = r; return *this; }
+};
+
 struct PASampleSpec : public pa_sample_spec
 { PASampleSpec()                                {}
   PASampleSpec(const pa_sample_spec& r)         { (pa_sample_spec&)*this = r; }
-  PASampleSpec& operator=(const pa_sample_spec& r) { (pa_sample_spec&)*this = r; return *this; }
+  PASampleSpec& operator=(const pa_sample_spec& r){ (pa_sample_spec&)*this = r; return *this; }
   friend bool operator==(const PASampleSpec& l, const PASampleSpec& r)
                                                 { return !!pa_sample_spec_equal(&l, &r); }
   friend bool operator!=(const PASampleSpec& l, const PASampleSpec& r)
@@ -351,8 +360,8 @@ class PAContext
   friend class Lock;
   class Lock
   {public:
-    Lock()                                      { pa_threaded_mainloop_lock(PAContext::Mainloop); }
-    ~Lock()                                     { pa_threaded_mainloop_unlock(PAContext::Mainloop); }
+    Lock()                                      { pa_threaded_mainloop_lock(PAContext::Mainloop); DEBUGLOG(("PAContext::Lock::Lock()\n")); }
+    ~Lock()                                     { pa_threaded_mainloop_unlock(PAContext::Mainloop); DEBUGLOG(("PAContext::Lock::~Lock()\n")); }
    private: // non-copyable
     Lock(const Lock&);
     void operator=(const Lock&);
@@ -401,18 +410,18 @@ FLAGSATTRIBUTE(pa_stream_flags_t);
  */
 class PAStream
 {public:
-  pa_buffer_attr     Attr;
+  PABufferAttr       Attr;
  protected:
   pa_stream*         Stream;
-  bool Terminate;
+  bool               Terminate;
  private:
-  int WaitReadyPending;
+  int                WaitReadyPending;
 
  private: // non-copyable
   PAStream(const PAStream& r);
   void operator=(const PAStream& r);
  protected:
-  PAStream()                                    : Stream(NULL), Terminate(false), WaitReadyPending(0) { memset(&Attr, -1, sizeof Attr); }
+  PAStream()                                    : Stream(NULL), Terminate(false), WaitReadyPending(0) {}
   //PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map = NULL, pa_proplist* props = NULL);
   void Create(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props)
     throw(PAContextException);
@@ -433,11 +442,12 @@ class PAStream
   static void StateCB(pa_stream *p, void *userdata) throw();
 };
 
-class PASinkInput : public PAStream
+class PASinkOutput : public PAStream
 {private:
-  int WaitWritePending;
+  int                WaitWritePending;
+
  public:
-  PASinkInput()                                 : WaitWritePending(0) {}
+  PASinkOutput()                                : WaitWritePending(0) {}
 
   void Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
                const char* device, pa_stream_flags_t flags, const pa_cvolume* volume = NULL, pa_stream* sync_stream = NULL)
@@ -457,9 +467,22 @@ class PASinkInput : public PAStream
   static void WriteCB(pa_stream *p, size_t nbytes, void *userdata) throw();
 };
 
-class PASourceOutput : public PAStream
-{
+class PASourceInput : public PAStream
+{private:
+  int                WaitReadPending;
 
+ public:
+  PASourceInput()                               : WaitReadPending(0) {}
+
+  void Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
+               const char* device, pa_stream_flags_t flags) throw(PAContextException);
+
+  size_t ReadableSize() throw (PAStreamException);
+  const void* Peek(size_t& nbytes) throw (PAStreamException);
+  void Drop() throw (PAStreamException);
+
+ private:
+  static void ReadCB(pa_stream *p, size_t nbytes, void *userdata) throw();
 };
 
 class PASample : public PAStream

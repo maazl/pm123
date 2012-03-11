@@ -90,14 +90,18 @@ struct shm_marker {
 
 #define SHM_MARKER_SIZE PA_ALIGN(sizeof(struct shm_marker))
 
+#ifdef HAVE_SHM_OPEN
 static char *segment_name(char *fn, size_t l, unsigned id) {
     pa_snprintf(fn, l, "/pulse-shm-%u", id);
     return fn;
 }
+#endif
 
 int pa_shm_create_rw(pa_shm *m, size_t size, pa_bool_t shared, mode_t mode) {
+#ifdef HAVE_SHM_OPEN
     char fn[32];
     int fd = -1;
+#endif
 
     pa_assert(m);
     pa_assert(size > 0);

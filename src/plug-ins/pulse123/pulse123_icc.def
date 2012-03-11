@@ -16,3 +16,12 @@ EXPORTS
    plugin_query     @10
    plugin_init      @11
    plugin_configure    @12
+
+   decoder_init     @21
+   decoder_uninit   @22
+   decoder_command  @23
+   decoder_event    @24
+   decoder_status   @25
+   decoder_length   @26
+   decoder_fileinfo @28
+   decoder_support  @29

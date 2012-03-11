@@ -33,6 +33,7 @@
 #include <pulsecore/log.h>
 #include <pulsecore/once.h>
 #include <pulsecore/dynarray.h>
+#include <pulsecore/mutex.h>
 
 #include "thread.h"
 

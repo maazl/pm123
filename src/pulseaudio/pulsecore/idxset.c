@@ -29,9 +29,9 @@
 #include <string.h>
 
 #include <pulse/xmalloc.h>
-#include <pulsecore/log.h>
 #include <pulsecore/flist.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/log.h>
 
 #include "idxset.h"
 

@@ -29,6 +29,7 @@
 
 #include "pulse123.h"
 #include "playbackworker.h"
+#include "recordworker.h"
 #include "configuration.h"
 #include "dialog.h"
 #include <plugin.h>
@@ -40,9 +41,20 @@
 PLUGIN_CONTEXT Ctx;
 
 
+/****************************************************************************
+*
+* Miscellaneous
+*
+****************************************************************************/
+
+/* Configure plug-in. */
+void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
+{ ConfigDialog(hwnd, module).Process();
+}
+
 /// Returns information about plug-in.
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
-{ query->type         = PLUGIN_OUTPUT;
+{ query->type         = PLUGIN_OUTPUT|PLUGIN_DECODER;
   query->author       = "Marcel Mueller";
   query->desc         = "PulseAudio for PM123 V1.0";
   query->configurable = TRUE;
@@ -53,12 +65,32 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
 /// init plug-in
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 { Ctx = *ctx;
-
   Configuration.Load();
-
   return 0;
 }
 
+#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
+unsigned long _System _DLL_InitTerm( unsigned long modhandle, unsigned long flag )
+{
+  if( flag == 0 ) {
+    if( _CRT_init() == -1 ) {
+      return 0UL;
+    }
+    return 1UL;
+  } else {
+    _dump_allocated( 0 );
+    _CRT_term();
+    return 1UL;
+  }
+}
+#endif
+
+
+/****************************************************************************
+*
+*  Playback interface
+*
+****************************************************************************/
 
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
@@ -125,26 +157,81 @@ BOOL DLLENTRY output_playing_data(void* A)
 }
 
 
-/* Configure plug-in. */
-void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
-{
-  ConfigDialog(hwnd, module).Process();
+/****************************************************************************
+*
+* Recording interface
+*
+****************************************************************************/
+
+// Supported file types (none)
+ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
+{ if (count)
+    *count = 0;
+  return DECODER_OTHER|DECODER_SONG;
 }
 
+ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
+                                DECODER_INFO_ENUMERATION_CB cb, void* param)
+{ DEBUGLOG(("pulse123:decoder_fileinfo(%s, %p, &%x ...)\n", url, handle, what));
+  RecordWorker::Params par;
+  const xstring& error = RecordWorker::ParseURL(url, par);
+  if (error)
+  { if (error.length() == 0)
+      return PLUGIN_NO_PLAY;
+    info->tech->info = error;
+    return PLUGIN_NO_READ;
+  }
 
-#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
-unsigned long _System _DLL_InitTerm( unsigned long modhandle,
-                                     unsigned long flag )
-{
-  if( flag == 0 ) {
-    if( _CRT_init() == -1 ) {
-      return 0UL;
-    }
-    return 1UL;
-  } else {
-    _dump_allocated( 0 );
-    _CRT_term();
-    return 1UL;
+  *what |= INFO_PHYS|INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR|INFO_CHILD;
+  // phys info is default.
+  // tech info
+  info->tech->samplerate = par.Format.samplerate;
+  info->tech->channels = par.Format.channels;
+  info->tech->attributes = TATTR_SONG;
+  info->tech->info.sprintf("Recording from %s/%s/%s.",
+    par.Server ? par.Server.cdata() : "(default)",
+    par.Source ? par.Source.cdata() : "(default)",
+    par.Port   ? par.Port.cdata()   : "(default)" );
+  // obj info
+  info->obj->bitrate = 32 * par.Format.channels * par.Format.samplerate;
+  // meta info : none
+  // attr info : default
+
+  return PLUGIN_OK;
+}
+
+int DLLENTRY decoder_init(void** w)
+{ *w = new RecordWorker();
+  return PLUGIN_OK;
+}
+
+BOOL DLLENTRY decoder_uninit(void* w)
+{ delete (RecordWorker*)w;
+  return TRUE;
+}
+
+ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
+{ DEBUGLOG(("pulse123:decoder_command(%p, %i, )\n", w, msg));
+  switch (msg)
+  {case DECODER_SETUP:
+    return ((RecordWorker*)w)->Setup(*params);
+   case DECODER_PLAY:
+    return ((RecordWorker*)w)->Play(params->URL);
+   case DECODER_STOP:
+    return ((RecordWorker*)w)->Stop();
+   default:
+    return PLUGIN_UNSUPPORTED;
   }
 }
-#endif
+
+void DLLENTRY decoder_event(void* w, OUTEVENTTYPE event)
+{ ((RecordWorker*)w)->Event(event);
+}
+
+ULONG DLLENTRY decoder_status(void* w)
+{ return ((RecordWorker*)w)->GetState();
+}
+
+PM123_TIME DLLENTRY decoder_length(void* w)
+{ return -1;
+}

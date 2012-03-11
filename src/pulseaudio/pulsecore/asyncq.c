@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <pulse/xmalloc.h>
+
 #include <pulsecore/atomic.h>
 #include <pulsecore/log.h>
 #include <pulsecore/thread.h>
@@ -33,10 +35,9 @@
 #include <pulsecore/core-util.h>
 #include <pulsecore/llist.h>
 #include <pulsecore/flist.h>
-#include <pulse/xmalloc.h>
+#include <pulsecore/fdsem.h>
 
 #include "asyncq.h"
-#include "fdsem.h"
 
 #define ASYNCQ_SIZE 256
 
@@ -206,7 +207,7 @@ void pa_asyncq_post(pa_asyncq*l, void *p) {
     /* OK, we couldn't push anything in the queue. So let's queue it
      * locally and push it later */
 
-    if (pa_log_ratelimit())
+    if (pa_log_ratelimit(PA_LOG_WARN))
         pa_log_warn("q overrun, queuing locally");
 
     if (!(q = pa_flist_pop(PA_STATIC_FLIST_GET(localq))))

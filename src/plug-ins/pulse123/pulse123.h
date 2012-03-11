@@ -32,7 +32,7 @@
 #define PLUGIN_INTERFACE_LEVEL 3
 
 #ifndef RC_INVOKED
-#include <output_plug.h>
+#include <plugin.h>
 
 extern PLUGIN_CONTEXT Ctx;
 

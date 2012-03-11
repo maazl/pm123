@@ -29,10 +29,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <stdlib.h>
-#include <time.h>
-#include <limits.h>
 #include <sys/stat.h>
 
 #include <pulse/util.h>
@@ -56,7 +53,10 @@ static int generate(int fd, void *ret_data, size_t length) {
     pa_random(ret_data, length);
 
     lseek(fd, (off_t) 0, SEEK_SET);
-    (void) ftruncate(fd, (off_t) 0);
+    if (ftruncate(fd, (off_t) 0) < 0) {
+        pa_log("Failed to truncate cookie file: %s", pa_cstrerror(errno));
+        return -1;
+    }
 
     if ((r = pa_loop_write(fd, ret_data, length, NULL)) < 0 || (size_t) r != length) {
         pa_log("Failed to write cookie file: %s", pa_cstrerror(errno));
@@ -151,7 +151,7 @@ static char *normalize_path(const char *fn) {
 #ifndef OS_IS_WIN32
     if (fn[0] != '/') {
 #else
-    if (strlen(fn) < 3 || !isalpha(fn[0]) || fn[1] != ':' || fn[2] != '\\') {
+    if (strlen(fn) < 3 || !IsCharAlpha(fn[0]) || fn[1] != ':' || fn[2] != '\\') {
 #endif
         char *homedir, *s;
 

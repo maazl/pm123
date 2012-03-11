@@ -25,7 +25,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -40,8 +39,8 @@
 #include <pulsecore/log.h>
 #include <pulsecore/thread-mq.h>
 #include <pulsecore/core-util.h>
-#include <pulsecore/sample-util.h>
 #include <pulsecore/sndfile-util.h>
+#include <pulsecore/memblockq.h>
 
 #include "sound-file-stream.h"
 
@@ -200,7 +199,7 @@ static int sink_input_pop_cb(pa_sink_input *i, size_t length, pa_memchunk *chunk
     }
 
     return -1;
- }
+}
 
 static void sink_input_process_rewind_cb(pa_sink_input *i, size_t nbytes) {
     file_stream *u;
@@ -299,7 +298,7 @@ int pa_play_file(
     u->readf_function = pa_sndfile_readf_function(&ss);
 
     pa_sink_input_new_data_init(&data);
-    data.sink = sink;
+    pa_sink_input_new_data_set_sink(&data, sink, FALSE);
     data.driver = __FILE__;
     pa_sink_input_new_data_set_sample_spec(&data, &ss);
     pa_sink_input_new_data_set_channel_map(&data, &cm);

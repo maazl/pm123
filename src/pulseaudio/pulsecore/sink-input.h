@@ -26,14 +26,8 @@
 #include <inttypes.h>
 
 #include <pulse/sample.h>
-#include <pulsecore/hook-list.h>
-#include <pulsecore/memblockq.h>
-#include <pulsecore/resampler.h>
-#include <pulsecore/module.h>
-#include <pulsecore/client.h>
-#include <pulsecore/sink.h>
+#include <pulse/format.h>
 #include <pulsecore/core.h>
-#include <pulsecore/envelope.h>
 
 typedef enum pa_sink_input_state {
     PA_SINK_INPUT_INIT,         /*< The stream is not active yet, because pa_sink_input_put() has not been called yet */
@@ -81,7 +75,8 @@ struct pa_sink_input {
     pa_module *module;                  /* may be NULL */
     pa_client *client;                  /* may be NULL */
 
-    pa_sink *sink; /* NULL while we are being moved */
+    pa_sink *sink;                      /* NULL while we are being moved */
+    pa_sink *origin_sink;               /* only set by filter sinks */
 
     /* A sink input may be connected to multiple source outputs
      * directly, so that they don't get mixed data of the entire
@@ -90,6 +85,7 @@ struct pa_sink_input {
 
     pa_sample_spec sample_spec;
     pa_channel_map channel_map;
+    pa_format_info *format;
 
     pa_sink_input *sync_prev, *sync_next;
 
@@ -102,9 +98,11 @@ struct pa_sink_input {
 
     pa_cvolume volume_factor_sink; /* A second volume factor in format of the sink this stream is connected to */
 
+    pa_bool_t volume_writable:1;
+
     pa_bool_t muted:1;
 
-    /* if TRUE then the source we are connected to and/or the volume
+    /* if TRUE then the sink we are connected to and/or the volume
      * set is worth remembering, i.e. was explicitly chosen by the
      * user and not automatically. module-stream-restore looks for
      * this.*/
@@ -232,22 +230,7 @@ struct pa_sink_input {
         pa_usec_t requested_sink_latency;
 
         pa_hashmap *direct_outputs;
-
-        struct {
-            pa_bool_t is_ramping:1;
-            pa_bool_t envelope_dead:1;
-            int32_t envelope_dying; /* Increasing while envelop is not dead.  Reduce it while process_rewind. */
-            pa_envelope *envelope;
-            pa_envelope_item *item;
-        } ramp_info;
-        pa_cvolume future_soft_volume;
-        pa_bool_t future_muted;
-
     } thread_info;
-
-    pa_atomic_t before_ramping_v;  /* Indicates future volume */
-    pa_atomic_t before_ramping_m;  /* Indicates future mute */
-    pa_envelope_def using_def;
 
     void *userdata;
 };
@@ -263,7 +246,6 @@ enum {
     PA_SINK_INPUT_MESSAGE_SET_STATE,
     PA_SINK_INPUT_MESSAGE_SET_REQUESTED_LATENCY,
     PA_SINK_INPUT_MESSAGE_GET_REQUESTED_LATENCY,
-    PA_SINK_INPUT_MESSAGE_SET_ENVELOPE,
     PA_SINK_INPUT_MESSAGE_MAX
 };
 
@@ -283,6 +265,7 @@ typedef struct pa_sink_input_new_data {
     pa_client *client;
 
     pa_sink *sink;
+    pa_sink *origin_sink;
 
     pa_resample_method_t resample_method;
 
@@ -290,6 +273,9 @@ typedef struct pa_sink_input_new_data {
 
     pa_sample_spec sample_spec;
     pa_channel_map channel_map;
+    pa_format_info *format;
+    pa_idxset *req_formats;
+    pa_idxset *nego_formats;
 
     pa_cvolume volume, volume_factor, volume_factor_sink;
     pa_bool_t muted:1;
@@ -302,16 +288,21 @@ typedef struct pa_sink_input_new_data {
 
     pa_bool_t volume_is_absolute:1;
 
+    pa_bool_t volume_writable:1;
+
     pa_bool_t save_sink:1, save_volume:1, save_muted:1;
 } pa_sink_input_new_data;
 
 pa_sink_input_new_data* pa_sink_input_new_data_init(pa_sink_input_new_data *data);
 void pa_sink_input_new_data_set_sample_spec(pa_sink_input_new_data *data, const pa_sample_spec *spec);
 void pa_sink_input_new_data_set_channel_map(pa_sink_input_new_data *data, const pa_channel_map *map);
+pa_bool_t pa_sink_input_new_data_is_passthrough(pa_sink_input_new_data *data);
 void pa_sink_input_new_data_set_volume(pa_sink_input_new_data *data, const pa_cvolume *volume);
 void pa_sink_input_new_data_apply_volume_factor(pa_sink_input_new_data *data, const pa_cvolume *volume_factor);
 void pa_sink_input_new_data_apply_volume_factor_sink(pa_sink_input_new_data *data, const pa_cvolume *volume_factor);
 void pa_sink_input_new_data_set_muted(pa_sink_input_new_data *data, pa_bool_t mute);
+pa_bool_t pa_sink_input_new_data_set_sink(pa_sink_input_new_data *data, pa_sink *s, pa_bool_t save);
+pa_bool_t pa_sink_input_new_data_set_formats(pa_sink_input_new_data *data, pa_idxset *formats);
 void pa_sink_input_new_data_done(pa_sink_input_new_data *data);
 
 /* To be called by the implementing module only */
@@ -352,6 +343,8 @@ void pa_sink_input_kill(pa_sink_input*i);
 
 pa_usec_t pa_sink_input_get_latency(pa_sink_input *i, pa_usec_t *sink_latency);
 
+pa_bool_t pa_sink_input_is_passthrough(pa_sink_input *i);
+pa_bool_t pa_sink_input_is_volume_readable(pa_sink_input *i);
 void pa_sink_input_set_volume(pa_sink_input *i, const pa_cvolume *volume, pa_bool_t save, pa_bool_t absolute);
 pa_cvolume *pa_sink_input_get_volume(pa_sink_input *i, pa_cvolume *volume, pa_bool_t absolute);
 
@@ -399,9 +392,5 @@ pa_memchunk* pa_sink_input_get_silence(pa_sink_input *i, pa_memchunk *ret);
 
 #define pa_sink_input_assert_io_context(s) \
     pa_assert(pa_thread_mq_get() || !PA_SINK_INPUT_IS_LINKED((s)->state))
-
-/* Volume ramping*/
-void pa_sink_input_set_volume_with_ramping(pa_sink_input *i, const pa_cvolume *volume, pa_bool_t save, pa_bool_t absolute, pa_usec_t t);
-void pa_sink_input_set_mute_with_ramping(pa_sink_input *i, pa_bool_t mute, pa_bool_t save, pa_usec_t t);
 
 #endif

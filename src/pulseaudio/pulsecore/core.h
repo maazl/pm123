@@ -35,9 +35,20 @@ typedef struct pa_device_port pa_device_port;
 typedef struct pa_sink_volume_change pa_sink_volume_change;
 typedef struct pa_sink_input pa_sink_input;
 typedef struct pa_source pa_source;
+typedef struct pa_source_volume_change pa_source_volume_change;
+typedef struct pa_format_info pa_format_info;
 typedef struct pa_source_output pa_source_output;
 typedef struct pa_idxset pa_idxset;
 typedef struct pa_hashmap pa_hashmap;
+typedef struct pa_module pa_module;
+typedef struct pa_card pa_card;
+typedef struct pa_client pa_client;
+typedef struct pa_asyncmsgq pa_asyncmsgq;
+typedef struct pa_rtpoll pa_rtpoll;
+typedef struct pa_rtpoll_item pa_rtpoll_item;
+typedef struct pa_queue pa_queue;
+typedef struct pa_format_info pa_format_info;
+typedef struct pa_memblockq pa_memblockq;
 
 
 /* This is a bitmask that encodes the cause why a sink/source is
@@ -47,6 +58,7 @@ typedef enum pa_suspend_cause {
     PA_SUSPEND_APPLICATION = 2,  /* Used by the device reservation logic */
     PA_SUSPEND_IDLE = 4,         /* Used by module-suspend-on-idle */
     PA_SUSPEND_SESSION = 8,      /* Used by module-hal for mark inactive sessions */
+    PA_SUSPEND_PASSTHROUGH = 16, /* Used to suspend monitor sources when the sink is in passthrough mode */
     PA_SUSPEND_ALL = 0xFFFF      /* Magic cause that can be used to resume forcibly */
 } pa_suspend_cause_t;
 
@@ -54,7 +66,6 @@ typedef enum pa_suspend_cause {
 /*#include <pulsecore/hashmap.h>*/
 #include <pulsecore/memblock.h>
 #include <pulsecore/resampler.h>
-#include <pulsecore/queue.h>
 #include <pulsecore/llist.h>
 #include <pulsecore/hook-list.h>
 /*#include <pulsecore/asyncmsgq.h>*/
@@ -62,7 +73,6 @@ typedef enum pa_suspend_cause {
 /*#include <pulsecore/sink.h>*/
 /*#include <pulsecore/source.h>*/
 /*#include <pulsecore/core-subscribe.h>*/
-/*#include <pulsecore/sink-input.h>*/
 #include <pulsecore/msgobject.h>
 
 typedef enum pa_server_type {
@@ -86,6 +96,7 @@ typedef enum pa_core_hook {
     PA_CORE_HOOK_SINK_UNLINK_POST,
     PA_CORE_HOOK_SINK_STATE_CHANGED,
     PA_CORE_HOOK_SINK_PROPLIST_CHANGED,
+    PA_CORE_HOOK_SINK_PORT_CHANGED,
     PA_CORE_HOOK_SOURCE_NEW,
     PA_CORE_HOOK_SOURCE_FIXATE,
     PA_CORE_HOOK_SOURCE_PUT,
@@ -93,6 +104,7 @@ typedef enum pa_core_hook {
     PA_CORE_HOOK_SOURCE_UNLINK_POST,
     PA_CORE_HOOK_SOURCE_STATE_CHANGED,
     PA_CORE_HOOK_SOURCE_PROPLIST_CHANGED,
+    PA_CORE_HOOK_SOURCE_PORT_CHANGED,
     PA_CORE_HOOK_SINK_INPUT_NEW,
     PA_CORE_HOOK_SINK_INPUT_FIXATE,
     PA_CORE_HOOK_SINK_INPUT_PUT,
@@ -123,6 +135,7 @@ typedef enum pa_core_hook {
     PA_CORE_HOOK_CARD_NEW,
     PA_CORE_HOOK_CARD_PUT,
     PA_CORE_HOOK_CARD_UNLINK,
+    PA_CORE_HOOK_CARD_PROFILE_CHANGED,
     PA_CORE_HOOK_MAX
 } pa_core_hook_t;
 

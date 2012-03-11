@@ -29,6 +29,7 @@
 
 #include "playbackworker.h"
 //#include <os2.h>
+#include <math.h>
 #include <stdint.h>
 // For some reason the above include does not work.
 # define UINT32_MAX     (4294967295U)

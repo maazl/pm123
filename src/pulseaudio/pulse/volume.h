@@ -116,19 +116,26 @@ typedef uint32_t pa_volume_t;
 /** Maximum valid volume we can store. \since 0.9.15 */
 #define PA_VOLUME_MAX ((pa_volume_t) UINT32_MAX/2)
 
+/** Recommended maximum volume to show in user facing UIs.
+ * Note: UIs should deal gracefully with volumes greater than this value
+ * and not cause feedback loops etc. - i.e. if the volume is more than
+ * this, the UI should not limit it and push the limited value back to
+ * the server. \since 0.9.23 */
+#define PA_VOLUME_UI_MAX (pa_sw_volume_from_dB(+11.0))
+
 /** Special 'invalid' volume. \since 0.9.16 */
 #define PA_VOLUME_INVALID ((pa_volume_t) UINT32_MAX)
 
-/** Check if volume is valid. \since 0.9.22 */
+/** Check if volume is valid. \since 1.0 */
 #define PA_VOLUME_IS_VALID(v) ((v) <= PA_VOLUME_MAX)
 
-/** Clamp volume to the permitted range. \since 0.9.22 */
+/** Clamp volume to the permitted range. \since 1.0 */
 #define PA_CLAMP_VOLUME(v) (PA_CLAMP_UNLIKELY((v), PA_VOLUME_MUTED, PA_VOLUME_MAX))
 
 /** A structure encapsulating a per-channel volume */
 typedef struct pa_cvolume {
     uint8_t channels;                     /**< Number of channels */
-    pa_volume_t values[PA_CHANNELS_MAX];  /**< Per-channel volume  */
+    pa_volume_t values[PA_CHANNELS_MAX];  /**< Per-channel volume */
 } pa_cvolume;
 
 /** Return non-zero when *a == *b */

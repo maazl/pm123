@@ -31,6 +31,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/pulseaudio/json-c}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1053245929" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="HAVE_CONFIG_H"/>
@@ -39,6 +40,7 @@
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="_System"/>
 									<listOptionValue builtIn="false" value="INCL_ERRORS"/>
+									<listOptionValue builtIn="false" value="TCPV40HDRS=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.519522574" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

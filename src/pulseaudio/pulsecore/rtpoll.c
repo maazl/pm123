@@ -26,7 +26,6 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#include <signal.h>
 #include <string.h>
 #include <errno.h>
 
@@ -40,7 +39,6 @@
 #include <pulsecore/llist.h>
 #include <pulsecore/flist.h>
 #include <pulsecore/core-util.h>
-#include <pulsecore/winsock.h>
 #include <pulsecore/ratelimit.h>
 #include <pulse/rtclock.h>
 
@@ -125,7 +123,7 @@ static void rtpoll_rebuild(pa_rtpoll *p) {
 
     for (i = p->items; i; i = i->next) {
 
-        if (i->n_pollfd > 0)  {
+        if (i->n_pollfd > 0) {
             size_t l = i->n_pollfd * sizeof(struct pollfd);
 
             if (i->pollfd)

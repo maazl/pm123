@@ -32,6 +32,7 @@
 /*#include <ltdl.h>*/
 #include <sys/stat.h>
 #include <dirent.h>
+#include <time.h>
 
 #include <pulse/xmalloc.h>
 #include <pulse/error.h>
@@ -39,6 +40,7 @@
 #include <pulsecore/module.h>
 #include <pulsecore/sink.h>
 #include <pulsecore/source.h>
+#include <pulsecore/card.h>
 #include <pulsecore/client.h>
 #include <pulsecore/sink-input.h>
 #include <pulsecore/source-output.h>
@@ -47,7 +49,6 @@
 #include <pulsecore/namereg.h>
 #include <pulsecore/cli-text.h>
 #include <pulsecore/core-scache.h>
-#include <pulsecore/sample-util.h>
 #include <pulsecore/sound-file.h>
 #include <pulsecore/play-memchunk.h>
 #include <pulsecore/sound-file-stream.h>
@@ -579,8 +580,13 @@ static int pa_cli_command_sink_input_volume(pa_core *c, pa_tokenizer *t, pa_strb
         return -1;
     }
 
-    if (!(si = pa_idxset_get_by_index(c->sink_inputs, (uint32_t) idx))) {
+    if (!(si = pa_idxset_get_by_index(c->sink_inputs, idx))) {
         pa_strbuf_puts(buf, "No sink input found with this index.\n");
+        return -1;
+    }
+
+    if (!si->volume_writable) {
+        pa_strbuf_puts(buf, "This sink input's volume can't be changed.\n");
         return -1;
     }
 
@@ -626,7 +632,7 @@ static int pa_cli_command_source_volume(pa_core *c, pa_tokenizer *t, pa_strbuf *
     }
 
     pa_cvolume_set(&cvolume, 1, volume);
-    pa_source_set_volume(source, &cvolume, TRUE);
+    pa_source_set_volume(source, &cvolume, TRUE, TRUE);
     return 0;
 }
 
@@ -1569,8 +1575,10 @@ static int pa_cli_command_dump(pa_core *c, pa_tokenizer *t, pa_strbuf *buf, pa_b
     pa_card *card;
     pa_bool_t nl;
     uint32_t idx;
-    char txt[256];
     time_t now;
+#ifdef HAVE_CTIME_R
+    char txt[256];
+#endif
 
     pa_core_assert_ref(c);
     pa_assert(t);

@@ -24,27 +24,23 @@
 #include <config.h>
 #endif
 
-#include <pulse/timeval.h>
 #include <pulsecore/random.h>
 #include <pulsecore/macro.h>
-#include <pulsecore/g711.h>
-#include <pulsecore/core-util.h>
+#include <pulsecore/endianmacros.h>
 
 #include "cpu-arm.h"
 
 #include "sample-util.h"
-#include "endianmacros.h"
 
-#if defined (__arm__)
+#if defined (__arm__) && defined (HAVE_ARMV6)
 
 #define MOD_INC() \
     " subs  r0, r6, %2              \n\t" \
+    " itt cs                        \n\t" \
     " addcs r0, %1                  \n\t" \
     " movcs r6, r0                  \n\t"
 
-static void
-pa_volume_s16ne_arm (int16_t *samples, int32_t *volumes, unsigned channels, unsigned length)
-{
+static void pa_volume_s16ne_arm(int16_t *samples, int32_t *volumes, unsigned channels, unsigned length) {
     int32_t *ve;
 
     /* Channels must be at least 4, and always a multiple of the original number.
@@ -129,11 +125,12 @@ pa_volume_s16ne_arm (int16_t *samples, int32_t *volumes, unsigned channels, unsi
 
 #ifdef RUN_TEST
 #define CHANNELS 2
-#define SAMPLES 1023
+#define SAMPLES 1022
 #define TIMES 1000
+#define TIMES2 100
 #define PADDING 16
 
-static void run_test (void) {
+static void run_test(void) {
     int16_t samples[SAMPLES];
     int16_t samples_ref[SAMPLES];
     int16_t samples_orig[SAMPLES];
@@ -141,58 +138,81 @@ static void run_test (void) {
     int i, j, padding;
     pa_do_volume_func_t func;
     pa_usec_t start, stop;
+    int k;
+    pa_usec_t min = INT_MAX, max = 0;
+    double s1 = 0, s2 = 0;
 
-    func = pa_get_volume_func (PA_SAMPLE_S16NE);
+    func = pa_get_volume_func(PA_SAMPLE_S16NE);
 
-    printf ("checking ARM %zd\n", sizeof (samples));
+    printf("checking ARM %zd\n", sizeof(samples));
 
-    pa_random (samples, sizeof (samples));
-    memcpy (samples_ref, samples, sizeof (samples));
-    memcpy (samples_orig, samples, sizeof (samples));
+    pa_random(samples, sizeof(samples));
+    memcpy(samples_ref, samples, sizeof(samples));
+    memcpy(samples_orig, samples, sizeof(samples));
 
     for (i = 0; i < CHANNELS; i++)
-        volumes[i] = rand() >> 1;
+        volumes[i] = PA_CLAMP_VOLUME(rand() >> 1);
     for (padding = 0; padding < PADDING; padding++, i++)
         volumes[i] = volumes[padding];
 
-    func (samples_ref, volumes, CHANNELS, sizeof (samples));
-    pa_volume_s16ne_arm (samples, volumes, CHANNELS, sizeof (samples));
+    func(samples_ref, volumes, CHANNELS, sizeof(samples));
+    pa_volume_s16ne_arm(samples, volumes, CHANNELS, sizeof(samples));
     for (i = 0; i < SAMPLES; i++) {
         if (samples[i] != samples_ref[i]) {
             printf ("%d: %04x != %04x (%04x * %04x)\n", i, samples[i], samples_ref[i],
-                  samples_orig[i], volumes[i % CHANNELS]);
+                      samples_orig[i], volumes[i % CHANNELS]);
         }
     }
 
-    start = pa_rtclock_now();
-    for (j = 0; j < TIMES; j++) {
-        memcpy (samples, samples_orig, sizeof (samples));
-        pa_volume_s16ne_arm (samples, volumes, CHANNELS, sizeof (samples));
-    }
-    stop = pa_rtclock_now();
-    pa_log_info("ARM: %llu usec.", (long long unsigned int) (stop - start));
+    for (k = 0; k < TIMES2; k++) {
+        start = pa_rtclock_now();
+        for (j = 0; j < TIMES; j++) {
+            memcpy(samples, samples_orig, sizeof(samples));
+            pa_volume_s16ne_arm(samples, volumes, CHANNELS, sizeof(samples));
+        }
+        stop = pa_rtclock_now();
 
-    start = pa_rtclock_now();
-    for (j = 0; j < TIMES; j++) {
-        memcpy (samples_ref, samples_orig, sizeof (samples));
-        func (samples_ref, volumes, CHANNELS, sizeof (samples));
+        if (min > (stop - start)) min = stop - start;
+        if (max < (stop - start)) max = stop - start;
+        s1 += stop - start;
+        s2 += (stop - start) * (stop - start);
     }
-    stop = pa_rtclock_now();
-    pa_log_info("ref: %llu usec.", (long long unsigned int) (stop - start));
+    pa_log_info("ARM: %llu usec (min = %llu, max = %llu, stddev = %g).", (long long unsigned int)s1,
+            (long long unsigned int)min, (long long unsigned int)max, sqrt(TIMES2 * s2 - s1 * s1) / TIMES2);
+
+    min = INT_MAX; max = 0;
+    s1 = s2 = 0;
+    for (k = 0; k < TIMES2; k++) {
+        start = pa_rtclock_now();
+        for (j = 0; j < TIMES; j++) {
+            memcpy(samples_ref, samples_orig, sizeof(samples));
+            func(samples_ref, volumes, CHANNELS, sizeof(samples));
+        }
+        stop = pa_rtclock_now();
+
+        if (min > (stop - start)) min = stop - start;
+        if (max < (stop - start)) max = stop - start;
+        s1 += stop - start;
+        s2 += (stop - start) * (stop - start);
+    }
+    pa_log_info("ref: %llu usec (min = %llu, max = %llu, stddev = %g).", (long long unsigned int)s1,
+            (long long unsigned int)min, (long long unsigned int)max, sqrt(TIMES2 * s2 - s1 * s1) / TIMES2);
+
+    pa_assert_se(memcmp(samples_ref, samples, sizeof(samples)) == 0);
 }
 #endif
 
-#endif /* defined (__arm__) */
+#endif /* defined (__arm__) && defined (HAVE_ARMV6) */
 
 
-void pa_volume_func_init_arm (pa_cpu_arm_flag_t flags) {
-#if defined (__arm__)
+void pa_volume_func_init_arm(pa_cpu_arm_flag_t flags) {
+#if defined (__arm__) && defined (HAVE_ARMV6)
     pa_log_info("Initialising ARM optimized functions.");
 
 #ifdef RUN_TEST
-    run_test ();
+    run_test();
 #endif
 
-    pa_set_volume_func (PA_SAMPLE_S16NE,     (pa_do_volume_func_t) pa_volume_s16ne_arm);
-#endif /* defined (__arm__) */
+    pa_set_volume_func(PA_SAMPLE_S16NE, (pa_do_volume_func_t) pa_volume_s16ne_arm);
+#endif /* defined (__arm__) && defined (HAVE_ARMV6) */
 }

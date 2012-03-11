@@ -24,14 +24,11 @@
 #include <config.h>
 #endif
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <ctype.h>
 
-#include <pulse/timeval.h>
 #include <pulse/xmalloc.h>
 #include <pulse/proplist.h>
 
@@ -121,7 +118,7 @@ pa_module* pa_module_load(pa_core *c, const char *name, const char *argument) {
     m->unload_requested = FALSE;
 
     if (m->init(m) < 0) {
-        pa_log_error("Failed to load  module \"%s\" (argument: \"%s\"): initialization failed.", name, argument ? argument : "");
+        pa_log_error("Failed to load module \"%s\" (argument: \"%s\"): initialization failed.", name, argument ? argument : "");
         goto fail;
     }
 

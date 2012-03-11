@@ -355,12 +355,12 @@ typedef struct _DECODER_PARAMS2
   DECFASTMODE  Fast;        /* fast forward/rewind */
 
   /* --- DECODER_SETUP */
-    /* specify a function which the decoder should use for output */
-    int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
-    void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-    /* decoder events */
-    void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
-    void* A;                  /* only to be used with the precedent functions */
+  /* specify a function which the decoder should use for output */
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+  /* decoder events */
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void* A;                  /* only to be used with the precedent functions */
 
   /* --- DECODER_SAVEDATA */
   xstring      SaveFilename;

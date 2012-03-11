@@ -31,6 +31,7 @@
 
 #include "pulse123.h"
 #include "pawrapper.h"
+#include <output_plug.h>
 #include <cpp/smartptr.h>
 #include <cpp/mutex.h>
 #include <charset.h>
@@ -97,7 +98,7 @@ class PlaybackWorker
  private:
   PAContext          Context;
   PASampleSpec       SS;
-  PASinkInput        Stream;
+  PASinkOutput       Stream;
  private:
   void DLLENTRYP(OutputEvent)(void* w, OUTEVENTTYPE event);
   void*              W;

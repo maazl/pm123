@@ -30,8 +30,9 @@
 
 #include <pulse/xmalloc.h>
 
-#include <pulsecore/winsock.h>
+#include <pulsecore/socket.h>
 #include <pulsecore/core-error.h>
+#include <pulsecore/core-util.h>
 #include <pulsecore/log.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/refcnt.h>

@@ -28,13 +28,7 @@
 #error "Please include config.h before including this file!"
 #endif
 
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
+#include <pulsecore/socket.h>
 
 typedef struct pa_creds pa_creds;
 

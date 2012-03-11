@@ -42,7 +42,10 @@
 #include <pulsecore/log.h>
 #include <pulsecore/hashmap.h>
 #include <pulsecore/semaphore.h>
+#include <pulsecore/mutex.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/refcnt.h>
+#include <pulsecore/llist.h>
 #include <pulsecore/flist.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/memtrap.h>
@@ -82,7 +85,7 @@ struct pa_memblock {
             pa_free_cb_t free_cb;
         } user;
 
-        struct  {
+        struct {
             uint32_t id;
             pa_memimport_segment *segment;
         } imported;
@@ -258,7 +261,7 @@ static struct mempool_slot* mempool_allocate_slot(pa_mempool *p) {
             slot = (struct mempool_slot*) ((uint8_t*) p->memory.ptr + (p->block_size * (size_t) idx));
 
         if (!slot) {
-            if (pa_log_ratelimit())
+            if (pa_log_ratelimit(PA_LOG_DEBUG))
                 pa_log_debug("Pool full");
             pa_atomic_inc(&p->stat.n_pool_full);
             return NULL;
@@ -531,9 +534,7 @@ static void memblock_free(pa_memblock *b) {
 
             pa_mutex_lock(import->mutex);
 
-            pa_assert_se(pa_hashmap_remove(
-                                 import->blocks,
-                                 PA_UINT32_TO_PTR(b->per_type.imported.id)));
+            pa_assert_se(pa_hashmap_remove(import->blocks, PA_UINT32_TO_PTR(b->per_type.imported.id)));
 
             pa_assert(segment->n_blocks >= 1);
             if (-- segment->n_blocks <= 0)
@@ -693,9 +694,7 @@ static void memblock_replace_import(pa_memblock *b) {
 
     pa_mutex_lock(import->mutex);
 
-    pa_assert_se(pa_hashmap_remove(
-                         import->blocks,
-                         PA_UINT32_TO_PTR(b->per_type.imported.id)));
+    pa_assert_se(pa_hashmap_remove(import->blocks, PA_UINT32_TO_PTR(b->per_type.imported.id)));
 
     memblock_make_local(b);
 

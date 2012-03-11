@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 #include <pulse/sample.h>
+#include <pulse/format.h>
 #include <pulse/channelmap.h>
 #include <pulse/volume.h>
 #include <pulse/def.h>
@@ -266,7 +267,7 @@
  * pa_stream_get_time() and pa_stream_get_latency() will try to
  * interpolate the current playback time/latency by estimating the
  * number of samples that have been played back by the hardware since
- * the last regular timing update. It is espcially useful to combine
+ * the last regular timing update. It is especially useful to combine
  * this option with PA_STREAM_AUTO_TIMING_UPDATE, which will enable
  * you to monitor the current playback time/latency very precisely and
  * very frequently without requiring a network round trip every time.
@@ -354,6 +355,17 @@ pa_stream* pa_stream_new_with_proplist(
         const char *name                  /**< A name for this stream */,
         const pa_sample_spec *ss          /**< The desired sample format */,
         const pa_channel_map *map         /**< The desired channel map, or NULL for default */,
+        pa_proplist *p                    /**< The initial property list */);
+
+/* Create a new, unconnected stream with the specified name, the set of formats
+ * this client can provide, and an initial list of properties. While
+ * connecting, the server will select the most appropriate format which the
+ * client must then provide. \since 1.0 */
+pa_stream *pa_stream_new_extended(
+        pa_context *c                     /**< The context to create this stream in */,
+        const char *name                  /**< A name for this stream */,
+        pa_format_info * const * formats  /**< The list of formats that can be provided */,
+        unsigned int n_formats            /**< The number of formats being passed in */,
         pa_proplist *p                    /**< The initial property list */);
 
 /** Decrease the reference counter by one */
@@ -697,6 +709,9 @@ const pa_sample_spec* pa_stream_get_sample_spec(pa_stream *s);
 
 /** Return a pointer to the stream's channel map. */
 const pa_channel_map* pa_stream_get_channel_map(pa_stream *s);
+
+/** Return a pointer to the stream's format \since 1.0 */
+const pa_format_info* pa_stream_get_format_info(pa_stream *s);
 
 /** Return the per-stream server-side buffer metrics of the
  * stream. Only valid after the stream has been connected successfuly

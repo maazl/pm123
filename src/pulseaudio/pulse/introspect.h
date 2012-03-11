@@ -32,6 +32,7 @@
 #include <pulse/channelmap.h>
 #include <pulse/volume.h>
 #include <pulse/proplist.h>
+#include <pulse/format.h>
 #include <pulse/version.h>
 
 /** \page introspect Server Query and Control
@@ -163,9 +164,8 @@
  *
  * If an application desires to modify the volume of just a single stream
  * (commonly one of its own streams), this can be done by setting the volume
- * of its associated sink input, using pa_context_set_sink_input_volume().
- *
- * There is no support for modifying the volume of source outputs.
+ * of its associated sink input or source output, using
+ * pa_context_set_sink_input_volume() or pa_context_set_source_output_volume()
  *
  * It is also possible to remove sink inputs and source outputs, terminating
  * the streams associated with them:
@@ -230,6 +230,8 @@ typedef struct pa_sink_info {
     uint32_t n_ports;                  /**< Number of entries in port array \since 0.9.16 */
     pa_sink_port_info** ports;         /**< Array of available ports, or NULL. Array is terminated by an entry set to NULL. The number of entries is stored in n_ports \since 0.9.16 */
     pa_sink_port_info* active_port;    /**< Pointer to active port in the array, or NULL \since 0.9.16 */
+    uint8_t n_formats;                 /**< Number of formats supported by the sink. \since 1.0 */
+    pa_format_info **formats;          /**< Array of formats supported by the sink. \since 1.0 */
 } pa_sink_info;
 
 /** Callback prototype for pa_context_get_sink_info_by_name() and friends */
@@ -307,6 +309,8 @@ typedef struct pa_source_info {
     uint32_t n_ports;                   /**< Number of entries in port array \since 0.9.16 */
     pa_source_port_info** ports;        /**< Array of available ports, or NULL. Array is terminated by an entry set to NULL. The number of entries is stored in n_ports \since 0.9.16  */
     pa_source_port_info* active_port;   /**< Pointer to active port in the array, or NULL \since 0.9.16  */
+    uint8_t n_formats;                  /**< Number of formats supported by the source. \since 1.0 */
+    pa_format_info **formats;           /**< Array of formats supported by the source. \since 1.0 */
 } pa_source_info;
 
 /** Callback prototype for pa_context_get_source_info_by_name() and friends */
@@ -502,7 +506,10 @@ typedef struct pa_sink_input_info {
     const char *driver;                  /**< Driver name */
     int mute;                            /**< Stream muted \since 0.9.7 */
     pa_proplist *proplist;               /**< Property list \since 0.9.11 */
-    int corked;                          /**< Stream corked \since 0.9.22 */
+    int corked;                          /**< Stream corked \since 1.0 */
+    int has_volume;                      /**< Stream has volume. If not set, then the meaning of this struct's volume member is unspecified. \since 1.0 */
+    int volume_writable;                 /**< The volume can be set. If not set, the volume can still change even though clients can't control the volume. \since 1.0 */
+    pa_format_info *format;              /**< Stream format information. \since 1.0 */
 } pa_sink_input_info;
 
 /** Callback prototype for pa_context_get_sink_input_info() and friends*/
@@ -549,7 +556,12 @@ typedef struct pa_source_output_info {
     const char *resample_method;         /**< The resampling method used by this source output. */
     const char *driver;                  /**< Driver name */
     pa_proplist *proplist;               /**< Property list \since 0.9.11 */
-    int corked;                          /**< Stream corked \since 0.9.22 */
+    int corked;                          /**< Stream corked \since 1.0 */
+    pa_cvolume volume;                   /**< The volume of this source output \since 1.0 */
+    int mute;                            /**< Stream muted \since 1.0 */
+    int has_volume;                      /**< Stream has volume. If not set, then the meaning of this struct's volume member is unspecified. \since 1.0 */
+    int volume_writable;                 /**< The volume can be set. If not set, the volume can still change even though clients can't control the volume. \since 1.0 */
+    pa_format_info *format;              /**< Stream format information. \since 1.0 */
 } pa_source_output_info;
 
 /** Callback prototype for pa_context_get_source_output_info() and friends*/
@@ -566,6 +578,12 @@ pa_operation* pa_context_move_source_output_by_name(pa_context *c, uint32_t idx,
 
 /** Move the specified source output to a different source. \since 0.9.5 */
 pa_operation* pa_context_move_source_output_by_index(pa_context *c, uint32_t idx, uint32_t source_idx, pa_context_success_cb_t cb, void* userdata);
+
+/** Set the volume of a source output stream \since 1.0 */
+pa_operation* pa_context_set_source_output_volume(pa_context *c, uint32_t idx, const pa_cvolume *volume, pa_context_success_cb_t cb, void *userdata);
+
+/** Set the mute switch of a source output stream \since 1.0 */
+pa_operation* pa_context_set_source_output_mute(pa_context *c, uint32_t idx, int mute, pa_context_success_cb_t cb, void *userdata);
 
 /** Kill a source output. */
 pa_operation* pa_context_kill_source_output(pa_context *c, uint32_t idx, pa_context_success_cb_t cb, void *userdata);

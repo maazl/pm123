@@ -36,6 +36,7 @@ typedef enum pa_log_target {
     PA_LOG_STDERR,  /* default */
     PA_LOG_SYSLOG,
     PA_LOG_NULL,    /* to /dev/null */
+    PA_LOG_FD,      /* to a file descriptor, e.g. a char device */
     PA_LOG_TARGET_MAX
 } pa_log_target_t;
 
@@ -73,6 +74,10 @@ void pa_log_set_level(pa_log_level_t l);
 
 /* Set flags */
 void pa_log_set_flags(pa_log_flags_t flags, pa_log_merge_t merge);
+
+/* Set the file descriptor of the logging device.
+   Daemon conf is in charge of opening this device */
+void pa_log_set_fd(int fd);
 
 /* Enable backtrace */
 void pa_log_set_show_backtrace(unsigned nlevels);
@@ -131,10 +136,16 @@ LOG_FUNC(notice, PA_LOG_NOTICE)
 LOG_FUNC(warn, PA_LOG_WARN)
 LOG_FUNC(error, PA_LOG_ERROR)
 
+PA_GCC_UNUSED static void pa_logl(pa_log_level_t level, const char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+    pa_log_levelv_meta(level, NULL, 0, NULL, format, ap);
+    va_end(ap);
+}
 #endif
 
 #define pa_log pa_log_error
 
-pa_bool_t pa_log_ratelimit(void);
+pa_bool_t pa_log_ratelimit(pa_log_level_t level);
 
 #endif

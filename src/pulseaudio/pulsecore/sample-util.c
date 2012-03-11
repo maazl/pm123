@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <math.h>
 
 #include <pulse/timeval.h>
 
@@ -37,9 +38,9 @@
 #include <pulsecore/macro.h>
 #include <pulsecore/g711.h>
 #include <pulsecore/core-util.h>
+#include <pulsecore/endianmacros.h>
 
 #include "sample-util.h"
-#include "endianmacros.h"
 
 #define PA_SILENCE_MAX (PA_PAGE_SIZE*16)
 
@@ -752,7 +753,7 @@ void pa_volume_memchunk(
       return;
     }
 
-    do_volume = pa_get_volume_func (spec->format);
+    do_volume = pa_get_volume_func(spec->format);
     pa_assert(do_volume);
 
     calc_volume_table[spec->format] ((void *)linear, volume);

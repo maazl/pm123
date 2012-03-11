@@ -38,6 +38,7 @@
 #include <syslog.h>
 #endif
 
+#include <pulse/gccmacro.h>
 #include <pulse/rtclock.h>
 #include <pulse/utf8.h>
 #include <pulse/xmalloc.h>
@@ -46,7 +47,6 @@
 
 #include <pulsecore/macro.h>
 #include <pulsecore/core-util.h>
-#include <pulsecore/core-rtclock.h>
 #include <pulsecore/once.h>
 #include <pulsecore/ratelimit.h>
 
@@ -70,6 +70,7 @@ static pa_log_level_t maximum_level = PA_LOG_ERROR, maximum_level_override = PA_
 static unsigned show_backtrace = 0, show_backtrace_override = 0, skip_backtrace = 0;
 static pa_log_flags_t flags = 0, flags_override = 0;
 static pa_bool_t no_rate_limit = FALSE;
+static int log_fd = -1;
 
 #ifdef HAVE_SYSLOG_H
 static const int level_to_syslog[] = {
@@ -126,6 +127,15 @@ void pa_log_set_flags(pa_log_flags_t _flags, pa_log_merge_t merge) {
         flags &= ~_flags;
     else
         flags = _flags;
+}
+
+void pa_log_set_fd(int fd) {
+    if (fd >= 0)
+        log_fd = fd;
+    else if (log_fd >= 0) {
+        pa_close(log_fd);
+        log_fd = -1;
+    }
 }
 
 void pa_log_set_show_backtrace(unsigned nlevels) {
@@ -374,6 +384,9 @@ void pa_log_levelv_meta(
                     fprintf(stderr, "%s%c: %s%s%s%s%s%s\n", timestamp, level_to_char[level], location, prefix, t, grey, pa_strempty(bt), suffix);
                 else
                     fprintf(stderr, "%s%s%s%s%s%s%s\n", timestamp, location, prefix, t, grey, pa_strempty(bt), suffix);
+#ifdef OS_IS_WIN32
+                fflush(stderr);
+#endif
 
                 pa_xfree(local_t);
 
@@ -396,6 +409,23 @@ void pa_log_levelv_meta(
             }
 #endif
 
+            case PA_LOG_FD: {
+                if (log_fd >= 0) {
+                    char metadata[256];
+
+                    pa_snprintf(metadata, sizeof(metadata), "\n%c %s %s", level_to_char[level], timestamp, location);
+
+                    if ((write(log_fd, metadata, strlen(metadata)) < 0) || (write(log_fd, t, strlen(t)) < 0)) {
+                        saved_errno = errno;
+                        pa_log_set_fd(-1);
+                        fprintf(stderr, "%s\n", "Error writing logs to a file descriptor. Redirect log messages to console.");
+                        fprintf(stderr, "%s %s\n", metadata, t);
+                        pa_log_set_target(PA_LOG_STDERR);
+                    }
+                }
+
+                break;
+            }
             case PA_LOG_NULL:
             default:
                 break;
@@ -431,7 +461,7 @@ void pa_log_level(pa_log_level_t level, const char *format, ...) {
     va_end(ap);
 }
 
-pa_bool_t pa_log_ratelimit(void) {
+pa_bool_t pa_log_ratelimit(pa_log_level_t level) {
     /* Not more than 10 messages every 5s */
     static PA_DEFINE_RATELIMIT(ratelimit, 5 * PA_USEC_PER_SEC, 10);
 
@@ -440,5 +470,5 @@ pa_bool_t pa_log_ratelimit(void) {
     if (no_rate_limit)
         return TRUE;
 
-    return pa_ratelimit_test(&ratelimit);
+    return pa_ratelimit_test(&ratelimit, level);
 }

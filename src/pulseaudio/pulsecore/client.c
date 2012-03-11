@@ -35,6 +35,7 @@
 #include <pulsecore/log.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/core-util.h>
+#include <pulsecore/idxset.h>
 
 #include "client.h"
 

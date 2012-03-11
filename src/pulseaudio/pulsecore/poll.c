@@ -40,14 +40,14 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 
+#include <pulsecore/socket.h>
 #include <sys/time.h>
-
-#include "winsock.h"
 
 #include <pulsecore/core-util.h>
 #include <pulse/util.h>
@@ -111,7 +111,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout % 1000) * 1000;
 
-    ready = select ((SELECT_TYPE_ARG1) maxfd + 1, SELECT_TYPE_ARG234 &rset,
+    ready = select((SELECT_TYPE_ARG1) maxfd + 1, SELECT_TYPE_ARG234 &rset,
                     SELECT_TYPE_ARG234 &wset, SELECT_TYPE_ARG234 &xset,
                     SELECT_TYPE_ARG5 (timeout == -1 ? NULL : &tv));
 
@@ -121,12 +121,17 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
     if ((ready == -1) && (errno == EBADF)) {
 #endif
         ready = 0;
+        maxfd = -1;
+
+#ifdef OS_IS_WIN32
+        /*
+         * Windows has no fcntl(), so we have to trick around with more
+         * select() calls to find out what went wrong
+         */
 
         FD_ZERO (&rset);
         FD_ZERO (&wset);
         FD_ZERO (&xset);
-
-        maxfd = -1;
 
         for (f = fds; f < &fds[nfds]; ++f) {
             if (f->fd != -1) {
@@ -166,11 +171,30 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
             }
         }
 
+#else /* !OS_IS_WIN32 */
+
+        for (f = fds; f < &fds[nfds]; f++)
+            if (f->fd != -1) {
+                /* use fcntl() to find out whether the descriptor is valid */
+                if (fcntl(f->fd, F_GETFL) != -1) {
+                    if (f->fd > maxfd && (f->events & (POLLIN|POLLOUT|POLLPRI))) {
+                        maxfd = f->fd;
+                        ready++;
+                    }
+                } else {
+                    FD_CLR(f->fd, &rset);
+                    FD_CLR(f->fd, &wset);
+                    FD_CLR(f->fd, &xset);
+                }
+            }
+
+#endif
+
         if (ready) {
         /* Linux alters the tv struct... but it shouldn't matter here ...
          * as we're going to be a little bit out anyway as we've just eaten
          * more than a couple of cpu cycles above */
-            ready = select ((SELECT_TYPE_ARG1) maxfd + 1, SELECT_TYPE_ARG234 &rset,
+            ready = select((SELECT_TYPE_ARG1) maxfd + 1, SELECT_TYPE_ARG234 &rset,
                             SELECT_TYPE_ARG234 &wset, SELECT_TYPE_ARG234 &xset,
                             SELECT_TYPE_ARG5 (timeout == -1 ? NULL : &tv));
         }
@@ -196,11 +220,11 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
                      * connected socket, a server socket, or something else using a
                      * 0-byte recv, and use ioctl(2) to detect POLLHUP.  */
                     r = recv(f->fd, NULL, 0, MSG_PEEK);
-		    if (r == 0 || (r < 0 && errno == ENOTSOCK))
-		        ioctl(f->fd, FIONREAD, &r);
+                    if (r == 0 || (r < 0 && errno == ENOTSOCK))
+                        ioctl(f->fd, FIONREAD, &r);
 
-		    if (r == 0)
-		        f->revents |= POLLHUP;
+                    if (r == 0)
+                        f->revents |= POLLHUP;
 #else /* !OS_IS_DARWIN */
                     if (recv (f->fd, data, 64, MSG_PEEK) == -1) {
                         if (errno == ESHUTDOWN || errno == ECONNRESET ||

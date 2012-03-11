@@ -103,6 +103,7 @@ const amp_cfg Cfg::Default =
   "plist123.dll?enabled=true&filetypes=Playlist&tryothers=0\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n"
+  "pulse123.dll?enabled=true\n"
 , "realeq.dll?enabled=true\n"
   "logvolum.dll?enabled=false\n"
 , "os2audio.dll?enabled=true\n"

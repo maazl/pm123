@@ -25,12 +25,8 @@
 #endif
 
 #include <sys/types.h>
-#include <sys/types.h>
 #include <string.h>
 
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -55,11 +51,8 @@
 #include <pulsecore/llist.h>
 #include <pulsecore/log.h>
 #include <pulsecore/macro.h>
-#include <pulsecore/winsock.h>
-
-#ifndef HAVE_INET_PTON
-#include "inet_pton.h"
-#endif
+#include <pulsecore/socket.h>
+#include <pulsecore/arpa-inet.h>
 
 #include "ipacl.h"
 
@@ -189,7 +182,7 @@ int pa_ip_acl_check(pa_ip_acl *acl, int fd) {
     struct sockaddr_storage sa;
 #endif
     struct acl_entry *e;
-    socklen_t  salen;
+    socklen_t salen;
 
     pa_assert(acl);
     pa_assert(fd >= 0);
@@ -226,7 +219,7 @@ int pa_ip_acl_check(pa_ip_acl *acl, int fd) {
                 return 1;
 #ifdef HAVE_IPV6
         } else if (e->family == AF_INET6) {
-            int i, bits ;
+            int i, bits;
             struct sockaddr_in6 *sai = (struct sockaddr_in6*) &sa;
 
             if (e->bits == 128)

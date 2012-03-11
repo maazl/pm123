@@ -28,7 +28,6 @@
 #include <ctype.h>
 
 #include <pulse/xmalloc.h>
-#include <pulse/util.h>
 
 #include <pulsecore/core-util.h>
 #include <pulsecore/macro.h>
@@ -49,7 +48,7 @@ pa_void_func_t pa_load_sym(lt_dlhandle handle, const char *module, const char *s
     else
       return f;
     #else
-    *(void**) &f = lt_dlsym(handle, symbol);
+    f = (pa_void_func_t) lt_dlsym(handle, symbol);
 
     if (f)
         return f;
@@ -66,7 +65,7 @@ pa_void_func_t pa_load_sym(lt_dlhandle handle, const char *module, const char *s
         if (!isalnum(*c))
             *c = '_';
 
-    *(void**) &f = lt_dlsym(handle, sn);
+    f = (pa_void_func_t) lt_dlsym(handle, sn);
     pa_xfree(sn);
 
     return f;

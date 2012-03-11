@@ -33,6 +33,7 @@
 
 #include <pulsecore/core-util.h>
 #include <pulsecore/macro.h>
+#include <pulsecore/log.h>
 #include <pulsecore/bitset.h>
 #include <pulsecore/sample-util.h>
 

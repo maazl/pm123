@@ -23,10 +23,13 @@
 #include <config.h>
 #endif
 
+#include <sys/time.h>
+
+#include <pulse/timeval.h>
+
 #include <pulsecore/core-rtclock.h>
 
 #include "rtclock.h"
-#include "timeval.h"
 
 pa_usec_t pa_rtclock_now(void) {
     struct timeval tv;

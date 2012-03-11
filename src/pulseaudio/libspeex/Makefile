@@ -26,12 +26,12 @@ OBJECTS = $(OBJECTS) speex_callbacks$(CO) speex_header$(CO) stereo$(CO)
 OBJECTS = $(OBJECTS) vbr$(CO) vq$(CO) window$(CO)
 
 libspeex$(LBO): $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del libspeex$(LBO) 2> nul
-	-@del $(OBJECTS)    2> nul
+	-@del libspeex$(LBO) $(OBJECTS)    2> nul
+
 bits.c:		..\..\include\config.h ..\speex\speex_bits.h arch.h os_support.h
 arch.h:		..\speex\speex_types.h fixed_debug.h fixed_generic.h fixed_arm5e.h fixed_arm4.h fixed_bfin.h
 buffer.c:	..\..\include\config.h os_support.h arch.h ..\speex\speex_buffer.h

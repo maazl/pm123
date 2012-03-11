@@ -35,25 +35,29 @@
 #include <debuglog.h>
 
 
+void PAException::SetException(int err, const xstring& message)
+{ DEBUGLOG(("PAException::SetException(%i, %s)\n", err, message.cdata()));
+  Error = err;
+  Message = message;
+}
+
 PAStreamException::PAStreamException(pa_stream* s, const char* msg)
 { pa_context* context = pa_stream_get_context(s);
   if (!context)
-  { // No context ???
-    Error = PA_ERR_INTERNAL;
-    Message.sprintf("%s, no details available (Stream has no context)", msg);
-  } else
-  { Error = pa_context_errno(context);
-    Message.sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(Error));
+    // No context ???
+    SetException(PA_ERR_INTERNAL, xstring().sprintf("%s, no details available (Stream has no context)", msg));
+  else
+  { int err = pa_context_errno(context);
+    SetException(err, xstring().sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(err)));
   }
 }
 
 PAStreamException::PAStreamException(pa_stream* s, int err, const char* msg)
-{ Error = err;
-  pa_context* context = pa_stream_get_context(s);
+{ pa_context* context = pa_stream_get_context(s);
   if (!context)
-    Message.sprintf("%s (Stream has no context): %s", msg, pa_strerror(Error));
+    SetException(err, xstring().sprintf("%s (Stream has no context): %s", msg, pa_strerror(err)));
   else
-    Message.sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(Error));
+    SetException(err, xstring().sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(err)));
 }
 
 void PAProplist::reference::operator=(const char* value)
@@ -255,13 +259,17 @@ void PAContext::Connect(const char* appname, const char* server, pa_context_flag
 }
 
 void PAContext::Disconnect()
-{ if (!Context)
+{ DEBUGLOG(("PAContext(%p{%p})::Disconnect()\n", this, Context));
+  if (!Context)
     return;
   { Lock lock;
+    pa_context_state_t state = pa_context_get_state(Context);
     //pa_context_disconnect(Context);
     pa_context_unref(Context);
-    MainloopSignal();
     Context = NULL;
+    if (state != PA_CONTEXT_TERMINATED && state != PA_CONTEXT_FAILED)
+      return; // delay MainloopUnref
+    MainloopSignal();
   }
   MainloopUnref();
 }
@@ -279,15 +287,19 @@ void PAContext::WaitReady() throw(PAConnectException)
       throw PAConnectException(Context);
      case PA_CONTEXT_TERMINATED:
       throw PAConnectException(Context, PA_ERR_CONNECTIONTERMINATED);
-     default:;
+     default:
+      throw PAConnectException(Context, PA_ERR_BADSTATE);
+     case PA_CONTEXT_CONNECTING:
+     case PA_CONTEXT_AUTHORIZING:
+     case PA_CONTEXT_SETTING_NAME:;
     }
-
     MainloopWait();
   }
 }
 
 void PAContext::MainloopRef()
-{ if (InterlockedXad(&RefCount, 1) == 0)
+{ DEBUGLOG(("PAContext::MainloopRef() - %u\n", RefCount));
+  if (InterlockedXad(&RefCount, 1) == 0)
   { // First instance => start main loop.
     pa_threaded_mainloop* mainloop = pa_threaded_mainloop_new();
     if (!mainloop)
@@ -302,7 +314,8 @@ void PAContext::MainloopRef()
   }
 }
 void PAContext::MainloopUnref()
-{ pa_threaded_mainloop* mainloop = Mainloop;
+{ DEBUGLOG(("PAContext::MainloopUnref() - %u\n", RefCount));
+  pa_threaded_mainloop* mainloop = Mainloop;
   ASSERT(mainloop);
   if (InterlockedDec(&RefCount))
     return;
@@ -316,9 +329,11 @@ void PAContext::MainloopUnref()
 void PAContext::StateCB(pa_context* c, void* userdata)
 { DEBUGLOG(("PAContext::StateCB(%p, %p)\n", c, userdata));
   PAContext* that = (PAContext*)userdata;
-  that->StateChangeEvent(pa_context_get_state(c));
-  /*if (newstate == PA_CONTEXT_TERMINATED || newstate == PA_CONTEXT_FAILED)
-    MainloopUnref();*/
+  pa_context_state_t newstate = pa_context_get_state(c);
+  if (c == that->Context)
+    that->StateChangeEvent(newstate);
+  else if (newstate == PA_CONTEXT_TERMINATED || newstate == PA_CONTEXT_FAILED)
+    MainloopUnref();
   MainloopSignal();
 }
 
@@ -397,7 +412,8 @@ void PAStream::Disconnect() throw()
   if (Stream)
   { PAContext::Lock lock;
     Terminate = true;
-    pa_stream_disconnect(Stream);
+    pa_stream_unref(Stream);
+    Stream = NULL;
     if (WaitReadyPending)
       PAContext::MainloopSignal();
   }
@@ -468,45 +484,46 @@ void PAStream::StateCB(pa_stream *p, void *userdata) throw()
 }
 
 
-void PASinkInput::Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
+void PASinkOutput::Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
   const char* device, pa_stream_flags_t flags, const pa_cvolume* volume, pa_stream* sync_stream)
 throw(PAContextException)
-{ DEBUGLOG(("PASinkInput(%p{%p})::Connect(...,%s, %x, %p, %p)\n", this, Stream,
+{ DEBUGLOG(("PASinkOutput(%p{%p})::Connect(...,%s, %x, %p, %p)\n", this, Stream,
     device, flags, volume, sync_stream));
   Create(context, name, ss, map, props);
 
-  pa_stream_set_write_callback(Stream, &PASinkInput::WriteCB, this);
-
   PAContext::Lock lock;
+  pa_stream_set_write_callback(Stream, &PASinkOutput::WriteCB, this);
+
   if (pa_stream_connect_playback(Stream, device, &Attr, flags, volume, sync_stream) != 0)
     throw PAStreamException(Stream, xstring().sprintf("Failed to connect playback stream %s", name));
 }
 
-/*void PASinkInput::WaitWritable()
+/*void PASinkOutput::WaitWritable()
 {
   if (pa_stream_writable_size()
 }*/
 
-size_t PASinkInput::WritableSize() throw (PAStreamException)
-{ size_t ret = pa_stream_writable_size(Stream);
+size_t PASinkOutput::WritableSize() throw (PAStreamException)
+{ PAContext::Lock lock;
+  size_t ret = pa_stream_writable_size(Stream);
   if (ret == (size_t)-1)
-    throw PAStreamException(Stream, "WritableSize undefined");
+    throw PAStreamException(Stream, "Writable size undefined");
   return ret;
 }
 
-void* PASinkInput::BeginWrite(size_t& size) throw(PAStreamException)
-{ DEBUGLOG(("PASinkInput(%p{%p})::BeginWrite(&%i)\n", this, Stream, size));
+void* PASinkOutput::BeginWrite(size_t& size) throw(PAStreamException)
+{ DEBUGLOG(("PASinkOutput(%p{%p})::BeginWrite(&%i)\n", this, Stream, size));
   PAContext::Lock lock;
   void* buffer;
   if (pa_stream_begin_write(Stream, &buffer, &size) != 0)
     throw PAStreamException(Stream, "BeginWrite failed for stream");
-  DEBUGLOG(("PASinkInput::BeginWrite: %p, %i\n", buffer, size));
+  DEBUGLOG(("PASinkOutput::BeginWrite: %p, %i\n", buffer, size));
   return buffer;
 }
 
-uint64_t PASinkInput::Write(const void* data, size_t nbytes, int64_t offset, pa_seek_mode_t seek)
+uint64_t PASinkOutput::Write(const void* data, size_t nbytes, int64_t offset, pa_seek_mode_t seek)
 throw(PAStreamException)
-{ DEBUGLOG(("PASinkInput(%p{%p})::Write(%p, %u, %Li, %u)\n", this, Stream,
+{ DEBUGLOG(("PASinkOutput(%p{%p})::Write(%p, %u, %Li, %u)\n", this, Stream,
     data, nbytes, offset, seek));
   PAContext::Lock lock;
   for (;;)
@@ -515,7 +532,7 @@ throw(PAStreamException)
     { if (Terminate)
         throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
       len = WritableSize();
-      DEBUGLOG(("PASinkInput::Write - %u writable bytes\n", len));
+      DEBUGLOG(("PASinkOutput::Write - %u writable bytes\n", len));
       if (len)
         break;
       ++WaitWritePending;
@@ -538,8 +555,8 @@ throw(PAStreamException)
   return ti ? ti->write_index : 0;
 }
 
-void PASinkInput::RunDrain(PABasicOperation& op) throw (PAStreamException)
-{ DEBUGLOG(("PASinkInput(%p{%p})::RunDrain(&%p)\n", this, Stream, &op));
+void PASinkOutput::RunDrain(PABasicOperation& op) throw (PAStreamException)
+{ DEBUGLOG(("PASinkOutput(%p{%p})::RunDrain(&%p)\n", this, Stream, &op));
   PAContext::Lock lock;
   op.Cancel();
   op.Attach(pa_stream_drain(Stream, &PABasicOperation::StreamSuccessCB, &op));
@@ -547,8 +564,8 @@ void PASinkInput::RunDrain(PABasicOperation& op) throw (PAStreamException)
     throw PAStreamException(Stream, "Drain failed for stream");
 }
 
-void PASinkInput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
-{ DEBUGLOG(("PASinkInput(%p{%p})::SetVolume({%u,...})\n", this, Stream, volume->channels));
+void PASinkOutput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
+{ DEBUGLOG(("PASinkOutput(%p{%p})::SetVolume({%u,...})\n", this, Stream, volume->channels));
   PAContext::Lock lock;
   pa_operation* op = pa_context_set_sink_input_volume(pa_stream_get_context(Stream), pa_stream_get_index(Stream), volume, NULL, NULL);
   if (op == NULL)
@@ -556,14 +573,67 @@ void PASinkInput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
   pa_operation_unref(op);
 }
 
-void PASinkInput::SetVolume(pa_volume_t volume) throw (PAStreamException)
+void PASinkOutput::SetVolume(pa_volume_t volume) throw (PAStreamException)
 { PACVolume vol(pa_stream_get_sample_spec(Stream)->channels, volume);
   SetVolume(&vol);
 }
 
-void PASinkInput::WriteCB(pa_stream *p, size_t nbytes, void *userdata) throw()
-{ DEBUGLOG(("PASinkInput::WriteCB(%p, %u, %p)\n", p, nbytes, userdata));
-  PASinkInput& si = *(PASinkInput*)userdata;
+void PASinkOutput::WriteCB(pa_stream *p, size_t nbytes, void *userdata) throw()
+{ DEBUGLOG(("PASinkOutput::WriteCB(%p, %u, %p)\n", p, nbytes, userdata));
+  PASinkOutput& si = *(PASinkOutput*)userdata;
   if (si.WaitWritePending)
+    PAContext::MainloopSignal();
+}
+
+
+void PASourceInput::Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
+  const char* device, pa_stream_flags_t flags) throw(PAContextException)
+{ DEBUGLOG(("PASourceInput(%p{%p})::Connect(...,%s, %x,)\n", this, Stream, device, flags));
+  Create(context, name, ss, map, props);
+
+  PAContext::Lock lock;
+  pa_stream_set_write_callback(Stream, &PASourceInput::ReadCB, this);
+
+  if (pa_stream_connect_record(Stream, device, &Attr, flags) != 0)
+    throw PAStreamException(Stream, xstring().sprintf("Failed to connect record stream %s", name));
+}
+
+size_t PASourceInput::ReadableSize() throw (PAStreamException)
+{ PAContext::Lock lock;
+  size_t ret = pa_stream_readable_size(Stream);
+  if (ret == (size_t)-1)
+    throw PAStreamException(Stream, "Readable size undefined");
+  return ret;
+}
+
+const void* PASourceInput::Peek(size_t& nbytes) throw (PAStreamException)
+{ DEBUGLOG(("PASourceInput(%p{%p})::Peek()\n", this, Stream));
+  PAContext::Lock lock;
+  do
+  { const void* data;
+    if (pa_stream_peek(Stream, &data, &nbytes) != 0)
+      throw PAStreamException(Stream, "Peek failed for stream");
+    if (nbytes)
+      return data;
+
+    ++WaitReadPending;
+    PAContext::MainloopWait();
+    --WaitReadPending;
+
+  } while (!Terminate);
+  throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
+}
+
+void PASourceInput::Drop() throw (PAStreamException)
+{ DEBUGLOG(("PASourceInput(%p{%p})::Drop()\n", this, Stream));
+  PAContext::Lock lock;
+  if (pa_stream_drop(Stream) != 0)
+    throw PAStreamException(Stream, "Drop failed for stream");
+}
+
+void PASourceInput::ReadCB(pa_stream *p, size_t nbytes, void *userdata) throw()
+{ DEBUGLOG(("PASourceInput::ReadCB(%p, %u, %p)\n", p, nbytes, userdata));
+  PASourceInput& si = *(PASourceInput*)userdata;
+  if (si.WaitReadPending)
     PAContext::MainloopSignal();
 }

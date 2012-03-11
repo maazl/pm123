@@ -26,7 +26,6 @@
 #include <pulse/xmalloc.h>
 #include <pulse/timeval.h>
 
-#include <pulsecore/idxset.h>
 #include <pulsecore/core-util.h>
 #include <pulsecore/log.h>
 #include <pulsecore/llist.h>
@@ -34,7 +33,7 @@
 #include <glib.h>
 #include "glib-mainloop.h"
 
-struct pa_io_event  {
+struct pa_io_event {
     pa_glib_mainloop *mainloop;
     int dead;
 
@@ -336,7 +335,7 @@ static void glib_time_restart(pa_time_event*e, const struct timeval *tv) {
             e->mainloop->cached_next_time_event = e;
     } else if (e->mainloop->cached_next_time_event == e)
         e->mainloop->cached_next_time_event = NULL;
- }
+}
 
 static void glib_time_free(pa_time_event *e) {
     g_assert(e);

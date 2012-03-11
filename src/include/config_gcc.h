@@ -40,6 +40,7 @@
 #define HAVE_SETLOCALE    1 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SNPRINTF     1 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_VSNPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
+#define HAVE_VASPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_GETTIMEOFDAY 1 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_FSYNC        1 /* Define to 1 if you have the `fsync' function. */
 #define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
@@ -50,10 +51,6 @@
 #define HAVE_LRINTF       1 /* Define to 1 if you have C99's `lrintf' function. */
 #define HAVE_SSIZE_T      1 /* Define to 1 if the system has the type `ssize_t'. */
 #undef  HAVE_CLOCK_GETTIME  /* Define to 1 if you have the `clock_gettime' function. */
-#ifndef TCPV40HDRS
-#define HAVE_INET_NTOP    1 /* Define to 1 if the system has the type `inet_ntop'. */
-#define HAVE_INET_PTON    1 /* Define to 1 if the system has the type `inet_pton'. */
-#endif
 
 #define HAVE_STDLIB_H     1 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STRING_H     1 /* Define to 1 if you have the <string.h> header file. */
@@ -65,7 +62,9 @@
 #define HAVE_NETINET_IN_H 1 /* Define to 1 if you have the <netinet/in.h> header file. */
 /*#define HAVE_NETINET_IP_H 1 * Define to 1 if you have the <netinet/ip.h> header file. */
 #define HAVE_NETINET_TCP_H 1/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#ifndef TCPV40HDRS /* arpa/inet works only with 32 bit IP stack */
 #define HAVE_ARPA_INET_H  1 /* Define to 1 if you have the <arpa/inet.h> header file. */
+#endif
 #define HAVE_PWD_H        1 /* Define to 1 if you have the <pwd.h> header file. */
 #define HAVE_LIMITS_H     1 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_MEMORY_H     1 /* Define to 1 if you have the <memory.h> header file. */
