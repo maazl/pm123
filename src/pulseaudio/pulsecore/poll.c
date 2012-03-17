@@ -56,11 +56,119 @@
 
 #include <debuglog.h>
 
+
+#if defined(OS_IS_OS2)
+/* The OS/2 select seems to be unreliable. It provides a faster os2_select.
+ */
+int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
+    int* selectfds;
+    int nselectfds;
+    struct pollfd* f;
+    struct pollfd* fdsend = fds + nfds;
+    int nreads, nwrites, nexcepts;
+    int* pselectfd;
+    int ready;
+    int nretry = nfds;
+
+    DEBUGLOG2(("pa_poll(%p, %i, %i)\n", fds, nfds, timeout));
+
+    /* First check how many descriptors we need */
+    nselectfds = 0;
+    for (f = fds; f != fdsend; ++f)
+    {   int events = f->events;
+        nselectfds += !!(events & POLLIN)
+                    + !!(events & POLLPRI)
+                    + !!(events & POLLOUT);
+        f->revents = 0;
+    }
+    selectfds = alloca(nselectfds * sizeof *selectfds);
+
+  retry:
+    /* populate selectfds */
+    nreads = 0;
+    nwrites = 0;
+    nexcepts = 0;
+    pselectfd = selectfds;
+    for (f = fds; f != fdsend; ++f)
+    {   if (f->events & POLLIN)
+        {   *pselectfd++ = f->fd;
+            ++nreads;
+        }
+    }
+    for (f = fds; f != fdsend; ++f)
+    {   if (f->events & POLLOUT)
+        {   *pselectfd++ = f->fd;
+            ++nwrites;
+        }
+    }
+    for (f = fds; f != fdsend; ++f)
+    {   if (f->events & POLLPRI)
+        {   *pselectfd++ = f->fd;
+            ++nexcepts;
+        }
+    }
+
+    /* execute select */
+    DEBUGLOG2(("pa_poll - select(%p, %i, %i, %i, %i)\n", selectfds, nreads, nwrites, nexcepts, timeout));
+    ready = os2_select(selectfds, nreads, nwrites, nexcepts, timeout);
+    DEBUGLOG2(("pa_poll - select: %i, %i\n", ready, sock_errno()));
+
+    if (ready == -1)
+    {   errno = sock_errno();
+        /* One of the descriptors is bad. Find out which one. */
+        int removed = 0;
+        for (f = fds; f != fdsend; ++f)
+            if (f->events != 0)
+            {   if (os2_select(&f->fd, 1, 0, 0, 0) == -1)
+                {   /* do not care any more */
+                    f->events = 0;
+                    ++removed;
+                }
+            }
+        DEBUGLOG2(("pa_poll - recover? %i\n", removed));
+        if (nretry)
+        {   --nretry;
+            goto retry;
+        }
+    } else if (ready)
+    {   /* Find out the descriptors that got ready. */
+        ready = 0;
+        pselectfd = selectfds;
+        for (f = fds; f != fdsend; ++f)
+        {   if (f->events & POLLIN)
+            {   if (*pselectfd++ != -1)
+                {   ++ready;
+                    f->revents = POLLIN;
+                }
+            }
+        }
+        for (f = fds; f != fdsend; ++f)
+        {   if (f->events & POLLOUT)
+            {   if (*pselectfd++ != -1)
+                {   if (!f->revents)
+                        ++ready;
+                    f->revents |= POLLOUT;
+                }
+            }
+        }
+        for (f = fds; f != fdsend; ++f)
+        {   if (f->events & POLLPRI)
+            {   if (*pselectfd++ != -1)
+                {   if (!f->revents)
+                        ++ready;
+                    f->revents |= POLLPRI;
+                }
+            }
+            DEBUGLOG2(("pa_poll: {%i, %x, %x}\n", f->fd, f->events, f->revents));
+        }
+    }
+    return ready;
+}
+
+#elif !defined(HAVE_POLL_H) || defined(OS_IS_DARWIN)
 /* Mac OSX fails to implement poll() in a working way since 10.4. IOW, for
  * several years. We need to enable a dirty workaround and emulate that call
  * with select(), just like for Windows. sic! */
-
-#if !defined(HAVE_POLL_H) || defined(OS_IS_DARWIN)
 
 int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
     struct timeval tv;
@@ -115,11 +223,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
                     SELECT_TYPE_ARG234 &wset, SELECT_TYPE_ARG234 &xset,
                     SELECT_TYPE_ARG5 (timeout == -1 ? NULL : &tv));
 
-#ifdef OS_IS_OS2
-    if ((ready == -1) && (errno == EBADF || errno == ENOTSOCK)) {
-#else
     if ((ready == -1) && (errno == EBADF)) {
-#endif
         ready = 0;
         maxfd = -1;
 

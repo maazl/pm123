@@ -116,7 +116,7 @@ void pa_cond_signal(pa_cond *c, int broadcast) {
     ULONG dummy;
 
     pa_assert(c);
-    DEBUGLOG(("pa_cond_signal(%p{%p}, %i) - %p\n", c, c->wait_queue, broadcast));
+    DEBUGLOG(("pa_cond_signal(%p{%p}, %i)\n", c, c->wait_queue, broadcast));
 
     if (broadcast) {
         we = (cond_wait_entry*)InterlockedXch((volatile unsigned*)&c->wait_queue, NULL);

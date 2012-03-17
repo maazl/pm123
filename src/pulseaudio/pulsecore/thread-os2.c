@@ -153,7 +153,7 @@ static void APIENTRY monitor_thread_func(ULONG param) {
 }
 
 static void init() {
-    DEBUGLOG(("thread-os2:init()\n"));
+    DEBUGLOG(("thread-os2:init() - %p\n", tls_mutex));
     /* Assuming that at least the second thread is created after calling this function
      * the PA_ONCE pattern need not to be thread safe in case the check fails.
      */

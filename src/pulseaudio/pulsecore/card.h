@@ -24,8 +24,6 @@
 
 #include <pulse/proplist.h>
 #include <pulsecore/core.h>
-/*#include <pulsecore/module.h>
-#include <pulsecore/idxset.h>*/
 
 typedef struct pa_card_profile {
     char *name;

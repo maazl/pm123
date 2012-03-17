@@ -51,6 +51,7 @@
 #include <pulsecore/ratelimit.h>
 
 #include "log.h"
+#include <debuglog.h>
 
 #define ENV_LOG_SYSLOG "PULSE_LOG_SYSLOG"
 #define ENV_LOG_LEVEL "PULSE_LOG"
@@ -66,7 +67,11 @@
 static char *ident = NULL; /* in local charset format */
 static pa_log_target_t target = PA_LOG_STDERR, target_override;
 static pa_bool_t target_override_set = FALSE;
+#ifdef DEBUG_LOG
+static pa_log_level_t maximum_level = PA_LOG_WARN, maximum_level_override = PA_LOG_ERROR;
+#else
 static pa_log_level_t maximum_level = PA_LOG_ERROR, maximum_level_override = PA_LOG_ERROR;
+#endif
 static unsigned show_backtrace = 0, show_backtrace_override = 0, skip_backtrace = 0;
 static pa_log_flags_t flags = 0, flags_override = 0;
 static pa_bool_t no_rate_limit = FALSE;
@@ -380,12 +385,19 @@ void pa_log_levelv_meta(
                 if ((local_t = pa_utf8_to_locale(t)))
                     t = local_t;
 
+#ifdef DEBUG_LOG
+                if (_flags & PA_LOG_PRINT_LEVEL)
+                    DEBUGLOG(("%s%c: %s%s%s%s%s%s\n", timestamp, level_to_char[level], location, prefix, t, grey, pa_strempty(bt), suffix));
+                else
+                    DEBUGLOG(("%s%s%s%s%s%s%s\n", timestamp, location, prefix, t, grey, pa_strempty(bt), suffix));
+#else
                 if (_flags & PA_LOG_PRINT_LEVEL)
                     fprintf(stderr, "%s%c: %s%s%s%s%s%s\n", timestamp, level_to_char[level], location, prefix, t, grey, pa_strempty(bt), suffix);
                 else
                     fprintf(stderr, "%s%s%s%s%s%s%s\n", timestamp, location, prefix, t, grey, pa_strempty(bt), suffix);
 #ifdef OS_IS_WIN32
                 fflush(stderr);
+#endif
 #endif
 
                 pa_xfree(local_t);

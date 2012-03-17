@@ -684,13 +684,15 @@ static unsigned dispatch_pollfds(pa_mainloop *m) {
         k--;
     }
 
-    /* better recovery from errors */
+    m->wakeup_requested++;
+    m->rebuild_pollfds = TRUE;
+    /* better recovery from errors
     if (k > (m->wakeup_requested != 0) && !m->quit) {
         pa_log_error("Error poll returned %i more pollfds than ready IO/wakeup events. => Check wakeup pipe, rebuilding pollfds.",
             k - (m->wakeup_requested != 0));
         m->wakeup_requested = 1;
         m->rebuild_pollfds = TRUE;
-    }
+    }*/
 
     return r;
 }
@@ -983,9 +985,10 @@ quit:
 
 int pa_mainloop_run(pa_mainloop *m, int *retval) {
     int r;
-
+    DEBUGLOG(("pa_mainloop_run(%p, %p)\n", m, retval));
     while ((r = pa_mainloop_iterate(m, 1, retval)) >= 0)
         ;
+    DEBUGLOG(("pa_mainloop_run: %i\n", r));
 
     if (r == -2)
         return 1;
