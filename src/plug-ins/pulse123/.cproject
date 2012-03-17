@@ -34,6 +34,7 @@
 									<listOptionValue builtIn="false" value="INCL_WIN=1"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
 									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
+									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1600743343" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

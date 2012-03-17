@@ -327,9 +327,9 @@ void PAContext::MainloopUnref()
 }
 
 void PAContext::StateCB(pa_context* c, void* userdata)
-{ DEBUGLOG(("PAContext::StateCB(%p, %p)\n", c, userdata));
-  PAContext* that = (PAContext*)userdata;
+{ PAContext* that = (PAContext*)userdata;
   pa_context_state_t newstate = pa_context_get_state(c);
+  DEBUGLOG(("PAContext::StateCB(%p, %p): %i\n", c, userdata, newstate));
   if (c == that->Context)
     that->StateChangeEvent(newstate);
   else if (newstate == PA_CONTEXT_TERMINATED || newstate == PA_CONTEXT_FAILED)

@@ -272,7 +272,7 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     SS.channels = info->tech->channels;
     SS.rate = info->tech->samplerate;
 
-    // The context is automatically connected at plug-in initialization,
+    // The context is automatically connected at Init,
     // but at this point we have to synchronize the connection process.
     Context.WaitReady();
     if (Port)
