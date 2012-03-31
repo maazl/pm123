@@ -119,6 +119,8 @@ Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUT
   ASSERT(Callstack.size() >= slice);
 
   APlayable* cur = &GetCurrent();
+  if (cur == NULL)
+    return "Cannot navigate without root.";
   int_ptr<PlayableInstance> pi;
   do
   { Position = 0;
@@ -197,7 +199,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
 
   if (url == "..")
   { if (flat)
-      return "Flat Navigation to .. is not valid.";
+      return "Flat navigation to .. is not valid.";
     return NavigateUp(index);
   }
   
@@ -205,6 +207,8 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
     return "Cannot navigate to index 0.";
 
   APlayable* cur = &GetCurrent();
+  if (cur == NULL)
+    return "Cannot navigate without root.";
   // Request required information
   if (job.RequestInfo(*cur, IF_Tech|IF_Child|IF_Slice))
     return xstring::empty; // Delayed
@@ -375,7 +379,9 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
 { DEBUGLOG(("Location(%p)::Navigate(%f, {%u,}) - %u\n", offset, job.Pri, Callstack.size()));
   
   APlayable* cur = Root;
-  // Request Tech info
+  if (cur == NULL)
+    return "Cannot Navigate without root.";
+    // Request Tech info
   if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
     return xstring::empty; // Delayed
 

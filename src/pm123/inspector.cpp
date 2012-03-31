@@ -74,7 +74,7 @@ void InspectorDialog::SetVisible(bool show)
 MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
-    { BOOL ret = LONGFROMMR(DialogBase::DlgProc(msg, mp1, mp2));
+    { MRESULT ret = DialogBase::DlgProc(msg, mp1, mp2);
       // initial position
       SWP swp;
       PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
@@ -84,7 +84,7 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       sb_setnumlimits(GetHwnd(), SB_AUTOREFRESH, 30, 9999, 4);
       WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_SETCURRENTVALUE, MPFROMLONG(Cfg::Get().insp_autorefresh), 0);
       WinSendDlgItemMsg(GetHwnd(), CB_AUTOREFRESH, BM_SETCHECK, MPFROMSHORT(Cfg::Get().insp_autorefresh_on), 0);
-      return MRFROMLONG(ret);
+      return ret;
     }
 
    case WM_DESTROY:
