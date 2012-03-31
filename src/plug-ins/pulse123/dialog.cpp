@@ -383,9 +383,9 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case DID_OK:
       { Configuration.SourceServer = WinQueryDlgItemXText(GetHwnd(), CB_SERVER);
         const xstring& source = WinQueryDlgItemXText(GetHwnd(), CB_SINKSRC);
-        Configuration.Sink = source.length() && !source.startsWithI("default") ? source : xstring();
+        Configuration.Source = source.length() && !source.startsWithI("default") ? source : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
-        Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
+        Configuration.SourcePort = port.length() && !port.startsWithI("default") ? port : xstring();
         long pos;
         PMRASSERT(SendItemMsg(SB_RATE, SPBM_QUERYVALUE, MPFROMP(&pos), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
         Configuration.SourceRate = atoi(SamplingRates[pos]);

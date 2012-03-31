@@ -212,6 +212,12 @@ void PAOperation::Wait() throw (PAStateException)
   }
 }
 
+void PABasicOperation::EnsureSuccess() throw (PAStateException,PAContextException)
+{ Wait();
+  if (Success != 0)
+    throw PAContextException(Success, "BasicOperation failed");
+}
+
 void PABasicOperation::ContextSuccessCB(pa_context* c, int success, void* userdata)
 { DEBUGLOG(("PABasicOperation::StreamSuccessCB(%p, %i, %p)\n", c, success, userdata));
   PABasicOperation& op = *(PABasicOperation*)userdata;

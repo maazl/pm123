@@ -167,6 +167,11 @@ ULONG RecordWorker::Play(const xstring& url)
 
   try
   { Context.Connect("PM123", Par.Server);
+    if (Par.Port)
+    { PABasicOperation op;
+      Context.SetSourcePort(op, Par.Source, Par.Port);
+      op.EnsureSuccess();
+    }
   } catch (const PAException& ex)
   { Error(ex.GetMessage());
     return ex.GetError();
@@ -244,7 +249,7 @@ void RecordWorker::RecordThread()
         memcpy(target, source, tbytes);
         (*OutCommitBuffer)(A, tcount, (double)SampleOffset / Par.Format.samplerate);
         SampleOffset += tcount;
-        source += tcount;
+        source += tcount * Par.Format.channels;
         sbytes -= tbytes;
         goto next;
       }

@@ -278,6 +278,7 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     if (Port)
     { PABasicOperation op;
       Context.SetSinkPort(op, Sink, Port);
+      op.EnsureSuccess();
     }
     Stream.Connect(Context, "Out", &SS, NULL, pl,
                    Sink, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);

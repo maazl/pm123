@@ -340,6 +340,7 @@ class PABasicOperation : public PAOperation
   event<const int> CompletionEvent;
  public:
   int FetchResult() throw (PAStateException)    { Wait(); return Success; }
+  void EnsureSuccess() throw (PAStateException,PAContextException);
   event_pub<const int>& Completion()            { return CompletionEvent; }
 
   static void ContextSuccessCB(pa_context* c, int success, void* userdata);
