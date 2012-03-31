@@ -16,6 +16,7 @@ EXPORTS
    plugin_query     @10
    plugin_init      @11
    plugin_configure    @12
+   decoder_getwizard @13
 
    decoder_init     @21
    decoder_uninit   @22

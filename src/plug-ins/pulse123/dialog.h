@@ -31,54 +31,74 @@
 #include "pulse123.h"
 #include <plugin.h>
 #include <pawrapper.h>
+#include <decoder_plug.h>
+#include <cpp/event.h>
 #include <cpp/windowbase.h>
 #include <os2.h>
 
 #include <debuglog.h>
 
 
-class ConfigDialog : public NotebookDialogBase
+/// Base class for dialog with introspection API.
+class IntrospectBase : public DialogBase
+{protected:
+  enum
+  { UM_CONNECT = WM_USER+500,
+    UM_STATE_CHANGE,
+    UM_DISCOVER_SERVER,
+    UM_UPDATE_SERVER,
+    UM_UPDATE_PORT
+  };
+ protected:
+  PAContext         Context;
+  PAServerInfoOperation ServerInfoOp;
+  PAServerInfo      Server;
+  PAOperation*      InfoOp;
+ private:
+  class_delegate<IntrospectBase,const pa_context_state_t> StateChangeDeleg;
+  class_delegate<IntrospectBase,const pa_server_info> ServerInfoDeleg;
+ private:
+          void      StateChangeHandler(const pa_context_state_t& args);
+          void      ServerInfoHandler(const pa_server_info& info);
+ protected:
+  IntrospectBase(USHORT rid, HMODULE module);
+  ~IntrospectBase();
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+          void      Cleanup();
+};
+
+/// pulse123 configuration dialog
+class ConfigDialog : public IntrospectBase
 {private:
-  class PlaybackPage : public PageBase
-  {private:
-    enum
-    { UM_CONNECT = WM_USER+500,
-      UM_STATE_CHANGE,
-      UM_DISCOVER_SERVER,
-      UM_UPDATE_SERVER,
-      UM_UPDATE_PORT
-    };
+  PASinkInfoOperation SinkInfoOp;
+  vector_own<PASinkInfo> Sinks;
+  int               SelectedSink;
 
-    PAContext         Context;
-    PAServerInfoOperation ServerInfoOp;
-    PAServerInfo      Server;
-    PASinkInfoOperation SinkInfoOp;
-    vector_own<PASinkInfo> Sinks;
-    int               SelectedSink;
-
-    class_delegate<PlaybackPage,const pa_context_state_t> StateChangeDeleg;
-    class_delegate<PlaybackPage,const pa_server_info> ServerInfoDeleg;
-    class_delegate<PlaybackPage,const PASinkInfoOperation::Args> SinkInfoDeleg;
-   public:
-    PlaybackPage(ConfigDialog& parent);
-    ~PlaybackPage();
-   private:
-    virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-            void      Cleanup();
-            void      StateChangeHandler(const pa_context_state_t& args);
-            void      ServerInfoHandler(const pa_server_info& info);
-            void      SinkInfoHandler(const PASinkInfoOperation::Args& args);
-  };
-  class RecordPage : public PageBase
-  {
-   public:
-    RecordPage(ConfigDialog& parent);
-   private:
-    virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  };
-
- public:
-  ConfigDialog(HWND owner, HMODULE module);
+  class_delegate<ConfigDialog,const PASinkInfoOperation::Args> SinkInfoDeleg;
  private:
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+          void      SinkInfoHandler(const PASinkInfoOperation::Args& args);
+
+ public:
+  /// Create configuration dialog. Call Process() to invoke it.
+  ConfigDialog(HWND owner, HMODULE module);
+};
+
+/// pulse123 load wizard dialog
+class LoadWizard : public IntrospectBase
+{private:
+  const xstring     Title;
+ private:
+  PASourceInfoOperation SourceInfoOp;
+  vector_own<PASourceInfo> Sources;
+  int               SelectedSource;
+
+  class_delegate<LoadWizard,const PASourceInfoOperation::Args> SourceInfoDeleg;
+ private:
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+          void      SourceInfoHandler(const PASourceInfoOperation::Args& args);
+
+ public:
+  /// Create wizard dialog. Call Process() to invoke it.
+  LoadWizard(HMODULE module, HWND owner, const xstring& title);
 };

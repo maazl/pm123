@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2011 Marcel Mueller
+ * Copyright 2010-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,15 +46,30 @@ Cfg Configuration;
 
 
 void Cfg::Load()
-{ ini_load(PlaybackServer);
-  ini_load(KeepAlive);
+{ // Defaults
+  SinkKeepAlive = false;
+  SourceRate = 48000;
+  SourceChannels = 2;
+
+  ini_load(SinkServer);
+  ini_load(SinkKeepAlive);
   ini_load(Sink);
-  ini_load(Port);
+  ini_load(SinkPort);
+  ini_load(SourceServer);
+  ini_load(Source);
+  ini_load(SourcePort);
+  ini_load(SourceRate);
+  ini_load(SourceChannels);
 }
 
 void Cfg::Save()
-{ ini_save(PlaybackServer);
-  ini_save(KeepAlive);
+{ ini_save(SinkServer);
+  ini_save(SinkKeepAlive);
   ini_save(Sink);
-  ini_save(Port);
+  ini_save(SinkPort);
+  ini_save(SourceServer);
+  ini_save(Source);
+  ini_save(SourcePort);
+  ini_save(SourceRate);
+  ini_save(SourceChannels);
 }

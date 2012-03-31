@@ -219,8 +219,7 @@ class PAProplist
 };
 
 struct PAServerInfo
-{
-  xstring            user_name;                 /**< User name of the daemon process */
+{ xstring            user_name;                 /**< User name of the daemon process */
   xstring            host_name;                 /**< Host name the daemon is running on */
   xstring            server_version;            /**< Version string of the daemon */
   xstring            server_name;               /**< Server package name (usually "pulseaudio") */
@@ -231,44 +230,78 @@ struct PAServerInfo
   PAChannelMap       channel_map;               /**< Default channel map. \since 0.9.15 */
 
   PAServerInfo()                                {}
-  PAServerInfo(const pa_server_info& r);
   PAServerInfo& operator=(const pa_server_info& r);
+  PAServerInfo(const pa_server_info& r)         { *this = r; }
 };
 
-struct PASinkPortInfo
+struct PAFormatInfo
+{ pa_encoding_t      encoding;                  /**< The encoding used for the format */
+  PAProplist         plist;                     /**< Additional encoding-specific properties such as sample rate, bitrate, etc. */
+
+  PAFormatInfo()                                {}
+  PAFormatInfo& operator=(const pa_format_info& r) { encoding = r.encoding; plist = r.plist; return *this; }
+  PAFormatInfo(const pa_format_info& r)         { *this = r; }
+};
+
+struct PAPortInfo
 { xstring            name;                      /**< Name of this port */
   xstring            description;               /**< Description of this port */
   uint32_t           priority;                  /**< The higher this value is the more useful this port is as a default */
 
-  PASinkPortInfo()                              {}
-  PASinkPortInfo(const pa_sink_port_info& r)    : name(r.name), description(r.description), priority(r.priority) {}
-  PASinkPortInfo& operator=(const pa_sink_port_info& r) { name = r.name; description = r.description; priority = r.priority; return *this; }
+  PAPortInfo()                                  {}
+  PAPortInfo& operator=(const pa_sink_port_info& r) { name = r.name; description = r.description; priority = r.priority; return *this; }
+  PAPortInfo& operator=(const pa_source_port_info& r) { name = r.name; description = r.description; priority = r.priority; return *this; }
+  PAPortInfo(const pa_sink_port_info& r)        { *this = r; }
+  PAPortInfo(const pa_source_port_info& r)      { *this = r; }
 };
 
-struct PASinkInfo
-{ xstring            name;                      /**< Name of the sink */
-  uint32_t           index;                     /**< Index of the sink */
-  xstring            description;               /**< Description of this sink */
-  PASampleSpec       sample_spec;               /**< Sample spec of this sink */
-  PAChannelMap       channel_map;               /**< Channel map */
-  uint32_t           owner_module;              /**< Index of the owning module of this sink, or PA_INVALID_INDEX */
-  PACVolume          volume;                    /**< Volume of the sink */
-  int                mute;                      /**< Mute switch of the sink */
-  uint32_t           monitor_source;            /**< Index of the monitor source connected to this sink */
-  xstring            monitor_source_name;       /**< The name of the monitor source */
-  pa_usec_t          latency;                   /**< Length of queued audio in the output buffer. */
+/*struct PASinkPortInfo : PAPortInfo
+{ PASinkPortInfo()                              {}
+  PASinkPortInfo(const pa_sink_port_info& r)    { *this = r; }
+};
+
+struct PASourcePortInfo : PAPortInfo
+{ PASourcePortInfo()                            {}
+  PASourcePortInfo(const pa_source_port_info& r){ *this = r; }
+};*/
+
+struct PAInfo
+{ xstring            name;                      /**< Name of the sink or source */
+  uint32_t           index;                     /**< Index of the sink or source */
+  xstring            description;               /**< Description of this sink or source */
+  PASampleSpec       sample_spec;               /**< Sample spec of this sink or source */
+  PAChannelMap       channel_map;               /**< Channel map of this sink or source */
+  uint32_t           owner_module;              /**< Owning module index, or PA_INVALID_INDEX */
+  PACVolume          volume;                    /**< Volume of the sink or source */
+  int                mute;                      /**< Mute switch of the sink or source */
+  uint32_t           monitor;                   /**< Index of the monitor source connected to this sink or vice versa */
+  xstring            monitor_name;              /**< The name of the monitor source or sink */
+  pa_usec_t          latency;                   /**< Length of queued audio in the output buffer or the filled record buffer of this source respectively. */
   xstring            driver;                    /**< Driver name. */
-  pa_sink_flags_t    flags;                     /**< Flags */
   PAProplist         proplist;                  /**< Property list \since 0.9.11 */
   pa_usec_t          configured_latency;        /**< The latency this device has been configured to. \since 0.9.11 */
   pa_volume_t        base_volume;               /**< Some kind of "base" volume that refers to unamplified/unattenuated volume in the context of the output device. \since 0.9.15 */
-  pa_sink_state_t    state;                     /**< State \since 0.9.15 */
-  uint32_t           n_volume_steps;            /**< Number of volume steps for sinks which do not support arbitrary volumes. \since 0.9.15 */
+  uint32_t           n_volume_steps;            /**< Number of volume steps for sinks or sources which do not support arbitrary volumes. \since 0.9.15 */
   uint32_t           card;                      /**< Card index, or PA_INVALID_INDEX. \since 0.9.15 */
-  sco_arr<PASinkPortInfo> ports;                /**< Array of available ports. \since 0.9.16 */
-  PASinkPortInfo*    active_port;               /**< Pointer to active port in the array, or NULL \since 0.9.16 */
+  sco_arr<PAPortInfo> ports;                    /**< Array of available ports. \since 0.9.16 */
+  PAPortInfo*        active_port;               /**< Pointer to active port in the array, or NULL \since 0.9.16 */
+  sco_arr<PAFormatInfo> formats;                /**< Array of formats supported by the sink or source. \since 1.0 */
+};
 
-  PASinkInfo(const pa_sink_info& r);
+struct PASinkInfo : public PAInfo
+{ pa_sink_flags_t    flags;                     /**< Flags */
+  pa_sink_state_t    state;                     /**< State \since 0.9.15 */
+
+  PASinkInfo& operator=(const pa_sink_info& r);
+  PASinkInfo(const pa_sink_info& r)             { *this = r; }
+};
+
+struct PASourceInfo : public PAInfo
+{ pa_source_flags_t  flags;                     /**< Flags */
+  pa_source_state_t  state;                     /**< State \since 0.9.15 */
+
+  PASourceInfo& operator=(const pa_source_info& r);
+  PASourceInfo(const pa_source_info& r)          { *this = r; }
 };
 
 
@@ -339,6 +372,23 @@ class PASinkInfoOperation : public PAOperation
   static void SinkInfoCB(pa_context *c, const pa_sink_info *i, int eol, void *userdata);
 };
 
+class PASourceInfoOperation : public PAOperation
+{public:
+  struct Args
+  { /// Info about a PA sink. \c NULL in case of no more items or an error.
+    const pa_source_info* Info;
+    /// Non-zero: error code.
+    int                   Error;
+    Args(const pa_source_info* info, int error) : Info(info), Error(error) {}
+  };
+ protected:
+  event<const Args> InfoEvent;
+ public:
+  event_pub<const Args>& Info()         { return InfoEvent; }
+
+  static void SourceInfoCB(pa_context *c, const pa_source_info *i, int eol, void *userdata);
+};
+
 /** Wraps a PulseAudio context.
  */
 class PAContext
@@ -401,6 +451,12 @@ class PAContext
   void GetSinkInfo(PASinkInfoOperation& op, const char* name) throw (PAContextException);
 
   void SetSinkPort(PABasicOperation& op, const char* sink, const char* port) throw (PAContextException);
+
+  void GetSourceInfo(PASourceInfoOperation& op) throw (PAContextException);
+  void GetSourceInfo(PASourceInfoOperation& op, uint32_t index) throw (PAContextException);
+  void GetSourceInfo(PASourceInfoOperation& op, const char* name) throw (PAContextException);
+
+  void SetSourcePort(PABasicOperation& op, const char* source, const char* port) throw (PAContextException);
 };
 
 

@@ -35,39 +35,49 @@
 #include <plugin.h>
 #include <utilfct.h>
 #include <cpp/pmutils.h>
+#include <cpp/algorithm.h>
 #include <os2.h>
 
 #include <debuglog.h>
 
 
-ConfigDialog::PlaybackPage::PlaybackPage(ConfigDialog& parent)
-: PageBase(parent, DLG_PLAYBACK, parent.ResModule, DF_AutoResize)
-, StateChangeDeleg(Context.StateChange(), *this, &PlaybackPage::StateChangeHandler)
-, ServerInfoDeleg(ServerInfoOp.Info(), *this, &PlaybackPage::ServerInfoHandler)
-, SinkInfoDeleg(SinkInfoOp.Info(), *this, &PlaybackPage::SinkInfoHandler)
-{ MajorTitle = "Playback";
-}
+IntrospectBase::IntrospectBase(USHORT rid, HMODULE module)
+: DialogBase(rid, module, DF_AutoResize)
+, StateChangeDeleg(Context.StateChange(), *this, &IntrospectBase::StateChangeHandler)
+, ServerInfoDeleg(ServerInfoOp.Info(), *this, &IntrospectBase::ServerInfoHandler)
+{}
 
-void ConfigDialog::PlaybackPage::Cleanup()
-{ SinkInfoOp.Cancel();
-  ServerInfoOp.Cancel();
-  Context.Disconnect();
-}
-
-ConfigDialog::PlaybackPage::~PlaybackPage()
+IntrospectBase::~IntrospectBase()
 { Cleanup();
 }
 
-MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+void IntrospectBase::StateChangeHandler(const pa_context_state_t& args)
+{ DEBUGLOG(("IntrospectBase(%p)::StateChangeHandler(%i)\n", this, args));
+  PostMsg(UM_STATE_CHANGE, MPFROMLONG(args), 0);
+}
+
+void IntrospectBase::ServerInfoHandler(const pa_server_info& info)
+{ DEBUGLOG(("IntrospectBase(%p)::ServerInfoHandler(%p)\n", this, info));
+  if (!&info)
+  { InfoOp->Cancel();
+    PostMsg(UM_UPDATE_SERVER, MPFROMLONG(Context.Errno()), 0);
+  } else
+  { Server = info;
+    if (InfoOp->GetState() == PA_OPERATION_DONE)
+      PostMsg(UM_UPDATE_SERVER, 0, 0);
+  }
+}
+
+MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
-  {
-   case WM_INITDLG:
-    do_warpsans(GetHwnd());
-    { // Populate MRU list
-      HWND ctrl = GetDlgItem(CB_PBSERVER);
-      WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Configuration.PlaybackServer.cdata()));
-      char key[] = "PlaybackServer1";
+  {case WM_INITDLG:
+    { MRESULT ret = DialogBase::DlgProc(msg, mp1, mp2);
+      do_warpsans(GetHwnd());
+      // Populate MRU list
+      HWND ctrl = GetDlgItem(CB_SERVER);
+      WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Configuration.SinkServer.cdata()));
+      char key[] = "Server1";
       do
       { xstring url;
         ini_query(key, url);
@@ -75,33 +85,19 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(url.cdata()));
       } while (++key[sizeof key -2] <= '9');
-      // Set current value
-      if (Configuration.PlaybackServer)
-      { PMRASSERT(WinSetWindowText(ctrl, Configuration.PlaybackServer.cdata()));
-        PostMsg(UM_CONNECT, 0, 0);
-      }
-      WinCheckButton(GetHwnd(), CB_PBKEEP, Configuration.KeepAlive);
-      if (Configuration.Sink)
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_SINK, Configuration.Sink));
-      if (Configuration.Port)
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.Port));
+      return ret;
     }
-    break;
 
    case WM_COMMAND:
-    DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
+    DEBUGLOG(("IntrospectBase::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
-      { HWND ctrl = GetDlgItem(CB_PBSERVER);
-        Configuration.PlaybackServer = WinQueryWindowXText(ctrl);
-        Configuration.KeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
-        const xstring& sink = WinQueryDlgItemXText(GetHwnd(), CB_SINK);
-        Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
-        const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
-        Configuration.Port = port.length() && !port.startsWithI("default") ? port : xstring();
+      { HWND ctrl = GetDlgItem(CB_SERVER);
+        const xstring& server = WinQueryWindowXText(ctrl);
+        Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
         // update MRU list
-        if (Configuration.PlaybackServer.length())
-        { char key[] = "PlaybackServer1";
+        if (server.length())
+        { char key[] = "Server1";
           int i = 0;
           int len = 0;
           xstring url;
@@ -112,9 +108,9 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
               len = (SHORT)SHORT1FROMMR(WinSendMsg(ctrl, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
               if (len >= 0)
               { WinSendMsg(ctrl, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
-                DEBUGLOG(("pulse123:cfg_dlg_proc save MRU %i: (%i) %s\n", i, len, url.cdata()));
+                DEBUGLOG(("IntrospectBase::DlgProc: save MRU %i: (%i) %s\n", i, len, url.cdata()));
                 ++i;
-                if (url == Configuration.PlaybackServer)
+                if (url == server)
                   goto skip;
               }
             }
@@ -129,14 +125,14 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
-    {case CB_PBSERVER:
+    {case CB_SERVER:
       switch (SHORT2FROMMP(mp1))
       {case CBN_ENTER:
         PostMsg(UM_CONNECT, 0,0);
         break;
       }
       break;
-     case CB_SINK:
+     case CB_SINKSRC:
       switch (SHORT2FROMMP(mp1))
       {case CBN_ENTER:
         PostMsg(UM_UPDATE_PORT, 0,0);
@@ -146,10 +142,10 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case UM_CONNECT:
-    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_CONNECT\n"));
+    { DEBUGLOG(("IntrospectBase::DlgProc:UM_CONNECT\n"));
       // destroy any old connection
       Cleanup();
-      const xstring& server = WinQueryDlgItemXText(GetHwnd(), CB_PBSERVER);
+      const xstring& server = WinQueryDlgItemXText(GetHwnd(), CB_SERVER);
       if (!server.length())
       { WinSetDlgItemText(GetHwnd(), ST_STATUS, "enter server name above");
         return 0;
@@ -165,7 +161,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_STATE_CHANGE:
     { pa_context_state_t state = (pa_context_state_t)LONGFROMMP(mp1);
-      DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_STATE_CHANGE %u\n", state));
+      DEBUGLOG(("IntrospectBase::DlgProc:UM_STATE_CHANGE %u\n", state));
       const char* text = "";
       switch (state)
       {case PA_CONTEXT_CONNECTING:
@@ -192,9 +188,59 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       WinSetDlgItemText(GetHwnd(), ST_STATUS, text);
       return 0;
     }
+  }
+  return DialogBase::DlgProc(msg, mp1, mp2);
+}
+
+void IntrospectBase::Cleanup()
+{ InfoOp->Cancel();
+  ServerInfoOp.Cancel();
+  Context.Disconnect();
+}
+
+
+ConfigDialog::ConfigDialog(HWND owner, HMODULE module)
+: IntrospectBase(DLG_CONFIG, module)
+, SinkInfoDeleg(SinkInfoOp.Info(), *this, &ConfigDialog::SinkInfoHandler)
+{ InfoOp = &SinkInfoOp;
+  StartDialog(owner, HWND_DESKTOP);
+}
+
+MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{
+  switch (msg)
+  {case WM_INITDLG:
+    { MRESULT ret = IntrospectBase::DlgProc(msg, mp1, mp2);
+      WinCheckButton(GetHwnd(), CB_PBKEEP, Configuration.SinkKeepAlive);
+      if (Configuration.Sink)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_SINKSRC, Configuration.Sink));
+      if (Configuration.SinkPort)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SinkPort));
+      // Set current value
+      if (Configuration.SinkServer)
+      { SetItemText(CB_SERVER, Configuration.SinkServer);
+        PostMsg(UM_CONNECT, 0, 0);
+      }
+      return ret;
+    }
+
+   case WM_COMMAND:
+    DEBUGLOG(("ConfigDialog::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
+    switch (SHORT1FROMMP(mp1))
+    {case DID_OK:
+      { Configuration.SinkServer = WinQueryDlgItemXText(GetHwnd(), CB_SERVER);
+        Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
+        const xstring& sink = WinQueryDlgItemXText(GetHwnd(), CB_SINKSRC);
+        Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
+        const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
+        Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
+      }
+      break;
+    }
+    break;
 
    case UM_DISCOVER_SERVER:
-    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_DISCOVER_SERVER\n"));
+    { DEBUGLOG(("ConfigDialog::DlgProc:UM_DISCOVER_SERVER\n"));
       try
       { Context.GetServerInfo(ServerInfoOp);
         Sinks.clear();
@@ -207,13 +253,13 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_UPDATE_SERVER:
     { int error = LONGFROMMP(mp1);
-      DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_UPDATE_SERVER %i\n", error));
+      DEBUGLOG(("ConfigDialog::DlgProc:UM_UPDATE_SERVER %i\n", error));
       if (error)
       { WinSetDlgItemText(GetHwnd(), ST_STATUS, PAConnectException(Context.GetContext(), error).GetMessage());
         return 0;
       }
       WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
-      HWND ctrl = GetDlgItem(CB_SINK);
+      HWND ctrl = GetDlgItem(CB_SINKSRC);
       // save old value
       xstring oldsink = WinQueryWindowXText(ctrl);
       // delete old list
@@ -245,7 +291,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
     }
    case UM_UPDATE_PORT:
-    { DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc:UM_UPDATE_PORT %i\n", SelectedSink));
+    { DEBUGLOG(("ConfigDialog::DlgProc:UM_UPDATE_PORT %i\n", SelectedSink));
       HWND ctrl = GetDlgItem(CB_PORT);
       // save old value
       xstring oldport = WinQueryWindowXText(ctrl);
@@ -259,7 +305,7 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (sink.active_port)
           def.sprintf("default (%s)", sink.active_port->name.cdata());
         for (unsigned i = 0; i < sink.ports.size(); ++i)
-        { PASinkPortInfo& port = sink.ports[i];
+        { PAPortInfo& port = sink.ports[i];
           PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(port.name.cdata())), >= 0);
           if (selected < 0 && port.name.compareToI(oldport) == 0)
             selected = i;
@@ -270,28 +316,11 @@ MRESULT ConfigDialog::PlaybackPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
   }
-  return PageBase::DlgProc(msg, mp1, mp2);
+  return IntrospectBase::DlgProc(msg, mp1, mp2);
 }
 
-void ConfigDialog::PlaybackPage::StateChangeHandler(const pa_context_state_t& args)
-{ DEBUGLOG(("ConfigDialog::PlaybackPage(%p)::StateChangeHandler(%i)\n", this, args));
-  PostMsg(UM_STATE_CHANGE, MPFROMLONG(args), 0);
-}
-
-void ConfigDialog::PlaybackPage::ServerInfoHandler(const pa_server_info& info)
-{ DEBUGLOG(("ConfigDialog::PlaybackPage(%p)::ServerInfoHandler(%p)\n", this, info));
-  if (!&info)
-  { SinkInfoOp.Cancel();
-    PostMsg(UM_UPDATE_SERVER, MPFROMLONG(Context.Errno()), 0);
-  } else
-  { Server = info;
-    if (SinkInfoOp.GetState() == PA_OPERATION_DONE)
-      PostMsg(UM_UPDATE_SERVER, 0, 0);
-  }
-}
-
-void ConfigDialog::PlaybackPage::SinkInfoHandler(const PASinkInfoOperation::Args& args)
-{ DEBUGLOG(("ConfigDialog::PlaybackPage(%p)::SinkInfoHandler({%p, %i})\n", this, args.Info, args.Error));
+void ConfigDialog::SinkInfoHandler(const PASinkInfoOperation::Args& args)
+{ DEBUGLOG(("ConfigDialog(%p)::SinkInfoHandler({%p, %i})\n", this, args.Info, args.Error));
   if (args.Info)
   { Sinks.append() = new PASinkInfo(*args.Info);
     return;
@@ -303,41 +332,159 @@ void ConfigDialog::PlaybackPage::SinkInfoHandler(const PASinkInfoOperation::Args
   PostMsg(UM_UPDATE_SERVER, MPFROMLONG(args.Error), 0);
 }
 
-ConfigDialog::RecordPage::RecordPage(ConfigDialog& parent)
-: PageBase(parent, DLG_RECORD, parent.ResModule, DF_AutoResize)
-{ MajorTitle = "Record";
+
+LoadWizard::LoadWizard(HMODULE module, HWND owner, const xstring& title)
+: IntrospectBase(DLG_RECORD, module)
+, Title(title)
+, SourceInfoDeleg(SourceInfoOp.Info(), *this, &LoadWizard::SourceInfoHandler)
+{ InfoOp = &SourceInfoOp;
+  StartDialog(owner, HWND_DESKTOP);
 }
 
-MRESULT ConfigDialog::RecordPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+static const char* SamplingRates[] =
+{ "8000", "11025", "12000", "16000", "22050", "24000", "32000", "44100", "48000", "96000" };
+
+static int SamplingRateCmp(const char* elem, int* key)
+{ return atoi(elem) - *key;
+}
+
+MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
-  return PageBase::DlgProc(msg, mp1, mp2);
-}
-
-ConfigDialog::ConfigDialog(HWND owner, HMODULE module)
-: NotebookDialogBase(DLG_CONFIG, module, DF_AutoResize)
-{ Pages.append() = new PlaybackPage(*this);
-  Pages.append() = new RecordPage(*this);
-  StartDialog(owner, NB_CONFIG);
-}
-
-MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  //DEBUGLOG(("ConfigDialog::PlaybackPage::DlgProc(%u, %p, %p)\n", msg, mp1, mp2));
   switch (msg)
-  {
-   case WM_INITDLG:
-    do_warpsans(GetHwnd());
-    break;
+  {case WM_INITDLG:
+    { MRESULT ret = IntrospectBase::DlgProc(msg, mp1, mp2);
+      SetTitle(Title);
+      if (Configuration.SourceServer)
+      { SetItemText(CB_SERVER, Configuration.SourceServer);
+        PostMsg(UM_CONNECT, 0, 0);
+      }
+      if (Configuration.Source)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_SINKSRC, Configuration.Source));
+      if (Configuration.SourcePort)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SourcePort));
+      // Init rate spin button
+      { HWND sb = GetDlgItem(SB_RATE);
+        //PMRASSERT(WinSendMsg(sb, SPBM_SETMASTER, MPFROMHWND(NULLHANDLE), 0));
+        PMRASSERT(WinSendMsg(sb, SPBM_SETARRAY, MPFROMP(SamplingRates), MPFROMSHORT(sizeof SamplingRates/sizeof *SamplingRates)));
+        size_t pos;
+        if ( !binary_search(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp, &Configuration.SourceRate, pos)
+          && ( pos == sizeof SamplingRates/sizeof *SamplingRates
+            || (pos && 2*Configuration.SourceRate < atoi(SamplingRates[pos]) + atoi(SamplingRates[pos-1])) ))
+          --pos;
+        PMRASSERT(WinSendMsg(sb, SPBM_SETCURRENTVALUE, MPFROMLONG(pos), 0));
+      }
+      WinCheckButton(GetHwnd(), Configuration.SourceChannels == 1 ? RB_MONO : RB_STEREO, TRUE);
+      return ret;
+    }
 
    case WM_COMMAND:
+    DEBUGLOG(("LoadWizard::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
-      // propagate to all pages
-      foreach(PageBase*const*, page, Pages)
-        WinSendMsg((*page)->GetHwnd(), msg, mp1, mp2);
+      { Configuration.SourceServer = WinQueryDlgItemXText(GetHwnd(), CB_SERVER);
+        const xstring& source = WinQueryDlgItemXText(GetHwnd(), CB_SINKSRC);
+        Configuration.Sink = source.length() && !source.startsWithI("default") ? source : xstring();
+        const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
+        Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
+        long pos;
+        PMRASSERT(SendItemMsg(SB_RATE, SPBM_QUERYVALUE, MPFROMP(&pos), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
+        Configuration.SourceRate = atoi(SamplingRates[pos]);
+        Configuration.SourceChannels = WinQueryButtonCheckstate(GetHwnd(), RB_MONO) ? 1 : 2;
+      }
       break;
     }
     break;
+
+   case UM_DISCOVER_SERVER:
+    { DEBUGLOG(("LoadWizard::DlgProc:UM_DISCOVER_SERVER\n"));
+      try
+      { Context.GetServerInfo(ServerInfoOp);
+        Sources.clear();
+        Context.GetSourceInfo(SourceInfoOp);
+      } catch (const PAException& ex)
+      { WinSetDlgItemText(GetHwnd(), ST_STATUS, ex.GetMessage());
+      }
+      return 0;
+    }
+
+   case UM_UPDATE_SERVER:
+    { int error = LONGFROMMP(mp1);
+      DEBUGLOG(("LoadWizard::DlgProc:UM_UPDATE_SERVER %i\n", error));
+      if (error)
+      { WinSetDlgItemText(GetHwnd(), ST_STATUS, PAConnectException(Context.GetContext(), error).GetMessage());
+        return 0;
+      }
+      WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
+      HWND ctrl = GetDlgItem(CB_SINKSRC);
+      // save old value
+      xstring oldsink = WinQueryWindowXText(ctrl);
+      // delete old list
+      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      SelectedSource = -1;
+      // insert new list and restore old value if reasonable.
+      xstring def;
+      def.sprintf("default (%s)", Server.default_sink_name.cdata());
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(def.cdata())), >= 0);
+      /* LM_INSERTMULTITEMS seems not to work.
+      LBOXINFO insert = { 0, Sinks.size() };
+      // HACK: Sinks is a list of pointers to PASinkInfo.
+      // PASinkInfo starts with an xstring name. xsting is binary compatible to const char*.
+      // So Sinks.begin() is compatible to const char** as required by LM_INSERTMULTITEMS.
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTMULTITEMS, MPFROMP(&insert), MPFROMP(Sinks.begin())), >= 0);*/
+      if (Sources.size() != 0)
+      { int defsink = -1;
+        for (unsigned i = 0; i < Sources.size(); ++i)
+        { PASourceInfo& source = *Sources[i];
+          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(source.name.cdata())), >= 0);
+          if (SelectedSource < 0 && source.name.compareToI(oldsink) == 0)
+            SelectedSource = i;
+          if (defsink < 0 && source.name.compareToI(Server.default_sink_name) == 0)
+            defsink = i;
+        }
+        PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(SelectedSource+1), MPFROMSHORT(TRUE)));        // Otherwise set new default
+        if (SelectedSource < 0)
+          SelectedSource = defsink;
+      }
+    }
+   case UM_UPDATE_PORT:
+    { DEBUGLOG(("LoadWizard::DlgProc:UM_UPDATE_PORT %i\n", SelectedSource));
+      HWND ctrl = GetDlgItem(CB_PORT);
+      // save old value
+      xstring oldport = WinQueryWindowXText(ctrl);
+      // delete old list
+      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      // insert new list and restore old value if reasonable.
+      xstring def;
+      int selected = -1;
+      if ((unsigned)SelectedSource < Sources.size())
+      { PASourceInfo& source = *Sources[SelectedSource];
+        if (source.active_port)
+          def.sprintf("default (%s)", source.active_port->name.cdata());
+        for (unsigned i = 0; i < source.ports.size(); ++i)
+        { PAPortInfo& port = source.ports[i];
+          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(port.name.cdata())), >= 0);
+          if (selected < 0 && port.name.compareToI(oldport) == 0)
+            selected = i;
+        }
+      }
+      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(0), MPFROMP(def ? def.cdata() : "default")), >= 0);
+      PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected+1), MPFROMSHORT(TRUE)));
+      return 0;
+    }
   }
-  return NotebookDialogBase::DlgProc(msg, mp1, mp2);
+  return IntrospectBase::DlgProc(msg, mp1, mp2);
 }
+
+void LoadWizard::SourceInfoHandler(const PASourceInfoOperation::Args& args)
+{ DEBUGLOG(("LoadWizard(%p)::SinkInfoHandler({%p, %i})\n", this, args.Info, args.Error));
+  if (args.Info)
+  { Sources.append() = new PASourceInfo(*args.Info);
+    return;
+  }
+  if (args.Error)
+    ServerInfoOp.Cancel();
+  else if (ServerInfoOp.GetState() != PA_OPERATION_DONE)
+    return;
+  PostMsg(UM_UPDATE_SERVER, MPFROMLONG(args.Error), 0);
+}
+

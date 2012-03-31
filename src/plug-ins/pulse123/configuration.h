@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,10 +35,15 @@
 
 // Configuration
 extern struct Cfg
-{ xstring PlaybackServer;
-  bool    KeepAlive;
+{ xstring SinkServer;
+  bool    SinkKeepAlive;
   xstring Sink;
-  xstring Port;
+  xstring SinkPort;
+  xstring SourceServer;
+  xstring Source;
+  xstring SourcePort;
+  int     SourceRate;
+  int     SourceChannels;
 
   void    Load();
   void    Save();

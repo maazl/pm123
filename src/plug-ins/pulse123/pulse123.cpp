@@ -32,6 +32,7 @@
 #include "recordworker.h"
 #include "configuration.h"
 #include "dialog.h"
+#include <utilfct.h>
 #include <plugin.h>
 #include <os2.h>
 
@@ -40,6 +41,22 @@
 
 PLUGIN_CONTEXT Ctx;
 
+
+static void fillinfo(const RecordWorker::Params& par, const INFO_BUNDLE* info)
+{ // phys info is default.
+  // tech info
+  info->tech->samplerate = par.Format.samplerate;
+  info->tech->channels = par.Format.channels;
+  info->tech->attributes = TATTR_SONG;
+  info->tech->info.sprintf("Recording from %s/%s/%s.",
+    par.Server ? par.Server.cdata() : "(default)",
+    par.Source ? par.Source.cdata() : "(default)",
+    par.Port   ? par.Port.cdata()   : "(default)" );
+  // obj info
+  info->obj->bitrate = 32 * par.Format.channels * par.Format.samplerate;
+  // meta info : none
+  // attr info : default
+}
 
 /****************************************************************************
 *
@@ -69,6 +86,57 @@ int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
   return 0;
 }
 
+static PHYS_INFO def_phys = PHYS_INFO_INIT;
+static META_INFO def_meta = META_INFO_INIT;
+static ATTR_INFO def_attr = ATTR_INFO_INIT;
+
+static ULONG DLLENTRY WizardDlg(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param)
+{ DEBUGLOG(("os2rec:WizardDlg(%p, %s, %p, %p)\n", owner, title, callback, param));
+  HMODULE mod;
+  getModule(&mod, NULL, 0);
+
+  LoadWizard wiz(mod, owner, xstring().sprintf(title, " PulseAudio recording"));
+  switch (wiz.Process())
+  {default:
+    return PLUGIN_ERROR;
+   case DID_CANCEL:
+    return PLUGIN_NO_OP;
+   case DID_OK:;
+  }
+
+  RecordWorker::Params par;
+  par.Server = Configuration.SourceServer;
+  par.Source = Configuration.Source;
+  par.Port   = Configuration.SourcePort;
+  par.Format.samplerate = Configuration.SourceRate;
+  par.Format.channels   = Configuration.SourceChannels;
+
+  TECH_INFO tech = TECH_INFO_INIT;
+  OBJ_INFO obj = OBJ_INFO_INIT;
+  INFO_BUNDLE info =
+  { &def_phys, &tech, &obj, &def_meta, &def_attr, NULL, NULL, NULL };
+  fillinfo(par, &info);
+
+  (*callback)(param, par.ToURL(), &info, 0, INFO_PHYS|INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR|INFO_CHILD);
+
+  return PLUGIN_OK;
+}
+
+/* DLL entry point */
+const DECODER_WIZARD* DLLENTRY decoder_getwizard( )
+{
+  static const DECODER_WIZARD wizardentry =
+  { NULL,
+    "Record PulseAudio...",
+    &WizardDlg,
+    0, 0,
+    0, 0
+  };
+
+  return &wizardentry;
+}
+
+
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
 unsigned long _System _DLL_InitTerm( unsigned long modhandle, unsigned long flag )
 {
@@ -95,7 +163,7 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle, unsigned long flag
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
 { PlaybackWorker* w = new PlaybackWorker();
-  ULONG ret = w->Init(Configuration.PlaybackServer, Configuration.Sink, Configuration.Port);
+  ULONG ret = w->Init(Configuration.SinkServer, Configuration.Sink, Configuration.SinkPort);
   if (ret == 0)
     *A = w;
   return ret;
@@ -174,7 +242,7 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
                                 DECODER_INFO_ENUMERATION_CB cb, void* param)
 { DEBUGLOG(("pulse123:decoder_fileinfo(%s, %p, &%x ...)\n", url, handle, what));
   RecordWorker::Params par;
-  const xstring& error = RecordWorker::ParseURL(url, par);
+  const xstring& error = par.ParseURL(url);
   if (error)
   { if (error.length() == 0)
       return PLUGIN_NO_PLAY;
@@ -183,20 +251,7 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
   }
 
   *what |= INFO_PHYS|INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR|INFO_CHILD;
-  // phys info is default.
-  // tech info
-  info->tech->samplerate = par.Format.samplerate;
-  info->tech->channels = par.Format.channels;
-  info->tech->attributes = TATTR_SONG;
-  info->tech->info.sprintf("Recording from %s/%s/%s.",
-    par.Server ? par.Server.cdata() : "(default)",
-    par.Source ? par.Source.cdata() : "(default)",
-    par.Port   ? par.Port.cdata()   : "(default)" );
-  // obj info
-  info->obj->bitrate = 32 * par.Format.channels * par.Format.samplerate;
-  // meta info : none
-  // attr info : default
-
+  fillinfo(par, info);
   return PLUGIN_OK;
 }
 

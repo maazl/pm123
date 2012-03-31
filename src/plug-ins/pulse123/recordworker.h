@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Marcel Mueller
+ * Copyright 2010-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,6 +47,8 @@ class RecordWorker
     FORMAT_INFO2     Format;
     pa_stream_flags_t Flags;
     Params();
+    xstring ParseURL(const char* url);
+    xstring ToURL() const;
   };
  private:
   int  DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
@@ -72,8 +74,6 @@ class RecordWorker
 
   void  Event(OUTEVENTTYPE event);
   DECODERSTATE GetState() const;
-
-  static xstring ParseURL(const char* url, Params& par);
  private:
   void  RecordThread();
   PROXYFUNCDEF void TFNENTRY RecordThreadStub(void* data);

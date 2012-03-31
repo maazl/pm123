@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,18 +39,18 @@ extern PLUGIN_CONTEXT Ctx;
 #endif
 
 #define DLG_CONFIG   100
-#define DLG_PLAYBACK 101
 #define DLG_RECORD   102
-
-#define NB_CONFIG    200
 
 #define GB_GENERIC  1000
 #define ST_GENERIC  1001
-#define CB_PBSERVER 2000
+#define CB_SERVER   2000
 #define CB_PBKEEP   2001
 #define ST_STATUS   2005
-#define CB_SINK     2010
+#define CB_SINKSRC  2010
 #define CB_PORT     2011
+#define SB_RATE     2020
+#define RB_MONO     2021
+#define RB_STEREO   2022
 
 #endif /* PM123_PULSE123_H */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Marcel Mueller
+ * Copyright 2010-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -68,62 +68,87 @@ void PAProplist::reference::operator=(const char* value)
 }
 
 
-PAServerInfo::PAServerInfo(const pa_server_info& r)
-: user_name(r.user_name)
-, host_name(r.host_name)
-, server_version(r.server_version)
-, server_name(r.server_name)
-, sample_spec(r.sample_spec)
-, default_sink_name(r.default_sink_name)
-, default_source_name(r.default_source_name)
-, cookie(r.cookie)
-, channel_map(r.channel_map)
-{}
-
 PAServerInfo& PAServerInfo::operator=(const pa_server_info& r)
-{ user_name = r.user_name;
-  host_name = r.host_name;
-  server_version = r.server_version;
-  server_name = r.server_name;
-  sample_spec = r.sample_spec;
-  default_sink_name = r.default_sink_name;
-  default_source_name = r.default_source_name;
-  cookie = r.cookie;
-  channel_map = r.channel_map;
+{ user_name             = r.user_name;
+  host_name             = r.host_name;
+  server_version        = r.server_version;
+  server_name           = r.server_name;
+  sample_spec           = r.sample_spec;
+  default_sink_name     = r.default_sink_name;
+  default_source_name   = r.default_source_name;
+  cookie                = r.cookie;
+  channel_map           = r.channel_map;
   return *this;
 }
 
 
-PASinkInfo::PASinkInfo(const pa_sink_info& r)
-: name(r.name)
-, index(r.index)
-, description(r.description)
-, sample_spec(r.sample_spec)
-, channel_map(r.channel_map)
-, owner_module(r.owner_module)
-, volume(r.volume)
-, mute(r.mute)
-, monitor_source(r.monitor_source)
-, monitor_source_name(r.monitor_source_name)
-, latency(r.latency)
-, driver(r.driver)
-, flags(r.flags)
-, proplist(r.proplist)
-, configured_latency(r.configured_latency)
-, base_volume(r.base_volume)
-, state(r.state)
-, n_volume_steps(r.n_volume_steps)
-, card(r.card)
-, ports(r.n_ports)
-, active_port(NULL)
-{ for (unsigned i = 0; i < r.n_ports; ++i)
+PASinkInfo& PASinkInfo::operator=(const pa_sink_info& r)
+{ name                  = r.name;
+  index                 = r.index;
+  description           = r.description;
+  sample_spec           = r.sample_spec;
+  channel_map           = r.channel_map;
+  owner_module          = r.owner_module;
+  volume                = r.volume;
+  mute                  = r.mute;
+  monitor               = r.monitor_source;
+  monitor_name          = r.monitor_source_name;
+  latency               = r.latency;
+  driver                = r.driver;
+  flags                 = r.flags;
+  proplist              = r.proplist;
+  configured_latency    = r.configured_latency;
+  base_volume           = r.base_volume;
+  state                 = r.state;
+  n_volume_steps        = r.n_volume_steps;
+  card                  = r.card;
+  ports.reset(r.n_ports);
+  active_port           = NULL;
+  for (unsigned i = 0; i < r.n_ports; ++i)
   { pa_sink_port_info* port = r.ports[i];
     ports[i] = *port;
     if (port == r.active_port)
       active_port = ports.get() + i;
   }
+  formats.reset(r.n_formats);
+  for (unsigned i = 0; i < r.n_formats; ++i)
+    formats[i] = *r.formats[i];
+  return *this;
 }
 
+PASourceInfo& PASourceInfo::operator=(const pa_source_info& r)
+{ name                  = r.name;
+  index                 = r.index;
+  description           = r.description;
+  sample_spec           = r.sample_spec;
+  channel_map           = r.channel_map;
+  owner_module          = r.owner_module;
+  volume                = r.volume;
+  mute                  = r.mute;
+  monitor               = r.monitor_of_sink;
+  monitor_name          = r.monitor_of_sink_name;
+  latency               = r.latency;
+  driver                = r.driver;
+  flags                 = r.flags;
+  proplist              = r.proplist;
+  configured_latency    = r.configured_latency;
+  base_volume           = r.base_volume;
+  state                 = r.state;
+  n_volume_steps        = r.n_volume_steps;
+  card                  = r.card;
+  ports.reset(r.n_ports);
+  active_port           = NULL;
+  for (unsigned i = 0; i < r.n_ports; ++i)
+  { pa_source_port_info* port = r.ports[i];
+    ports[i] = *port;
+    if (port == r.active_port)
+      active_port = ports.get() + i;
+  }
+  formats.reset(r.n_formats);
+  for (unsigned i = 0; i < r.n_formats; ++i)
+    formats[i] = *r.formats[i];
+  return *this;
+}
 
 void PAOperation::Unlink()
 { DEBUGLOG(("PAOperation(%p{%p})::Unlink()\n", this, Operation));
@@ -215,6 +240,12 @@ void PASinkInfoOperation::SinkInfoCB(pa_context *c, const pa_sink_info *i, int e
     op.Signal();
 }
 
+void PASourceInfoOperation::SourceInfoCB(pa_context *c, const pa_source_info *i, int eol, void *userdata)
+{ PASourceInfoOperation& op = *(PASourceInfoOperation*)userdata;
+  op.InfoEvent(Args(i, eol < 0 ? pa_context_errno(c) : 0));
+  if (eol)
+    op.Signal();
+}
 
 pa_threaded_mainloop* volatile PAContext::Mainloop = NULL;
 volatile unsigned              PAContext::RefCount = 0;
@@ -369,6 +400,33 @@ void PAContext::SetSinkPort(PABasicOperation& op, const char* sink, const char* 
   if (!op.IsValid())
     throw PAContextException(Context, "pa_context_set_sink_port_by_name failed");
 }
+
+void PAContext::GetSourceInfo(PASourceInfoOperation& op) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_source_info_list(Context, &PASourceInfoOperation::SourceInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_source_info_list failed");
+}
+void PAContext::GetSourceInfo(PASourceInfoOperation& op, uint32_t index) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_source_info_by_index(Context, index, &PASourceInfoOperation::SourceInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_source_info_by_index failed");
+}
+void PAContext::GetSourceInfo(PASourceInfoOperation& op, const char* name) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_get_source_info_by_name(Context, name, &PASourceInfoOperation::SourceInfoCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "get_sink_info_by_name failed");
+}
+
+void PAContext::SetSourcePort(PABasicOperation& op, const char* source, const char* port) throw (PAContextException)
+{ Lock lock;
+  op.Attach(pa_context_set_source_port_by_name(Context, source, port, &PABasicOperation::ContextSuccessCB, &op));
+  if (!op.IsValid())
+    throw PAContextException(Context, "pa_context_set_source_port_by_name failed");
+}
+
 
 /*PAStream::PAStream(pa_context* context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map = NULL, pa_proplist* props = NULL)
 { memset(&Attr, -1, sizeof Attr);
@@ -592,7 +650,7 @@ void PASourceInput::Connect(PAContext& context, const char* name, const pa_sampl
   Create(context, name, ss, map, props);
 
   PAContext::Lock lock;
-  pa_stream_set_write_callback(Stream, &PASourceInput::ReadCB, this);
+  pa_stream_set_read_callback(Stream, &PASourceInput::ReadCB, this);
 
   if (pa_stream_connect_record(Stream, device, &Attr, flags) != 0)
     throw PAStreamException(Stream, xstring().sprintf("Failed to connect record stream %s", name));
@@ -632,8 +690,8 @@ void PASourceInput::Drop() throw (PAStreamException)
 }
 
 void PASourceInput::ReadCB(pa_stream *p, size_t nbytes, void *userdata) throw()
-{ DEBUGLOG(("PASourceInput::ReadCB(%p, %u, %p)\n", p, nbytes, userdata));
-  PASourceInput& si = *(PASourceInput*)userdata;
+{ PASourceInput& si = *(PASourceInput*)userdata;
+  DEBUGLOG(("PASourceInput::ReadCB(%p, %u, %p) - %i\n", p, nbytes, userdata, si.WaitReadPending));
   if (si.WaitReadPending)
     PAContext::MainloopSignal();
 }

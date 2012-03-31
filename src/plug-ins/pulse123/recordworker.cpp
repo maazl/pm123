@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2011 Marcel Mueller
+ * Copyright 2010-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,6 +43,95 @@ RecordWorker::Params::Params()
   Format.channels   = 2;
 }
 
+xstring RecordWorker::Params::ParseURL(const char* url)
+{ DEBUGLOG(("RecordWorker::Params::ParseURL(%s)\n", url));
+
+  if (strnicmp(url, "pulseaudio:", 11) != 0)
+    return xstring::empty;
+  url += 11;
+
+  // pulseaudio:server[/source[/port]][?parameters]
+  size_t len = strcspn(url, "?/\\");
+  if (!len)
+    return "pulseaudio: servername missing";
+  Server.assign(url, len);
+  url += len;
+
+  if (*url == '/' || *url == '\\')
+  { // source specified
+    len = strcspn(++url, "?/\\");
+    if (len)
+    { Source.assign(url, len);
+      url += len;
+    } else
+      Source.reset();
+    if (*url == '/' || *url == '\\')
+    { // Port specified
+      len = strcspn(++url, "?");
+      if (len)
+      { Port.assign(url, len);
+        url += len;
+      } else
+        Port.reset();
+    }
+  }
+
+  if (*url == '?')
+  { // parameters specified
+    do
+    { len = strcspn(++url, "=&");
+      xstring key(url, len);
+      url += len;
+      xstring value;
+      if (*url == '=')
+      { // has value
+        len = strcspn(++url, "&");
+        value.assign(url, len);
+        url += len;
+      }
+      // handle param
+      if (key.compareToI("samplerate") == 0 || key.compareToI("rate") == 0)
+      { if ( sscanf(value, "%i%n", &Format.samplerate, &len) != 1
+          || len != value.length() || Format.samplerate <= 0 )
+          return xstring().sprintf("bad sampling rate: %s", value.cdata());
+      } else
+      if (key.compareToI("channels") == 0)
+      { if ( sscanf(value, "%i%n", &Format.channels, &len) != 1
+          || len != value.length() || Format.channels <= 0 )
+          return xstring().sprintf("number of channels bad: %s", value.cdata());
+      } else
+      if (key.compareToI("mono") == 0)
+      { Format.channels = 1;
+      } else
+      if (key.compareToI("stereo") == 0)
+      { Format.channels = 2;
+      } else
+        return xstring().sprintf("unknown parameter %s", key.cdata());
+    } while (*url);
+  }
+
+  return xstring();
+}
+
+xstring RecordWorker::Params::ToURL() const
+{ // create url: pulseaudio:server[/source[/port]][?parameters]
+  xstringbuilder sb;
+  sb.append("pulseaudio:");
+  sb.append(Server);
+  if (Source)
+  { sb.append('/');
+    sb.append(Source);
+  }
+  if (Port)
+  { if (!Source)
+      sb.append('/');
+    sb.append('/');
+    sb.append(Port);
+  }
+  sb.appendf("?samplerate=%u&channels=%u", Format.samplerate, Format.channels);
+  return sb;
+}
+
 
 RecordWorker::RecordWorker()
 : Running(false)
@@ -73,7 +162,7 @@ ULONG RecordWorker::Play(const xstring& url)
 { DEBUGLOG(("RecordWorker(%p)::Play(%s)\n", this, url.cdata()));
   if (Running)
     return PLUGIN_GO_ALREADY;
-  if (ParseURL(url, Par))
+  if (Par.ParseURL(url))
     return PLUGIN_NO_PLAY;
 
   try
@@ -98,7 +187,6 @@ ULONG RecordWorker::Stop()
   if (!Running || Terminate)
     return PLUGIN_GO_ALREADY;
   Terminate = true;
-  Stream.Disconnect();
   return PLUGIN_OK;
 }
 
@@ -115,74 +203,6 @@ DECODERSTATE RecordWorker::GetState() const
   if (Terminate)
     return DECODER_STOPPING;
   return DECODER_PLAYING;
-}
-
-xstring RecordWorker::ParseURL(const char* url, Params& par)
-{ DEBUGLOG(("RecordWorker::ParseURL(%s,)\n", url));
-
-  if (strnicmp(url, "pulseaudio:", 11) != 0)
-    return xstring::empty;
-  url += 11;
-
-  // pulseaudio:server[/source[/port]][?parameters]
-  size_t len = strcspn(url, "?/\\");
-  if (!len)
-    return "pulseaudio: servername missing";
-  par.Server.assign(url, len);
-  url += len;
-
-  if (*url == '/' || *url == '\\')
-  { // source specified
-    len = strcspn(++url, "?/\\");
-    if (len)
-    { par.Source.assign(url, len);
-      url += len;
-    }
-    if (*url == '/' || *url == '\\')
-    { // Port specified
-      len = strcspn(++url, "?");
-      if (len)
-      { par.Port.assign(url, len);
-        url += len;
-      }
-    }
-  }
-
-  if (*url == '?')
-  { // parameters specified
-    do
-    { len = strcspn(++url, "=&");
-      xstring key(url, len);
-      url += len;
-      xstring value;
-      if (*url == '=')
-      { // has value
-        len = strcspn(++url, "&");
-        value.assign(url, len);
-        url += len;
-      }
-      // handle param
-      if (key.compareToI("samplerate"))
-      { if ( sscanf(value, "%i%n", &par.Format.samplerate, &len) != 1
-          || len != value.length() || par.Format.samplerate <= 0 )
-          return xstring().sprintf("bad sampling rate: %s", value.cdata());
-      } else
-      if (key.compareToI("channels"))
-      { if ( sscanf(value, "%i%n", &par.Format.channels, &len) != 1
-          || len != value.length() || par.Format.channels <= 0 )
-          return xstring().sprintf("number of channels bad: %s", value.cdata());
-      } else
-      if (key.compareToI("mono"))
-      { par.Format.channels = 1;
-      } else
-      if (key.compareToI("stereo"))
-      { par.Format.channels = 2;
-      } else
-        return xstring().sprintf("unknown parameter %s", key.cdata());
-    } while (*url);
-  }
-
-  return xstring();
 }
 
 void RecordWorker::RecordThread()
