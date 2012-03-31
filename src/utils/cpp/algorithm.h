@@ -43,14 +43,14 @@ inline bool binary_search_base(const vector_base& data, int (*fcmp)(const void* 
   const void* key, size_t& pos)
 { return binary_search_base(data.begin(), data.size(), fcmp, key, pos); }
 
-template <class T>
-inline bool binary_search(T*const* data, size_t size, int (*fcmp)(T* elem, T* key),
-  T* key, size_t& pos)
+template <class T, class K>
+inline bool binary_search(T*const* data, size_t size, int (*fcmp)(T* elem, K* key),
+  K* key, size_t& pos)
 { return binary_search_base((const void**)data, size, (int (*)(const void* elem, const void* key))fcmp, key, pos);
 }
-template <class T>
-inline bool binary_search(const vector<T>& data, int (*fcmp)(T* elem, T* key),
-  T* key, size_t& pos)
+template <class T, class K>
+inline bool binary_search(const vector<T>& data, int (*fcmp)(T* elem, K* key),
+  K* key, size_t& pos)
 { return binary_search_base(data, data.size(), (int (*)(const void* elem, const void* key))fcmp, key, pos);
 }
 

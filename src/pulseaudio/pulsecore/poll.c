@@ -70,7 +70,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
     int ready;
     int nretry = nfds;
 
-    DEBUGLOG2(("pa_poll(%p, %i, %i)\n", fds, nfds, timeout));
+    DEBUGLOG(("pa_poll(%p, %i, %i)\n", fds, nfds, timeout));
 
     /* First check how many descriptors we need */
     nselectfds = 0;
@@ -125,7 +125,7 @@ int pa_poll (struct pollfd *fds, unsigned long int nfds, int timeout) {
                     ++removed;
                 }
             }
-        DEBUGLOG2(("pa_poll - recover? %i\n", removed));
+        DEBUGLOG2(("pa_poll - recover? %i, %i\n", removed, nretry));
         if (nretry)
         {   --nretry;
             goto retry;

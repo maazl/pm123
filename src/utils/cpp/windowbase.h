@@ -118,7 +118,7 @@ class DialogBase
   // Make the window visible (or not)
   virtual void      SetVisible(bool show);
   bool              GetVisible() const;
-  void              Process()       { WinProcessDlg(HwndFrame); }
+  ULONG             Process()       { return WinProcessDlg(HwndFrame); }
   // Force the window to close
   void              Destroy()       { WinDestroyWindow(HwndFrame); }
 };
