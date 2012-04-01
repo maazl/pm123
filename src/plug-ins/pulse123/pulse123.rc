@@ -32,20 +32,20 @@
 
 DLGTEMPLATE DLG_CONFIG
 {
-  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 224,120, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
+  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 224,100, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
     FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 54, 216, 44, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 52, 216, 44, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~URL",                 ST_GENERIC,   8, 82,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_SERVER,   64, 10, 152, 80, CBS_DROPDOWN
+    LTEXT           "~URL",                 ST_GENERIC,   8, 80,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SERVER,   64,  8, 152, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Context",             ST_GENERIC,   8, 70,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 70, 152,  8, WS_TABSTOP
+    LTEXT           "~Context",             ST_GENERIC,   8, 68,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 68, 152,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "Status"                ST_GENERIC,   8, 58,  52,  8, DT_BOTTOM|WS_GROUP
-    LTEXT           "enter server name above",ST_STATUS, 64, 58, 152,  8, WS_TABSTOP
+    LTEXT           "Status"                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP
+    LTEXT           "enter server name above",ST_STATUS, 64, 56, 152,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     GROUPBOX " Select Target ",             GB_GENERIC,   4, 20, 216, 32, NOT WS_TABSTOP|WS_GROUP
@@ -64,26 +64,26 @@ DLGTEMPLATE DLG_CONFIG
 
 DLGTEMPLATE DLG_RECORD
 {
-  DIALOG "Record",                          DLG_RECORD,   0, 20, 223,120, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
+  DIALOG "Record",                          DLG_RECORD,   0, 20, 223,116, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
     FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 88, 216, 32, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 84, 216, 30, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~URL",                 ST_GENERIC,   8,104,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_SERVER,   64, 32, 152, 80, CBS_DROPDOWN
+    LTEXT           "~URL",                 ST_GENERIC,   8,102,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SERVER,   64, 26, 152, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "Status"                ST_GENERIC,   8, 92,  52,  8, DT_BOTTOM|WS_GROUP
-    LTEXT           "enter server name above",ST_STATUS, 64, 92, 152,  8, WS_TABSTOP
+    LTEXT           "Status"                ST_GENERIC,   8, 88,  52,  8, WS_GROUP
+    LTEXT           "enter server name above",ST_STATUS, 64, 88, 152,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
-    GROUPBOX " Select Target ",             GB_GENERIC,   4, 54, 216, 32, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " Select Target ",             GB_GENERIC,   4, 52, 216, 32, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Source",              ST_GENERIC,   8, 70,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_SINKSRC,  64, 38, 152, 40, CBS_DROPDOWNLIST
+    LTEXT           "~Source",              ST_GENERIC,   8, 68,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SINKSRC,  64, 36, 152, 40, CBS_DROPDOWNLIST
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Port",                ST_GENERIC,   8, 58,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_PORT,     64, 26, 152, 40, CBS_DROPDOWNLIST
+    LTEXT           "~Port",                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_PORT,     64, 24, 152, 40, CBS_DROPDOWNLIST
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     GROUPBOX " Parameters ",                GB_GENERIC,   4, 20, 216, 32, NOT WS_TABSTOP|WS_GROUP
@@ -91,7 +91,7 @@ DLGTEMPLATE DLG_RECORD
     LTEXT           "Sampling rate",        ST_GENERIC,   8, 36,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
     SPINBUTTON                              SB_RATE      64, 36,  48,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
     LTEXT           "Hz",                   ST_GENERIC, 116, 36,  48,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    LTEXT           "Channels",             ST_GENERIC,   8, 24,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    LTEXT           "Channels",             ST_GENERIC,   8, 24,  52,  8, WS_GROUP|DT_MNEMONIC
     AUTORADIOBUTTON "~mono",                RB_MONO,     64, 24,  48,  8, WS_TABSTOP
     AUTORADIOBUTTON "~stereo",              RB_STEREO,  116, 24,  48,  8
 
