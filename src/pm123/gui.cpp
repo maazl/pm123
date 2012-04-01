@@ -1903,6 +1903,7 @@ void GUIImp::Uninit()
   InspectorDialog::UnInit();
 
   CurrentDeleg.detach();
+  RootDeleg.detach();
   ControllerDeleg.detach();
   PluginDeleg.detach();
   ConfigDeleg.detach();

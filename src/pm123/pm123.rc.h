@@ -354,6 +354,18 @@
 #define ST_FONT_SAMPLE     1432
 #define PB_FONT_SELECT     1433
 
+#define CFG_PLAYBACK       1450
+
+#define CB_RG_ENABLE       1460
+#define LB_RG_LIST         1461
+#define LB_RG_AVAILABLE    1462
+#define PB_RG_UP           1463
+#define PB_RG_DOWN         1464
+#define PB_RG_ADD          1465
+#define PB_RG_REMOVE       1466
+#define SB_RG_PREAMP       1467
+#define SB_RG_PREAMP_OTHER 1468
+
 #define CFG_DEC_CONFIG     1500
 #define CFG_FIL_CONFIG     1501
 #define CFG_OUT_CONFIG     1502

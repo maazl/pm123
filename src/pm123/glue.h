@@ -64,7 +64,7 @@ class Glue
 
  public: // Control interface for the decoder engine, not thread safe
   /// Invoke decoder to play an URL
-  static ULONG DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
+  static ULONG DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
   /// Stop the current decoder immediately
   static ULONG DecStop();
   /// Close decoder plug-in. This may block until the decoder thread has ended.

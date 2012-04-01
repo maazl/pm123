@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html level="3">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>OS/2 DART audio output plug-in</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
+<h2>PM123's OS/2 DART audio output plug-in (OS2AUDIO)</h2>
+<h3>Configuration</h3>
+<blockquote><img alt="Configuration Dialog"
+ src="images/os2audio_cfg.png" height="340" width="424"></blockquote>
+<h4>Sound device</h4>
+<p>Select the appropriate sound device for output.</p>
+<dl>
+  <dt><b>Sound device is shared</b></dt>
+  <dd>Check this to open the sound device in shared mode. Other
+applications may intercept the playback in this case.<br>
+This is the only way to operate the sound device in duplex mode.</dd>
+  <dt><b>Emulate logarithmic volume control</b></dt>
+  <dd>Compensate for non-natural linear mixer
+controls of cheap sound devices. <a href="logvolume.html">See details</a>.
+  </dd>
+</dl>
+<h4>Settings</h4>
+<dl>
+  <dt><b>Number of buffers</b></dt>
+  <dd>Select the number of IO buffers to be used with the sound device.
+Increasing the buffer count might avoid sample drops if your system is
+not that responsive. But it might also cause high CPU usage on seek
+operations.</dd>
+  <dt><b>Play 48 kHz as 44.1 kHz</b></dt>
+  <dd>Some sound devices are unable to play 48 kHz files. Checking this
+option simply changes the sampling rate to 44.1 kHz. <em>This does not
+cause any resamplig.</em> The sound is played about 8% too slow and
+with about 8% off pitch.</dd>
+  <dt><b>Disable high precision playing position</b></dt>
+  <dd>Some sound drivers dislike too many calls to <tt>MCI_STATUS_POSITION</tt>.
+This is a work around.<br>
+You should only select this option if you encounter hangs or crashes
+otherwise. It will cause the time display in PM123 to become less
+smooth.</dd>
+</dl>
+</body>
+</html>

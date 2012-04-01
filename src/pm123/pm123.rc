@@ -248,17 +248,17 @@ HELPSUBTABLE HLP_NULL_TABLE
 
 DLGTEMPLATE DLG_CONFIG
 {
-  DIALOG "PM123 Properties", DLG_CONFIG, 0, 0, 279, 206, NOT WS_SAVEBITS|FS_SIZEBORDER|WS_CLIPCHILDREN,
+  DIALOG "PM123 Properties", DLG_CONFIG, 0,  0, 270,196, NOT WS_SAVEBITS|FS_SIZEBORDER|WS_CLIPCHILDREN,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_MAXBUTTON|FCF_TASKLIST|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    NOTEBOOK               NB_CONFIG,    3, 21, 273,182, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP
+    NOTEBOOK               NB_CONFIG,    0, 18, 270,178, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP
       PRESPARAMS  MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,1,1)
-    PUSHBUTTON "~Undo",    PB_UNDO,     80,  0,  35, 13, WS_GROUP|BS_NOPOINTERFOCUS
+    PUSHBUTTON "~Undo",    PB_UNDO,     65,  2,  44, 12, WS_GROUP|BS_NOPOINTERFOCUS
       PRESPARAMS  MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
-    PUSHBUTTON "~Default", PB_DEFAULT, 117,  0,  35, 13, BS_NOPOINTERFOCUS
+    PUSHBUTTON "~Default", PB_DEFAULT, 113,  2,  44, 12, BS_NOPOINTERFOCUS
       PRESPARAMS  MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
-    PUSHBUTTON "~Help",    PB_HELP,    153,  0,  35, 13, BS_HELP|BS_NOPOINTERFOCUS
+    PUSHBUTTON "~Help",    PB_HELP,    161,  2,  44, 12, BS_HELP|BS_NOPOINTERFOCUS
       PRESPARAMS  MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
   }
 }
@@ -272,14 +272,14 @@ DLGTEMPLATE CFG_SETTINGS1
     AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 58, 112, 12, WS_GROUP
     AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 58, 112, 12
     LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 46, 112, 12, DT_VCENTER|DT_MNEMONIC
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 46,  52, 12, WS_GROUP
     AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 46,  52, 12
 
     GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
     AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 20, 112, 12, WS_GROUP
     LTEXT        "Alternate s~lider:",                  ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72,  8,  52, 12, WS_TABSTOP|WS_GROUP
     AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132,  8,  52, 12
     AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,      192,  8,  52, 12
@@ -288,7 +288,7 @@ DLGTEMPLATE CFG_SETTINGS1
 
 DLGTEMPLATE CFG_SETTINGS2
 {
-  DIALOG "", CFG_SETTINGS2, 0, 0, 260, 154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG         "",                                    CFG_SETTINGS2,      0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " Playlists ",                         GB_GENERIC,         4,  4, 248, 84, NOT WS_TABSTOP|WS_GROUP
@@ -302,6 +302,34 @@ DLGTEMPLATE CFG_SETTINGS2
     AUTOCHECKBOX "at ~command line invokation",         CB_AUTOAPPENDCMD, 132, 20, 112, 12
     AUTOCHECKBOX "Remove played objects in the default playlist (~queue mode)",
                                                         CB_QUEUEMODE,      12,  8, 232, 12, WS_GROUP
+  }
+}
+
+DLGTEMPLATE CFG_PLAYBACK
+{
+  DIALOG         "",                                    CFG_PLAYBACK,       0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  { GROUPBOX     " Replay Gain ",                       GB_GENERIC,         4,  4, 248, 98, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "Enable ~Replay Gain processing",      CB_RG_ENABLE,      12, 82, 236, 10, WS_GROUP
+    LTEXT        "~Used values in order",               ST_GENERIC         12, 70,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LISTBOX                                             LB_RG_LIST         12, 36,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+    LTEXT        "Available ~values",                   ST_GENERIC        146, 70,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LISTBOX                                             LB_RG_AVAILABLE   146, 36,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+    CTEXT        "~Action",                             ST_GENERIC,       114, 70,  26, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    PUSHBUTTON   "\036",                                PB_RG_UP,         114, 54,  12, 10, WS_TABSTOP
+    PUSHBUTTON   "\037",                                PB_RG_DOWN,       114, 40,  12, 10
+    PUSHBUTTON   "\021",                                PB_RG_ADD,        130, 54,  12, 10
+    PUSHBUTTON   "\020",                                PB_RG_REMOVE,     130, 40,  12, 10
+    SPINBUTTON                                          SB_RG_PREAMP,      12, 22,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "dB",                                  ST_GENERIC,        54, 22,  16, 10, DT_VCENTER
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
+    LTEXT "~Preamp for tracks with Replay Gain information",ST_GENERIC,    70, 22, 176, 10, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_RG_PREAMP_OTHER,12, 10,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "dB",                                  ST_GENERIC,        54, 10,  16, 10, DT_VCENTER
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
+    LTEXT        "Preamp for ~other tracks",            ST_GENERIC,        70, 10, 176, 10, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   }
 }
 
@@ -361,7 +389,7 @@ DLGTEMPLATE CFG_IOSETTINGS
 
 DLGTEMPLATE CFG_DISPLAY1
 {
-  DIALOG "", CFG_DISPLAY1, 0, 0, 260, 150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG         "",                                    CFG_DISPLAY1,       0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " User interface ",                    GB_GENERIC,         4, 96, 248, 36, NOT WS_TABSTOP|WS_GROUP
@@ -492,20 +520,20 @@ DLGTEMPLATE CFG_VIS_CONFIG
 
 DLGTEMPLATE CFG_ABOUT
 {
-  DIALOG "", CFG_ABOUT, 16, 25, 259, 138, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG     "",                                   CFG_ABOUT,  16, 25, 259,138, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    CTEXT    AMP_FULLNAME,                         ST_GENERIC,  4, 124, 248, 16, DT_VCENTER
+    CTEXT    AMP_FULLNAME,                         ST_GENERIC,  4,124, 248, 16, DT_VCENTER
       PRESPARAMS PP_FONTNAMESIZE "18.Tms Rmn Bold Italic"
     CTEXT    "High Performance Audio Player for MPEG and other files.",
-                                                   ST_GENERIC,  4, 114, 248,  8, DT_VCENTER
-    CTEXT    "",                                   ST_BUILT,    4, 106, 248,  8, DT_VCENTER
-    GROUPBOX " Authors ",                          GB_GENERIC, 10,  55, 238, 53, NOT WS_TABSTOP|WS_GROUP
+                                                   ST_GENERIC,  4,114, 248,  8, DT_VCENTER
+    CTEXT    "",                                   ST_BUILT,    4,106, 248,  8, DT_VCENTER
+    GROUPBOX " Authors ",                          GB_GENERIC, 10, 55, 238, 53, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    MLE      "",                                   ST_AUTHORS, 13,  57, 232, 43, MLS_READONLY|MLS_VSCROLL|MLS_HSCROLL
-    GROUPBOX " Copyright, Credits and Greetings ", GB_GENERIC, 10,   5, 238, 47, NOT WS_TABSTOP|WS_GROUP
+    MLE      "",                                   ST_AUTHORS, 13, 57, 232, 43, MLS_READONLY|MLS_VSCROLL|MLS_HSCROLL
+    GROUPBOX " Copyright, Credits and Greetings ", GB_GENERIC, 10,  5, 238, 47, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    MLE      "",                                   ST_CREDITS, 13,   7, 232, 37, MLS_READONLY|MLS_WORDWRAP|MLS_VSCROLL
+    MLE      "",                                   ST_CREDITS, 13,  7, 232, 37, MLS_READONLY|MLS_WORDWRAP|MLS_VSCROLL
   }
 }
 

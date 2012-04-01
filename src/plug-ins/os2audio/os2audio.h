@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
  *
@@ -33,15 +33,10 @@
 #define ID_NULL       1000
 #define CB_DEVICE     1010
 #define CB_SHARED     1020
+#define CB_LOGVOLUME  1025
 #define SB_BUFFERS    1030
 #define CB_48KLUDGE   1050
 #define CB_NOPRECPOS  1055
-#define CB_RG_ENABLE  1060
-#define CB_RG_TYPE    1070
-#define SB_RG_PREAMP  1080
-#define ST_RG_PREAMP  1090
-#define SB_PREAMP     1100
-#define ST_PREAMP     1110
 
 #define DEVICE_OPENING    1
 #define DEVICE_OPENED     2
@@ -54,6 +49,7 @@ typedef struct OS2AUDIO
 {
   int   device;       /*                                                      C  */
   int   lockdevice;   /*                                                      C  */
+  int   logvolume;    /*                                                      C  */
   int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      C  */
                       /* (see prio boost check).                                 */
   int   kludge48as44; /*                                                      C  */
@@ -65,13 +61,6 @@ typedef struct OS2AUDIO
   int   buffersize;   /* Suggested size of the audio buffers.                 C  */
   int   volume;       /*                                                      C  */
   float amplifier;    /*                                                      C  */
-  int   configured;
-
-  float track_gain;   /* Defines Replay Gain values as specified at           Cd */
-  float track_peak;   /* http://www.replaygain.org                            Cd */
-  float album_gain;   /*                                                      Cd */
-  float album_peak;   /*                                                      Cd */
-  float scale;        /* Scalefactor for replaygain                           D  */
 
   BOOL  trashed;      /* A next waiting portion of samples should be trashed. Cd */
   BOOL  nomoredata;   /* The audio device don't have audio buffers for play.  Md */

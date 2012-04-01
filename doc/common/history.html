@@ -7,11 +7,12 @@
 <h2>PM123's History</h2>
 <h3>PM123 1.41 (alpha 1)</h3>
 <ul>
-  <li>Added <em>Pulseaudio</em> client support.</li>
+  <li>Added <em>Pulseaudio</em> client support, playback and recording.</li>
   <li>Added <em>playlist plug-in</em> support.</li>
   <li>Switched PM123 engine to 32 bits per sample.</li>
   <li>Significant speed up when invoking large playlists with many http URLs
     as long as you use no old decoder plug-ins.</li>
+  <li>Moved replay gain processing to PM123 core.</li>
   <li>Upgrade to libsndfile 1.0.23</li>
   <li>Access to meta data through pipe interface.</li>
   <li>Switched to dynamic string library with shared storage to save memory.</li>
@@ -23,6 +24,13 @@
 <ul>
   <li>Rewrote MPG123 plugin. Now uses libmpg123 1.13.3</li>
   <li>Gapless playback support for MP3.</li>
+</ul>
+<blockquote>
+  <h4>os2audio</h4>
+</blockquote>
+<ul>
+  <li>Moved replay gain processing to PM123 core.</li>
+  <li>Moved logarithmic volume control to os2audio.</li>
 </ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>
 <ul>

@@ -69,6 +69,12 @@ const amp_cfg Cfg::Default =
 , false
 , false
 , false
+
+, true // replay_gain
+, { CFG_RG_ALBUM_NO_CLIP, CFG_RG_ALBUM, CFG_RG_TRACK_NO_CLIP, CFG_RG_TRACK }
+, 0
+, -3
+
 , 2 // num_workers
 , 1
 
@@ -105,7 +111,6 @@ const amp_cfg Cfg::Default =
   "os2rec.dll?enabled=true\n"
   "pulse123.dll?enabled=true\n"
 , "realeq.dll?enabled=true\n"
-  "logvolum.dll?enabled=false\n"
 , "os2audio.dll?enabled=true\n"
   "wavout.dll?enabled=false\n"
   "pulse123.dll?enabled=false\n"
@@ -177,6 +182,10 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.append_dnd);
   load_ini_int(HIni, cfg.append_cmd);
   load_ini_int(HIni, cfg.queue_mode);
+  load_ini_int(HIni, cfg.replay_gain);
+  load_ini_value(HIni, cfg.rg_list);
+  load_ini_value(HIni, cfg.rg_preamp);
+  load_ini_value(HIni, cfg.rg_preamp_other);
   load_ini_int(HIni, cfg.num_workers);
   load_ini_int(HIni, cfg.num_dlg_workers);
   load_ini_int(HIni, cfg.mode);
@@ -237,6 +246,10 @@ void Cfg::SaveIni()
     save_ini_bool (HIni, cfg.append_dnd);
     save_ini_bool (HIni, cfg.append_cmd);
     save_ini_bool (HIni, cfg.queue_mode);
+    save_ini_bool (HIni, cfg.replay_gain);
+    save_ini_value(HIni, cfg.rg_list);
+    save_ini_value(HIni, cfg.rg_preamp);
+    save_ini_value(HIni, cfg.rg_preamp_other);
     save_ini_value(HIni, cfg.num_workers);
     save_ini_value(HIni, cfg.num_dlg_workers);
     save_ini_value(HIni, cfg.mode);

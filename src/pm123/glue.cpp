@@ -34,7 +34,9 @@
 #include "decoder.h"
 #include "filter.h"
 #include "output.h"
+#include "configuration.h"
 #include "eventhandler.h"
+#include <math.h>
 
 //#define DEBUG 1
 #include <debuglog.h>
@@ -63,10 +65,12 @@ class GlueImp : private Glue
 
   static bool              Initialized;       // whether the following vars are valid
   static AtomicUnsigned    Flags;
-  static xstring           Url;               // current URL
+  static volatile int_ptr<APlayable> Song;    // currently decoding song
   static PM123_TIME        StopTime;          // time index where to stop the current playback
   static PM123_TIME        PosOffset;         // Offset to posmarker parameter to make the output timeline monotonic
   static FORMAT_INFO2      LastFormat;        // Format of last request_buffer
+  static float*            LastBuffer;        // Last buffer requested by decoder
+  static float             Gain;              // Replay gain adjust
   static int_ptr<Output>   OutPlug;           // currently initialized output plug-in.
   static PluginList        FilterPlugs;       // List of initialized visual plug-ins.
   static int_ptr<Decoder>  DecPlug;           // currently active decoder plug-in.
@@ -74,6 +78,7 @@ class GlueImp : private Glue
   static OUTPUT_PARAMS2    OParams;           // parameters for output_command
   static DECODER_PARAMS2   DParams;           // parameters for decoder_command
   static delegate<void,const PluginEventArgs> PluginDeleg;
+  static delegate<void,const PlayableChangeArgs> SongDeleg;
 
  private:
   /// Virtualize output procedures by invoking the filter plug-in no \a i.
@@ -92,6 +97,8 @@ class GlueImp : private Glue
                                               { return (*Procs.output_command)(Procs.A, msg, &OParams); }
   /// Handle plug-in changes while playing.
   static void              PluginNotification(void*, const PluginEventArgs& args);
+  /// Handle song updates while playing (ReplayGain).
+  static void              SongNotification(void*, const PlayableChangeArgs& args);
 
  private: // glue
   PROXYFUNCDEF int DLLENTRY GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf);
@@ -106,10 +113,12 @@ const GlueImp::DecEventArgs GlueImp::CEVPlayStop = { DECEVENT_PLAYSTOP, NULL };
 
 bool              GlueImp::Initialized = false;
 AtomicUnsigned    GlueImp::Flags(0);
-xstring           GlueImp::Url;
+volatile int_ptr<APlayable> GlueImp::Song;
 PM123_TIME        GlueImp::StopTime;
 PM123_TIME        GlueImp::PosOffset;
 FORMAT_INFO2      GlueImp::LastFormat;
+float*            GlueImp::LastBuffer;
+float             GlueImp::Gain;
 int_ptr<Output>   GlueImp::OutPlug;
 PluginList        GlueImp::FilterPlugs(PLUGIN_FILTER);
 int_ptr<Decoder>  GlueImp::DecPlug;
@@ -117,7 +126,7 @@ OutputProcs       GlueImp::Procs;
 OUTPUT_PARAMS2    GlueImp::OParams = {0};
 DECODER_PARAMS2   GlueImp::DParams = {(const char*)NULL};
 delegate<void,const PluginEventArgs> GlueImp::PluginDeleg(&GlueImp::PluginNotification);
-
+delegate<void,const PlayableChangeArgs> GlueImp::SongDeleg(&GlueImp::SongNotification);
 
 void GlueImp::Virtualize(int i)
 { DEBUGLOG(("GlueImp::Virtualize(%i) - %p\n", i, OParams.Info));
@@ -219,6 +228,7 @@ ULONG GlueImp::Init()
 void GlueImp::Uninit()
 { DEBUGLOG(("GlueImp::Uninit\n"));
 
+  SongDeleg.detach();
   PluginDeleg.detach();
 
   Initialized = false;
@@ -258,7 +268,7 @@ ULONG GlueImp::DecCommand(DECMSGTYPE msg)
 }
 
 /* invoke decoder to play an URL */
-ULONG Glue::DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
+ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
 {
   const xstring& url = song.GetPlayable().URL;
   DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%g)\n", &song, url.cdata(), offset, start, stop));
@@ -288,7 +298,9 @@ ULONG Glue::DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, 
   { GlueImp::DecSetActive(NULL);
     return rc;
   }
-  GlueImp::Url = url;
+  GlueImp::Song = &song;
+  GlueImp::Gain = -1000;
+  song.GetInfoChange() += GlueImp::SongDeleg;
 
   GlueImp::DecCommand(DECODER_SAVEDATA);
 
@@ -307,7 +319,8 @@ ULONG Glue::DecPlay(const APlayable& song, PM123_TIME offset, PM123_TIME start, 
 
 /* stop the current DecPlug immediately */
 ULONG Glue::DecStop()
-{ GlueImp::Url = NULL;
+{ GlueImp::SongDeleg.detach();
+  GlueImp::Song.reset();
   ULONG rc = GlueImp::DecCommand(DECODER_STOP);
   // Do not deactivate the DecPlug immediately.
   return rc;
@@ -445,8 +458,10 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
   if (GlueImp::Flags.bit(GlueImp::FLG_PlaystopSent))
     return 0;
   // pass request to output
+  int ret = (*GlueImp::Procs.output_request_buffer)(a, format, buf);
   GlueImp::LastFormat = *format;
-  return (*GlueImp::Procs.output_request_buffer)(a, format, buf);
+  GlueImp::LastBuffer = *buf;
+  return ret;
 }
 
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
@@ -473,6 +488,58 @@ GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
   if (GlueImp::MaxPos < pos_e)
     GlueImp::MaxPos = pos_e;
 
+  // Replay gain processing
+  int_ptr<APlayable> song = GlueImp::Song;
+  if (song)
+  { float gain = GlueImp::Gain;
+    if (gain <= -1000)
+    { // calculate gain
+      GlueImp::Gain = 0; // Marker to track asynchronous changes.
+      volatile const amp_cfg& cfg = Cfg::Get();
+      if (cfg.replay_gain)
+      { const volatile META_INFO& meta = *song->GetInfo().meta;
+        for (size_t i = 0; i < 4; ++i)
+        { switch (cfg.rg_list[i])
+          {case CFG_RG_ALBUM:
+            gain = meta.album_gain;
+            break;
+           case CFG_RG_ALBUM_NO_CLIP:
+            gain = meta.album_peak;
+            break;
+           case CFG_RG_TRACK:
+            gain = meta.track_gain;
+            break;
+           case CFG_RG_TRACK_NO_CLIP:
+            gain = meta.track_peak;
+            break;
+           default:
+            i = 4;
+          }
+          if (gain > -1000)
+            break;
+        }
+        if (gain <= -1000)
+          gain = cfg.rg_preamp_other;
+        else
+          gain += cfg.rg_preamp;
+      } else
+        gain = 0;
+      // item specific gain adjust
+      float gain_adj = song->GetInfo().item->gain;
+      if (gain_adj > -1000)
+        gain += gain_adj;
+      if (GlueImp::Gain == 0)
+        GlueImp::Gain = gain;
+      DEBUGLOG(("GlueImp::GlueCommitBuffer - recalc gain to %f -> %f\n", gain, GlueImp::Gain));
+    }
+    if (gain)
+    { float* dp = GlueImp::LastBuffer;
+      float* ep = dp + len * GlueImp::LastFormat.channels;
+      const float factor = exp(M_LN10/20. * gain);
+      while (dp != ep)
+        *dp++ *= factor;
+    }
+  }
   // pass to the output
   (*GlueImp::Procs.output_commit_buffer)(a, len, posmarker + GlueImp::PosOffset);
 
@@ -495,14 +562,16 @@ DecEventHandler(void* a, DECEVENTTYPE event, void* param)
     break;
 
    case DECEVENT_CHANGEMETA:
-    // TODO: Well, the backend does not support time dependant metadata.
+    // TODO: Well, the backend does not support time dependent metadata.
     // From the playlist view, metadata changes should be immediately visible.
-    // But during playback the change should be delayed until the apropriate buffer is really played.
+    // But during playback the change should be delayed until the appropriate buffer is really played.
     // The latter cannot be implemented with the current backend.
-    if (GlueImp::Url)
-    { int_ptr<Playable> pp = Playable::FindByURL(GlueImp::Url);
-      if (pp)
-        pp->SetMetaInfo((META_INFO*)param);
+    { int_ptr<APlayable> song = GlueImp::Song;
+      if (song)
+      { int_ptr<Playable> pp = Playable::FindByURL(song->GetPlayable().URL);
+        if (pp)
+          pp->SetMetaInfo((META_INFO*)param);
+      }
     }
     break;
 
@@ -561,4 +630,9 @@ void GlueImp::PluginNotification(void*, const PluginEventArgs& args)
     }
    default:; // avoid warnings
   }
+}
+
+void GlueImp::SongNotification(void*, const PlayableChangeArgs& args)
+{ if ((args.Changed & (IF_Meta|IF_Item)) && int_ptr<APlayable>(Song).get() == &args.Instance)
+    Gain = -1000;
 }

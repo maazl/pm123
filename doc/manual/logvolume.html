@@ -1,29 +1,41 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html level="3"><head>
-  <title>Logarithmic Volume Control Plug-in</title>
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Logarithmic volume control in OS2AUDIO</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head><body>
-<h2>PM123's Logarithmic Volume Control Plug-in (LOGVOLUM)</h2>
-<p>This filter plug-in compensates for non-natural linear mixer controls of cheap sound devices
-  and give the volume bar of PM123 a nearly logarithmic characteristic.
-</p><p>You should not use this plug-in if your sound card already has a mixer with a logarithmic characteristic.
-  You may check what kind of device you have with a <strong>simple test</strong>:
-  Turn PM123's volume slider from maximum down to 50% while playing.
-  If the volume decreases only a bit, you have a linear control
-  and you should activate this plug-in.
-
-</p><h3>Technical details</h3>
-<p><img alt="Volume response" src="images/logvolume.png" align="left" height="267" hspace="5" vspace="5" width="420">Response of
+</head>
+<body>
+<h2>PM123's Logarithmic volume control in OS2AUDIO</h2>
+<p>This technique compensates for non-natural linear mixer controls of
+cheap sound devices and give the volume bar of PM123 a reasonable
+characteristic.
+</p>
+<p>You should not use this plug-in if your sound card already has a
+mixer with a logarithmic characteristic. You may check what kind of
+device you have with a <em>simple test</em>: turn PM123's volume
+slider from maximum down to 50% while playing. If the volume decreases
+only a bit, you have a linear control and you should activate this
+plug-in.
+</p>
+<h3>Technical details</h3>
+<p><img alt="Volume response" src="images/logvolume.png" align="left"
+ height="267" hspace="5" vspace="5" width="420">Response of
 the PM123 volume control
-</p><p>X-axis: relative position of the volume slider [%]<br>
-  Y-axis: gain [dB]<br>
-  The <font color="#ff0000">red </font> line is the response function with the correction.<br>
-  The <font color="#00cc00">green </font> line is the response function of usual sound devices
-  <em>without</em> this plug-in.
-</p><p>Instead of an exponential function the plug-in uses the polynomial:<br>
-  <img alt="y = x / (1 + sqrt(10) * (1 - x))" src="images/logvolume_formula.png"><br>
-  with x and y in the range [0,1] for the transformation. This
-  gives an approximately exponential function with a usable dynamic range
-  of almost 30&nbsp;dB while keeping the zero point at -&infin;&nbsp;dB.
-
-</p></body></html>
+</p>
+<p>X-axis: relative position of the volume slider [%]<br>
+Y-axis: gain [dB]<br>
+The <font color="#ff0000">red </font> line is the response function
+with the correction.<br>
+The <font color="#00cc00">green </font> line is the response function
+of cheap sound devices <em>without</em> this correction.
+</p>
+<p>Instead of an exponential function the plug-in uses the polynomial:<br>
+<img alt="y = x / (1 + sqrt(10) * (1 - x))"
+ src="images/logvolume_formula.png"><br>
+with x and y in the range [0,1] for the transformation. This gives an
+approximately exponential function with a usable dynamic range of
+almost 30&nbsp;dB while keeping the zero point at -&#8734;&nbsp;dB.
+</p>
+</body>
+</html>

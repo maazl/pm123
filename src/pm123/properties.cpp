@@ -85,6 +85,19 @@ class PropertyDialog : public NotebookDialogBase
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
+  class PlaybackSettingsPage : public SettingsPageBase
+  {public:
+    PlaybackSettingsPage(PropertyDialog& parent)
+    : SettingsPageBase(parent, CFG_PLAYBACK)
+    { MajorTitle = "~Playback"; }
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+   private:
+    void EnableRG(bool enabled);
+    void SetListContent(const cfg_rgtype types[4]);
+    void GetListContent(USHORT id, cfg_rgtype types[4]);
+    unsigned GetListSelection(USHORT id);
+  };
   class SystemSettingsPage : public SettingsPageBase
   {public:
     SystemSettingsPage(PropertyDialog& parent)
@@ -191,17 +204,6 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       return 0;
     }
 
-    case CFG_GLOB_BUTTON:
-    { volatile const amp_cfg* data = &Cfg::Get();
-      switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        data = &Cfg::Default;
-       case PB_UNDO:
-        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
-      }
-      return 0;
-    }
-
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.playonload  = QueryButtonCheckstate(CB_PLAYONLOAD   );
@@ -234,17 +236,6 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       return 0;
     }
 
-    case CFG_GLOB_BUTTON:
-    { volatile const amp_cfg* data = &Cfg::Get();
-      switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        data = &Cfg::Default;
-       case PB_UNDO:
-        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
-      }
-      return 0;
-    }
-
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.autouse      = QueryButtonCheckstate(CB_AUTOUSEPL    );
@@ -259,15 +250,219 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
   return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
+void PropertyDialog::PlaybackSettingsPage::EnableRG(bool enabled)
+{ EnableControl(LB_RG_LIST, enabled);
+  EnableControl(LB_RG_AVAILABLE, enabled);
+  EnableControl(PB_RG_UP, enabled);
+  EnableControl(PB_RG_DOWN, enabled);
+  EnableControl(PB_RG_ADD, enabled);
+  EnableControl(PB_RG_REMOVE, enabled);
+  EnableControl(SB_RG_PREAMP, enabled);
+  EnableControl(SB_RG_PREAMP_OTHER, enabled);
+}
+
+void PropertyDialog::PlaybackSettingsPage::SetListContent(const cfg_rgtype types[4])
+{ DEBUGLOG(("PropertyDialog::PlaybackSettingsPage::SetListContent({%u,%u,%u,%u})\n",
+    types[0], types[1], types[2], types[3]));
+  static const char* text[4] =
+  { "Album gain"
+  , "Album gain, prevent clipping"
+  , "Track gain"
+  , "Track gain, prevent clipping"
+  };
+  // prepare new items array
+  const char* items[4];
+  LBOXINFO lbi = {0};
+  unsigned contains = 0;
+  size_t i;
+  for (i = 0; i < 4; ++i)
+  { unsigned v = types[i] -1;
+    if (v >= 4)
+      break;
+    items[i] = text[v];
+    contains |= 1 << v;
+    ++lbi.ulItemCount;
+  }
+  // set new values
+  HWND lb = GetDlgItem(LB_RG_LIST);
+  PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
+  PMXASSERT(WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(&items)), == MRFROMLONG(lbi.ulItemCount));
+  // set item handles
+  for (i = 0; i < lbi.ulItemCount; ++i)
+    PMRASSERT(WinSendMsg(lb, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(types[i])));
+
+  // prepare remaining items array
+  lbi.ulItemCount = 0;
+  for (i = 0; i < 4; ++i)
+    if (!(contains & (1 << i)))
+      items[lbi.ulItemCount++] = text[i];
+  // set new values
+  lb = GetDlgItem(LB_RG_AVAILABLE);
+  PMRASSERT(WinSendMsg(lb, LM_DELETEALL, 0, 0));
+  PMXASSERT(WinSendMsg(lb, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(&items)), == MRFROMLONG(lbi.ulItemCount));
+  // set item handles
+  lbi.ulItemCount = 0;
+  for (i = 0; i < 4; ++i)
+    if (!(contains & (1 << i)))
+      PMRASSERT(WinSendMsg(lb, LM_SETITEMHANDLE, MPFROMSHORT(lbi.ulItemCount++), MPFROMLONG(i+1)));
+}
+
+void PropertyDialog::PlaybackSettingsPage::GetListContent(USHORT id, cfg_rgtype types[4])
+{ HWND lb = GetDlgItem(id);
+  size_t count = SHORT1FROMMR(WinSendMsg(lb, LM_QUERYITEMCOUNT, 0, 0));
+  for (size_t i = 0; i < 4; ++i)
+    types[i] = i >= count
+      ? CFG_RG_NONE
+      : (cfg_rgtype)LONGFROMMR(WinSendMsg(lb, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0));
+}
+
+unsigned PropertyDialog::PlaybackSettingsPage::GetListSelection(USHORT id)
+{ unsigned selected = 0;
+  HWND lb = GetDlgItem(id);
+  SHORT i = LIT_FIRST;
+  while ((i = SHORT1FROMMR(WinSendMsg(lb, LM_QUERYSELECTION, MPFROMSHORT(i), 0))) != LIT_NONE)
+    selected |= 1 << i;
+  return selected;
+}
+
+MRESULT PropertyDialog::PlaybackSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  {case WM_INITDLG:
+    { MRESULT mr = SettingsPageBase::DlgProc(msg, mp1, mp2);
+      SetSpinbuttonLimits(SB_RG_PREAMP,       -12, +12, 3);
+      SetSpinbuttonLimits(SB_RG_PREAMP_OTHER, -12, +12, 3);
+      return mr;
+    }
+
+   case CFG_CHANGE:
+    { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+      CheckButton(CB_RG_ENABLE, cfg.replay_gain);
+      EnableRG(cfg.replay_gain);
+      SetListContent(cfg.rg_list);
+      SetSpinbuttomValue(SB_RG_PREAMP, cfg.rg_preamp);
+      SetSpinbuttomValue(SB_RG_PREAMP_OTHER, cfg.rg_preamp_other);
+      return 0;
+    }
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case CB_RG_ENABLE:
+      EnableRG(QueryButtonCheckstate(CB_RG_ENABLE));
+      break;
+     case LB_RG_LIST:
+      if (SHORT2FROMMP(mp1) == LN_ENTER)
+        WinSendMsg(GetHwnd(), WM_COMMAND, MPFROMSHORT(PB_RG_REMOVE), 0);
+      break;
+     case LB_RG_AVAILABLE:
+      if (SHORT2FROMMP(mp1) == LN_ENTER)
+        WinSendMsg(GetHwnd(), WM_COMMAND, MPFROMSHORT(PB_RG_ADD), 0);
+      break;
+    }
+    break;
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_RG_UP:
+      { cfg_rgtype types[4];
+        GetListContent(LB_RG_LIST, types);
+        unsigned selected = GetListSelection(LB_RG_LIST);
+        cfg_rgtype bak;
+        int state = 0;
+        size_t i;
+        for (i = 0; i < 4; ++i)
+        { if (!(selected & (1 << i)))
+          { if (state == 2)
+              types[i-1] = bak;
+            bak = types[i];
+            state = 1;
+          } else if (state)
+          { types[i-1] = types[i];
+            state = 2;
+          }
+        }
+        if (state == 2)
+          types[3] = bak;
+        SetListContent(types);
+        return 0;
+      }
+     case PB_RG_DOWN:
+      { cfg_rgtype types[4];
+        GetListContent(LB_RG_LIST, types);
+        unsigned selected = GetListSelection(LB_RG_LIST);
+        cfg_rgtype bak;
+        int state = 0;
+        size_t i;
+        for (i = 4; i-- > 0; )
+        { if (!(selected & (1 << i)))
+          { if (state == 2)
+              types[i+1] = bak;
+            bak = types[i];
+            state = 1;
+          } else if (state)
+          { types[i+1] = types[i];
+            state = 2;
+          }
+        }
+        if (state == 2)
+          types[0] = bak;
+        SetListContent(types);
+        return 0;
+      }
+     case PB_RG_ADD:
+      { cfg_rgtype types[4];
+        GetListContent(LB_RG_LIST, types);
+        cfg_rgtype newtypes[4];
+        GetListContent(LB_RG_AVAILABLE, newtypes);
+        unsigned selected = GetListSelection(LB_RG_AVAILABLE);
+        size_t count;
+        for (count = 0; count < 4; ++count)
+          if (types[count] == CFG_RG_NONE)
+            break;
+        for (size_t i = 0; i < 4 && count < 4; ++i)
+          if (selected & (1 << i))
+            types[count++] = newtypes[i];
+        SetListContent(types);
+        return 0;
+      }
+     case PB_RG_REMOVE:
+      { cfg_rgtype types[4];
+        GetListContent(LB_RG_LIST, types);
+        unsigned selected = GetListSelection(LB_RG_LIST);
+        size_t target = 0;
+        for (size_t i = 0; i < 4; ++i)
+          if (!(selected & (1 << i)))
+            types[target++] = types[i];
+        while (target < 4)
+          types[target++] = CFG_RG_NONE;
+        SetListContent(types);
+        return 0;
+      }
+    }
+    break;
+
+   case CFG_SAVE:
+    { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
+      cfg.replay_gain = QueryButtonCheckstate(CB_RG_ENABLE);
+      GetListContent(LB_RG_LIST, cfg.rg_list);
+      cfg.rg_preamp = QuerySpinbuttonValue(SB_RG_PREAMP);
+      cfg.rg_preamp_other = QuerySpinbuttonValue(SB_RG_PREAMP_OTHER);
+      return 0;
+    }
+  }
+  return SettingsPageBase::DlgProc(msg, mp1, mp2);
+}
+
 MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   { case WM_INITDLG:
+    { MRESULT mr = SettingsPageBase::DlgProc(msg, mp1, mp2);
       SetSpinbuttonLimits(SB_TIMEOUT,    1,  300, 4 );
       SetSpinbuttonLimits(SB_BUFFERSIZE, 0, 2048, 4 );
       SetSpinbuttonLimits(SB_FILLBUFFER, 1,  100, 4 );
       SetSpinbuttonLimits(SB_NUMWORKERS, 1,    9, 1 );
       SetSpinbuttonLimits(SB_DLGWORKERS, 0,    9, 1 );
-      break;
+      return mr;
+    }
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
@@ -838,6 +1033,7 @@ PropertyDialog::PropertyDialog(HWND owner)
 : NotebookDialogBase(DLG_CONFIG, NULLHANDLE, DF_AutoResize)
 { Pages.append() = new Settings1Page(*this);
   Pages.append() = new Settings2Page(*this);
+  Pages.append() = new PlaybackSettingsPage(*this);
   Pages.append() = new SystemSettingsPage(*this);
   Pages.append() = new DisplaySettingsPage(*this);
   Pages.append() = new DecoderPage(*this);

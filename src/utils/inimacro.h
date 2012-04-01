@@ -88,7 +88,7 @@ void load_ini_data_core( HINI hini, const char* section, const char* key, void* 
 
 /* Loads a generic value binary from the specified profile file. */
 void load_ini_int_core( HINI hini, const char* section, const char* key, void* dst, size_t size );
-#define load_ini_int( hini, var )                                   \
+#define load_ini_int( hini, var )                                    \
   load_ini_int_core( hini, INI_SECTION, #var, &var, sizeof var );
 
 /* Loads a characters string from the specified profile file. */

@@ -111,7 +111,7 @@ the source code of PM123.
 |  +- plug-ins          Source code of PM123 plug-ins
 |  |  +- analyzer       Visual spectrum analyzer
 |  |  +- cddaplay       CD playback with CDDB support
-|  |  +- logvolum       Make linear volume control logarithmic
+|  |  +- foldr123       Open file system folders directly
 |  |  +- mpg123         MPEG audio decoder
 |  |  |  +- ...
 |  |  +- oggplay        Ogg Vorbis decoder

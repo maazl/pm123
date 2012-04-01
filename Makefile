@@ -15,7 +15,6 @@ PARTS   = $(PARTS) src\plug-ins\oggplay\oggplay.dll
 PARTS   = $(PARTS) src\plug-ins\realeq\realeq.dll
 PARTS   = $(PARTS) src\plug-ins\wavplay\wavplay.dll
 PARTS   = $(PARTS) src\plug-ins\wavout\wavout.dll
-PARTS   = $(PARTS) src\plug-ins\logvolum\logvolum.dll
 PARTS   = $(PARTS) src\plug-ins\os2rec\os2rec.dll
 PARTS   = $(PARTS) src\plug-ins\pulse123\pulse123.dll
 PARTS   = $(PARTS) src\pm123\pm123.exe
@@ -143,11 +142,6 @@ src\plug-ins\oggplay\oggplay.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\logvolum\logvolum.dll: src\utils\utilfct$(LBO)
-	cd src\plug-ins\logvolum
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
-
 src\plug-ins\os2rec\os2rec.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
 	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS)
@@ -222,9 +216,6 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\cddaplay
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
-	cd src\plug-ins\logvolum
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
 	cd src\plug-ins\mpg123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
@@ -276,9 +267,6 @@ clean123: $(MDUMMY)
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\cddaplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\logvolum
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\mpg123
@@ -358,9 +346,6 @@ depend: $(MDUMMY)
 	cd src\plug-ins\cddaplay
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
-	cd src\plug-ins\logvolum
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
 	cd src\plug-ins\mpg123
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
@@ -412,7 +397,6 @@ distfiles: distclean $(PARTS) $(MDUMMY)
 	copy src\plug-ins\wavout\wavout.dll     dist\files
 	copy src\plug-ins\wavplay\wavplay.dll   dist\files
 	copy src\plug-ins\oggplay\oggplay.dll   dist\files
-	copy src\plug-ins\logvolum\logvolum.dll dist\files
 	copy src\plug-ins\os2rec\os2rec.dll     dist\files
 	copy src\plug-ins\pulse123\pulse123.dll dist\files
 	copy src\pm123\pm123.exe        dist\files

@@ -86,6 +86,14 @@ enum cfg_anav
   CFG_ANAV_TIME
 };
 
+enum cfg_rgtype
+{ CFG_RG_NONE,
+  CFG_RG_ALBUM,
+  CFG_RG_ALBUM_NO_CLIP,
+  CFG_RG_TRACK,
+  CFG_RG_TRACK_NO_CLIP
+};
+
 struct amp_cfg
 { xstring defskin;            // Default skin.
 
@@ -101,6 +109,12 @@ struct amp_cfg
   bool    append_dnd;         // Drag and drop appends to default playlist
   bool    append_cmd;         // Commandline appends to default playlist
   bool    queue_mode;         // Delete played items from the default playlist
+
+  bool    replay_gain;        // Enable replay gain processing
+  cfg_rgtype rg_list[4];      // Type of replay gain processing
+  int     rg_preamp;          // additional gain for tracks with replaygain information [dB]
+  int     rg_preamp_other;    // additional gain for tracks without replaygain information [dB]
+
   int     num_workers;        // Number of worker threads for Playable objects
   int     num_dlg_workers;    // Number of dialog (high priority) worker threads for Playable objects
 
