@@ -32,7 +32,7 @@
 
 DLGTEMPLATE DLG_CONFIG
 {
-  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 224,100, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
+  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 224, 98, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
     FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
@@ -45,7 +45,7 @@ DLGTEMPLATE DLG_CONFIG
     AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 68, 152,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT           "Status"                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP
-    LTEXT           "enter server name above",ST_STATUS, 64, 56, 152,  8, WS_TABSTOP
+    LTEXT           "enter server name above",ST_STATUS, 64, 56, 152,  8, DT_BOTTOM|WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     GROUPBOX " Select Target ",             GB_GENERIC,   4, 20, 216, 32, NOT WS_TABSTOP|WS_GROUP
@@ -70,11 +70,11 @@ DLGTEMPLATE DLG_RECORD
   {
     GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 84, 216, 30, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~URL",                 ST_GENERIC,   8,102,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    LTEXT           "~URL",                 ST_GENERIC,   8, 98,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
     COMBOBOX        "",                     CB_SERVER,   64, 26, 152, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "Status"                ST_GENERIC,   8, 88,  52,  8, WS_GROUP
-    LTEXT           "enter server name above",ST_STATUS, 64, 88, 152,  8, WS_TABSTOP
+    LTEXT           "Status"                ST_GENERIC,   8, 88,  52,  8, DT_BOTTOM|WS_GROUP
+    LTEXT           "enter server name above",ST_STATUS, 64, 88, 152,  8, DT_BOTTOM|WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     GROUPBOX " Select Target ",             GB_GENERIC,   4, 52, 216, 32, NOT WS_TABSTOP|WS_GROUP
