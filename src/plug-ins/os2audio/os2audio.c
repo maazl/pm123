@@ -3,7 +3,7 @@
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
  * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:

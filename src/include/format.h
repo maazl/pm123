@@ -38,7 +38,7 @@ typedef struct
  * Definitions of level 3 interface
  *
  ***************************************************************************/
-#if PLUGIN_INTERFACE_LEVEL >= 2
+//#if PLUGIN_INTERFACE_LEVEL >= 2
 
 /** Time index in seconds (may be fractional) */
 typedef double PM123_TIME;
@@ -202,7 +202,7 @@ typedef struct
   volatile const ITEM_INFO*  item;
 } INFO_BUNDLE_CV;
 
-#endif /* level 3 interface */
+//#endif /* level 3 interface */
 
 
 #ifdef __cplusplus

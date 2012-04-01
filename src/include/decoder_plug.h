@@ -138,6 +138,31 @@ typedef enum
 ULONG DLLENTRY decoder_editmeta(HWND owner, const char* url);
 #endif
 
+/** Callback of \c decoder_fileinfo. Called once per item. */
+typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
+  const INFO_BUNDLE* info, int cached, int reliable);
+
+typedef ULONG DLLENTRYP(DECODER_WIZARD_FUNC)(HWND owner, const char* title,
+                                             DECODER_INFO_ENUMERATION_CB callback, void* param);
+
+typedef struct _DECODER_WIZARD
+{ /* linked list */
+  struct _DECODER_WIZARD* link;
+  /* String to be displayed in the context menu */
+  const char*             prompt;
+  /* Procedure to be called when the specified item is selected */
+  DECODER_WIZARD_FUNC     wizard;
+  /* Acceleration Table entries for normal invocation */
+  USHORT                  accel_key;
+  USHORT                  accel_opt;
+  /* Acceleration Table entries for direct playlist manipulation in playlist manager */
+  USHORT                  accel_key2;
+  USHORT                  accel_opt2;
+} DECODER_WIZARD;
+
+const DECODER_WIZARD* DLLENTRY decoder_getwizard(void);
+
+
 
 /****************************************************************************
  *
@@ -375,10 +400,6 @@ void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
 PM123_TIME DLLENTRY decoder_length(void* w);
 
 
-/** Callback of \c decoder_fileinfo. Called once per item. */
-typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url,
-  const INFO_BUNDLE* info, int cached, int reliable);
-
 /** Callback of \c decoder_savelist. Called once per item. */
 typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
   const INFO_BUNDLE** info, int* cached, int* reliable);
@@ -404,26 +425,6 @@ ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int hav
 
 ULONG DLLENTRY decoder_savefile (const char* url, const char* format, int* what, const INFO_BUNDLE* info,
                                  DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* errortext);
-
-typedef ULONG DLLENTRYP(DECODER_WIZARD_FUNC)(HWND owner, const char* title,
-                                             DECODER_INFO_ENUMERATION_CB callback, void* param);
-
-typedef struct _DECODER_WIZARD
-{ /* linked list */
-  struct _DECODER_WIZARD* link;
-  /* String to be displayed in the context menu */
-  const char*             prompt;
-  /* Procedure to be called when the specified item is selected */
-  DECODER_WIZARD_FUNC     wizard;
-  /* Acceleration Table entries for normal invocation */
-  USHORT                  accel_key;
-  USHORT                  accel_opt;
-  /* Acceleration Table entries for direct playlist manipulation in playlist manager */
-  USHORT                  accel_key2;
-  USHORT                  accel_opt2;
-} DECODER_WIZARD;
-
-const DECODER_WIZARD* DLLENTRY decoder_getwizard(void);
 
 #endif /* Level 3 interface */
 
