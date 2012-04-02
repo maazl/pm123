@@ -202,7 +202,7 @@ class Playable
   /// Implement \c GetOverridden private, because it makes no sense for \c Playable.
   virtual InfoFlags         GetOverridden() const;
   /// Mark the object as modified (or not)
-          void              SetModified(bool modified);
+          void              SetModified(bool modified, APlayable* origin);
 
  public:
   virtual                   ~Playable();

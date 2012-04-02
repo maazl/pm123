@@ -33,6 +33,7 @@
 
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
+#include <cpp/pmutils.h>
 #include <cpp/container/vector.h>
 
 #include <os2.h>
@@ -100,6 +101,7 @@ class DialogBase
   MRESULT           SendItemMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
                     { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
   void              EnableControl(ULONG id, bool check);
+  xstring           QueryItemText(ULONG id) { return WinQueryDlgItemXText(HwndFrame, id); }
   void              SetItemText(ULONG id, const char* text);
   bool              QueryButtonCheckstate(ULONG id);
   void              CheckButton(ULONG id, bool check);
@@ -153,7 +155,7 @@ class NotebookDialogBase : public DialogBase
 
  protected:
   NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None) : DialogBase(rid, module, flags) {}
-  void              StartDialog(HWND owner, USHORT nbid, HWND parent = HWND_DESKTOP);
+  void              StartDialog(HWND owner, ULONG nbid, HWND parent = HWND_DESKTOP);
   PageBase*         PageFromID(ULONG pageid);
 };
 

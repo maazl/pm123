@@ -151,12 +151,12 @@ void Playable::SetInUse(bool used)
   RaiseInfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
 }
 
-void Playable::SetModified(bool modified)
+void Playable::SetModified(bool modified, APlayable* origin)
 { DEBUGLOG(("Playable(%p{%s})::SetModified(%u)\n", this, URL.cdata(), modified));
   Mutex::Lock lock(Mtx);
   bool changed = Modified != modified;
   Modified = modified;
-  RaiseInfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
+  RaiseInfoChange(PlayableChangeArgs(*this, origin, IF_Usage, changed * IF_Usage, IF_None));
 }
 
 xstring Playable::GetDisplayName() const
@@ -685,6 +685,8 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
       // Same as TechInfoChange => emulate another event
       ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech, IF_Tech));
   }*/
+  if ((args.Changed & (IF_Item|IF_Attr)) && args.Origin == &args.Instance) // Only if the change is originated from the child itself.
+    SetModified(true, args.Origin);
 }
 
 void Playable::SetMetaInfo(const META_INFO* meta)
@@ -1074,13 +1076,13 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
 
   if (dest == URL)
   { // Save in place
-    SetModified(false);
+    SetModified(false, this);
   } else
   { // Save copy as => Mark the copy as modified since it's content has changed
     // in the file system.
     int_ptr<Playable> pp = FindByURL(dest);
     if (pp)
-      pp->SetModified(true);
+      pp->SetModified(true, this);
   }
   return dest;
 }

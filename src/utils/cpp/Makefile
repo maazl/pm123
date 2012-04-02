@@ -55,7 +55,7 @@ queue.h:	..\..\include\config.h mutex.h smartptr.h ..\debuglog.h
 unittest.cpp:	..\..\include\config.h event.h
 url123.cpp:	url123.h ..\strutils.h ..\fileutil.h ..\debuglog.h
 url123.h:	xstring.h container\stringmap.h
-xstring.h:	smartptr.h ..\..\include\plugin.h
+xstring.h:	smartptr.h
 container\stringmap.h:	xstring.h container\sorted_vector.h
 container\sorted_vector.h:	smartptr.h algorithm.h container\vector.h
 xstringbuilder.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
@@ -79,6 +79,7 @@ container/list.cpp:	container/list.h ..\debuglog.h
 ..\fileutil.h:	..\..\include\config.h
 windowbase.cpp:	..\utilfct.h windowbase.h smartptr.h mutex.h ..\debuglog.h
 ..\utilfct.h:	..\..\include\config.h ..\errorstr.h ..\minmax.h ..\strutils.h
-windowbase.h:	smartptr.h xstring.h container\vector.h ..\debuglog.h
+windowbase.h:	smartptr.h xstring.h pmutils.h container\vector.h ..\debuglog.h
 xstring_alloc.cpp:	xstring.h ..\debuglog.h
 xstring_alloc_plugin.cpp:	xstring.h ..\..\include\plugin.h ..\debuglog.h
+xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h

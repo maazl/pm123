@@ -161,13 +161,16 @@ class InfoDialog
    protected:
                     PageBase(InfoDialog& parent, ULONG rid, const xstring& title);
     InfoDialog&     GetParent() { return (InfoDialog&)Parent; }
-    HWND            SetCtrlText(USHORT id, Fields fld, const char* text);
-    HWND            SetCtrlCB(USHORT id, Fields fld, bool flag);
-    void            SetCtrlRB(USHORT id1, Fields fld, int btn);
-    bool            SetCtrlEFValid(USHORT id, bool valid);
+    xstring         QueryItemTextOrNULL(ULONG id);
+    HWND            SetCtrlText(ULONG id, Fields fld, const char* text);
+    HWND            SetCtrlCB(ULONG id, Fields fld, bool flag);
+    void            SetCtrlRB(ULONG id1, Fields fld, int btn);
+    bool            SetCtrlEFValid(ULONG id, bool valid);
     static const char* FormatInt(char* buffer, int value, const char* unit = "");
+    static const char* FormatGain(char* buffer, float gain);
     static const char* FormatTstmp(char* buffer, time_t time);
     static const char* FormatDuration(char* buffer, PM123_TIME time);
+    //static bool     ParseDuration(const char* text, float& duration);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     /// Return the InfoFlags to be requested
@@ -191,8 +194,8 @@ class InfoDialog
     bool            MetaWrite;  // Valid only while UM_UPDATE
    private:
     // Dialog procedure
-    HWND            SetEFText(USHORT id, Fields fld, const char* text);
-    inline bool     FetchField(USHORT idcb, USHORT idef, xstring& field);
+    HWND            SetEFText(ULONG id, Fields fld, const char* text);
+    inline bool     FetchField(ULONG idcb, ULONG idef, xstring& field);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     PageMetaInfo(InfoDialog& parent) : PageBase(parent, DLG_METAINFO, "Meta info") {}
@@ -345,8 +348,9 @@ class PlayableInstanceInfoDialog
    private:
     void            SetModified();
    protected:
-    HWND            SetCtrlText(USHORT id, Fields fld, const char* text)
+    HWND            SetCtrlText(ULONG id, Fields fld, const char* text)
                     { return PageBase::SetCtrlText(id, fld, text ? text : ""); }
+    static const char* FormatGap(char* buffer, float time);
     void            Save();
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
@@ -421,7 +425,12 @@ InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid, const xstring& tit
 { MajorTitle = title;
 }
 
-HWND InfoDialog::PageBase::SetCtrlText(USHORT id, Fields fld, const char* text)
+xstring InfoDialog::PageBase::QueryItemTextOrNULL(ULONG id)
+{ const xstring& ret = QueryItemText(id);
+  return ret.length() ? ret : xstring();
+}
+
+HWND InfoDialog::PageBase::SetCtrlText(ULONG id, Fields fld, const char* text)
 { HWND ctrl = WinWindowFromID(GetHwnd(), id);
   PMASSERT(ctrl != NULLHANDLE);
   PMRASSERT(WinSetWindowText(ctrl, !(Valid & fld) ? "" : text ? text : "n/a"));
@@ -431,7 +440,7 @@ HWND InfoDialog::PageBase::SetCtrlText(USHORT id, Fields fld, const char* text)
   return ctrl;
 }
 
-HWND InfoDialog::PageBase::SetCtrlCB(USHORT id, Fields fld, bool flag)
+HWND InfoDialog::PageBase::SetCtrlCB(ULONG id, Fields fld, bool flag)
 { HWND ctrl = WinWindowFromID(GetHwnd(), id);
   PMASSERT(ctrl != NULLHANDLE);
   WinSendMsg(ctrl, BM_SETCHECK, MPFROMSHORT(Valid & fld ? flag : 2), 0);
@@ -439,7 +448,7 @@ HWND InfoDialog::PageBase::SetCtrlCB(USHORT id, Fields fld, bool flag)
   return ctrl;
 }
 
-void InfoDialog::PageBase::SetCtrlRB(USHORT id1, Fields fld, int btn)
+void InfoDialog::PageBase::SetCtrlRB(ULONG id1, Fields fld, int btn)
 { DEBUGLOG(("InfoDialog(%p)::PageBase::SetCtrlRB(%u, %x, %i) - %x, %x\n", &Parent, id1, fld, btn, Valid, Enabled));
   HWND ctrl1 = WinWindowFromID(GetHwnd(), id1);
   PMASSERT(ctrl1 != NULLHANDLE);
@@ -458,7 +467,7 @@ void InfoDialog::PageBase::SetCtrlRB(USHORT id1, Fields fld, int btn)
   } while (ctrl != ctrl1 && ctrl != ctrl2);
 }
 
-bool InfoDialog::PageBase::SetCtrlEFValid(USHORT id, bool valid)
+bool InfoDialog::PageBase::SetCtrlEFValid(ULONG id, bool valid)
 { static const RGB error_color = { 0xbf, 0xbf, 0xff };
   HWND ctrl = WinWindowFromID(GetHwnd(), id);
   PMASSERT(ctrl != NULLHANDLE);
@@ -476,6 +485,13 @@ const char* InfoDialog::PageBase::FormatInt(char* buffer, int value, const char*
   return buffer;
 }
 
+const char* InfoDialog::PageBase::FormatGain(char* buffer, float gain)
+{ if (gain <= -1000)
+    return NULL;
+  sprintf(buffer, "%.1f", gain);
+  return buffer;
+}
+
 const char* InfoDialog::PageBase::FormatTstmp(char* buffer, time_t time)
 { if (time == (time_t)-1)
     return NULL;
@@ -489,16 +505,73 @@ const char* InfoDialog::PageBase::FormatDuration(char* buffer, PM123_TIME length
     return NULL;
   unsigned long mins = (unsigned long)(length/60);
   PM123_TIME secs = length - 60*mins;
-  if (mins == 0)
-    sprintf(buffer, "%5.3f s", secs);
-  else if (mins < 60)
+  if (mins < 60)
     sprintf(buffer, "%lu:%06.3f", mins, secs);
   else if (mins < 1440)
     sprintf(buffer, "%lu:%02lu:%06.3f", mins/60, mins%60, secs);
   else
     sprintf(buffer, "%lud %lu:%02lu:%06.3f", mins/1440, mins/60%24, mins%60, secs);
+  // remove trailing zeros of fractional seconds.
+  char* cp = buffer + strlen(buffer);
+  while (*--cp == '0')
+    *cp = 0;
+  if (*cp == '.')
+    *cp = 0;
   return buffer;
 }
+
+/*bool InfoDialog::PageBase::ParseDuration(const char* text, float& duration)
+{ DEBUGLOG(("InfoDialog::PageBase::ParseDuration(%s,)\n"));
+  if (!text || *text == 0)
+  { duration = -1;
+    return true;
+  }
+  text += strspn(text, " \t");
+  size_t len = strlen(text);
+  while (text[len-1] == ' ' || text[len-1] == '\t')
+    --len;
+  unsigned days = 0;
+  unsigned hours = 0;
+  unsigned mins = 0;
+  float secs = 0;
+  size_t parsed;
+  size_t pos = strcspn(text, " \td");
+  if (pos < len)
+  { // have days
+    if (sscanf(text, "%u%n", &days, &parsed) != 1 || parsed != pos)
+      return false;
+    text += pos;
+    if (*text == 'd')
+      ++text, --len;
+    size_t blank = strspn(text, " \t");
+    text += blank;
+    len -= blank + pos;
+  }
+  pos = strcspn(text, ":");
+  if (pos < len)
+  { // have hours or minutes
+    if (sscanf(text, "%u%n", &hours, &parsed) != 1 || parsed != pos)
+      return false;
+    text += pos+1;
+    len -= pos+1;
+    pos = strcspn(text, ":");
+    if (pos < len)
+    { // have minutes
+      if (sscanf(text, "%u%n", &mins, &parsed) != 1 || parsed != pos)
+        return false;
+      text += pos+1;
+      len -= pos+1;
+    } else
+    { mins = hours;
+      hours = 0;
+    }
+  }
+  if (sscanf(text, "%f%n", &secs, &parsed) != 1 || parsed != len || secs < 0)
+    return false;
+  // create result
+  duration = (days * 1440 + hours * 60 + mins) * 60. + secs;
+  return true;
+}*/
 
 MRESULT InfoDialog::PageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("InfoDialog(%p)::PageBase::DlgProc(%x, %x, %x)\n", &Parent, msg, mp1, mp2));
@@ -576,13 +649,13 @@ InfoFlags InfoDialog::PageTechInfo::GetRequestFlags()
 }
 
 
-HWND InfoDialog::PageMetaInfo::SetEFText(USHORT id, Fields fld, const char* text)
+HWND InfoDialog::PageMetaInfo::SetEFText(ULONG id, Fields fld, const char* text)
 { HWND ctrl = PageBase::SetCtrlText(id, fld, text);
   WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(!MetaWrite), 0);
   return ctrl;
 }
 
-inline bool InfoDialog::PageMetaInfo::FetchField(USHORT idcb, USHORT idef, xstring& field)
+inline bool InfoDialog::PageMetaInfo::FetchField(ULONG idcb, ULONG idef, xstring& field)
 { if (SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), idcb)))
   { field = WinQueryDlgItemXText(GetHwnd(), idef);
     if (!*field)
@@ -617,19 +690,19 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       CheckButton(CB_METACOMMENT,  !!(Valid & F_comment));
       CheckButton(CB_METACOPYRIGHT,!!(Valid & F_copyright));
 
-      SetEFText(EF_METATITLE, F_title, meta.title);
-      SetEFText(EF_METAARTIST, F_artist, meta.artist);
-      SetEFText(EF_METAALBUM, F_album, meta.album);
-      SetEFText(EF_METATRACK, F_track, meta.track);
-      SetEFText(EF_METADATE, F_year, meta.year);
-      SetEFText(EF_METAGENRE, F_genre, meta.genre);
-      SetEFText(EF_METACOMMENT, F_comment, meta.comment);
+      SetEFText(EF_METATITLE,     F_title,     meta.title);
+      SetEFText(EF_METAARTIST,    F_artist,    meta.artist);
+      SetEFText(EF_METAALBUM,     F_album,     meta.album);
+      SetEFText(EF_METATRACK,     F_track,     meta.track);
+      SetEFText(EF_METADATE,      F_year,      meta.year);
+      SetEFText(EF_METAGENRE,     F_genre,     meta.genre);
+      SetEFText(EF_METACOMMENT,   F_comment,   meta.comment);
       SetEFText(EF_METACOPYRIGHT, F_copyright, meta.copyright);
 
-      SetCtrlText(EF_METARPGAINT, F_track_gain, meta.track_gain <= -1000 ? "n/a" : (sprintf(buffer, "%.1f", meta.track_gain), buffer));
-      SetCtrlText(EF_METARPPEAKT, F_track_peak, meta.track_peak <= -1000 ? "n/a" : (sprintf(buffer, "%.1f", meta.track_peak), buffer));
-      SetCtrlText(EF_METARPGAINA, F_album_gain, meta.album_gain <= -1000 ? "n/a" : (sprintf(buffer, "%.1f", meta.album_gain), buffer));
-      SetCtrlText(EF_METARPPEAKA, F_album_peak, meta.album_peak <= -1000 ? "n/a" : (sprintf(buffer, "%.1f", meta.album_peak), buffer));
+      SetCtrlText(EF_METARPGAINT, F_track_gain, FormatGain(buffer, meta.track_gain));
+      SetCtrlText(EF_METARPPEAKT, F_track_peak, FormatGain(buffer, meta.track_peak));
+      SetCtrlText(EF_METARPGAINA, F_album_gain, FormatGain(buffer, meta.album_gain));
+      SetCtrlText(EF_METARPPEAKA, F_album_peak, FormatGain(buffer, meta.album_peak));
 
       PMRASSERT(WinEnableControl(GetHwnd(), PB_APPLY, MetaWrite));
       return 0;
@@ -1096,27 +1169,33 @@ void PlayableInstanceInfoDialog::PageItemInfo::SetModified()
   PMRASSERT(WinEnableControl(GetHwnd(), PB_UNDO, TRUE));
 }
 
+const char* PlayableInstanceInfoDialog::PageItemInfo::FormatGap(char* buffer, float gap)
+{ if (gap < 0)
+    return NULL;
+  sprintf(buffer, "%.3f", gap);
+  char * cp = buffer + strlen(buffer);
+  while (*--cp == '0')
+    *cp = 0;
+  if (*cp == '.')
+    *cp = 0;
+  return buffer;
+}
+
 void PlayableInstanceInfoDialog::PageItemInfo::Save()
 {
-  char buffer[1024];
   size_t len;
   bool valid = true;
   // Extract Parameters and validate
   url123 url;
-  valid &= SetCtrlEFValid(EF_INFOURL,
-    WinQueryDlgItemText(GetHwnd(), EF_INFOURL, sizeof buffer, buffer) != 0
-    && (url = url123::normalizeURL(buffer)) != NULL );
+  xstring tmp = QueryItemText(EF_INFOURL);
+  valid &= SetCtrlEFValid(EF_INFOURL, tmp.length() != 0 && (url = url123::normalizeURL(tmp)) != NULL);
 
   ItemInfo item;
   AttrInfo attr;
-  if (WinQueryDlgItemText(GetHwnd(), EF_INFOALIAS, sizeof buffer, buffer) != 0)
-    item.alias = buffer;
-  if (WinQueryDlgItemText(GetHwnd(), EF_INFOSTART, sizeof buffer, buffer) != 0)
-    item.start = buffer;
-  if (WinQueryDlgItemText(GetHwnd(), EF_INFOSTOP, sizeof buffer, buffer) != 0)
-    item.stop = buffer;
-  if (WinQueryDlgItemText(GetHwnd(), EF_INFOAT, sizeof buffer, buffer) != 0)
-    attr.at = buffer;
+  item.alias = QueryItemTextOrNULL(EF_INFOALIAS);
+  item.start = QueryItemTextOrNULL(EF_INFOSTART);
+  item.stop  = QueryItemTextOrNULL(EF_INFOSTOP);
+  attr.at    = QueryItemTextOrNULL(EF_INFOAT);
   // Validation of Location makes no sense unless the URL is valid.
   int_ptr<Playable> pp;
   if (valid)
@@ -1150,15 +1229,15 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     }
     // TODO refresh on job completion?
   }
-  valid &= SetCtrlEFValid(EF_INFOPREGAP,
-    WinQueryDlgItemText(GetHwnd(), EF_INFOPREGAP, sizeof buffer, buffer) == 0
-    || (sscanf(buffer, "%f%n", &item.pregap, &len) == 1 && len == strlen(buffer)) );
-  valid &= SetCtrlEFValid(EF_INFOPOSTGAP,
-    WinQueryDlgItemText(GetHwnd(), EF_INFOPOSTGAP, sizeof buffer, buffer) == 0
-    || (sscanf(buffer, "%f%n", &item.postgap, &len) == 1 && len == strlen(buffer)) );
-  valid &= SetCtrlEFValid(EF_INFOGAIN,
-    WinQueryDlgItemText(GetHwnd(), EF_INFOGAIN, sizeof buffer, buffer) == 0
-    || (sscanf(buffer, "%f%n", &item.gain, &len) == 1 && len == strlen(buffer)) );
+  tmp = QueryItemText(EF_INFOPREGAP);
+  valid &= SetCtrlEFValid(EF_INFOPREGAP, tmp.length() == 0
+    || (sscanf(tmp, "%f%n", &item.pregap, &len) == 1 && len == tmp.length() && item.pregap >= 0) );
+  tmp = QueryItemText(EF_INFOPOSTGAP);
+  valid &= SetCtrlEFValid(EF_INFOPOSTGAP, tmp.length() == 0
+    || (sscanf(tmp, "%f%n", &item.postgap, &len) == 1 && len == tmp.length() && item.postgap >= 0) );
+  tmp = QueryItemText(EF_INFOGAIN);
+  valid &= SetCtrlEFValid(EF_INFOGAIN, tmp.length() == 0
+    || (sscanf(tmp, "%f%n", &item.gain, &len) == 1 && len == tmp.length() && fabs(item.gain) < 100) );
 
   attr.ploptions = PLO_ALTERNATION * QueryButtonCheckstate(CB_INFOALTERNATION)
       | PLO_SHUFFLE * SendItemMsg(RB_INFOPLSHINHERIT, BM_QUERYCHECKINDEX, 0, 0) ;
@@ -1199,12 +1278,9 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
         SetCtrlText(EF_INFOALIAS,   F_ITEM_INFO, item.alias);
         SetCtrlText(EF_INFOSTART,   F_ITEM_INFO, item.start);
         SetCtrlText(EF_INFOSTOP,    F_ITEM_INFO, item.stop);
-        sprintf(buffer, "%.3f", item.pregap);
-        SetCtrlText(EF_INFOPREGAP,  F_ITEM_INFO, item.pregap ? buffer : NULL);
-        sprintf(buffer, "%.3f", item.postgap);
-        SetCtrlText(EF_INFOPOSTGAP, F_ITEM_INFO, item.postgap ? buffer : NULL);
-        sprintf(buffer, "%.1f", item.gain);
-        SetCtrlText(EF_INFOGAIN,    F_ITEM_INFO, item.gain ? buffer : NULL);
+        SetCtrlText(EF_INFOPREGAP,  F_ITEM_INFO, FormatGap(buffer, item.pregap));
+        SetCtrlText(EF_INFOPOSTGAP, F_ITEM_INFO, FormatGap(buffer, item.postgap));
+        SetCtrlText(EF_INFOGAIN,    F_ITEM_INFO, FormatGain(buffer, item.gain));
       }
       { const ATTR_INFO& attr = data.Info.Attr;
         SetCtrlText(EF_INFOAT,      F_ATTR_INFO, attr.at);

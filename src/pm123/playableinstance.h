@@ -31,19 +31,6 @@
 #define PLAYABLEINSTANCE_H
 
 #include "playableref.h"
-/*#include <config.h>
-#include "aplayable.h"
-#include "collectioninfocache.h"
-
-#include <cpp/mutex.h>
-#include <cpp/smartptr.h>
-#include <cpp/cpputil.h>
-//#include <cpp/container/inst_index.h>
-#include <cpp/container/sorted_vector.h>
-#include <cpp/container/list.h>
-#include <cpp/url123.h>
-
-#include <time.h>*/
 
 
 /** @brief Instance of a PlayableRef within a laylist.

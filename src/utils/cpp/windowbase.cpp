@@ -244,7 +244,7 @@ NotebookDialogBase::PageBase::PageBase(NotebookDialogBase& parent, ULONG rid, HM
   Parent(parent)
 {}
 
-void NotebookDialogBase::StartDialog(HWND owner, USHORT nbid, HWND parent)
+void NotebookDialogBase::StartDialog(HWND owner, ULONG nbid, HWND parent)
 { DEBUGLOG(("NotebookDialogBase(%p)::StartDialog(%p, %i, %p)\n", this, owner, nbid, parent));
   DialogBase::StartDialog(owner, parent);
   // setup notebook windows
