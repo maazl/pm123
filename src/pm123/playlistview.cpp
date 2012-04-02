@@ -288,7 +288,9 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             if (DirectEdit.length())
               info.alias = DirectEdit;
             else
-              info.alias.reset();
+            { info.alias.reset();
+              PostRecordUpdate(rec, IF_Display);
+            }
             pi.OverrideItem(info.IsInitial() ? NULL : &info);
           }
           break;
@@ -586,8 +588,8 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance& obj, R
 
   rec->URL          = obj.GetPlayable().URL;
   // Request some infos
-  InfoFlags avail = IF_Decoder|IF_Item|IF_Slice|IF_Drpl;
-  avail &= ~obj.RequestInfo(IF_Decoder|IF_Item, PRI_Normal);
+  InfoFlags avail = IF_Decoder|IF_Item|IF_Drpl|IF_Slice|IF_Display;
+  avail &= ~obj.RequestInfo(IF_Decoder|IF_Item|IF_Display, PRI_Normal);
   avail &= ~obj.RequestInfo(IF_Slice|IF_Drpl, PRI_Low);
   CalcCols(rec, avail);
 
