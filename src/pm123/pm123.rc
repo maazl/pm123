@@ -879,7 +879,7 @@ MENU MNU_RECORD
   MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
-  MENUITEM "Refresh status",             IDM_PL_REFRESH
+  MENUITEM "Refresh",                    IDM_PL_REFRESH
   MENUITEM SEPARATOR
   MENUITEM "~Remove from list",          IDM_PL_REMOVE
   SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
@@ -925,6 +925,7 @@ MENU PM_REC_MENU
   MENUITEM "~Detailed view (edit)",      IDM_PL_DETAILED
   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
   MENUITEM SEPARATOR
+  MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
   MENUITEM "Refresh",                    IDM_PL_REFRESH
