@@ -567,16 +567,17 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
       rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
       if (rc != PLUGIN_NO_PLAY)
         goto ok; // This also happens in case of a plug-in independent error
-      if (handle)
-        if (xio_rewind(handle))
-        { // Try to recover from seek error.
-          xio_fclose(handle);
-          handle = xio_fopen(URL, "rbU");
-          if (handle == NULL)
-          { rc = PLUGIN_NO_READ;
-            goto ok;
-          }
+      if (handle && xio_rewind(handle))
+      { // Try to recover from seek error.
+        xio_fclose(handle);
+        handle = xio_fopen(URL, "rbU");
+        if (handle == NULL)
+        { rc = PLUGIN_NO_READ;
+          info.tech->info = xio_strerror(xio_errno());
+          goto ok;
         }
+      }
+      info.tech->info.reset();
     }
     checked[i] = TRUE;
   }
@@ -592,16 +593,17 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
     if (rc != PLUGIN_NO_PLAY)
       goto ok; // This also happens in case of a plug-in independent error
-    if (handle)
-      if (xio_rewind(handle))
-      { // Try to recover from seek error.
-        xio_fclose(handle);
-        handle = xio_fopen(URL, "rbU");
-        if (handle == NULL)
-        { rc = PLUGIN_NO_READ;
-          goto ok;
-        }
+    if (handle && xio_rewind(handle))
+    { // Try to recover from seek error.
+      xio_fclose(handle);
+      handle = xio_fopen(URL, "rbU");
+      if (handle == NULL)
+      { rc = PLUGIN_NO_READ;
+        info.tech->info = xio_strerror(xio_errno());
+        goto ok;
       }
+    }
+    info.tech->info.reset();
   }
 
   // No decoder found
