@@ -13,7 +13,7 @@ CALL Assert 'lasttime', '> 0'
 CALL SysSleep(1)
 time = CallPipe('time')
 CALL Assert 'DATATYPE(time,"N")', ''
-CALL Assert 'time', '> lasttime+1'
+CALL Assert 'time', '>= lasttime+1'
 
 CALL CallPipe 'pause'
 CALL Assert 'RESULT', '= 0'
@@ -30,9 +30,10 @@ lasttime = time
 CALL CallPipe 'pause 0'
 CALL Assert 'RESULT', '= 0'
 
+CALL SysSleep(1)
 time = CallPipe('time')
 CALL Assert 'DATATYPE(time,"N")', ''
-CALL Assert 'time', '> lasttime'
+CALL Assert 'time', '>= lasttime+1'
 
 EXIT
 
