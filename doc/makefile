@@ -25,7 +25,7 @@ MANLST = $(MANLST) manual\remote\index.html manual\remote\config.html manual\rem
 MANLST = $(MANLST) manual\remote\gui.html manual\remote\meta.html manual\remote\metawrite.html
 MANLST = $(MANLST) manual\remote\options.html manual\remote\playback.html manual\remote\playlist.html
 MANLST = $(MANLST) manual\remote\plugin.html manual\remote\general.html
-MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\settings_play.html 
+MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\setting_play.html 
 MANLST = $(MANLST) manual\settingsio.html manual\sguide.html
 MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html
 MANLST = $(MANLST) manual\urlformat.html manual\bookmark.html manual\playlist_cm.html
@@ -67,5 +67,5 @@ clean: $(MDUMMY)
 check.log: linkchecker-out.csv
 	perl tools\parselinkchecker.pl linkchecker-out.csv >$@
 
-linkchecker-out.csv: $(MDUMMY)
+linkchecker-out.csv: $(MANLST) $(PDKLST)
 	linkchecker -Ftools\linkcheckerrc manual\index.html pdk\index.html developer\index.html common\todo.html >$@

@@ -48,21 +48,6 @@ prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
     </tr>
     <tr class="open">
-      <td><em>6 medium bug, open</em></td>
-      <td>Deadlocks with recursive playlists</td>
-      <td>With recursive playlist structures PM123 sometimes
-deadlocks because the list semaphore are not requested top down. In
-fact there is no top and no bottom in this case.<br>
-The problem arises from PlayableCollection::GetCollectionInfo.
-The required information is prefetched, but that is not sufficient.
-If another worker thread is working on another information of the other
-item and is demanding information from the current item in the same
-way,
-everything stops.<br>
-I think a conditional variable for each object in CollectionInfoCache
-is the only solution.</td>
-    </tr>
-    <tr class="open">
       <td><em>11 medium bug, open</em></td>
       <td>NavigateTo does not work if we see a slice of the
 current root.</td>
@@ -145,7 +130,7 @@ not always hit the nail on the head. Reason unknown.</td>
       <td><em>23 medium bug, open</em></td>
       <td>Pipe interface not working</td>
       <td>Open tagedit ... does not work. The command line with *
-splits the commands into seperate ones.</td>
+splits the commands into separate ones.</td>
     </tr>
     <tr class="open">
       <td><em>24 medium todo, open</em></td>
@@ -156,21 +141,11 @@ reasonable amount of time to return to the start. An option to restrict
 the length of the meta data for the scroller display would be helpful.</td>
     </tr>
     <tr class="open">
-      <td><em>25 medium bug, open</em><br>
-      </td>
-      <td>Cannot Play valid MP3 file <tt>Gottesdienst_vom_22.08.2010.MP3</tt><br>
-      </td>
-      <td>mpg123.dll claims not to support this file.<br>
-      </td>
-    </tr>
-    <tr class="open">
-      <td valign="top">26 minor todo, open<br>
-      </td>
-      <td valign="top">Implement buffering for write access in xio.dll.<br>
+      <td valign="top">26 minor todo, open </td>
+      <td valign="top">Implement buffering for write access in xio.dll.
       </td>
       <td valign="top">xio.dll currently disables the buffer if an
-object is opened for write access.<br>
-      </td>
+object is opened for write access. </td>
     </tr>
   </tbody>
 </table>

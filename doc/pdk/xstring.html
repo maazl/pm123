@@ -191,7 +191,7 @@ initialized by the argument <tt>ctx</tt> of <tt><a
 <p>There is one restriction with the C++ API of <tt>xstring</tt>: <strong>You
 must not assign anything to a <tt>xstring</tt> instance in a static
 initializer</strong>, more precisely before the <tt>plugin_init</tt>
-call. Only calling the default constructor is valid.</p>
+call. Only calling the default constructor is valid within this context.</p>
 <p>The <tt>xstring</tt> objects are binary compatible in C and C++. So
 <tt>xstring</tt> instances may be shared between C and C++ code.</p>
 <table border="1" cellpadding="3" cellspacing="0">

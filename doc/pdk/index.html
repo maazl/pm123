@@ -25,6 +25,7 @@ appropriate. The data is in standard PCM format.</p>
 <p><a href="filter_plug.html">Filter plug-ins</a> are
 chained between the decoder and the output plug-in to modify the PCM
 data before getting to the output plug-in.</p>
+<p>See also <a href="datatype.html">common plug-in data types</a>.</p>
 <h3>Common interface</h3>
 <p><tt>plugin.h</tt> contains the necessary structures
 for all PM123 plug-ins.
@@ -39,8 +40,7 @@ initialize the plug-in</li>
   <li><a href="#plugin_command"><tt>plugin_command</tt></a> [optional]
 - execute plug-in specific remote command</li>
   <li><a href="#plugin_deinit"><tt>plugin_deinit</tt></a> [optional] -
-prepare the plug-in for unload<br>
-  </li>
+prepare the plug-in for unload </li>
 </ul>
 <p>Before you include any file from the PDK you should define the macro
 <tt>PLUGIN_INTERFACE_LEVEL</tt> to the appropriate value matching the <a
@@ -68,7 +68,7 @@ variables in the <i>param</i> structure, for example:
 is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.
 The function is called only from the application's main thread. It
 should not block for longer nor do I/O operations to keep the GUI
-responsive.<br>
+responsive.
 </p>
 <blockquote>
   <pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
@@ -128,12 +128,12 @@ window so that you can "lock" your
 window on it if you want and where <i>module</i> can be
 used to load a resource from your DLL. The functions is called only
 from the application's main thread. It should not block for longer nor
-do I/O operations to keep the GUI responsive.<br>
+do I/O operations to keep the GUI responsive.
 </p>
 <p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt>
 is
 optional. If the symbol is exported, the
-plug-in can receive <a href="../manual/remote.html">remote commands</a>.</p>
+plug-in can receive remote commands.</p>
 <blockquote>
   <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
  href="xstring.html">xstring</a>* <var>result</var>);</pre>
