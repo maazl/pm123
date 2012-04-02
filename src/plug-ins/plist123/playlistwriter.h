@@ -58,6 +58,7 @@ class PlaylistWriter
  protected:
                             PlaylistWriter(const char* list);
   virtual void              Write(const char* data);
+  void                      WriteNoLine(const xstring& loc, char replace);
  public:
   virtual                   ~PlaylistWriter() {}
   /// Factory to create playlist writers.

@@ -148,9 +148,9 @@ void PlaylistReader::Reset()
   Item.alias.reset();
   Item.start.reset();
   Item.stop.reset();
-  Item.pregap = 0;
-  Item.postgap = 0;
-  Item.gain = 0;
+  Item.pregap = -1;
+  Item.postgap = -1;
+  Item.gain = -1000;
   Cached = INFO_NONE;
   Override = INFO_NONE;
 }
@@ -229,13 +229,23 @@ bool LSTReader::ParseLine(char* line)
     } else if (memcmp(line+1, "STOP ", 5) == 0) // slice
     { Item.stop = line+6;
       Override |= INFO_ITEM;
+    } else if (memcmp(line+1, "GAP ", 4) == 0) // gaps
+    { if (line[5] != ',') // no pregap
+        sscanf(line+5, "%f", &Item.pregap);
+      char* cp = strchr(line+5, ',');
+      if (cp)
+        sscanf(cp+1, "%f", &Item.postgap);
+      Override |= INFO_ITEM;
+    } else if (memcmp(line+1, "GAIN ", 5) == 0) // gain
+    { sscanf(line+6, "%f", &Item.gain);
+      Override |= INFO_ITEM;
     } else if (line[1] == ' ')
     { const char* cp = strstr(line+2, ", ");
       if (cp)
       { cp = strstr(cp+2, ", ");
         if (cp)
-        { Tech.info = cp+2;
-      } }
+          Tech.info = cp+2;
+      }
     }
     break;
 

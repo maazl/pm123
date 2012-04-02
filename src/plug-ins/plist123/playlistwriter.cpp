@@ -93,6 +93,22 @@ void PlaylistWriter::Write(const char* data)
     OK &= xio_fputs(data, Stream) >= 0;
 }
 
+void PlaylistWriter::WriteNoLine(const xstring& loc, char replace)
+{ if (!loc)
+    return;
+  char* cp = strchr(loc, '\n');
+  if (cp)
+  { // replace '\n'
+    char* loc2 = (char*)alloca(loc.length()+1);
+    memcpy(loc2, loc.cdata(), loc.length()+1);
+    cp = loc2 + (cp - loc.cdata());
+    do *cp = replace;
+    while ((cp = strchr(cp, '\n')) != NULL);
+    Write(loc2);
+  } else
+    Write(loc);
+}
+
 PlaylistWriter* PlaylistWriter::FormatFactory(const char* list, const char* format)
 { DEBUGLOG(("plst123:PlaylistWriter::FormatFactory(%s, %s)\n", list, format));
   if (format)
@@ -140,28 +156,48 @@ bool LSTWriter::AppendItem(const Item& item)
 { DEBUGLOG(("plist123:LSTWriter(%p)::AppendItem({%s, %p, %x, %x})\n", this,
     item.Url.cdata(), item.Info, item.Valid, item.Override));
   register const INFO_BUNDLE& info = *item.Info;
+  char buf[128];
   // alias
   if (info.item->alias)
   { Write("#ALIAS ");
-    Write(info.item->alias);
+    WriteNoLine(info.item->alias, ';');
     Write("\n");
   }
   // slice
   if (info.item->start)
   { Write("#START ");
-    Write(info.item->start);
+    WriteNoLine(info.item->start, ';');
     Write("\n");
   }
   if (info.item->stop)
   { Write("#STOP ");
-    Write(info.item->stop);
+    WriteNoLine(info.item->stop, ';');
     Write("\n");
   }
   // location
   if (info.attr->at)
   { Write("#AT ");
-    Write(info.attr->at);
+    WriteNoLine(info.attr->at, ';');
     Write("\n");
+  }
+  // gap
+  if (info.item->pregap >= 0 || info.item->postgap >= 0)
+  { Write("#GAP ");
+    if (info.item->pregap >= 0)
+    { sprintf(buf, "%.3f", info.item->pregap);
+      Write(buf);
+    }
+    Write(", ");
+    if (info.item->postgap >= 0)
+    { sprintf(buf, "%.3f", info.item->postgap);
+      Write(buf);
+    }
+    Write("\n");
+  }
+  // gain
+  if (info.item->gain > -1000)
+  { sprintf(buf, "#GAIN %.1f\n", info.item->gain);
+    Write(buf);
   }
   // Total playing time
   PM123_TIME songlen = -2;
@@ -176,8 +212,7 @@ bool LSTWriter::AppendItem(const Item& item)
   }
   // comment
   if (item.Valid & (INFO_PHYS|INFO_TECH|INFO_OBJ))
-  { char buf[50];
-    Write("# ");
+  { Write("# ");
     if (!(item.Valid & INFO_PHYS) || info.phys->filesize < 0)
       Write("n/a, ");
     else
@@ -202,7 +237,7 @@ bool LSTWriter::AppendItem(const Item& item)
     { sprintf(buf, "%i, ", info.obj->bitrate);
       Write(buf);
     }
-    Write(info.tech->info);
+    WriteNoLine(info.tech->info, '\t');
     Write("\n");
   }
   // Object name
@@ -217,8 +252,7 @@ bool LSTWriter::AppendItem(const Item& item)
   }
   // tech info
   if (item.Valid & (INFO_PHYS|INFO_TECH|INFO_OBJ))
-  { char buf[128];
-    // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
+  { // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
     // 5: no. of song items, 6: total file size, 7: no. of items,
     // 8: no. of unknown items, 9: no. of list items, 10: no. of invalid items.
     strcpy(buf, ">,");
@@ -299,14 +333,14 @@ bool M3UWriter::AppendItem(const Item& item)
     } else
       Write("#EXTINF:,");
     if ((item.Override & INFO_ITEM) && info.item->alias)
-      Write(info.item->alias);
+      WriteNoLine(info.item->alias, '\t');
     else
     { // Default to Artist - Title
       if (info.meta->artist)
-      { Write(info.meta->artist);
+      { WriteNoLine(info.meta->artist, '\t');
         Write(" - ");
       }
-      Write(info.meta->title);
+      WriteNoLine(info.meta->title, '\t');
     }
     Write("\n");
   }
