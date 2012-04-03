@@ -247,9 +247,6 @@ void PlaylistView::InitDlg()
 
   // Initializes the playlist presentation window.
   PlaylistBase::InitDlg();
-
-  // Request initial information for root level.
-  PlaylistBase::PostRecordUpdate(NULL, RequestRecordInfo(NULL));
 }
 
 MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
