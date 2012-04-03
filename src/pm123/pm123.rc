@@ -867,7 +867,7 @@ MENU MNU_PLAYLIST
   MENUITEM SEPARATOR
   MENUITEM "~Open another...",           IDM_PL_OPEN
   MENUITEM "~Save...",                   IDM_PL_SAVE
-  MENUITEM "~Save as...",                IDM_PL_SAVE_AS
+  MENUITEM "Save copy as...",            IDM_PL_SAVE_AS
 }
 
 MENU MNU_RECORD
@@ -917,6 +917,7 @@ MENU PM_MAIN_MENU
   MENUITEM SEPARATOR
   MENUITEM "~Open another...",           IDM_PL_OPEN
   MENUITEM "~Save...",                   IDM_PL_SAVE
+  MENUITEM "Save copy as...",            IDM_PL_SAVE_AS
 }
 
 MENU PM_REC_MENU

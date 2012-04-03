@@ -113,7 +113,7 @@ class PlayableSlice : public APlayable
 
   // Faster, non-virtual version.
           Playable&         GetPlayable() const      { return RefTo->GetPlayable(); }
-  /// Display name, forwarder to RefTo
+  /// Display name
   virtual xstring           GetDisplayName() const;
   
   virtual const INFO_BUNDLE_CV& GetInfo() const;
@@ -188,6 +188,9 @@ class PlayableRef : public PlayableSlice
   // The collection must be locked when calling Swap.
   // Swap does not swap the current status.
   //virtual void             Swap(PlayableRef& r);
+
+  /// Display name
+  virtual xstring           GetDisplayName() const;
 
   virtual const INFO_BUNDLE_CV& GetInfo() const;
 

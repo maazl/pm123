@@ -135,6 +135,8 @@ class Playable
   bool                      InUse;           // Current object is in use.
 
  private: // Services to update the Info* variables.
+  /// Raise the \c InfoChange event and include dependent information in \c Changed and \c Invalidated.
+  void                      RaiseInfoChange(PlayableChangeArgs& args);
   /// @brief Update the structure components.
   /// @return return the information that has changed.
   /// @remarks Once a playable object is constructed this function must not be called
@@ -184,7 +186,7 @@ class Playable
   /// InfoChange Events from the children
   void                      ChildChangeNotification(const PlayableChangeArgs& args);
 
- private:
+ private: // Implementation of abstract info worker API.
   virtual InfoFlags         DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel);
   virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
@@ -204,7 +206,7 @@ class Playable
   /// Mark the object as modified (or not)
           void              SetModified(bool modified, APlayable* origin);
 
- public:
+ public: // public API
   virtual                   ~Playable();
 
   /// Assign an alias name (like 'Bookmarks') for this entity.

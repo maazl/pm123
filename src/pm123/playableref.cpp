@@ -256,7 +256,8 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
   // IF_Item is always available if we got beyond IsItemOverridden.
-  InfoFlags what2 = what & ~IF_Item;
+  what &= ~IF_Item;
+  InfoFlags what2 = what;
   // Forward all remaining requests to *RefTo.
   // TODO Forward aggregate only if no slice?
   InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
@@ -558,6 +559,17 @@ const INFO_BUNDLE_CV& PlayableSlice::GetInfo() const
 *
 ****************************************************************************/
 
+xstring PlayableRef::GetDisplayName() const
+{ if (IsItemOverridden() && Item.alias)
+    return Item.alias;
+  if (IsMetaOverridden())
+  { xstring ret(Info.meta->title);
+    if (ret && ret[0U])
+      return ret;
+  }
+  return RefTo->GetDisplayName();
+}
+
 const INFO_BUNDLE_CV& PlayableRef::GetInfo() const
 { const INFO_BUNDLE_CV& info = RefTo->GetInfo();
   // Updated pointers of inherited info
@@ -592,12 +604,12 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
   if (meta == NULL)
   { // revoke overloading
     if (!current.IsInitial())
-      args.Changed |= IF_Meta;
+      args.Changed |= IF_Meta|IF_Display;
     Info.meta = RefTo->GetInfo().meta;
   } else
   { // Override
     if (!current.Equals(*meta))
-    { args.Changed |= IF_Meta;
+    { args.Changed |= IF_Meta|IF_Display;
       Meta = *meta;
     }
     Info.meta = &Meta;

@@ -112,6 +112,7 @@ class APlayable
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
  protected:
+  /// Fire the \c InfoChange change event.
   void                        RaiseInfoChange(const PlayableChangeArgs& args);
 
  public:

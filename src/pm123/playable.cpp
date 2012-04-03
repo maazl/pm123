@@ -122,7 +122,8 @@ Playable::Playable(const url123& url)
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Notify about dyeing
-  RaiseInfoChange(PlayableChangeArgs(*this));
+  PlayableChangeArgs args(*this);
+  RaiseInfoChange(args);
   // No more events.
   GetInfoChange().reset();
   GetInfoChange().sync();
@@ -148,7 +149,8 @@ void Playable::SetInUse(bool used)
   bool changed = InUse != used;
   InUse = used;
   // TODO: keep origin in case of cascaded execution
-  RaiseInfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
+  PlayableChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
+  RaiseInfoChange(args);
 }
 
 void Playable::SetModified(bool modified, APlayable* origin)
@@ -156,15 +158,17 @@ void Playable::SetModified(bool modified, APlayable* origin)
   Mutex::Lock lock(Mtx);
   bool changed = Modified != modified;
   Modified = modified;
-  RaiseInfoChange(PlayableChangeArgs(*this, origin, IF_Usage, changed * IF_Usage, IF_None));
+  PlayableChangeArgs args(*this, origin, IF_Usage, changed * IF_Usage, IF_None);
+  RaiseInfoChange(args);
 }
 
 xstring Playable::GetDisplayName() const
 { xstring ret(Info.item->alias);
   if (!ret || !ret[0U])
-    ret = Info.meta->title;
-  if (!ret || !ret[0U])
-    ret = URL.getDisplayName();
+  { ret = Info.meta->title;
+    if (!ret || !ret[0U])
+      ret = URL.getDisplayName();
+  }
   return ret;
 }
 
@@ -177,7 +181,8 @@ InfoFlags Playable::Invalidate(InfoFlags what)
   // TODO: invalidate CIC also.
   if (what)
   { Mutex::Lock lock(Mtx);
-    RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, what));
+    PlayableChangeArgs args(*this, this, IF_None, IF_None, what);
+    RaiseInfoChange(args);
   }
   return what;
 }
@@ -206,7 +211,9 @@ void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags cached, InfoFlag
     changed &= Info.InfoStat.Cache(cached) | reliable;
     reliable = Info.InfoStat.EndUpdate(reliable);
     if (reliable|changed)
-      RaiseInfoChange(PlayableChangeArgs(*this, reliable, changed));
+    { PlayableChangeArgs args(*this, reliable, changed);
+      RaiseInfoChange(args);
+    }
   }
 }
 
@@ -268,6 +275,17 @@ InfoFlags Playable::InvalidateInfoSync(InfoFlags what)
   return what;
 }*/
 
+static inline void SetDependentInfo(InfoFlags& what)
+{ if (what & IF_Meta)
+    what |= IF_Display;
+}
+
+void Playable::RaiseInfoChange(PlayableChangeArgs& args)
+{ SetDependentInfo(args.Changed);
+  SetDependentInfo(args.Invalidated);
+  APlayable::RaiseInfoChange(args);
+}
+
 InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
 { DEBUGLOG(("Playable(%p)::UpdateInfo(%p&, %x)\n", this, &info, what));
   ASSERT(Mtx.GetStatus() > 0);
@@ -291,13 +309,16 @@ InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
 { DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %u, %u)\n", this, what, pri, rel));
-  // Mask info's that are always available
-  what &= IF_Decoder|IF_Aggreg;
 
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
   else if (what & (IF_Rpl|IF_Child))
     what |= IF_Phys|IF_Tech|IF_Child; // required for RPL_INFO aggregate
+  if (what & IF_Display)
+    what |= IF_Item|IF_Meta; // required for GetDisplayName, but item info will be masked out below.
+
+  // Mask info's that are always available
+  what &= IF_Decoder|IF_Aggreg;
 
   what &= Info.InfoStat.Check(what, rel);
   InfoFlags op = pri == PRI_None || what == IF_None
@@ -430,7 +451,8 @@ void Playable::DoLoadInfo(JobSet& job)
       }
     }
     // Raise the first bunch of change events.
-    RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit(what2), changed));
+    PlayableChangeArgs args(*this, upd.Commit(what2), changed);
+    RaiseInfoChange(args);
   }
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
@@ -518,7 +540,8 @@ void Playable::DoLoadInfo(JobSet& job)
   Mutex::Lock lock(Mtx);
   InfoFlags changed = UpdateInfo(info, upd);
   // Raise event
-  RaiseInfoChange(PlayableChangeArgs(*this, upd.Commit(), changed));
+  PlayableChangeArgs args(*this, upd.Commit(), changed);
+  RaiseInfoChange(args);
 }
 
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
@@ -905,7 +928,8 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     what &= ~IF_Child;
   // done!
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(PlayableChangeArgs(*this, what|IF_Child, what));
+  PlayableChangeArgs args(*this, what|IF_Child, what);
+  RaiseInfoChange(args);
   return true;
 }
 
@@ -976,7 +1000,8 @@ bool Playable::Clear()
 
   upd.Commit();
   // TODO: join invalidate events
-  RaiseInfoChange(PlayableChangeArgs(*this, what|IF_Child, what));
+  PlayableChangeArgs args(*this, what|IF_Child, what);
+  RaiseInfoChange(args);
   return true;
 }
 
@@ -1005,7 +1030,8 @@ bool Playable::Sort(ItemComparer comp)
   ASSERT(index.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(PlayableChangeArgs(*this, IF_Child, IF_Child*changed));
+  PlayableChangeArgs args(*this, IF_Child, IF_Child*changed);
+  RaiseInfoChange(args);
   return true;
 }
 
@@ -1028,30 +1054,44 @@ bool Playable::Shuffle()
   ASSERT(newcontent.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  RaiseInfoChange(PlayableChangeArgs(*this, IF_Child, IF_Child*changed));
+  PlayableChangeArgs args(*this, IF_Child, IF_Child*changed);
+  RaiseInfoChange(args);
   return true;
 }
 
-struct save_cb_data
-{ Playable&                 Parent;
+class SaveCallbackData
+{private:
+  /// Playlist to save
+  Playable&                 Parent;
+  /// URL to save the playlist, not necessarily the same than \c Parent.URL
+  const url123&             Dest;
+  /// Use relative paths
   const bool                Relative;
+  /// Current item saved at the last callback, initially NULL
   int_ptr<PlayableInstance> Current;
+  /// Deep, non volatile copy of Current->GetInfo(), initially Parent.GetInfo()
   InfoBundle                Info;
-  save_cb_data(Playable& parent, bool relative)
-  : Parent(parent), Relative(relative)
+ public:
+  /// Constructor
+  SaveCallbackData(Playable& parent, const url123& dest, bool relative)
+  : Parent(parent), Dest(dest), Relative(relative)
   { Info.Assign(parent.GetInfo()); }
+  /// Access Info
+  const InfoBundle&         GetInfo() const { return Info; }
+  /// Callback to be invoked by the decoder
+  PROXYFUNCDEF int DLLENTRY SaveCallbackFunc(void* param, xstring* url, const INFO_BUNDLE** info, int* cached, int* reliable);
 };
 
-static int DLLENTRY save_callback(void* param, xstring* url,
-  const INFO_BUNDLE** info, int* cached, int* reliable)
-{ save_cb_data& cbd = *(save_cb_data*)param;
+PROXYFUNCIMP(int DLLENTRY, SaveCallbackData)
+SaveCallbackFunc (void* param, xstring* url, const INFO_BUNDLE** info, int* cached, int* reliable)
+{ SaveCallbackData& cbd = *(SaveCallbackData*)param;
   // TODO: This is a race condition, because the exact content that is saved is not
   // well defined if the list is currently manipulation. Normally a snapshot should be taken.
   cbd.Current = cbd.Parent.GetNext(cbd.Current);
   if (cbd.Current == NULL)
     return PLUGIN_FAILED;
   *url = cbd.Relative
-    ? cbd.Current->GetPlayable().URL.makeRelative(cbd.Parent.URL)
+    ? cbd.Current->GetPlayable().URL.makeRelative(cbd.Dest)
     : cbd.Current->GetPlayable().URL;
   cbd.Info.Assign(cbd.Current->GetInfo());
   *info  = &cbd.Info;
@@ -1068,9 +1108,9 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
   ULONG rc;
   try
   { int_ptr<Decoder> dp = Decoder::GetDecoder(decoder);
-    save_cb_data cbd(*this, relative);
+    SaveCallbackData cbd(*this, dest, relative);
     int what = IF_Child;
-    rc = dp->SaveFile(dest, format, &what, &cbd.Info, &save_callback, &cbd);
+    rc = dp->SaveFile(dest, format, &what, &cbd.GetInfo(), &PROXYFUNCREF(SaveCallbackData)SaveCallbackFunc, &cbd);
   } catch (const ModuleException& ex)
   { EventHandler::PostFormat(MSG_ERROR, "Failed to save playlist %s:\n%s", dest.cdata(), ex.GetErrorText().cdata());
     return false;
