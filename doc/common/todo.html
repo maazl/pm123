@@ -23,19 +23,19 @@ background-color: #ccffcc;
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr align="left" bgcolor="#cccccc">
-      <th>Attributes</th>
+      <th width="15%">Attributes</th>
       <th width="25%">Topic</th>
       <th width="55%">Details</th>
     </tr>
     <tr class="open">
-      <td><strong>1 major todo, open</strong></td>
+      <td width="15%"><strong>1 major todo, open</strong></td>
       <td>Shuffle not working</td>
       <td>There are some open issues how this should work with
 respect to nested playlists and the previous/next buttons when the
 playlist is modified.</td>
     </tr>
     <tr class="fixed">
-      <td><em>2 medium&nbsp;bug, gone</em></td>
+      <td width="15%"><em>2 medium&nbsp;bug, gone</em></td>
       <td>PM123 sometimes crashes when starting playback</td>
       <td>Sometimes the decoder thread runs into a access
 violation at start of playback.<br>
@@ -43,26 +43,26 @@ Reason unknown. Perhaps some threading issue.<br>
 Seems to have gone.</td>
     </tr>
     <tr class="test">
-      <td>3 minor todo, untested</td>
+      <td width="15%">3 minor todo, untested</td>
       <td>Handling of start and stop positions in nested playlists</td>
       <td>There are several complications when start/stop
 iterators of nested playlists have conflicting settings.</td>
     </tr>
     <tr class="fixed">
-      <td><em>4 medium&nbsp;bug, fixed</em></td>
+      <td width="15%"><em>4 medium&nbsp;bug, fixed</em></td>
       <td>Messages about non-existing files at first start up</td>
       <td>When starting the first error messages about
 non-existing show up. This messages should be suppressed.</td>
     </tr>
     <tr class="open">
-      <td><em>5 medium bug, open</em></td>
+      <td width="15%"><em>5 medium bug, open</em></td>
       <td>Decoder starts at wrong priority</td>
       <td>In playlist mode when the data for the next song is
 prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
     </tr>
     <tr class="fixed">
-      <td><em>6 medium bug, fixed </em></td>
+      <td width="15%"><em>6 medium bug, fixed </em></td>
       <td>Deadlocks with recursive
 playlists</td>
       <td>With recursive playlist structures PM123 sometimes
@@ -70,7 +70,7 @@ deadlocks because the list semaphore are not requested top down. In
 fact there is no top and no bottom in this case.</td>
     </tr>
     <tr class="fixed">
-      <td><em>7 medium todo, fixed</em></td>
+      <td width="15%"><em>7 medium todo, fixed</em></td>
       <td>Invalid HTTP URLs take minutes</td>
       <td>When an URL target is not available or invalid, it may
 take several minutes for PM123 to notify this. If you have many of such
@@ -80,20 +80,20 @@ This is a design problem, because any decoder plug-in might try to open
 the URL without success, every time waiting for a timeout.</td>
     </tr>
     <tr class="fixed">
-      <td><strong>8 major bug, fixed</strong></td>
+      <td width="15%"><strong>8 major bug, fixed</strong></td>
       <td>EAs lost when editing meta information</td>
       <td>The 'Edit file info' feature of mpg123 and oggplay
 destroys any EA information.</td>
     </tr>
     <tr class="fixed">
-      <td>9 minor todo, fixed</td>
+      <td width="15%">9 minor todo, fixed</td>
       <td>Code page handling of ID3 V1.x and ID3 V2.x tags</td>
       <td>If the input and output code page is different the ID3
 tags are not turn around stable. This causes special characters to be
 destroyed when saving the tag.</td>
     </tr>
     <tr class="fixed">
-      <td><em>10 medium todo, fixed</em></td>
+      <td width="15%"><em>10 medium todo, fixed</em></td>
       <td>PM lock-up when slider is used while a worker thread
 gets information on a playlist.</td>
       <td>Thread 1 acquires playlist mutex when slider is used.
@@ -101,7 +101,7 @@ Can cause SIQ locks. Maybe the Worker should not lock the entire
 playlist while calculation of tech infos.</td>
     </tr>
     <tr class="open">
-      <td><em>11 medium bug, open</em></td>
+      <td width="15%"><em>11 medium bug, open</em></td>
       <td>NavigateTo does not work if we see a slice of the
 current root.</td>
       <td>If the currently visible windows root is below the
@@ -109,20 +109,20 @@ currently loaded root, navigate to starts at the loaded root rather
 than the window's root. This consequently fails.</td>
     </tr>
     <tr class="open">
-      <td>12 minor bug, open</td>
+      <td width="15%">12 minor bug, open</td>
       <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
       <td>When playback starts at a non-zero starting point the
 slider jumps to zero for the time of the initialization.</td>
     </tr>
     <tr class="test">
-      <td><em>13 medium todo, untested</em></td>
+      <td width="15%"><em>13 medium todo, untested</em></td>
       <td>M3U8 support</td>
       <td>PM123 1.32 also support Unicode playlist files. This
 has to be ported.</td>
     </tr>
     <tr class="open">
-      <td>14 minor todo, open</td>
+      <td width="15%">14 minor todo, open</td>
       <td>Feature: continue playing when loading an enclosing
 playlist.</td>
       <td>If the currently playing item is part of the actually
@@ -130,8 +130,8 @@ loaded playlist, playing should not be aborted. This is a configuration
 option.</td>
     </tr>
     <tr class="open">
-      <td>15 minor todo, open</td>
-      <td>playlist with alternative items for HTTP streams</td>
+      <td width="15%">15 minor todo, open</td>
+      <td>playlist with alternate items for HTTP streams</td>
       <td>For live streams&nbsp;it is quite common to provide
 a playlist with a set of alternative streaming servers instead of a
 single server. While PM123 is able to handle this kind of files and
@@ -140,13 +140,13 @@ playlists to another playlist, because all of the contained items are
 equivalent.</td>
     </tr>
     <tr class="fixed">
-      <td><strong>16 major bug, fixed</strong></td>
+      <td width="15%"><strong>16 major bug, fixed</strong></td>
       <td>Some meta information lost</td>
       <td>When saving Ogg vorbis comments all tags that PM123
 does not know are deleted silently.</td>
     </tr>
     <tr class="open">
-      <td>17 minor todo, open</td>
+      <td width="15%">17 minor todo, open</td>
       <td>Write ID3 tags and vorbis comments always in place to
 preserve additional file properties.</td>
       <td>Currently PM123 creates a copy of the file and then
@@ -156,15 +156,15 @@ like access rights on a remote host
 or hard links to the file. There should be an in-place option to work
 around this.</td>
     </tr>
-    <tr class="open">
-      <td><em>18 medium todo, in work</em></td>
+    <tr class="test">
+      <td width="15%"><em>18 medium todo, in work</em></td>
       <td>The command line interface and the remote interface
 needs to be reworked and tested.</td>
       <td>The many changes to PM123 are not fully reflected to
 the remote interface so far.</td>
     </tr>
     <tr class="fixed">
-      <td>19 minor todo, done</td>
+      <td width="15%">19 minor todo, done</td>
       <td>Save the size of the info dialog window</td>
       <td>Depending
 on the system settings a different size of the info dialog window is
@@ -172,14 +172,14 @@ required. In fact the user has to choose the appropriate size, but it
 is annoying to do this again and again.</td>
     </tr>
     <tr class="open">
-      <td>20 minor todo, open</td>
+      <td width="15%">20 minor todo, open</td>
       <td>ogg123: support padding of vorbis comments</td>
       <td>Newer
 libvorbis can change vorbis comments in place. ogg123 should use this
 to avoid unnecessary file replacements. This may supersede #17.</td>
     </tr>
     <tr class="open">
-      <td><em>21 medium bug, open</em></td>
+      <td width="15%"><em>21 medium bug, open</em></td>
       <td>Dropping a folder to PM123 program object does not work.</td>
       <td>When invoking PM123 with a folder as command line
 argument
@@ -188,19 +188,19 @@ fails
 with 'no matching decoder'.</td>
     </tr>
     <tr class="open">
-      <td>22 minor bug, open</td>
+      <td width="15%">22 minor bug, open</td>
       <td>Time display is sometimes jumpy and not monotonous.</td>
       <td>The function output_playing_pos of os2audio.dll does
 not always hit the nail on the head. Reason unknown.</td>
     </tr>
     <tr class="open">
-      <td><em>23 medium bug, open</em></td>
+      <td width="15%"><em>23 medium bug, open</em></td>
       <td>Pipe interface not working</td>
       <td>Open tagedit ... does not work. The command line with *
 splits the commands into separate ones.</td>
     </tr>
     <tr class="open">
-      <td><em>24 medium todo, open</em></td>
+      <td width="15%"><em>24 medium todo, open</em></td>
       <td>Restrict meta data length in scroller.</td>
       <td>Meta
 data strings can be quite long. This can cause the scroller to take a
@@ -208,18 +208,24 @@ reasonable amount of time to return to the start. An option to restrict
 the length of the meta data for the scroller display would be helpful.</td>
     </tr>
     <tr class="fixed">
-      <td><em>25 medium bug, fixed</em> </td>
+      <td width="15%"><em>25 medium bug, fixed</em> </td>
       <td>Cannot Play valid MP3 file <tt>Gottesdienst_vom_22.08.2010.MP3</tt>
       </td>
       <td>mpg123.dll claims not to support this file.<br>
 update to new libmpg123. </td>
     </tr>
     <tr class="open">
-      <td valign="top">26 minor todo, open </td>
+      <td valign="top" width="15%">26 minor todo, open </td>
       <td valign="top">Implement buffering for write access in xio.dll.
       </td>
       <td valign="top">xio.dll currently disables the buffer if an
 object is opened for write access. </td>
+    </tr>
+    <tr class="open">
+      <td valign="top" width="15%">27 medium bug, open </td>
+      <td valign="top">Playback has drop outs with heavy system load. </td>
+      <td valign="top">The priority handling seems to be somehow broken.
+      </td>
     </tr>
   </tbody>
 </table>
