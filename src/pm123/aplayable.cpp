@@ -60,6 +60,9 @@ bool   APlayable::WTermRq        = false;
 
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 { DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
+  if (what == IF_None)
+    return IF_None;
+
   InfoFlags rq = what;
   InfoFlags async = DoRequestInfo(rq, pri, rel);
   DEBUGLOG(("APlayable::RequestInfo rq = %x, async = %x\n", rq, async));

@@ -100,7 +100,7 @@ class PlaylistBase
   /// It can be directly passed to PM as long as PM is instructed to
   /// reserve additional sizeof(RecordBase) - sizeof(MINIRECORDCORE) bytes for each record structure.
   struct RecordBase : public MINIRECORDCORE
-  { /// Reference counter to keep Records alive while Posted messages are on the way.
+  { /// Reference counter to keep Records alive while posted messages are on the way.
     AtomicUnsigned      UseCount;
     /// C++ part of the object in the private memory arena.
     CPDataBase*         Data;
@@ -257,7 +257,12 @@ class PlaylistBase
   /// So you can safely access the record data until the next PM call.
   void              FreeRecord(RecordBase* rec);
   /// Post record message
-  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
+  void              PostRecordUpdate(RecordBase* rec, InfoFlags flags);
+  /// Reduce the request flags to the level required for this record.
+  /// @return The infos that are to be requested at high priority.
+  virtual InfoFlags FilterRecordRequest(RecordBase* rec, InfoFlags& flags) = 0;
+  /// Request record information
+  InfoFlags         RequestRecordInfo(RecordBase* rec, InfoFlags filter = ~IF_None);
 
   /// Gives the Record back to the PM and destroys the C++ part of it.
   /// The Record object is no longer valid after calling this function.
@@ -305,8 +310,6 @@ class PlaylistBase
   /// This function does not remove the record itself.
   /// If root is NULL the entire Collection is cleared.
   int               RemoveChildren(RecordBase* const root);
-  /// Update the list of children (if available) or schedule a request.
-  virtual void      RequestChildren(RecordBase* const rec);
   /// Update the list of children
   /// rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);

@@ -86,8 +86,9 @@ class PlaylistManager
   static void       DestroyAll();
 
  private:
-  /// Post record message, filtered
-  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
+  /// Reduce the request flags to the level required for this record.
+  /// @return The infos that are to be requested at high priority.
+  virtual InfoFlags FilterRecordRequest(RecordBase* rec, InfoFlags& flags);
   /// create container window
   virtual void      InitDlg();
   /// Dialog procedure, called by DlgProcStub
@@ -117,8 +118,6 @@ class PlaylistManager
   /// Find parent record. Returns NULL if rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
 
-  /// Update the list of children (if available) or schedule a request.
-  virtual void      RequestChildren(RecordBase* const rec);
   /// Update the list of children
   /// rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);

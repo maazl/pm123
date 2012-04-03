@@ -191,6 +191,18 @@ void PlaylistBase::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
   PMRASSERT(WinPostMsg(GetHwnd(), UM_RECORDUPDATE, MPFROMP(rec), MPFROMSHORT(TRUE)));
 }
 
+InfoFlags PlaylistBase::RequestRecordInfo(RecordBase* const rec, InfoFlags filter)
+{ DEBUGLOG(("PlaylistBase(%p)::RequestRecordInfo(%p, %x)\n", this, rec, filter));
+  if (filter == IF_None)
+    return IF_None;
+  InfoFlags high = FilterRecordRequest(rec, filter);
+  APlayable& pp = APlayableFromRec(rec);
+  if (high != filter)
+    filter &= ~pp.RequestInfo(filter, PRI_Low);
+  filter &= ~pp.RequestInfo(filter & high, PRI_Normal);
+  return filter;
+}
+
 void PlaylistBase::FreeRecord(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::FreeRecord(%p)\n", this, rec));
   if (rec && !--rec->UseCount)
@@ -243,16 +255,18 @@ void PlaylistBase::InitDlg()
   SetTitle();
   // initialize decoder dependent information once.
   PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEDEC, 0, 0));
+
+  // Request initial information for root level.
+  PostRecordUpdate(NULL, RequestRecordInfo(NULL));
 }
 
 MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistBase(%p)::DlgProc(%x, %x, %x)\n", this, msg, mp1, mp2));
   switch (msg)
   {case WM_INITDLG:
-    { InitDlg();
-      // populate the root node
-      RequestChildren(NULL);
-      return 0;
+    { MRESULT ret = ManagedDialog<DialogBase>::DlgProc(msg, mp1, mp2);
+      InitDlg();
+      return ret;
     }
 
    case WM_DESTROY:
@@ -790,13 +804,6 @@ int PlaylistBase::RemoveChildren(RecordBase* const rp)
   return count;
 }
 
-void PlaylistBase::RequestChildren(RecordBase* const rec)
-{ DEBUGLOG(("PlaylistBase(%p)::RequestChildren(%s)\n", this, RecordBase::DebugName(rec).cdata()));
-  APlayable& pp = APlayableFromRec(rec);
-  // Call event either immediately or later, asynchronuously.
-  PostRecordUpdate(rec, IF_Child & ~pp.RequestInfo(IF_Child, PRI_Normal));
-}
-
 void PlaylistBase::UpdateChildren(RecordBase* const rp)
 { DEBUGLOG(("PlaylistBase(%p)::UpdateChildren(%s)\n", this, RecordBase::DebugName(rp).cdata()));
   // get content
@@ -807,7 +814,10 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   { // Nothing to enumerate, delete children if any
     DEBUGLOG(("PlaylistBase::UpdateChildren - no children possible.\n"));
     if (RemoveChildren(rp))
-      PostRecordUpdate(rp, IF_Usage); // update icon
+    { InfoFlags req = IF_Usage; // update icon
+      FilterRecordRequest(rp, req);
+      PostRecordUpdate(rp, req);
+    }
     return;
   }
 
@@ -859,7 +869,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
           DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata()));
           crp = AddEntry(*pi, rp, crp);
           if (crp && (crp->flRecordAttr & CRA_EXPANDED))// (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
-            RequestChildren(crp);
+            PostRecordUpdate(crp, RequestRecordInfo(crp, IF_Child));
           break;
         }
         if ((*orpp)->Data->Content == pi)
@@ -1051,13 +1061,21 @@ void PlaylistBase::UpdatePlayStatus()
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
   if (rec->Data->Content->GetPlayable().IsInUse())
-    PostRecordUpdate(rec, IF_Usage);
+  { InfoFlags req = IF_Usage;
+    FilterRecordRequest(rec, req);
+    PostRecordUpdate(rec, req);
+  }
 }
 
 void PlaylistBase::InfoChangeEvent(const PlayableChangeArgs& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s},, %x, %x,}, %s)\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
-  PostRecordUpdate(rec, args.Changed);
+  // Filter events
+  InfoFlags req = args.Changed;
+  FilterRecordRequest(rec, req);
+  // request invalidated infos if needed
+  req |= args.Invalidated & ~RequestRecordInfo(rec, args.Invalidated);
+  PostRecordUpdate(rec, req);
 }
 
 void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
@@ -1239,7 +1257,7 @@ void PlaylistBase::UserReload(Playable& p)
 { if ( !(p.GetInfo().tech->attributes & TATTR_PLAYLIST)
     || !p.IsModified()
     || amp_query(GetHwnd(), "The current list is modified. Discard changes?") )
-    p.RequestInfo(IF_Decoder|IF_Aggreg, PRI_Normal, REL_Reload);
+    p.RequestInfo(IF_Decoder|IF_Aggreg|IF_Display|IF_Usage, PRI_Normal, REL_Reload);
 }
 
 void PlaylistBase::UserEditMeta()
@@ -1301,11 +1319,8 @@ int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)
 { return l->GetInfo().obj->songlength > r->GetInfo().obj->songlength;
 }
 
-/****************************************************************************
-*
-*  Drag and drop - Target side
-*
-****************************************************************************/
+/* Drag and drop - Target side *********************************************/
+
 MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
 { DEBUGLOG(("PlaylistBase::DragOver(%p{,,%x, %p, %i,%i, %u,}, %s) - %u\n",
     pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem,
@@ -1556,11 +1571,8 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
   DrgFreeDragtransfer(pdtrans);
 }
 
-/****************************************************************************
-*
-*  Drag and drop - Source side
-*
-****************************************************************************/
+/* Drag and drop - Source side *********************************************/
+
 void PlaylistBase::DragInit()
 { DEBUGLOG(("PlaylistBase::DragInit() - %u\n", Source.size()));
 

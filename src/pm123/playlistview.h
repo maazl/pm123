@@ -118,8 +118,9 @@ class PlaylistView
   static void       DestroyAll();
 
  private:
-  /// Post record update message, filtered.
-  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
+  /// Reduce the request flags to the level required for this record.
+  /// @return The infos that are to be requested at high priority.
+  virtual InfoFlags FilterRecordRequest(RecordBase* rec, InfoFlags& flags);
   /// Initialization on the first call.
   FIELDINFO*        CreateFieldinfo(const Column* cols, size_t count);
   /// Create container window.

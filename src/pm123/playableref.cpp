@@ -172,10 +172,8 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
     args.Changed |= IF_Item;
   }
   if (new_item.alias != old_item.alias)
-  { args.Invalidated |= IF_Display;
-    args.Changed |= IF_Item;
-  } else
-  if (new_item.pregap != old_item.pregap || new_item.postgap != old_item.postgap || new_item.gain != old_item.gain)
+    args.Changed |= IF_Item|IF_Display;
+  else if (new_item.pregap != old_item.pregap || new_item.postgap != old_item.postgap || new_item.gain != old_item.gain)
     args.Changed |= IF_Item;
   if (item)  
   { Item = *item;

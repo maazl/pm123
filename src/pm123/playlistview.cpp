@@ -85,14 +85,13 @@ void PlaylistView::DestroyAll()
     (*index)[index->size()-1]->Destroy();
 }
 
-void PlaylistView::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
-{ DEBUGLOG(("PlaylistView(%p)::PostRecordCommand(%p, %x)\n", this, rec, flags));
-  // Ignore some messages
+InfoFlags PlaylistView::FilterRecordRequest(RecordBase* const rec, InfoFlags& filter)
+{ //DEBUGLOG(("PlaylistView(%p)::FilterRecordRequest(%s, %x)\n", this, Record::DebugName(rec).cdata(), filter));
   if (rec)
-    flags &= IF_Decoder|IF_Item|IF_Display|IF_Usage|IF_Slice|IF_Drpl;
+    filter &= IF_Decoder|IF_Item|IF_Display|IF_Usage|IF_Slice|IF_Drpl;
   else
-    flags &= IF_Tech|IF_Display|IF_Usage|IF_Child;
-  PlaylistBase::PostRecordUpdate(rec, flags);
+    filter &= IF_Tech|IF_Display|IF_Usage|IF_Child;
+  return filter & (IF_Decoder|IF_Item|IF_Display|IF_Usage);
 }
 
 const PlaylistView::Column PlaylistView::MutableColumns[] =
@@ -250,7 +249,7 @@ void PlaylistView::InitDlg()
   PlaylistBase::InitDlg();
 
   // Request initial information for root level.
-  PostRecordUpdate(NULL, ~Content->RequestInfo(IF_Phys|IF_Tech|IF_Display|IF_Child, PRI_Normal));
+  PlaylistBase::PostRecordUpdate(NULL, RequestRecordInfo(NULL));
 }
 
 MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -587,11 +586,8 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance& obj, R
   obj.GetInfoChange() += rec->Data()->InfoChange;
 
   rec->URL          = obj.GetPlayable().URL;
-  // Request some infos
-  InfoFlags avail = IF_Decoder|IF_Item|IF_Drpl|IF_Slice|IF_Display;
-  avail &= ~obj.RequestInfo(IF_Decoder|IF_Item|IF_Display, PRI_Normal);
-  avail &= ~obj.RequestInfo(IF_Slice|IF_Drpl, PRI_Low);
-  CalcCols(rec, avail);
+  // Request initial infos
+  CalcCols(rec, RequestRecordInfo(rec));
 
   rec->flRecordAttr = 0;
   rec->hptrIcon     = CalcIcon(rec);

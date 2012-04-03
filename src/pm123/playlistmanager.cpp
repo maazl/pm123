@@ -53,11 +53,7 @@
 
 #include <debuglog.h>
 
-/****************************************************************************
-*
-*  class PlaylistManager
-*
-****************************************************************************/
+/* class PlaylistManager ***************************************************/
 
 PlaylistManager::PlaylistManager(Playable& content)
 : PlaylistBase(content, DLG_PM)
@@ -89,14 +85,15 @@ void PlaylistManager::DestroyAll()
 }
 
 
-void PlaylistManager::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
-{ DEBUGLOG(("PlaylistManager(%p)::PostRecordCommand(%p, %x)\n", this, rec, flags));
-  // Ignore some messages
+InfoFlags PlaylistManager::FilterRecordRequest(RecordBase* const rec, InfoFlags& filter)
+{ //DEBUGLOG(("PlaylistManager(%p)::FilterRecordRequest(%s, %x)\n", this, Record::DebugName(rec).cdata(), filter));
   if (rec)
-    flags &= IF_Tech|IF_Rpl|IF_Display|IF_Child;
-  else
-    flags &= IF_Phys|IF_Tech|IF_Display|IF_Usage|IF_Child;
-  PlaylistBase::PostRecordUpdate(rec, flags);
+  { filter &= ((Record*)rec)->Data()->Recursive // Do not request children of recursive records
+      ? IF_Tech|IF_Rpl|IF_Display|IF_Usage
+      : IF_Tech|IF_Rpl|IF_Display|IF_Usage|IF_Child;
+  } else
+    filter &= IF_Phys|IF_Tech|IF_Display|IF_Usage|IF_Child;
+  return filter & ~IF_Rpl;
 }
 
 void PlaylistManager::InitDlg()
@@ -117,9 +114,6 @@ void PlaylistManager::InitDlg()
   PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_FLWINDOWATTR|CMA_CXTREEINDENT|CMA_CNRTITLE|CMA_LINESPACING)));
 
   PlaylistBase::InitDlg();
-
-  // Request initial information for root level.
-  PostRecordUpdate(NULL, IF_Phys|IF_Tech|IF_Display|IF_Child & ~Content->RequestInfo(IF_Phys|IF_Tech|IF_Display|IF_Child, PRI_Normal));
 }
 
 MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -153,13 +147,12 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case CN_EXPANDTREE:
       { Record* rec = (Record*)PVOIDFROMMP(mp2);
         DEBUGLOG(("PlaylistManager::DlgProc CN_EXPANDTREE %p\n", rec));
-        PostRecordUpdate(rec, IF_Usage);
+        PlaylistBase::PostRecordUpdate(rec, IF_Usage);
         // iterate over children
         rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
         while (rec != NULL && rec != (Record*)-1)
         { DEBUGLOG(("CM_QUERYRECORD: %s\n", Record::DebugName(rec).cdata()));
-          RequestChildren(rec);
-          rec->Data()->Content->GetPlayable().RequestInfo(IF_Child, PRI_Normal);
+          PlaylistBase::PostRecordUpdate(rec, RequestRecordInfo(rec, IF_Child));
           rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
         }
         PMASSERT(rec != (Record*)-1);
@@ -426,10 +419,8 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance& obj
   rec->pszIcon      = (PSZ)rec->Data()->Text.cdata();
   rec->hptrIcon     = CalcIcon(rec);
 
-  // Request at least some basic infos for new children
-  InfoFlags avail = (IF_Tech|IF_Rpl) &
-                    ~( obj.RequestInfo(IF_Tech, PRI_Normal) | obj.RequestInfo(IF_Rpl, PRI_Low) );
-  PostRecordUpdate(rec, avail);
+  // Request initial infos for new children
+  PlaylistBase::PostRecordUpdate(rec, RequestRecordInfo(rec));
   return rec;
 }
 
@@ -444,15 +435,6 @@ void PlaylistManager::UpdateChildren(RecordBase* const rec)
     return;
 
   PlaylistBase::UpdateChildren(rec);
-}
-
-void PlaylistManager::RequestChildren(RecordBase* const rec)
-{ DEBUGLOG(("PlaylistManager(%p)::RequestChildren(%s)\n", this, Record::DebugName(rec).cdata()));
-  // Do not request children of recursive records
-  if (rec && ((Record*)rec)->Data()->Recursive)
-    return;
-
-  PlaylistBase::RequestChildren(rec);
 }
 
 void PlaylistManager::UpdateRecord(RecordBase* rec)
