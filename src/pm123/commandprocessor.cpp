@@ -1253,36 +1253,34 @@ void CommandProcessor::XPlInfoItem()
 
 void CommandProcessor::XPlInfoFormat()
 { APlayable* cur = CurSI.GetCurrent();
-  if (cur == NULL)
+  if (cur)
     DoFormatInfo(*cur);
 }
 
 void CommandProcessor::XPlInfoMeta()
 { APlayable* cur = CurSI.GetCurrent();
-  if (cur == NULL)
+  if (cur)
     DoMetaInfo(*cur);
 }
 
 void CommandProcessor::XPlInfoPlaylist()
 { APlayable* cur = CurSI.GetCurrent();
-  if (cur == NULL)
+  if (cur)
     DoPlaylistInfo(*cur);
 }
 
 void CommandProcessor::XInfoRefresh()
 { // get the song object
   int_ptr<APlayable> song(ParseAPlayable(Request));
-  if (song == NULL)
-    return;
-  song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
+  if (song)
+    song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
 }
 
 void CommandProcessor::XInfoInvalidate()
 { // get the song object
   int_ptr<APlayable> song(ParseAPlayable(Request));
-  if (song == NULL)
-    return;
-  song->Invalidate(~IF_None);
+  if (song)
+    song->Invalidate(~IF_None);
 }
 
 struct meta_val

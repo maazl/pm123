@@ -37,7 +37,8 @@ CALL CallPipe 'pl info item'
 reply = result
 CALL Parse result
 CALL Assert 'data.start', '= "DATA.START"', reply
-CALL Assert 'SafeFormat(data.stop,3)', '= "10.777"', reply
+CALL Assert 'data.stop', '> "0:10.776"', reply
+CALL Assert 'data.stop', '<= "0:10.777"', reply
 /* check wether the object info is unchanged by the slice. */
 CALL CallPipe 'pl info format'
 reply = result
