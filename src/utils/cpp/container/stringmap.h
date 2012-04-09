@@ -58,12 +58,12 @@ struct strmapentry
   V             Value;
   strmapentry(const xstring& key) : Key(key) {}
   strmapentry(const xstring& key, const V& value) : Key(key), Value(value) {}
-  static int    compare(const strmapentry& e, const xstring& k);
+  static int    compare(const xstring& k, const strmapentry& e);
 };
 
 template <class V>
-int strmapentry<V>::compare(const strmapentry& elem, const xstring& key)
-{ return elem.Key.compareTo(key);
+int strmapentry<V>::compare(const xstring& key, const strmapentry& elem)
+{ return key.compareTo(elem.Key);
 }
 
 typedef strmapentry<xstring> stringmapentry;
@@ -84,9 +84,9 @@ class stringmap_own : public stringmap
  * Once you got a match you have an object of an arbitrary type V.
  * This could e.g. be a function pointer. 
  */
-template <int LEN, class V>
+template <int L, class V>
 struct strmap
-{ char Str[LEN];
+{ char Str[L];
   V    Val;
 };
 
@@ -94,13 +94,15 @@ struct strmap
  */
 int TFNENTRY strabbrevicmp(const char* str, const char* abbrev);
 
+const char* mapsearcha2_core(const char* cmd, const char* map, size_t count, size_t size);
+
 template <class T>
 inline T* mapsearch2(T* map, size_t count, const char* cmd)
 { return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
 }
 template <class T>
 inline T* mapsearcha2(T* map, size_t count, const char* cmd)
-{ return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
+{ return (T*)mapsearcha2_core(cmd, (const char*)map, count, sizeof(T));
 }
 #ifdef __IBMCPP__
 // IBM C work around
@@ -114,7 +116,7 @@ inline T* mapsearch(T (&map)[I], const char* cmd)
 }
 template <size_t I, class T>
 inline T* mapsearcha(T (&map)[I], const char* cmd)
-{ return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
+{ return (T*)mapsearcha2_core(cmd, (const char*)map, I, sizeof(T));
 }
 #endif
 

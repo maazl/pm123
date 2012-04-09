@@ -51,7 +51,7 @@ int ComparePtr(T*const& l, T*const& r)
 }
 
 #ifdef __GNUC__
-#define sorted_vector_comparer int (*C)(const T& e, const K& k)
+#define sorted_vector_comparer int (*C)(const K& k, const T& e)
 #else
 // Watcom C++ and IBM C++ seem not to support template parameters that depend on previous template args.
 // So we fall back to an unchecked pointer in this case.
@@ -75,7 +75,7 @@ class sorted_vector : public vector<T>
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
   bool               binary_search(const K& key, size_t& pos) const
-                     { return binary_search_base(*this, (int (*)(const void*, const void*))C, &key, pos); }
+                     { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))
@@ -166,7 +166,7 @@ class sorted_vector_int : public vector_int<T>
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
   bool               binary_search(const K& key, size_t& pos) const
-                     { return binary_search_base(*this, (int (*)(const void*, const void*))C, &key, pos); }
+                     { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))

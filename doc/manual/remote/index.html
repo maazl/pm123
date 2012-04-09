@@ -60,8 +60,6 @@ reset an option to its default value.</li>
 - invalidate all meta information on the specified object</li>
   <li><a href="meta.html#info_meta"><tt>info meta</tt></a>
 - query meta information</li>
-  <li><a href="meta.html#info_item"><tt>info item</tt></a>
-- query information about the current playlist item</li>
   <li><a href="meta.html#info_playlist"><tt>info playlist</tt></a>
 - query information about a (nested) playlist</li>
   <li><a href="meta.html#info_refresh"><tt>info refresh</tt></a>
@@ -84,25 +82,54 @@ reset an option to its default value.</li>
 - pause</li>
   <li><a href="playlistmodify.html#pl_add"><tt>pl add</tt> ...</a>
 - add item to playlist</li>
+  <li><a href="playlist.html#pl_callstack"><tt>pl callstack</tt></a>
+- query the call stack of the current item in a nested playlist tree</li>
   <li><a href="playlist.html#pl_current"><tt>pl current</tt></a>
-- query current playlist </li>
+- query current playlist</li>
+  <li><a href="playlist.html#pl_depth"><tt>pl depth</tt></a>
+- query the call stack depth of the current item within the selected
+playlist</li>
+  <li><a href="playlist.html#pl_enter"><tt>pl enter</tt></a>
+- enter a nested playlist</li>
   <li><a href="playlist.html#pl_index"><tt>pl index</tt></a>
 - query current playlist item index</li>
+  <li><a href="meta.html#pl_info_format"><tt>pl info format</tt></a>
+- query format information about the current playlist item</li>
+  <li><a href="meta.html#pl_info_item"><tt>pl info item</tt></a>
+- query item information about the current playlist item</li>
+  <li><a href="meta.html#pl_info_meta"><tt>pl info meta</tt></a>
+- query meta information about the current playlist item</li>
+  <li><a href="meta.html#pl_info_playlist"><tt>pl info playlist</tt></a>
+- query recursive playlist information about the current playlist item</li>
   <li><a href="playlist.html#pl_item"><tt>pl item</tt></a> - query the
 current playlist item</li>
-  <li><a href="playlistmodify.html#pl_item"><tt>pl item</tt> ...</a> -
-query the current playlist item</li>
+  <li><a href="playlist.html#pl_itemindex"><tt>pl itemindex</tt></a> -
+return the index of the selected song in a nested
+playlist</li>
+  <li><a href="playlist.html#pl_leave"><tt>pl leave</tt></a>
+- leave a (nested) playlist</li>
+  <li><a href="playlist.html#pl_navigate"><tt>pl navigate</tt> ...</a>
+- navigate to item</li>
   <li><a href="playlist.html#pl_next"><tt>pl next</tt></a>
-- next playlist item</li>
+- next song in nested playlist tree</li>
+  <li><a href="playlist.html#pl_nextitem"><tt>pl nextitem</tt></a>
+- next item in a playlist</li>
+  <li><a href="playlist.html#pl_parent"><tt>pl parent</tt></a>
+- query lowermost playlist in the current call stack</li>
   <li><a href="playlist.html#pl_prev"><tt>pl prev</tt></a>
-- previous playlist item</li>
+- previous song in nested playlist tree</li>
+  <li><a href="playlist.html#pl_previtem"><tt>pl previtem</tt></a>
+- previous item in a playlist</li>
   <li><a href="playlistmodify.html#pl_remove"><tt>pl remove</tt></a>
 - remove item from playlist</li>
   <li><a href="playlist.html#pl_reset"><tt>pl reset</tt></a>
 - reset playlist iterator</li>
   <li><a href="playlistmodify.html#pl_save"><tt>pl save</tt></a>
 - save playlist</li>
-  <li><a href="playlistmodify.html#pl_sort"><tt>pl_sort</tt></a> - sort
+  <li><a href="playlistmodify.html#pl_setitem"><tt>pl setitem</tt></a>
+-
+modify the current playlist item</li>
+  <li><a href="playlistmodify.html#pl_sort"><tt>pl sort</tt></a> - sort
 playlist </li>
   <li><a href="playback.html#play"><tt>play</tt></a>
 - play item</li>

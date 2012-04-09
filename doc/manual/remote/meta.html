@@ -127,14 +127,12 @@ empty strings.<br>
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt>
 is specified, the information about the current playlist is returned.
-Note that this is not the currently loaded playlist but the one
+Note that this is not the currently playing list but the one
 selected
 by <a href="playlist.html#playlist"><tt>playlist</tt></a>.</p>
 <p>
 The request may take a while because hundreds of items may be required
 to calculate the aggregate information.</p>
-<p>If the object to query is not a playlist, only an empty line is
-returned.</p>
 <h4>Reply</h4>
 <blockquote><tt>SONGS=<var>253</var></tt><br>
   <tt>LISTS=<var>7</var></tt><br>
@@ -142,7 +140,7 @@ returned.</p>
   <tt>TOTALLENGTH=<var>51367.753</var></tt> (seconds)<tt><var></var></tt><br>
   <tt>TOTALSIZE=<var>1291768215</var></tt> (bytes)</blockquote>
 <p> The list is terminated by an empty line.</p>
-<h3><tt><a name="info_item"></a>info item</tt></h3>
+<h3><tt><a name="pl_info_item"></a>pl info item</tt></h3>
 <p>Returns information on the current playlist item. Use the <a
  href="playlist.html">playlist navigation commands</a> to
 select the current item. If no current item is selected, only an empty
@@ -174,6 +172,16 @@ playlist even when not enabled globally.</li>
   <li><tt>noshuffle</tt> - Resets shuffle when descending to this
 nested playlist even when enabled globally.</li>
 </ul>
+<h3><tt><a name="pl_info_format"></a>pl info format<br>
+<a name="pl_info_meta"></a>pl info meta<br>
+<a name="pl_info_playlist"></a>pl info playlist</tt></h3>
+<p>Same as <a href="#info_format"><tt>info format</tt></a>, <a
+ href="#info_meta"><tt>info meta</tt></a> and <a href="#info_playlist"><tt>info
+playlist</tt></a>, but query the information on the current playlist
+item rather than a specific URL.</p>
+<p>Note that these function do not necessarily return the same than <tt>info
+<var>xxx &lt;url&gt;</var></tt> with the URL of the playlist item. Some
+of the information might be overridden by the playlist item.</p>
 <h3><tt><a name="info_refresh"></a>info refresh </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
 <p>Refresh all meta information for the given <a
  href="../urlformat.html">file

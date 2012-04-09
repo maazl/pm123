@@ -32,7 +32,7 @@
 #define INCL_BASE
 #define INCL_PM
 #include "pipe.h"
-#include "commandprocessor.h"
+#include "acommandprocessor.h"
 #include "configuration.h"
 #include "eventhandler.h"
 

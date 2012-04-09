@@ -9,6 +9,9 @@
 </head>
 <body>
 <h2>PM123's Remote command reference - Playlist manipulation</h2>
+<p>The playlist manipulation commands can only operate on the currently
+loaded playlist. If you have navigated to a location in a nested
+playlist they will fail.</p>
 <table border="1" cellpadding="5" cellspacing="0">
   <tbody>
     <tr>
@@ -17,8 +20,8 @@
       <th>Reply</th>
     </tr>
     <tr>
-      <td><a name="pl_clear"><tt>pl clear </tt>or </a><tt><a
- name="clear"></a>clear</tt><tt> </tt></td>
+      <td><a name="pl_clear"></a><tt>pl clear</tt><br>
+      <tt><a name="clear"></a>clear</tt><tt> </tt></td>
       <td>Clears the current playlist.</td>
       <td>Number of items in the list,<br>
 -1 if unknown,<br>
@@ -26,9 +29,10 @@ Empty = error. </td>
     </tr>
     <tr>
       <td><tt><a name="pl_add"></a>pl add&nbsp;<var>&lt;url&gt;</var></tt>&nbsp;[<tt><var>&lt;url&gt;</var></tt>
-[...]] or<br>
+[...]]<br>
       <tt><a name="add"></a>add</tt> ... </td>
-      <td>Inserts <a href="../urlformat.html">URLs or files</a> into
+      <td>Inserts <a href="../urlformat.html">URLs, files or
+directories</a> into
 the
 current playlist. The items are placed before the current item. If the
 current item is not set the
@@ -40,22 +44,17 @@ in case of an error.</td>
     </tr>
     <tr>
       <td><tt><a name="dir"></a>dir <var>&lt;directory&gt;</var></tt> <small><sup><a
- href="#note1">(1.)</a></sup></small></td>
+ href="#note1">(1.)</a></sup></small><tt><br>
+      <a name="rdir"></a>rdir <var>&lt;directory&gt;</var></tt><small><sup><a
+ href="playlistmodify.html#note1">(1.)</a></sup></small></td>
       <td>Insert all supported files in <tt><var>&lt;directory&gt;</var></tt>
-into the playlist (non-recursive). The content is placed before the
+and in case of <tt>rdir</tt> it's subdirectories into the playlist.
+The content is placed before the
 current item or appended, if the current item is not set.</td>
       <td>Number of added items or empty on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="rdir"></a>rdir <var>&lt;directory&gt;</var></tt><a
- href="#note1"> </a><small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Add all supported files in <tt><var>&lt;directory&gt;</var></tt>
-and it's subdirectories to the playlist. The content is placed before
-the current item or appended, if the current item is not set.</td>
-      <td>Number of added items or empty on error.</td>
-    </tr>
-    <tr>
-      <td><tt><a name="pl_remove"></a>pl remove </tt>or<br>
+      <td><tt><a name="pl_remove"></a>pl remove</tt><br>
       <tt> </tt><tt><a name="remove"></a>remove</tt> </td>
       <td>Removes currently selected item from the current
 playlist.</td>
@@ -63,9 +62,10 @@ playlist.</td>
 on error.</td>
     </tr>
     <tr>
-      <td valign="top"><tt><a name="pl_item"></a>pl item </tt><tt><var>&lt;key&gt;</var></tt>[<tt>=<var>&lt;value&gt;</var></tt>]</td>
+      <td valign="top"><tt><a name="pl_setitem"></a>pl setitem </tt><tt><var>&lt;key&gt;</var></tt>[<tt>=<var>&lt;value&gt;</var></tt>]</td>
       <td valign="top">Modify a property of a playlist item. See <a
- href="meta.html#info_item"><tt>info item</tt></a> for valid keys and
+ href="meta.html#pl_info_item"><tt>pl info item</tt></a> for valid keys
+and
 syntax. </td>
       <td valign="top">Empty = error.</td>
     </tr>
@@ -89,8 +89,9 @@ then by track.</td>
       <td valign="top">Empty = error.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_save"></a>pl save </tt>[<var><tt>&lt;file&gt;</tt></var>]
-or <tt><a name="save"></a>save</tt> ... </td>
+      <td><tt><a name="pl_save"></a>pl save </tt>[<var><tt>&lt;file&gt;</tt></var>]<br>
+      <tt><a name="save"></a>save</tt> [<var><tt>&lt;file&gt;</tt></var>]
+      </td>
       <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>.
 If <var><tt>&lt;file&gt;</tt></var> is
 omitted the playlist is saved in place. The latter only works on

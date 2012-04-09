@@ -168,7 +168,7 @@ class GUIImp : private GUI
   static void      ConfigNotification(const void*, const CfgChangeArgs& args);
 
   static Playable* CurrentRoot()             { return CurrentIter->GetRoot(); }
-  static APlayable& CurrentSong()            { return CurrentIter->GetCurrent(); }
+  static APlayable* CurrentSong()            { return CurrentIter->GetCurrent(); }
 
   static void      PostCtrlCommand(Ctrl::ControlCommand* cmd) { Ctrl::PostCommand(cmd, &GUIImp::ControllerEventCB); }
 
@@ -559,7 +559,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (changed & IF_Tech)
           upd |= UPD_PLMODE;
       }
-      if (&CurrentIter->GetCurrent() == ap)
+      if (CurrentIter->GetCurrent() == ap)
       { // Current change event
         if (changed & IF_Obj)
           upd |= UPD_TIMERS|UPD_RATE;
@@ -607,9 +607,9 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (mask & UPD_PLMODE)
           bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
         if (mask & UPD_RATE)
-          bmp_draw_rate(hps, root ? CurrentIter->GetCurrent().GetInfo().obj->bitrate : -1);
+          bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
         if (mask & UPD_CHANNELS)
-          bmp_draw_channels(hps, root ? CurrentIter->GetCurrent().GetInfo().tech->channels : -1);
+          bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
         if (mask & UPD_VOLUME)
           bmp_draw_volume(hps, Ctrl::GetVolume());
         if (mask & UPD_TEXT)
@@ -687,8 +687,8 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         int index = 0; // TODO: is_playlist ? index+1 : 0;
         bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
         bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
-        bmp_draw_rate(hps, root ? CurrentIter->GetCurrent().GetInfo().obj->bitrate : -1);
-        bmp_draw_channels(hps, root ? CurrentIter->GetCurrent().GetInfo().tech->channels : -1);
+        bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
+        bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
         bmp_draw_volume(hps, Ctrl::GetVolume());
         bmp_draw_text(hps);
       }
@@ -719,13 +719,15 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       switch( cmd )
       {
         case IDM_M_ADDBOOK:
-          if (CurrentRoot())
-            amp_add_bookmark(HPlayer, CurrentSong());
+        { APlayable* cur = CurrentSong();
+          if (cur)
+            amp_add_bookmark(HPlayer, *cur);
           break;
-
+        }
         case IDM_M_ADDBOOK_TIME:
-          if (CurrentRoot())
-          { PlayableRef ps(CurrentSong());
+        { APlayable* cur = CurrentSong();
+          if (cur)
+          { PlayableRef ps(*cur);
             // Use the time index from last_status here.
             if (CurrentIter->GetPosition() >= 0)
             { AttrInfo attr(*ps.GetInfo().attr);
@@ -735,7 +737,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             amp_add_bookmark(HPlayer, ps);
           }
           break;
-
+        }
         case IDM_M_ADDPLBOOK:
           if (CurrentRoot())
             amp_add_bookmark(HPlayer, *CurrentIter->GetRoot());
@@ -760,26 +762,29 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case IDM_M_INFO:
-          if (CurrentRoot())
-            ShowDialog(CurrentSong().GetPlayable(), DLT_METAINFO);
+        { APlayable* cur = CurrentSong();
+          if (cur)
+            ShowDialog(cur->GetPlayable(), DLT_METAINFO);
           break;
-
+        }
         case IDM_M_PLINFO:
-          if (CurrentRoot())
-            ShowDialog(*CurrentRoot(),
-              CurrentRoot()->GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
+        { Playable* root = CurrentRoot();
+          if (root)
+            ShowDialog(*root, root->GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
           break;
-
+        }
         case IDM_M_TAG:
-          if (CurrentRoot())
-            ShowDialog(CurrentSong().GetPlayable(), DLT_INFOEDIT);
+        { APlayable* cur = CurrentSong();
+          if (cur)
+            ShowDialog(cur->GetPlayable(), DLT_INFOEDIT);
           break;
-
+        }
         case IDM_M_RELOAD:
-          if (CurrentRoot())
-            CurrentSong().RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
+        { APlayable* cur = CurrentSong();
+          if (cur)
+            cur->RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
           break;
-
+        }
         case IDM_M_DETAILED:
         { Playable* root = CurrentRoot();
           if (root && root->IsPlaylist())
@@ -793,10 +798,11 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
         case IDM_M_ADDPMBOOK:
-          if (CurrentRoot())
-            DefaultPM->InsertItem(*CurrentRoot());
+        { Playable* root = CurrentRoot();
+          if (root)
+            DefaultPM->InsertItem(*root);
           break;
-
+        }
         case IDM_M_PLRELOAD:
         { Playable* root = CurrentRoot();
           if ( root && root->IsPlaylist()
@@ -1003,7 +1009,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       } else if (bmp_pt_in_slider(pos))
       { if (CurrentRoot() && (IsAltSlider
           ? CurrentRoot()->GetInfo().rpl->songs > 0
-          : CurrentSong().GetInfo().obj->songlength > 0 ))
+          : CurrentSong()->GetInfo().obj->songlength > 0 ))
         { IsSliderDrag = true;
           IsSeeking    = true;
           WinSetCapture(HWND_DESKTOP, HPlayer);
@@ -1089,10 +1095,11 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       // adjust CurrentIter from pos
       if (!IsAltSlider)
-      { // navigation within the current song
-        if (CurrentSong().GetInfo().obj->songlength <= 0)
+      { const PM123_TIME songlength = CurrentSong()->GetInfo().obj->songlength;
+        // navigation within the current song
+        if (songlength <= 0)
           return 0;
-        CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
+        CurrentIter->Navigate(relpos * songlength, job);
       } else switch (Cfg::Get().altnavig)
       {case CFG_ANAV_TIME:
         // Navigate only at the time scale
@@ -1117,9 +1124,10 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, job);
           DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
           // navigate within the song
-          if (Cfg::Get().altnavig != CFG_ANAV_SONG && CurrentSong().GetInfo().obj->songlength > 0)
+          const PM123_TIME songlength = CurrentSong()->GetInfo().obj->songlength;
+          if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
           { relpos -= floor(relpos);
-            CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
+            CurrentIter->Navigate(relpos * songlength, job);
           }
         }
       }
@@ -1496,7 +1504,7 @@ void GUIImp::RefreshTimers(HPS hps)
   }
 
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
-  PM123_TIME total_song = CurrentIter->GetCurrent().GetInfo().obj->songlength;
+  PM123_TIME total_song = CurrentIter->GetCurrent()->GetInfo().obj->songlength;
   PM123_TIME total_time = is_playlist ? root->GetInfo().obj->songlength : -1;
   // TODO: calculate offset from call stack.
   PM123_TIME offset = -1;
@@ -1559,10 +1567,10 @@ void GUIImp::PrepareText()
     bmp_set_text("- no file loaded -");
     return;
   }
-  DEBUGLOG(("GUI::PrepareText() %p %u\n", &CurrentSong(), Cfg::Get().viewmode));
+  DEBUGLOG(("GUI::PrepareText() %p %u\n", CurrentSong(), Cfg::Get().viewmode));
 
   xstring text;
-  const INFO_BUNDLE_CV& info = CurrentSong().GetInfo();
+  const INFO_BUNDLE_CV& info = CurrentSong()->GetInfo();
   switch (Cfg::Get().viewmode)
   { case CFG_DISP_ID3TAG:
       text = amp_construct_tag_string(&info);
@@ -1573,7 +1581,7 @@ void GUIImp::PrepareText()
       // Give Priority to an alias name if any
       text = info.item->alias;
       if (!text)
-        text = CurrentSong().GetPlayable().URL.getShortName();
+        text = CurrentSong()->GetPlayable().URL.getShortName();
       // In case of an invalid item display an error message.
       if (info.tech->attributes & TATTR_INVALID)
         text = text + " - " + xstring(info.tech->info);

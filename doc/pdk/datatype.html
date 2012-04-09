@@ -117,8 +117,7 @@ about an
 object.</h3>
 <blockquote>
   <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a
- href="xstring.html">xstring</a>    info;<br>  <a
- href="xstring.html">xstring</a>    format;<br>  <a
+ href="xstring.html">xstring</a>    info;<br>  <a href="xstring.html">xstring</a>    format;<br>  <a
  href="xstring.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type <tt>TECH_INFO</tt> should not be copied
@@ -238,22 +237,23 @@ for an 128kbps MP3.</td>
     </tr>
   </tbody>
 </table>
-<br>
+<p>Note that the object information always reflects the properties of a
+physical object. When dealing with slices (start and stop location in <a
+ href="#ITEM_INFO">item information</a>) the <tt>songlength</tt> will
+not change. To get the effective song length of a slice look at the <tt>totallength</tt>
+filed of the <a href="#DRPL_INFO"><tt>DRPL_INFO</tt></a> structure.<tt><br>
+</tt></p>
 <h3><a name="META_INFO"></a>META_INFO - Meta
 information</h3>
 <blockquote>
   <pre>typedef struct<br>{ <a href="xstring.html">xstring</a>    title;<br>  <a
- href="xstring.html">xstring</a>    artist;<br>  <a
- href="xstring.html">xstring</a>    album;<br>  <a
- href="xstring.html">xstring</a>    year;<br>  <a
- href="xstring.html">xstring</a>    comment;<br>  <a
- href="xstring.html">xstring</a>    genre;<br>  <a
- href="xstring.html">xstring</a>    track;<br>  <a
+ href="xstring.html">xstring</a>    artist;<br>  <a href="xstring.html">xstring</a>    album;<br>  <a
+ href="xstring.html">xstring</a>    year;<br>  <a href="xstring.html">xstring</a>    comment;<br>  <a
+ href="xstring.html">xstring</a>    genre;<br>  <a href="xstring.html">xstring</a>    track;<br>  <a
  href="xstring.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type META_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a
- href="xstring.html">xstring</a></tt>.</p>
+binary by value because of the embedded&nbsp;<tt><a href="xstring.html">xstring</a></tt>.</p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>
@@ -482,12 +482,10 @@ size. If this is non-zero the <tt>totalsize</tt> is incomplete. </td>
 item information.</h3>
 <blockquote>
   <pre>typedef struct<br>{ <a href="xstring.html">xstring</a>    alias;<br>  <a
- href="xstring.html">xstring</a>    start;<br>  <a
- href="xstring.html">xstring</a>    stop;<br>  float      pregap;<br>  float      postgap;<br>  float      gain;<br>} <b>ITEM_INFO</b>;</pre>
+ href="xstring.html">xstring</a>    start;<br>  <a href="xstring.html">xstring</a>    stop;<br>  float      pregap;<br>  float      postgap;<br>  float      gain;<br>} <b>ITEM_INFO</b>;</pre>
 </blockquote>
 <p>Note that objects of type ITEM_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a
- href="xstring.html">xstring</a></tt>s.</p>
+binary by value because of the embedded&nbsp;<tt><a href="xstring.html">xstring</a></tt>s.</p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr>

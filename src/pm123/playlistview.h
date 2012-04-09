@@ -108,7 +108,7 @@ class PlaylistView
   /// Create a playlist manager window for an URL, but don't open it.
   PlaylistView(Playable& obj);
   static PlaylistView* Factory(Playable& key);
-  static int        Comparer(const PlaylistView& pl, const Playable& key);
+  static int        Comparer(const Playable& key, const PlaylistView& pl);
   typedef inst_index<PlaylistView, Playable, &PlaylistView::Comparer> RepositoryType;
  public:
   static int_ptr<PlaylistView> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistView::Factory); }

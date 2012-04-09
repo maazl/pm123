@@ -38,7 +38,7 @@
 #include "output.h"
 #include "visual.h"
 #include "playable.h"
-#include "commandprocessor.h"
+#include "acommandprocessor.h"
 #include "configuration.h"
 #include "eventhandler.h"
 #include "proxyhelper.h"
@@ -172,7 +172,7 @@ class ModuleImp : private Module
 
  private: // Repository
   typedef char KeyType; // Hack! We use /references/ to const char as strings for optimum performance.
-  static int     Comparer(const Module& module, const KeyType& key);
+  static int     Comparer(const KeyType& key, const Module& module);
  public:
   static Module* Factory(const KeyType& key, const xstring& name);
   class Repository : public inst_index2<Module, const KeyType, &ModuleImp::Comparer, const xstring>
@@ -212,8 +212,8 @@ Module* ModuleImp::Factory(const KeyType& key, const xstring& name)
   return pm;
 }
 
-int ModuleImp::Comparer(const Module& module, const KeyType& key)
-{ return module.Key.compareToI(&key);
+int ModuleImp::Comparer(const KeyType& key, const Module& module)
+{ return -module.Key.compareToI(&key);
 }
 
 ModuleImp::~ModuleImp()

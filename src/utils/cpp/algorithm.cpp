@@ -33,27 +33,21 @@
 
 #include <debuglog.h>
 
-bool binary_search_base(const void*const* data, size_t size, int (*fcmp)(const void* elem, const void* key),
-  const void* key, size_t& pos)
-{ DEBUGLOG(("binary_search_base(&%p, %u, *%p, %p, &%p)\n", data, size, fcmp, key, &pos));
+bool binary_search( const void* key, size_t& pos,
+  const void* data, size_t num, size_t size, int (*fcmp)(const void* key, const void* elem) )
+{ DEBUGLOG(("binary_search(%p, &%p, %p, %u, %u, *%p)\n", key, &pos, data, num, size, fcmp));
   size_t l = 0;
-  size_t r = size;
+  size_t r = num;
   while (l < r)
   { size_t m = (l+r) >> 1;
-    DEBUGLOG2(("binary_search_base %u-%u %u->%p\n", l, r, m, data[m]));
-    // Dirty hack: NULL references do always match exactly
-    // This removes problems with the initialization sequence of inst_index.
-    if (!data[m])
-    { pos = m;
-      return true;
-    }
-    int cmp = (*fcmp)(data[m], key);
-    DEBUGLOG2(("binary_search_base cmp = %i\n", cmp));
+    DEBUGLOG2(("binary_search %u-%u %u\n", l, r, m));
+    int cmp = (*fcmp)(key, (const char*)data + m*size);
+    DEBUGLOG2(("binary_search cmp = %i\n", cmp));
     if (cmp == 0)
     { pos = m;
       return true;
     }
-    if (cmp < 0)
+    if (cmp > 0)
       l = m+1;
     else
       r = m;
@@ -62,34 +56,34 @@ bool binary_search_base(const void*const* data, size_t size, int (*fcmp)(const v
   return false;
 }
 
-/*bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
-  const void* key, size_t& pos)
-{ DEBUGLOG(("binary_search_base(&%p{%u}, *%p, %p, &%p)\n", &data, data.size(), fcmp, key, &pos));
+bool binary_search( const void* key, size_t& pos,
+  const void*const* data, size_t num, int (*fcmp)(const void* key, const void* elem) )
+{ DEBUGLOG(("binary_search(%p, &%p, %p, %u, *%p)\n", key, &pos, data, num, fcmp));
   size_t l = 0;
-  size_t r = data.size();
+  size_t r = num;
   while (l < r)
   { size_t m = (l+r) >> 1;
-    DEBUGLOG2(("binary_search_base %u-%u %u->%p\n", l, r, m, data.at(m)));
+    DEBUGLOG2(("binary_search %u-%u %u->%p\n", l, r, m, data[m]));
     // Dirty hack: NULL references do always match exactly
     // This removes problems with the initialization sequence of inst_index.
-    if (!data.at(m))
+    if (!data[m])
     { pos = m;
       return true;
     }
-    int cmp = (*fcmp)(data.at(m), key);
-    DEBUGLOG2(("binary_search_base cmp = %i\n", cmp));
+    int cmp = (*fcmp)(key, data[m]);
+    DEBUGLOG2(("binary_search cmp = %i\n", cmp));
     if (cmp == 0)
     { pos = m;
       return true;
     }
-    if (cmp < 0)
+    if (cmp > 0)
       l = m+1;
     else
       r = m;
   }
   pos = l;
   return false;
-}*/
+}
 
 void rotate_array_base(void** begin, const size_t len, int shift)
 { DEBUGLOG(("rotate_array_base(%p, %u, %i)\n", begin, len, shift));

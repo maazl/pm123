@@ -76,7 +76,7 @@ class PlaylistManager
   /// Create a playlist manager window for an object, but don't open it.
   PlaylistManager(Playable& obj);
   static PlaylistManager* Factory(Playable& key);
-  static int        Comparer(const PlaylistManager& pl, const Playable& key);
+  static int        Comparer(const Playable& key, const PlaylistManager& pl);
   typedef inst_index<PlaylistManager, Playable, &PlaylistManager::Comparer> RepositoryType;
  public:
   static int_ptr<PlaylistManager> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistManager::Factory); }

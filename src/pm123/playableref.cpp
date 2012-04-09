@@ -91,10 +91,10 @@ int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, Slic
   { if (r == NULL)
       return 0; // both iterators are zero
     else
-      return type;
+      return -type;
   } else
   { if (r == NULL)
-      return -type;
+      return type;
     else
       return l->CompareTo(*r);
   }
@@ -337,8 +337,8 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
       DEBUGLOG(("PlayableSlice::CalcLoc: %s at %.20s\n", err.cdata(), cp));
     }
     // Intersection with RefTo->GetStartLoc()
-    int_ptr<Location> newval = RefTo->GetStartLoc();
-    if (CompareSliceBorder(si, newval, type) < 0)
+    int_ptr<Location> newval = type == SB_Start ? RefTo->GetStartLoc() : RefTo->GetStopLoc();
+    if (CompareSliceBorder(si, newval, type) != type)
       delete si;
     else
       newval = si;
@@ -397,10 +397,10 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
       // Either because start and stop is NULL
       // or because both locations point to the same object
       // or because one location points to a song while the other one is NULL.
-
       InfoFlags what2 = what;
       volatile const AggregateInfo& sai = job.RequestAggregateInfo(cur, exclude, what2);
-      whatok &= ~what2;
+      what2 = ~what2;
+      whatok &= what2;
 
       if (what2 & IF_Rpl)
         ai.Rpl += sai.Rpl;
@@ -422,7 +422,7 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
       }
     }
   }
-    
+
   if (psp)
   { if (exclude.add(psp->GetPlayable()))
     { whatok &= CalcRplCore(ai, *psp, exclude, what, job, start, NULL, level+1);
@@ -489,16 +489,42 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
   }
 
   // Load aggregate info if any.
+  if (upd)
+  { DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {0}\n"));
+    AggregateInfo ai(PlayableSet::Empty);
+    OwnedPlayableSet exclude; // exclusion list
+    // We can be pretty sure that ITEM_INFO is overridden.
+    int_ptr<Location> start = StartCache;
+    int_ptr<Location> stop  = StopCache;
+    InfoFlags whatok = CalcRplCore(ai, *RefTo, exclude, upd, job, start, stop, 0);
+    job.Commit();
+    upd.Rollback(~whatok & IF_Aggreg);
+
+    if (whatok)
+    { // At least one info completed
+      Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+      if ((whatok & IF_Rpl) && CIC->DefaultInfo.Rpl.CmpAssign(ai.Rpl))
+        args.Changed |= IF_Rpl;
+      if ((whatok & IF_Drpl) && CIC->DefaultInfo.Drpl.CmpAssign(ai.Drpl))
+        args.Changed |= IF_Drpl;
+      args.Loaded |= upd.Commit(whatok);
+
+      // Store RPL info pointers
+      Info.rpl  = &CIC->DefaultInfo.Rpl;
+      Info.drpl = &CIC->DefaultInfo.Drpl;
+    }
+  }
   for (CollectionInfo* iep = NULL; CIC->GetNextWorkItem(iep, job.Pri, upd);)
   { // retrieve information
     DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {%u}\n", iep->Exclude.size()));
     AggregateInfo ai(iep->Exclude);
+    OwnedPlayableSet exclude(iep->Exclude); // copy exclusion list
     // We can be pretty sure that ITEM_INFO is overridden.
     int_ptr<Location> start = StartCache;
     int_ptr<Location> stop  = StopCache;
-    OwnedPlayableSet exclude(iep->Exclude); // copy exclusion list
     InfoFlags whatok = CalcRplCore(ai, *RefTo, exclude, upd, job, start, stop, 0);
     job.Commit();
+    upd.Rollback(~whatok & IF_Aggreg);
 
     if (whatok)
     { // At least one info completed
@@ -508,13 +534,6 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
       if ((whatok & IF_Drpl) && iep->Drpl.CmpAssign(ai.Drpl))
         args.Changed |= IF_Drpl;
       args.Loaded |= upd.Commit(whatok);
-      upd.Rollback();
-
-      if (iep->Exclude.size() == 0)
-      { // Store RPL info pointers
-        Info.rpl  = &iep->Rpl;
-        Info.drpl = &iep->Drpl;
-      }
     }
   }
   if (!args.IsInitial())
@@ -577,6 +596,8 @@ const INFO_BUNDLE_CV& PlayableRef::GetInfo() const
   dst.phys = info.phys;
   dst.tech = info.tech;
   dst.obj  = info.obj;
+  // TODO: race condition because we could override fields in unsynchronized context.
+  // This might revoke an OverrideXxx call.
   if (!IsMetaOverridden())
     dst.meta = info.meta;
   if (!IsAttrOverridden())

@@ -42,24 +42,25 @@ class Playable;
 class PlayableSetBase;
 /** Class to identify a deep location within a playlist or a song.
  * @details A location can point to anything within the scope of it's root. I.e.
- *  - a start of a song,
- *  - a start of a song in a nested playlist,
- *  - a time offset within a song and
- *  - a nested playlist (this is not the same as the start of the first song within that list).
+ * - the root,
+ * - a start of a song,
+ * - a start of a song in a nested playlist,
+ * - a time offset within a song,
+ * - a nested playlist and
+ * - into a nested playlist before its first song.
  * Instances of this class are not thread safe.
  * @remarks Note that a Location does not own its root object.
  * So you have to ensure that no Location can live longer than the referenced root.
  * But it owns the items in the callstack. So they can be safely removed from the collection
- * while the location exists.
- */
+ * while the location exists. */
 class Location : public Iref_count
 {public:
   /// Result of Navigation command
   /// It can take three logically distinct values:
-  ///  - NULL      => Successful.
-  ///  - ""        => Further information from other objects is required. Retry later.
-  ///  - "End"     => The end of the list has been reached.
-  ///  - any other => Not successful because of a syntax error or a non-existing
+  /// - NULL      => Successful.
+  /// - ""        => Further information from other objects is required. Retry later.
+  /// - "End"     => The end of the list has been reached.
+  /// - any other => Not successful because of a syntax error or a non-existing
   ///                 or out of bounds reference. Error Message as plain text.
   typedef xstring             NavigationResult;
 
@@ -89,13 +90,17 @@ class Location : public Iref_count
   /// @param dirfunc \c &Playable::GetNext or \c &Playable::GetPrev to identify the direction.
   /// @param stopat Only stop at items that have at least one bit of this parameter set.
   /// @param job Priority and \c DependencySet of asynchronous requests if the navigation command could not be completed
-  ///        because of missing informations on sub items. (Tech info and slice info is required.)
-  /// @param slice Do not ascend beyond depth slice in the callstack.
-  ///        If we are currently at depth 2 and the end of the list is reached and slice is also 2
-  ///        PrevNextCore will return an error ("End") instead of applying \a dirfunc to the callstack
-  ///        item at depth 1 or less.
+  /// because of missing informations on sub items. (Tech info and slice info is required.)
+  /// @param mindepth Do not ascend beyond depth \a mindepth in the callstack.
+  /// If we are currently at depth 2 and the end of the list is reached and \a mindepth is also 2
+  /// PrevNextCore will return an error ("End") instead of applying \a dirfunc to the callstack
+  /// item at depth 1 or less.
+  /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
+  /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
+  /// PrevNextCore will not enter this list. It will return or skip the nested list,
+  /// depending on whether \c TATTR_PLAYLIST is set in \a stopat.
   /// @return See \c NavigationResult.
-  NavigationResult            PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice = 0);
+  NavigationResult            PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
   /// Assign new root (Location must be initial before)
   #ifdef DEBUG
   void                        AssignRoot(Playable* root);
@@ -138,12 +143,15 @@ class Location : public Iref_count
   /// Query the current root object.
   Playable*                   GetRoot() const              { return Root; }
   /// Get the current item within the current root where this Location points to.
-  /// @details This returns the root itself unless the Location has been modified since the last initialization.
-  APlayable&                  GetCurrent() const;
-  /// Get the entire callstack to get from the root to the current item.
-  /// @details The current item is the last entry in the returned callstack
+  /// @return This returns the root itself unless the Location has been modified since the last initialization.
+  /// It will return NULL if there is currently no root.
+  APlayable*                  GetCurrent() const;
+  /// Get the entire call stack to get from the root to the current item.
+  /// @details The current item is the last entry in the returned call stack
   /// unless the current item equals the root. In this case an empty container
-  /// is returned. The root never appears in the callstack.
+  /// is returned. The root never appears in the call stack.
+  /// The last entry in the call stack may be \c NULL if the Location points
+  /// before the first item of a playlist.
   const vector<PlayableInstance>& GetCallstack() const     { return Callstack; }
   /// Returns the time offset of this Location within the current item.
   /// @remarks This is not the same as the time offset within the current root.
@@ -158,47 +166,62 @@ class Location : public Iref_count
 
   /// Check whether a Playable object is already in the call stack.
   /// @param pp Playable item to search for. This might be NULL.
-  /// @return true \a *pp is in the current callstack or if it is the current root.
-  bool                        IsInCallstack(const Playable* pp) const;
+  /// @return Depth of pp in the current call stack.
+  /// - 0 -> pp is the current root
+  /// - 1 -> child of root
+  /// - ...
+  /// - UINT_MAX -> pp is not in call stack
+  size_t                      FindInCallstack(const Playable* pp) const;
 
   /// Navigate \a count items forward or backward.
   /// @param count Number of items to skip. >&nbsp;0 => forward <&nbsp;0 => backward, =&nbsp;0 => no-op.
-  /// @param stopat only count items with at least one bit in \a stopat set.
-  ///        E.g. if you pass TATTR_SONG, playlist items and invalid items will be skipped.
+  /// @param stopat only count items with at least one bit in \a stopat set in \c TECH_INFO::attributes.
+  /// E.g. if you pass TATTR_SONG, playlist items and invalid items will be skipped.
   /// @param pri Priority and \c DependencySet of asynchronous requests if the navigation command could not be completed
-  ///        because of missing informations on sub items. (Tech info and slice info is required.)
-  /// @param slice Do not ascend beyond depth slice in the callstack.
-  ///        If we are currently at depth 2 and the end of the list is reached and slice is also 2
-  ///        PrevNextCore will return an error ("End") instead of applying \a dirfunc to the callstack
-  ///        item at depth 1 or less.
+  /// because of missing informations on sub items. (Tech info and slice info is required.)
+  /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.
+  /// If we are currently at depth 2 and the end of the list is reached and \a mindepth is also 2
+  /// PrevNextCore will return an error ("End") instead of applying \a dirfunc to the call stack
+  /// item at depth 1 or less.
+  /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
+  /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
+  /// PrevNextCore will not enter this list. It will return or skip the nested list,
+  /// depending on whether \c TATTR_PLAYLIST is set in \a stopat.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice = 0);
+  NavigationResult            NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth = 0, unsigned maxdepth = INT_MAX);
   /// Navigate to the parent \a index times.
   /// @param index Number of navigations. It must be >= 0 and <= \c GetLevel().
   ///        Of course, you cannot navigate up from the root.
   /// @return See \c NavigationResult.
   NavigationResult            NavigateUp(int index = 1);
+  /// @brief Navigate into a (nested) playlist
+  /// @details The function enters a playlist but does not advance to it's first item.
+  /// This results in a NULL entry at the end of the call stack.
+  /// You can't enter sons or invalid items.
+  /// @return See \c NavigationResult.
+  NavigationResult            NavigateInto();
   /// Navigate explicitly to a given PlayableInstance.
   /// @param pi The PlayableInstance must be a child of the current item.
+  /// \a pi might be \c NULL to explicitly navigate before the start of a playlist without leaving it.
   /// @return See \c NavigationResult, but NavigateTo will never depend on outstanding information and return "".
   /// @details This method can be used to explicitely build the callstack.
-  NavigationResult            NavigateTo(PlayableInstance& pi);
+  NavigationResult            NavigateTo(PlayableInstance* pi);
   /// Navigate to an occurency of \a url within the current deepmost playlist.
   /// @details If the addressed item is a playlist the list is entered implicitely.
   /// @param url
-  ///  - If the url is \c '..' the current playlist is left (see NavigateUp).
-  ///  - If the url is \c NULL only the index is used to count the items (see NavigateCount).
+  /// - If the url is \c '..' the current playlist is left (see NavigateUp).
+  /// - If the url is \c NULL only the index is used to count the items (see NavigateCount).
   /// @param index Navigate to the index-th occurency of url within the current playlist.
-  ///        The index must not be 0, otherwise navigation fails. A negative index counts from the back.
+  /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
   /// @param flat If flat is \c true all content from the current location is flattened.
-  ///        So the Navigation goes to the item in the set of non-recursive items in the current playlist
-  ///        and all sublists.
-  ///        If Navigate with flat = true succeeds, the current item is always a song.
+  /// So the Navigation goes to the item in the set of non-recursive items in the current playlist
+  /// and all sublists.
+  /// If Navigate with flat = true succeeds, the current item is always a song.
   /// @return See \c NavigationResult.
   NavigationResult            Navigate(const xstring& url, int index, bool flat, JobSet& job);
   /// Set the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
-  ///        The navigation starts from the current location.
+  /// The navigation starts from the current location.
   /// @return See \c NavigationResult.
   /// @remarks If this is a song, the call is similar to SetLocation().
   /// If current is a playlist the navigation applies to the whole list content.
@@ -212,10 +235,10 @@ class Location : public Iref_count
   /// Deserialize the current instance from a string and return a error message (if any).
   /// @param str \a str is relative. To enforce an absolute location call \c Reset() before.
   /// @param job Priority of asynchronous requests if the navigation command could not be completed
-  ///        because of missing informations on sub items. And a \c DependencySet which
-  ///        is populated if the latter happens. If the priority is \c PRI_Sync
-  ///        \c Deserialize will never return \c "" but wait for the information
-  ///        to become available instead. This may take quite long on large recursive playlists.
+  /// because of missing informations on sub items. And a \c DependencySet which
+  /// is populated if the latter happens. If the priority is \c PRI_Sync
+  /// \c Deserialize will never return \c "" but wait for the information
+  /// to become available instead. This may take quite long on large recursive playlists.
   /// @details The current root must be consistent with the iterator string otherwise
   /// the function signals an error. In case of an error a partial navigation may take place.
   /// \a str is advanced to the current read location. This can be used to localize errors.

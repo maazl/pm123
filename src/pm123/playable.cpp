@@ -473,7 +473,7 @@ void Playable::DoLoadInfo(JobSet& job)
     }
   }
 
-  if ((Info.Phys.attributes & PATTR_INVALID) || (Info.Tech.attributes & TATTR_INVALID))
+  if (Info.Tech.attributes & TATTR_INVALID)
   { // Always render aggregate info of invalid items, because this is cheap.
     info.Rpl.invalid = 1;
     /* Invalid items do not count
@@ -649,8 +649,9 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     xio_fclose(handle);
   tech.decoder = dp->ModRef->Key;
   if (rc != 0)
-  { phys.attributes |= PATTR_INVALID;
-    if (tech.info == 0)
+  { phys.attributes = PATTR_INVALID;
+    tech.attributes = TATTR_INVALID;
+    if (tech.info == NULL)
       tech.info.sprintf("Decoder error %i", rc);
   }
   DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
@@ -939,7 +940,9 @@ bool Playable::RemoveItem(PlayableInstance* item)
   Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
   if (!item || !item->HasParent(this))
+  { DEBUGLOG(("Playable::RemoveItem: Bad item or bad parent.\n"));
     return false;
+  }
   InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj);
   if (!(upd & IF_Child))
@@ -958,7 +961,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
     Modified = true;
   }
 
-  Invalidate(IF_Obj|IF_Rpl);
+  DEBUGLOG(("Playable::RemoveItem: before change event\n"));
   CollectionChangeArgs args(*this, *item, PCT_Delete);
   args.Loaded = args.Changed = what;
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
@@ -1213,8 +1216,8 @@ Playable* Playable::Factory(const xstring& url)
   return ppf.toCptr();
 }
 
-int Playable::Comparer(const Playable& l, const xstring& r)
-{ return l.URL.compareToI(r);
+int Playable::Comparer(const xstring& l, const Playable& r)
+{ return l.compareToI(r.URL);
 }
 
 clock_t Playable::LastCleanup = 0;

@@ -56,8 +56,8 @@ inline PlaylistMenu::MapEntry::MapEntry(USHORT id, MapEntry* parent, APlayable& 
   InfoDelegate(data.GetInfoChange(), owner, infochg, this)
 {}
 
-int PlaylistMenu::MapEntry::compare(const MapEntry& entry, const USHORT& key)
-{ return (int)entry.IDMenu - key;
+int PlaylistMenu::MapEntry::compare(const USHORT& key, const MapEntry& entry)
+{ return (int)key - (int)entry.IDMenu;
 }
 
 MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -293,7 +293,7 @@ PlaylistMenu::MapEntry* PlaylistMenu::InsertEntry(MapEntry* parent, SHORT where,
   subp = new MapEntry(mi.id, parent, data, parent->Flags, parent->User, MIT_END, *this, &PlaylistMenu::InfoChangeHandler);
 
   const unsigned tattr = data.GetInfo().tech->attributes;
-  const bool invalid = (data.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
+  const bool invalid = (tattr & TATTR_INVALID) != 0;
   DEBUGLOG(("PlaylistMenu::InsertEntry: %i\n", mi.id));
   // Invalid?
   if (invalid)
@@ -401,8 +401,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
         pi->RequestInfo(IF_Child, PRI_Low);
       pi->RequestInfo(IF_Tech|IF_Display, PRI_Normal);
       // remove invalid items?
-      if ( (mapp->Flags & SkipInvalid) &&
-        ((pi->GetInfo().phys->attributes & PATTR_INVALID) || (pi->GetInfo().tech->attributes & TATTR_INVALID)) )
+      if ((mapp->Flags & SkipInvalid) && (pi->GetInfo().tech->attributes & TATTR_INVALID))
         children.erase(i);
     }
     DEBUGLOG(("PlaylistMenu::UpdateSubItems: Found %u children\n", children.size()));

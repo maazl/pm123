@@ -72,8 +72,8 @@ const int_ptr<PlaylistBase> PlaylistView::GetSame(Playable& obj)
 { return &*GetByKey(obj);
 }
 
-int PlaylistView::Comparer(const PlaylistView& pl, const Playable& key)
-{ return CompareInstance(*pl.Content, key);
+int PlaylistView::Comparer(const Playable& key, const PlaylistView& pl)
+{ return CompareInstance(key, *pl.Content);
 }
 
 void PlaylistView::DestroyAll()

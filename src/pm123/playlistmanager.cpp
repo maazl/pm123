@@ -67,8 +67,8 @@ PlaylistManager* PlaylistManager::Factory(Playable& key)
 { return new PlaylistManager(key);
 }
 
-int PlaylistManager::Comparer(const PlaylistManager& pl, const Playable& key)
-{ return CompareInstance(*pl.Content, key);
+int PlaylistManager::Comparer(const Playable& key, const PlaylistManager& pl)
+{ return CompareInstance(key, *pl.Content);
 }
 
 const int_ptr<PlaylistBase> PlaylistManager::GetSame(Playable& obj)

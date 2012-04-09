@@ -99,16 +99,31 @@ deactivated.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
-      <td><tt><a name="next"></a>next </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
+      <td><tt><a name="next"></a>next </tt>[<var><tt>&lt;count&gt;</tt></var>]
+      <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td>Selects the next song in playlist. If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one song at once.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
-      <td><tt><a name="prev"></a>prev </tt>[<var><tt>&lt;count&gt;</tt></var>]<br>
+      <td><tt><a name="prev"></a>prev </tt>[<var><tt>&lt;count&gt;</tt></var>]
+      <small><sup><a href="#note2">(2.)</a></sup></small><br>
       <tt><a name="previous"></a></tt><tt>previous </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
       <td>Selects the previous song in playlist. If <var><tt>&lt;count&gt;</tt></var>
 is specified, you can skip more than one song at once.</td>
+      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="jump"></a>jump <var>&lt;n&gt;</var></tt></td>
+      <td>Jump to <tt><var>&lt;n&gt;</var></tt>
+seconds in the currently playing file. <tt><var>&lt;n&gt;</var></tt>
+may be a fractional number.<br>
+Note that <tt>jump</tt>
+is not reliable in playlist mode, because the currently playing song
+may change just before jump is executed. You should prefer <a
+ href="playback.html#navigate"><tt>navigate</tt></a> in this case. This
+will restore
+the previous song in doubt.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
@@ -119,29 +134,17 @@ song <var>&lt;url&gt;</var></tt><br>
 the currently loaded playlist. Examples:<br>
 '<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
 the start of the song within the currently loaded playlist. If the file
-is referenced twice, the first instance s taken. <tt>navigate</tt>
+is referenced twice, the first instance is taken. <tt>navigate</tt>
 uses the <a href="../location.html">location string</a>
 syntax.<br>
 '<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
-navigates to location 62.7 seconds within the next occurrence of .</td>
+navigates to location 62.7 seconds within the next occurrence of <tt>D:\songs\song1.mp3</tt>.</td>
       <td colspan="1" rowspan="2">Result code,
 non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt>navigate path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub&nbsp;item&gt;</var></tt>[<tt>;</tt>...]]
 [<tt>time&nbsp;<var>&lt;time&gt;</var></tt>[<tt>%</tt>]]</td>
-    </tr>
-    <tr>
-      <td><tt><a name="jump"></a>jump <var>&lt;n&gt;</var></tt></td>
-      <td>Jump to <tt><var>&lt;n&gt;</var></tt>
-seconds in the currently playing file. <tt><var>&lt;n&gt;</var></tt>
-may be a fractional number.<br>
-Note that <tt>jump</tt>
-is not reliable in playlist mode, because the currently playing song
-may change just before jump is executed. You should prefer <a
- href="#navigate"><tt>navigate</tt></a> in this case. This will restore
-the previous song in doubt.</td>
-      <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="savestream"></a>savestream </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
@@ -226,9 +229,22 @@ logical value <em>true</em>, <tt>off</tt>, <tt>0</tt>, <tt>false</tt>
 or <tt>no</tt> for <em>false</em> and <tt>toggle</tt> or no argument
 to flip the current setting.</p>
   </li>
-  <li><a name="note2"></a>If you pass relative URLs the path set with
+  <li>
+    <p><a name="note2"></a>If you pass relative URLs the path set with
 the <a href="general.html#cd">cd</a> command is used as root. Note
-that this does not apply to location string.</li>
+that this does not apply to location string.</p>
+  </li>
+  <li>
+    <p><a name="note3"></a>In PM123 before
+version 1.40 the playlist manipulation
+commands always operate on the currently playing item. Now the new
+commands <a href="playlist.html#pl_prev"><tt>pl prev</tt></a>, <a
+ href="playlist.html#pl_next"><tt>pl
+next</tt></a>
+and <a href="playlist.html#pl_reset"><tt>pl reset</tt></a> are
+dedicated to
+playlist operations.</p>
+  </li>
 </ol>
 </body>
 </html>

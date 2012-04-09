@@ -59,9 +59,9 @@ InfoFlags DependencyInfoPath::Entry::Check()
   return What;
 }
 
-int DependencyInfoPath::Entry::compare(const Entry& l, const APlayable& r)
+int DependencyInfoPath::Entry::compare(const APlayable& l, const Entry& r)
 { // Arbitrary but reliable sequence.
-  return (int)l.Inst.get() - (int)&r;
+  return (int)&l - (int)r.Inst.get();
 }
 
 void DependencyInfoPath::Add(APlayable& inst, InfoFlags what, const PlayableSetBase* exclude)

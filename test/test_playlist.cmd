@@ -14,25 +14,25 @@ CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/"'
 CALL CallPipe 'playlist data/list2.lst'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/LIST2.LST"'
 
-CALL CallPipe 'pl next'
+CALL CallPipe 'pl nextitem'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST2.OGG"'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= "1"'
-CALL CallPipe 'pl next 2'
+CALL CallPipe 'pl nextitem 2'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST3.OGG"'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= "3"'
-CALL CallPipe 'pl next 4'
+CALL CallPipe 'pl nextitem 4'
 CALL Assert 'TRANSLATE(RESULT)', '= ""'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= ""'
-CALL CallPipe 'pl prev'
+CALL CallPipe 'pl previtem'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/LIST1.LST"'
-CALL CallPipe 'pl prev 2'
+CALL CallPipe 'pl previtem 2'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST3.OGG"'
 CALL CallPipe 'pl reset'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST3.OGG"'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= ""'
 
 EXIT
@@ -55,3 +55,4 @@ Assert:
 Fail:
   /*CALL LINEOUT STDERR, result*/
   EXIT ARG(1) '- last command: 'lastcmd
+

@@ -89,73 +89,93 @@ Location& Location::operator=(const Location& r)
 }
 
 // Do not inline because of cyclic type dependency
-APlayable& Location::GetCurrent() const
+APlayable* Location::GetCurrent() const
 { if (Callstack.size() == 0)
-    return *Root;
+    return Root;
   else
-    return *Callstack[Callstack.size()-1];
+    return Callstack[Callstack.size()-1];
 }
 
-bool Location::IsInCallstack(const Playable* pp) const
-{ if (!pp)
-    return false;
-  if (!(pp->GetInfo().tech->attributes & TATTR_PLAYLIST))
-    // No playlist, cannot reside deep in callstack.
-    return &GetCurrent().GetPlayable() == pp;
-  if (GetRoot() == pp)
-    return true;
-  const int_ptr<PlayableInstance>* pipp = Callstack.begin();
-  const int_ptr<PlayableInstance>* pepp = Callstack.end();
-  while (pipp != pepp)
-    if (&(*pipp++)->GetPlayable() == pp)
-      return true;
-  return false;
+size_t Location::FindInCallstack(const Playable* pp) const
+{ if (pp)
+  { if (Root == pp)
+      return 0;
+    foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
+      if (&(*pipp)->GetPlayable() == pp)
+        return pipp - Callstack.begin() + 1;
+  }
+  return UINT_MAX;
 }
 
 
-Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice)
-{ DEBUGLOG(("Location(%p)::PrevNextCore(, %x, {%u,}, %u) - %u\n", this, stopat, job.Pri, slice, Callstack.size()));
+Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth, unsigned maxdepth)
+{ DEBUGLOG(("Location(%p)::PrevNextCore(, %x, {%u,}, %i, %i) - %u\n", this, stopat, job.Pri, mindepth, maxdepth, Callstack.size()));
   ASSERT(stopat);
-  ASSERT(Callstack.size() >= slice);
+  ASSERT(Callstack.size() >= mindepth);
+  ASSERT(maxdepth >= Callstack.size());
 
-  APlayable* cur = &GetCurrent();
-  if (cur == NULL)
+  if (!Root)
     return "Cannot navigate without root.";
-  int_ptr<PlayableInstance> pi;
+  Position = 0;
+
+  APlayable* cur;
   do
-  { Position = 0;
-    if ((cur->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) != TATTR_PLAYLIST)
-    { // Song or whatever => go to parent (if any)
-     pop:
-      if (Callstack.size() == slice)
-        return "End"; // End
-      // pop
-      pi = Callstack.erase(Callstack.size()-1);
-      cur = &GetCurrent();
-    }
-    // TODO: start/stop location
-    // Find next item in *cur before/after pi that is not in callstack (recursion check)
-    do
-    { pi = (cur->GetPlayable().*dirfunc)(pi);
-      DEBUGLOG(("Location::PrevNextCore %p -> %p{%s}\n", cur, pi.get(), PlayableInstance::DebugName(pi)));
-      // End of list => go to parent
-      if (pi == NULL)
-        goto pop;
-    } while (IsInCallstack(&pi->GetPlayable()));
-    // Ensure required info types
-    if (job.RequestInfo(*pi, IF_Tech|IF_Slice|IF_Child))
+  { // Enter playlist?
+    if (Callstack.size() == maxdepth)
+      goto noenter;
+    cur = GetCurrent();
+    if ( !cur
+      || FindInCallstack(&cur->GetPlayable()) < Callstack.size() )
+      goto noenter;
+    if (job.RequestInfo(*cur, IF_Tech|IF_Slice|IF_Child))
       return xstring::empty; // Delayed!!!
-    // go to found item
-    // push
-    Callstack.append() = pi;
+    if ((cur->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
+    { DEBUGLOG(("Location::PrevNextCore enter %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata()));
+      // Playlist? => Enter
+      Callstack.append();
+    } else
+    {noenter:
+      switch (Callstack.size())
+      {case 0:
+        return "End";
+       case 1:
+        cur = Root;
+        break;
+       default:
+        cur = Callstack[Callstack.size()-2];
+      }
+    }
+    // Now Callstack.size() is at least 1 and
+    // cur points to the parent playlist of Callstack[Callstack.size()-1].
+
+    // TODO: start/stop location
+    int_ptr<PlayableInstance>& pi = Callstack[Callstack.size()-1];
+    DEBUGLOG(("Location::PrevNextCore %p{%s} -> %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata(), pi.get(), PlayableInstance::DebugName(pi)));
+    // Find next item in *cur before/after pi that is not in call stack (recursion check)
+    pi = (cur->GetPlayable().*dirfunc)(pi);
+    DEBUGLOG(("Location::PrevNextCore %p -> %p{%s}\n", cur, pi.get(), PlayableInstance::DebugName(pi)));
+    // End of list => go to parent
+    if (pi == NULL)
+    { if (Callstack.size() == mindepth)
+        return "End";
+      // leave
+      DEBUGLOG(("Location::PrevNextCore leave %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata()));
+      Callstack.erase(Callstack.size()-1);
+      goto noenter;
+    }
+
     cur = pi;
-    pi.reset();
+    if (cur && job.RequestInfo(*cur, IF_Tech|IF_Slice|IF_Child))
+      return xstring::empty; // Delayed!!!
+
   } while ((cur->GetInfo().tech->attributes & stopat) == 0);
+  // done
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice)
-{ if (count)
+Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth, unsigned maxdepth)
+{ Location::NavigationResult ret;
+  if (count)
   { DirFunc dir = &Playable::GetNext;
     if (count < 0)
     { dir = &Playable::GetPrev;
@@ -163,12 +183,12 @@ Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES st
     }
     // TODO: we could skip entire playlists here if < count.
     do
-    { Location::NavigationResult ret = PrevNextCore(dir, stopat, job, slice);
+    { ret = PrevNextCore(dir, stopat, job, mindepth, maxdepth);
       if (ret)
-        return ret;
+        break;
     } while (--count);
   }
-  return NavigationResult();
+  return ret;
 }
 
 Location::NavigationResult Location::NavigateUp(int index)
@@ -183,13 +203,26 @@ Location::NavigationResult Location::NavigateUp(int index)
   }
   Callstack.set_size(Callstack.size() - index);
   return xstring(); // NULL
-}  
+}
 
-Location::NavigationResult Location::NavigateTo(PlayableInstance& pi)
+Location::NavigationResult Location::NavigateInto()
+{ APlayable* cur = GetCurrent();
+  if (!cur)
+    return "Can not enter NULL.";
+  if (FindInCallstack(&cur->GetPlayable()) < Callstack.size())
+    return "Can not enter recursive playlist.";
+  cur->RequestInfo(IF_Tech, PRI_Sync);
+  if (!(cur->GetInfo().tech->attributes & TATTR_PLAYLIST))
+    return "Current item is not a playlist.";
+  Callstack.append();
+  return xstring(); // NULL
+}
+
+Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
 { DEBUGLOG(("Location(%p)::NavigateTo(&%p)\n", this, &pi));
-  if (!pi.HasParent(&GetCurrent().GetPlayable()))
+  if (pi && !pi->HasParent(&GetCurrent()->GetPlayable()))
     return "Instance is no child of the current item.";
-  Callstack.append() = &pi;
+  Callstack.append() = pi;
   return xstring(); // NULL
 }
 
@@ -206,7 +239,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   if (index == 0)
     return "Cannot navigate to index 0.";
 
-  APlayable* cur = &GetCurrent();
+  APlayable* cur = GetCurrent();
   if (cur == NULL)
     return "Cannot navigate without root.";
   // Request required information
@@ -313,7 +346,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
         while (index--);
       }
       // Postcondition
-      if (IsInCallstack(&pi->GetPlayable()))
+      if (FindInCallstack(&pi->GetPlayable()) != UINT_MAX)
         return xstring().sprintf("Cannot navigate into the recursive item %s.",
           pi->GetPlayable().URL.cdata());
     }
@@ -334,7 +367,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       // If the url is in the playlist it MUST exist in the repository, otherwise => error.
       return xstring().sprintf("The item %s is not part of %s.",
         url.cdata(), cur->GetPlayable().URL.cdata());
-    if (IsInCallstack(pp))
+    if (FindInCallstack(pp) != UINT_MAX)
       return xstring().sprintf("Cannot navigate into the recursive item %s.",
         pi->GetPlayable().URL.cdata());
     
@@ -358,9 +391,9 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
             return ret;
           else
             return xstring().sprintf("The item %s is not part of %s.",
-              url.cdata(), GetCurrent().GetPlayable().URL.cdata());
+              url.cdata(), GetCurrent()->GetPlayable().URL.cdata());
         }
-      } while (&GetCurrent().GetPlayable() != pp || --index);
+      } while (&GetCurrent()->GetPlayable() != pp || --index);
 
     } else // !flat
     { // Normal URL navigation
@@ -699,7 +732,7 @@ InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Prior
   // Position
   if ((what & IF_Drpl) && Position)
   { dest.Drpl.totallength += Position;
-    APlayable& cur = GetCurrent();
+    APlayable& cur = *GetCurrent();
     if ( cur.RequestInfo(IF_Phys|IF_Tech, pri) == IF_None
       && cur.GetInfo().phys->filesize >= 0 && cur.GetInfo().obj->songlength >= 0 )
       dest.Drpl.totalsize += cur.GetInfo().phys->filesize * Position / cur.GetInfo().obj->songlength;

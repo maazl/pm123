@@ -5,13 +5,13 @@ dirurl =  'FILE:///'TRANSLATE(dir,'/','\')
 CALL CallPipe 'playlist' dir'\data\dir1\?Allfiles=1'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/DIR1/?ALLFILES=1"'
 
-CALL CallPipe 'pl next'
+CALL CallPipe 'pl nextitem'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/DIR1/TEST.INVALID"'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= "1"'
-CALL CallPipe 'pl next 1'
+CALL CallPipe 'pl nextitem 1'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/DIR1/TEST.OGG"'
-CALL CallPipe 'pl index'
+CALL CallPipe 'pl itemindex'
 CALL Assert 'TRANSLATE(RESULT)', '= "2"'
 
 EXIT

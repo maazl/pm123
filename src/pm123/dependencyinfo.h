@@ -60,7 +60,7 @@ class DependencyInfoPath
     /// or \c IF_None if the dependency is fulfilled.
     InfoFlags               Check();
     /// Compare two dependencies. The sort order is arbitrary, but stable.
-    static int              compare(const Entry& l, const APlayable& r);
+    static int              compare(const APlayable& l, const Entry& r);
   };
  protected:
   /// Internal set of dependencies. The set is ordered.

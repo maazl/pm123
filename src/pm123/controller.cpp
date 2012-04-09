@@ -245,7 +245,7 @@ int_ptr<APlayable> Ctrl::GetCurrentSong()
   int_ptr<APlayable> pp;
   { Mutex::Lock lock(CtrlImp::PLMtx);
     if (CtrlImp::PrefetchList.size())
-      pp = &CtrlImp::Current()->Loc.GetCurrent();
+      pp = CtrlImp::Current()->Loc.GetCurrent();
   }
   return pp;
 }
@@ -414,7 +414,7 @@ bool CtrlImp::SkipCore(Location& si, int count)
 
 bool CtrlImp::AdjustNext(Location& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
-  APlayable& ps = si.GetCurrent();
+  APlayable& ps = *si.GetCurrent();
   ps.RequestInfo(IF_Tech|IF_Child, PRI_Sync);
   if (ps.GetInfo().tech->attributes & TATTR_SONG)
     return true;
@@ -466,7 +466,7 @@ void CtrlImp::NavigateCore(Location& si)
   UpdateStackUsage(si.GetCallstack(), Current()->Loc.GetCallstack());
   Pending |= EV_Song;
   // track updates
-  APlayable& ps = Current()->Loc.GetCurrent();
+  APlayable& ps = *Current()->Loc.GetCurrent();
   //AttachCurrentSong(ps);
 
   // restart decoder immediately?
@@ -721,11 +721,11 @@ void CtrlImp::MsgPlayStop()
   if (Playing)
   { // Set new playing position
     if ( Cfg::Get().retainonstop && Flags != Op_Reset
-      && Current()->Loc.GetCurrent().GetInfo().obj->songlength > 0 )
+      && Current()->Loc.GetCurrent()->GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
       Current()->Loc.Navigate(time, SyncJob);
     } else
-    { int_ptr<Location> start = Current()->Loc.GetCurrent().GetStartLoc();
+    { int_ptr<Location> start = Current()->Loc.GetCurrent()->GetStartLoc();
       Current()->Loc.Navigate(start ? start->GetPosition() : 0, SyncJob);
     }
   }
@@ -757,7 +757,7 @@ void CtrlImp::MsgPlayStop()
     }
 
     Current()->Offset = 0;
-    rc = DecoderStart(Current()->Loc.GetCurrent(), 0);
+    rc = DecoderStart(*Current()->Loc.GetCurrent(), 0);
     if (rc)
     { OutputStop();
       Glue::DecClose();
@@ -1051,7 +1051,7 @@ void CtrlImp::MsgDecStop()
   // Avoid to open more than one decoder instance at a time.
   Glue::DecClose();
 
-  APlayable& ps = pep->Loc.GetCurrent();
+  APlayable& ps = *pep->Loc.GetCurrent();
   // store result
   Mutex::Lock lock(PLMtx);
   PrefetchList.append() = pep;
@@ -1225,7 +1225,7 @@ void Ctrl::Uninit()
   if (!!last)
   { state.current_root = last.GetRoot()->URL;
     // save location only if the current item has definite length.
-    state.current_iter = last.Serialize(Cfg::Get().retainonexit && last.GetCurrent().GetInfo().obj->songlength >= 0);
+    state.current_iter = last.Serialize(Cfg::Get().retainonexit && last.GetCurrent()->GetInfo().obj->songlength >= 0);
     DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
   }
   save_ini_value(Cfg::GetHIni(), state.volume);

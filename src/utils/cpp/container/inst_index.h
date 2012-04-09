@@ -42,7 +42,7 @@
  * The lifetime management must be done somewhere else.
  * The class is thread-safe.
  */
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 class inst_index
 {public:
   typedef sorted_vector<T,K,C> IndexType;
@@ -76,7 +76,7 @@ class inst_index
   static T*         RemoveWithKey(const T& elem, K& key);
 };
 
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 int_ptr<T> inst_index<T,K,C>::FindByKey(const K& key)
 { //DEBUGLOG(("inst_index<>(%p)::FindByKey(&%p)\n", &Index, &key));
   Mutex::Lock lock(Mtx);
@@ -84,7 +84,7 @@ int_ptr<T> inst_index<T,K,C>::FindByKey(const K& key)
   return p && !p->RefCountIsUnmanaged() ? p : NULL;
 }
 
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&, void*), void* param)
 { //DEBUGLOG(("inst_index<>(%p)::GetByKey(&%p,)\n", &Index, &key));
   Mutex::Lock lock(Mtx);
@@ -115,7 +115,7 @@ int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&, void*), void* p
   }
 }
 
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 T* inst_index<T,K,C>::RemoveWithKey(const T& elem, K& key)
 { DEBUGLOG(("inst_index<%p>::RemoveWithKey(&%p, &%p)\n", &Index, &elem, &key));
   // Deregister from the repository
@@ -140,9 +140,9 @@ T* inst_index<T,K,C>::RemoveWithKey(const T& elem, K& key)
   return NULL;
 }
 
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 sorted_vector<T,K,C>/*inst_index<T,K,C>::IndexType*/ inst_index<T,K,C>::Index;
-template <class T, class K, int (*C)(const T&, const K&)>
+template <class T, class K, int (*C)(const K&, const T&)>
 Mutex inst_index<T,K,C>::Mtx;
 
 /*// Due to the nature of the repository comparing instances is equivalent
@@ -159,13 +159,13 @@ inline bool operator!=(const inst_index<T,K,C>& l, const inst_index<T,K,C>& r)
 
 
 /** Same as inst_index but with strongly typed factory */
-template <class T, class K, int (*C)(const T&, const K&), class P>
+template <class T, class K, int (*C)(const K&, const T&), class P>
 class inst_index2 : public inst_index<T,K,C>
 {public:
   static int_ptr<T> GetByKey(K& key, T* (*factory)(K&, P&), P& param);
 };
 
-template <class T, class K, int (*C)(const T&, const K&), class P>
+template <class T, class K, int (*C)(const K&, const T&), class P>
 int_ptr<T> inst_index2<T,K,C,P>::GetByKey(K& key, T* (*factory)(K&, P&), P& param)
 { return inst_index<T,K,C>::GetByKey(key, (T* (*)(K&, void*))factory, (void*)&param);
 }

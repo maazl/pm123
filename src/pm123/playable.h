@@ -310,7 +310,7 @@ class Playable
  // Repository
  private:
   static  Playable*         Factory(const xstring& url);
-  static  int               Comparer(const Playable& l, const xstring& r);
+  static  int               Comparer(const xstring& l, const Playable& r);
   typedef inst_index<Playable, const xstring, &Playable::Comparer> Repository;
   static  clock_t           LastCleanup;   // Time index of last cleanup run
           clock_t           LastAccess;    // Time index of last access to this instance (used by Cleanup)

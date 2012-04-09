@@ -21,56 +21,125 @@ commands</a>.</p>
     <tr>
       <td><tt><a name="playlist"></a>playlist <var>&lt;url&gt;</var></tt>
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Select a playlist or a folder. This setting only
+      <td>Select a playlist or a folder as navigation root. This
+setting only
 affects the pipe
 interface. To play a playlist use the <a href="playback.html#load"><tt>load</tt></a>
 command. </td>
       <td>URL or empty line on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_next"></a>pl next </tt>[<var><tt>&lt;count&gt;</tt></var>]
-      <small><sup><a href="#note2">(2.)</a></sup></small></td>
-      <td>Navigate to the next item in the current
-playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
-is specified, you can skip more than one item at once.</td>
-      <td>URL of the item or an empty line at the end of the
+      <td><tt><a name="pl_next"></a>pl next </tt>[<var><tt>&lt;count&gt;</tt><tt>
+      </tt></var>[<var><tt>&lt;type&gt;</tt></var>]]<br>
+      <tt><a name="pl_prev"></a>pl </tt><tt>prev</tt> [<var><tt>&lt;count&gt;</tt><tt>
+      </tt></var>[<var><tt>&lt;type&gt;</tt></var>]]</td>
+      <td colspan="1" rowspan="1">Navigate to the next or previous song
+in the current root.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
+is specified, you can skip more than one song at once. <tt>next</tt>
+will enter nested playlists.<sup><small><a href="#note2">(2.)</a></small></sup>
+The navigation will also return sons in nested playlists.<br>
+      <var><tt>&lt;type&gt;</tt></var> can be <tt>song</tt>, <tt>playlist</tt>,
+      <tt>invalid</tt> or a comma separated list of them. The
+navigation will only return matching items. By default only songs are
+returned. If you chose to return songs and playlists the playlist is
+always returned before its songs, regardless whether you navigate
+forward or backwards.</td>
+      <td colspan="1" rowspan="1">URL of the item or an empty line at
+the end of the
 playlist.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_prev"></a>pl </tt><tt>prev</tt>
-[<var><tt>&lt;count&gt;</tt></var>] <small><sup><a href="#note2">(2.)</a></sup></small></td>
-      <td>Navigate to the previous item in the current
-playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
-is specified, you can skip more than one item at once.</td>
-      <td>URL of the item or an empty line at the start of the
+      <td valign="top"><tt><a name="pl_nextitem"></a>pl nextitem</tt><tt>
+      </tt>[<var><tt>&lt;count&gt;</tt><tt> </tt></var>[<var><tt>&lt;type&gt;</tt></var>]]<br>
+      <tt><a name="pl_previtem"></a>pl previtem</tt><tt> </tt>[<var><tt>&lt;count&gt;</tt><tt>
+      </tt></var>[<var><tt>&lt;type&gt;</tt></var>]]</td>
+      <td valign="top">Navigate to the next or previous item within the
+current
+lowermost playlist in the call stack. If <var><tt>&lt;count&gt;</tt></var>
+is specified, you can skip more than one item at once.<br>
+      <var><tt>&lt;type&gt;</tt></var> can be <tt>song</tt>, <tt>playlist</tt>,
+      <tt>invalid</tt>
+or a comma separated list of them. The navigation will only return
+matching items. By default all items are returned. </td>
+      <td valign="top">URL of the item or an empty line at the end of
+the
 playlist.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_reset"></a>pl reset</tt> <small><sup><a
- href="#note2">(2.)</a></sup></small></td>
+      <td valign="top"><tt><a name="pl_enter"></a>pl enter</tt></td>
+      <td valign="top">Enter the current playlist and continue in a
+nested playlist. This will not advance to the first item of the entered
+playlist.<br>
+You cannot enter recursive playlists.</td>
+      <td valign="top">URL of the playlist or an empty line on error.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_leave"></a>pl leave </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
+      <td valign="top">Leave the current innermost playlist and return
+to the&nbsp; parent playlist.. If <var><tt>&lt;count&gt;</tt></var>
+is specified, you can leave more than one nested playlist at once.</td>
+      <td valign="top">URL of the new current playlist or an empty line
+on error.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_navigate"></a>pl navigate <var>&lt;location&gt;</var></tt>
+      </td>
+      <td valign="top">Navigate within the playlist. The command uses
+the <a href="../location.html">location string syntax</a>. </td>
+      <td valign="top">URL of the item or an empty line on error.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="pl_reset"></a>pl reset</tt></td>
       <td>Reset the current item of the playlist. The current
 location is now before the start or past the end respectively.</td>
-      <td>URL of the current item or an empty line if none.</td>
+      <td>URL of the previous current item or an empty line if none.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_current"></a>pl current</tt></td>
-      <td>Query the current playlist.</td>
+      <td>Query the current root playlist. This is not necessarily the
+parent of the current item.</td>
       <td>URL of the item or an empty line if none.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_parent"></a>pl parent</tt></td>
+      <td valign="top">Query the parent of the current item. This
+is&nbsp; always the lowermost call stack entry.</td>
+      <td valign="top">URL of the playlist or an empty line if none.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_item"></a>pl item</tt></td>
-      <td>Query the current item in the current playlist.</td>
-      <td>URL of the item or an empty line if none.</td>
+      <td>Query the current item in the current playlist. This is
+initially the current playlist.</td>
+      <td>URL of the current item or an empty line on error.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_index"></a>pl index</tt></td>
-      <td>Query the index of the current item within the current
-playlist.<br>
-Be careful, because the index changes when the playlist is modified and
-you might be not the only one that modifies a playlist.</td>
+      <td>Query the song index of the current item within the current
+(nested) playlist.</td>
       <td>Index starting from <tt>1</tt> or empty in case of no
 current item.<br>
 If the item is detached from the playlist the return value is <tt>0</tt>.</td>
+    </tr>
+    <tr>
+      <td><tt><a name="pl_itemindex"></a>pl itemindex</tt></td>
+      <td>Query the index of the current song within its parent
+playlist.</td>
+      <td>Index starting from <tt>1</tt> or empty in case of no
+current item.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_depth"></a>pl depth</tt></td>
+      <td valign="top">Get the current call stack depth.</td>
+      <td valign="top">0 = we are at the root,<br>
+1 = we are at a playlist item,&nbsp; 2 = we are at a nested item ...<br>
+empty on error</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_callstack"></a>pl callstack</tt></td>
+      <td valign="top">Query the current call stack when navigating in
+recursive playlists.</td>
+      <td valign="top">URL of parent playlists. One per line and from
+top to bottom.</td>
     </tr>
     <tr>
       <td><tt><a name="use"></a>use</tt></td>
@@ -85,17 +154,11 @@ to current playlist&gt;</var></tt>'.</td>
   <li>
     <p><a name="note1"></a>If you pass relative URLs the path set with
 the <a href="general.html#cd">cd</a> command is used as root. Note
-that this does not apply to location string.</p>
+that this does not apply to location strings.</p>
   </li>
-  <li>
-    <p><a name="note2"></a>In PM123 before
-version 1.40 the playlist manipulation
-commands always operate on the currently playing item. Now the new
-commands <a href="#pl_prev"><tt>pl prev</tt></a>, <a href="#pl_next"><tt>pl
-next</tt></a>
-and <a href="#pl_reset"><tt>pl reset</tt></a> are dedicated to
-playlist operations.</p>
-  </li>
+  <li><a name="note2"></a>Note that the navigation will never enter
+recursive playlists. But the recursive list itself is reported if the
+playlist type is specified.</li>
 </ol>
 </body>
 </html>

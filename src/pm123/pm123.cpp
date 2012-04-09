@@ -44,7 +44,7 @@
 #include "controller.h"
 #include "loadhelper.h"
 #include "pipe.h"
-#include "commandprocessor.h"
+#include "acommandprocessor.h"
 
 #include <xio.h>
 #include <utilfct.h>

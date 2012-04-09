@@ -34,9 +34,6 @@
 #include "commandprocessor.h"
 #include "dialog.h"
 #include "gui.h"
-#include "loadhelper.h"
-#include "configuration.h"
-#include "controller.h"
 #include "location.h"
 #include "eventhandler.h"
 #include "123_util.h"
@@ -44,34 +41,16 @@
 #include "dependencyinfo.h"
 #include "copyright.h"
 #include "plugman.h"
-#include <cpp/cppvdelegate.h>
 #include <fileutil.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>
 #include <debuglog.h>
 #include <os2.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
 
-
-#define PIPE_BUFFER_SIZE 65536
-
-
-/****************************************************************************
-*
-*  helper class ExtLoadHelper
-*
-****************************************************************************/
-class ExtLoadHelper : public LoadHelper
-{private:
-  Ctrl::ControlCommand* Ext;
- protected:
-  // Create a sequence of controller commands from the current list.
-  virtual Ctrl::ControlCommand* ToCommand();
- public:
-  ExtLoadHelper(Options opt, Ctrl::ControlCommand* ext) : LoadHelper(opt), Ext(ext) {}
-};
 
 Ctrl::ControlCommand* ExtLoadHelper::ToCommand()
 { Ctrl::ControlCommand* cmd = LoadHelper::ToCommand();
@@ -86,20 +65,6 @@ Ctrl::ControlCommand* ExtLoadHelper::ToCommand()
   return cmd;
 }
 
-
-/****************************************************************************
-*
-*  helper class URLTokenizer
-*
-****************************************************************************/
-
-class URLTokenizer
-{ char* Args;
- public:
-  URLTokenizer(char* args) : Args(args) {}
-  bool                      Next(const char*& url);
-  char*                     Current() { return Args; }
-};
 
 bool URLTokenizer::Next(const char*& url)
 { if (!Args || !*Args)
@@ -121,355 +86,106 @@ bool URLTokenizer::Next(const char*& url)
 }
 
 
-/****************************************************************************
-*
-*  Private implementation of ACommandProcessor
-*
-****************************************************************************/
-class CommandProcessor : public ACommandProcessor
-{private:
-  typedef strmap<16, void (CommandProcessor::*)()> CmdEntry;
-  /// Command dispatch table, sorted
-  static const CmdEntry       CmdList[];
-
-  class Option
-  { void (CommandProcessor::*Handler)(void* arg);
-    void* Arg;
-   public:
-    Option(void (CommandProcessor::*handler)(void*), void* arg = NULL)
-    : Handler(handler)
-    , Arg(arg)
-    {}
-    template <class T>
-    Option(T amp_cfg::* option, void (CommandProcessor::*handler)(T amp_cfg::*))
-    : Handler((void (CommandProcessor::*)(void*))handler)
-    , Arg((void*)option)
-    {}
-    template <class T>
-    Option(T amp_cfg::* option)
-    : Handler((void (CommandProcessor::*)(void*))(void (CommandProcessor::*)(T amp_cfg::*))&CommandProcessor::DoOption)
-    , Arg((void*)option)
-    {}
-    void operator()(CommandProcessor& cp) const
-    { (cp.*Handler)(Arg); }
-  };
-
-  struct SyntaxException
-  { xstring Text;
-    SyntaxException(const char* text, ...);
-  };
-
- private: // state
-  /// playlist where we currently operate
-  int_ptr<Playable>           CurPlaylist;
-  /// current item of the above playlist
-  int_ptr<PlayableInstance>   CurItem;
-  /// current base URL
-  url123                      CurDir;
-  /// Collected messages
-  xstringbuilder              Messages;
-  /// Current command in service
-  const char*                 Command;
-  bool                        CommandType;
-
- private: // Helper functions
-  /// escape newline characters
-  static void EscapeNEL(xstringbuilder& target, size_t start);
-  //void PostMessage(MESSAGE_TYPE type, const char* fmt, ...);
-  static void DLLENTRY MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg);
-  vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message;
-  //void ThrowSyntaxException(const char* msg, ...);
-  //static void ThrowArgumentException(const char* arg)
-  //{ throw SyntaxException(xstring::sprintf("Invalid argument \"%s\".", arg)); }
-
-  /// Tag for Request: Query the default value of an option
-  static char Cmd_QueryDefault[];
-  /// Tag for Request: Set the default value of an option
-  static char Cmd_SetDefault[];
-  static const strmap<16,Option> OptionMap[];
-
-  /*// Capture and convert the next string at \c Request.
-  /// The Parser will either stop at
-  /// <ul><li>the next tab ('\t'),</li>
-  /// <li>at the end of the string,</li>
-  /// <li>if the string does not start with a quote, at the next whitespace or</li>
-  /// <li>if the string starts with a quote, at the next quote that is not doubled</li></ul>
-  /// Quoted strings are returned without the quotes.
-  /// Doubled quotes in quoted strings are converted to a single quote char.
-  /// When there is nothing to capture, The function returns NULL.
-  /// When the function returned non NULL, \c Request is advanced behind the string.
-  char* ParseQuotedString();*/
-  /// Parse argument as integer.
-  /// @param arg argument as string
-  /// @return boolean operator
-  /// @exception SyntaxException The argument is not an boolean operator.
-  static Ctrl::Op ParseBool(const char* arg);
-  /// Parse argument as integer.
-  /// @param arg argument as string
-  /// @return integer value
-  /// @exception SyntaxException The argument is not an integer.
-  static int ParseInt(const char* arg);
-  /// Parse argument as double.
-  /// @param arg argument as string
-  /// @return value
-  /// @exception SyntaxException The argument is not an number.
-  static double ParseDouble(const char* arg);
-  /// Parse argument as display type.
-  /// @param arg argument as string
-  /// @return CFG_DISP_...
-  /// @exception SyntaxException The argument is not valid.
-  cfg_disp ParseDisp(const char* arg);
-  /// Parse and normalize one URL according to CurDir.
-  /// @exception SyntaxException The URL is invalid.
-  url123 ParseURL(const char* url);
-  /// Parse the optional string as URL and return the playable object.
-  /// If \a url is empty the current song is returned.
-  /// @exception SyntaxException The URL is invalid.
-  int_ptr<APlayable> ParseAPlayable(const char* url);
-  /// Find plug-in module matching arg.
-  /// @return Module or NULL if not found.
-  int_ptr<Module> ParsePlugin(const char* arg);
-
-  const volatile amp_cfg& ReadCfg() { return Request == Cmd_QueryDefault ? Cfg::Default : Cfg::Get(); }
-  void DoOption(bool amp_cfg::* option);
-  void DoOption(int amp_cfg::* option);
-  void DoOption(xstring amp_cfg::* option);
-  void DoOption(cfg_anav amp_cfg::* option);
-  void DoOption(cfg_disp amp_cfg::* option);
-  void DoOption(cfg_scroll amp_cfg::* option);
-  void DoOption(cfg_mode amp_cfg::* option);
-  void DoFontOption(void*);
-
-  /// Execute a controller command and return the reply as string.
-  void SendCtrlCommand(Ctrl::ControlCommand* cmd);
-  /// Add a set of URLs to a LoadHelper object.
-  bool FillLoadHelper(LoadHelper& lh, char* args);
-
- private:
-  void CmdGetMessages();
-
-  void CmdCd();
-  void CmdReset();
-
-  // PLAYBACK
-  void CmdLoad();
-  void CmdPlay();
-  void CmdEnqueue();
-  void CmdStop();
-  void CmdPause();
-  void CmdNext();
-  void CmdPrev();
-  void CmdRewind();
-  void CmdForward();
-  void CmdJump();
-  void CmdSavestream();
-  void CmdVolume();
-  void CmdShuffle();
-  void CmdRepeat();
-  void CmdQuery();
-  void CmdCurrent();
-  void CmdStatus();
-  void CmdTime();
-  void CmdLocation();
-
-  // PLAYLIST
-  /// Move forward/backward in the current playlist
-  void PlSkip(int count);
-  /// Insert all songs of the playlist url into the currently selected playlist.
-  /// @return the number of inserted songs.
-  int  PlFlatInsert(const url123& url);
-  /// Common implementation of Dir and Rdir.
-  void PlDir(bool recursive);
-
-  void CmdPlaylist();
-  void CmdPlNext();
-  void CmdPlPrev();
-  void CmdPlReset();
-  void CmdPlCurrent();
-  void CmdPlItem();
-  void CmdPlIndex();
-  void CmdUse();
-  void CmdPlClear();
-  void CmdPlRemove();
-  void CmdPlAdd();
-  void CmdDir();
-  void CmdRdir();
-  void CmdPlSort();
-  void CmdPlSave();
-
-  // METADATA
-  void AppendIntAttribute(const char* fmt, int value);
-  void AppendFloatAttribute(const char* fmt, double value);
-  void AppendStringAttribute(const char* name, xstring value);
-  typedef strmap<10, unsigned> FlagsEntry;
-  void AppendFlagsAttribute(const char* name, unsigned flags, const FlagsEntry* map, size_t map_size);
-  static const FlagsEntry PhysFlagsMap[];
-  static const FlagsEntry TechFlagsMap[];
-  static const FlagsEntry PlOptionsMap[];
-  void AppendReplayGain(float tg, float tp, float ag, float ap);
-
-  void CmdInfoFormat();
-  void CmdInfoMeta();
-  void CmdInfoPlaylist();
-  void CmdInfoItem();
-  void CmdInfoRefresh();
-  void CmdInfoInvalidate();
-
-  MetaInfo    Meta;
-  DECODERMETA MetaFlags;
-  void CmdWriteMetaSet();
-  void CmdWriteMetaTo();
-  void CmdWriteMetaRst();
-
-  // GUI
-  void CmdShow();
-  void CmdHide();
-  void CmdQuit();
-  void CmdOpen();
-  void CmdSkin();
-
-  // CONFIGURATION
-  void CmdVersion();
-  void CmdOption();
-  void CmdDefault();
-  void CmdSize();
-  void CmdFont();
-  void CmdFloat();
-  void CmdAutouse();
-  void CmdPlayonload();
-
-  static const strmap<8,PLUGIN_TYPE> PluginTypeMap[];
-  PLUGIN_TYPE ParseTypeList();
-  PLUGIN_TYPE ParseType();
-  void ReplyType(PLUGIN_TYPE type);
-  void AppendPluginType(PLUGIN_TYPE type);
-  PLUGIN_TYPE InstantiatePlugin(Module& module, const char* params, PLUGIN_TYPE type);
-  PLUGIN_TYPE LoadPlugin(PLUGIN_TYPE type);
-  PLUGIN_TYPE UnloadPlugin(PLUGIN_TYPE type);
-  bool ReplacePluginList(PluginList& list);
-
-  void CmdPluginLoad();
-  void CmdPluginUnload();
-  void CmdPluginParams();
-  void CmdPluginList();
-
- protected:
-  /// Executes the Command \c Request and return a value in \c Reply.
-  virtual void Exec();
-
- public:
-  CommandProcessor();
-
-  // Plugin manager service window
- private:
-  enum
-  { /// Instantiate a plug-in.
-    /// mp1  CommandProcessor*
-    /// mp2  requested PLUGIN_TYPEs to instantiate
-    /// mr   PLUGIN_TYPEs successfully instantiated
-    UM_LOAD_PLUGIN = WM_USER,
-    /// Unload a plug-in.
-    /// mp1  CommandProcessor*
-    /// mp2  requested PLUGIN_TYPEs to unload
-    /// mr   PLUGIN_TYPEs successfully unloaded
-    UM_UNLOAD_PLUGIN,
-    /// Replace a list of plug-ins.
-    /// mp1  CommandProcessor*
-    /// mp2  PluginList*, the list implicitly contains the plug-in flavor.
-    /// mr   true on success
-    UM_LOAD_PLUGIN_LIST
-  };
-  static HWND ServiceHwnd;
-  friend MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
- public:
-  static void CreateServiceWindow();
-  static void DestroyServiceWindow() { WinDestroyWindow(ServiceHwnd); }
-};
-
 // list must be ordered!!!
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
-{ { "add",            &CommandProcessor::CmdPlAdd         }
-, { "autouse",        &CommandProcessor::CmdAutouse       }
-, { "cd",             &CommandProcessor::CmdCd            }
-, { "clear",          &CommandProcessor::CmdPlClear       }
-, { "current",        &CommandProcessor::CmdCurrent       }
-, { "default",        &CommandProcessor::CmdDefault       }
-, { "dir",            &CommandProcessor::CmdDir           }
-, { "enqueue",        &CommandProcessor::CmdEnqueue       }
-, { "float",          &CommandProcessor::CmdFloat         }
-, { "font",           &CommandProcessor::CmdFont          }
-, { "forward",        &CommandProcessor::CmdForward       }
-, { "getmessages",    &CommandProcessor::CmdGetMessages   }
-, { "hide",           &CommandProcessor::CmdHide          }
-, { "info format",    &CommandProcessor::CmdInfoFormat    }
-, { "info invalidate",&CommandProcessor::CmdInfoInvalidate}
-, { "info item",      &CommandProcessor::CmdInfoItem    }
-, { "info meta",      &CommandProcessor::CmdInfoMeta      }
-, { "info playlist",  &CommandProcessor::CmdInfoPlaylist  }
-, { "info refresh" ,  &CommandProcessor::CmdInfoRefresh   }
-, { "jump",           &CommandProcessor::CmdJump          }
-, { "load",           &CommandProcessor::CmdLoad          }
-, { "location",       &CommandProcessor::CmdLocation      }
-, { "next",           &CommandProcessor::CmdNext          }
-, { "open",           &CommandProcessor::CmdOpen          }
-, { "option",         &CommandProcessor::CmdOption        }
-, { "pause",          &CommandProcessor::CmdPause         }
-, { "pl add",         &CommandProcessor::CmdPlAdd         }
-, { "pl clear",       &CommandProcessor::CmdPlClear       }
-, { "pl current",     &CommandProcessor::CmdPlCurrent     }
-, { "pl dir",         &CommandProcessor::CmdDir           }
-, { "pl index",       &CommandProcessor::CmdPlIndex       }
-, { "pl item",        &CommandProcessor::CmdPlItem        }
-, { "pl next",        &CommandProcessor::CmdPlNext        }
-, { "pl prev",        &CommandProcessor::CmdPlPrev        }
-, { "pl previous",    &CommandProcessor::CmdPlPrev        }
-, { "pl rdir",        &CommandProcessor::CmdRdir          }
-, { "pl remove",      &CommandProcessor::CmdPlRemove      }
-, { "pl reset",       &CommandProcessor::CmdPlReset       }
-, { "pl save",        &CommandProcessor::CmdPlSave        }
-, { "pl sort",        &CommandProcessor::CmdPlSort        }
-, { "pl_add",         &CommandProcessor::CmdPlAdd         }
-, { "pl_clear",       &CommandProcessor::CmdPlClear       }
-, { "pl_current",     &CommandProcessor::CmdPlCurrent     }
-, { "pl_index",       &CommandProcessor::CmdPlIndex       }
-, { "pl_item",        &CommandProcessor::CmdPlItem        }
-, { "pl_next",        &CommandProcessor::CmdPlNext        }
-, { "pl_prev",        &CommandProcessor::CmdPlPrev        }
-, { "pl_previous",    &CommandProcessor::CmdPlPrev        }
-, { "pl_remove",      &CommandProcessor::CmdPlRemove      }
-, { "pl_reset",       &CommandProcessor::CmdPlReset       }
-, { "pl_save",        &CommandProcessor::CmdPlSave        }
-, { "pl_sort",        &CommandProcessor::CmdPlSort        }
-, { "play",           &CommandProcessor::CmdPlay          }
-, { "playlist",       &CommandProcessor::CmdPlaylist      }
-, { "playonload",     &CommandProcessor::CmdPlayonload    }
-, { "plugin list",    &CommandProcessor::CmdPluginList    }
-, { "plugin load",    &CommandProcessor::CmdPluginLoad    }
-, { "plugin params",  &CommandProcessor::CmdPluginParams  }
-, { "plugin unload",  &CommandProcessor::CmdPluginUnload  }
-, { "prev",           &CommandProcessor::CmdPrev          }
-, { "previous",       &CommandProcessor::CmdPrev          }
-, { "query",          &CommandProcessor::CmdQuery         }
-, { "rdir",           &CommandProcessor::CmdRdir          }
-, { "remove",         &CommandProcessor::CmdPlRemove      }
-, { "repeat",         &CommandProcessor::CmdRepeat        }
-, { "reset",          &CommandProcessor::CmdReset         }
-, { "rewind",         &CommandProcessor::CmdRewind        }
-, { "save",           &CommandProcessor::CmdPlSave        }
-, { "savestream",     &CommandProcessor::CmdSavestream    }
-, { "show",           &CommandProcessor::CmdShow          }
-, { "shuffle",        &CommandProcessor::CmdShuffle       }
-, { "size",           &CommandProcessor::CmdSize          }
-, { "skin",           &CommandProcessor::CmdSkin          }
-, { "status",         &CommandProcessor::CmdStatus        }
-, { "stop",           &CommandProcessor::CmdStop          }
-, { "time",           &CommandProcessor::CmdTime          }
-, { "use",            &CommandProcessor::CmdUse           }
-, { "version",        &CommandProcessor::CmdVersion       }
-, { "volume",         &CommandProcessor::CmdVolume        }
-, { "write meta rst", &CommandProcessor::CmdWriteMetaRst  }
-, { "write meta set", &CommandProcessor::CmdWriteMetaSet  }
-, { "write meta to",  &CommandProcessor::CmdWriteMetaTo   }
+{ { "add",                &CommandProcessor::XPlAdd         }
+, { "autouse",            &CommandProcessor::XAutouse       }
+, { "cd",                 &CommandProcessor::XCd            }
+, { "clear",              &CommandProcessor::XPlClear       }
+, { "current",            &CommandProcessor::XCurrent       }
+, { "default",            &CommandProcessor::XDefault       }
+, { "dir",                &CommandProcessor::XDir           }
+, { "enqueue",            &CommandProcessor::XEnqueue       }
+, { "float",              &CommandProcessor::XFloat         }
+, { "font",               &CommandProcessor::XFont          }
+, { "forward",            &CommandProcessor::XForward       }
+, { "getmessages",        &CommandProcessor::XGetMessages   }
+, { "hide",               &CommandProcessor::XHide          }
+, { "info format",        &CommandProcessor::XInfoFormat    }
+, { "info invalidate",    &CommandProcessor::XInfoInvalidate}
+, { "info meta",          &CommandProcessor::XInfoMeta      }
+, { "info pl format",     &CommandProcessor::XPlInfoFormat  }
+, { "info pl item",       &CommandProcessor::XPlInfoItem    }
+, { "info pl meta",       &CommandProcessor::XPlInfoMeta    }
+, { "info pl playlist",   &CommandProcessor::XPlInfoPlaylist}
+, { "info playlist",      &CommandProcessor::XInfoPlaylist  }
+, { "info refresh",       &CommandProcessor::XInfoRefresh   }
+, { "jump",               &CommandProcessor::XJump          }
+, { "load",               &CommandProcessor::XLoad          }
+, { "location",           &CommandProcessor::XLocation      }
+, { "next",               &CommandProcessor::XNext          }
+, { "open",               &CommandProcessor::XOpen          }
+, { "option",             &CommandProcessor::XOption        }
+, { "pause",              &CommandProcessor::XPause         }
+, { "pl add",             &CommandProcessor::XPlAdd         }
+, { "pl callstack",       &CommandProcessor::XPlCallstack   }
+, { "pl clear",           &CommandProcessor::XPlClear       }
+, { "pl current",         &CommandProcessor::XPlCurrent     }
+, { "pl depth",           &CommandProcessor::XPlDepth       }
+, { "pl dir",             &CommandProcessor::XDir           }
+, { "pl enter",           &CommandProcessor::XPlEnter       }
+, { "pl index",           &CommandProcessor::XPlIndex       }
+, { "pl info format",     &CommandProcessor::XPlInfoFormat  }
+, { "pl info item",       &CommandProcessor::XPlInfoItem    }
+, { "pl info meta",       &CommandProcessor::XPlInfoMeta    }
+, { "pl info playlist",   &CommandProcessor::XPlInfoPlaylist}
+, { "pl item",            &CommandProcessor::XPlItem        }
+, { "pl itemindex",       &CommandProcessor::XPlItemIndex   }
+, { "pl leave",           &CommandProcessor::XPlLeave       }
+, { "pl navigate",        &CommandProcessor::XPlNavigate    }
+, { "pl next",            &CommandProcessor::XPlNext        }
+, { "pl nextitem",        &CommandProcessor::XPlNextItem    }
+, { "pl parent",          &CommandProcessor::XPlParent      }
+, { "pl prev",            &CommandProcessor::XPlPrev        }
+, { "pl previous",        &CommandProcessor::XPlPrev        }
+, { "pl previtem",        &CommandProcessor::XPlPrevItem    }
+, { "pl rdir",            &CommandProcessor::XRdir          }
+, { "pl remove",          &CommandProcessor::XPlRemove      }
+, { "pl reset",           &CommandProcessor::XPlReset       }
+, { "pl save",            &CommandProcessor::XPlSave        }
+, { "pl sort",            &CommandProcessor::XPlSort        }
+, { "pl_add",             &CommandProcessor::XPlAdd         }
+, { "pl_clear",           &CommandProcessor::XPlClear       }
+, { "pl_current",         &CommandProcessor::XPlCurrent     }
+, { "pl_index",           &CommandProcessor::XPlIndex       }
+, { "pl_item",            &CommandProcessor::XPlItem        }
+, { "pl_next",            &CommandProcessor::XPlNext        }
+, { "pl_prev",            &CommandProcessor::XPlPrev        }
+, { "pl_previous",        &CommandProcessor::XPlPrev        }
+, { "pl_remove",          &CommandProcessor::XPlRemove      }
+, { "pl_reset",           &CommandProcessor::XPlReset       }
+, { "pl_save",            &CommandProcessor::XPlSave        }
+, { "pl_sort",            &CommandProcessor::XPlSort        }
+, { "play",               &CommandProcessor::XPlay          }
+, { "playlist",           &CommandProcessor::XPlaylist      }
+, { "playonload",         &CommandProcessor::XPlayonload    }
+, { "plugin list",        &CommandProcessor::XPluginList    }
+, { "plugin load",        &CommandProcessor::XPluginLoad    }
+, { "plugin params",      &CommandProcessor::XPluginParams  }
+, { "plugin unload",      &CommandProcessor::XPluginUnload  }
+, { "prev",               &CommandProcessor::XPrev          }
+, { "previous",           &CommandProcessor::XPrev          }
+, { "query",              &CommandProcessor::XQuery         }
+, { "rdir",               &CommandProcessor::XRdir          }
+, { "remove",             &CommandProcessor::XPlRemove      }
+, { "repeat",             &CommandProcessor::XRepeat        }
+, { "reset",              &CommandProcessor::XReset         }
+, { "rewind",             &CommandProcessor::XRewind        }
+, { "save",               &CommandProcessor::XPlSave        }
+, { "savestream",         &CommandProcessor::XSavestream    }
+, { "show",               &CommandProcessor::XShow          }
+, { "shuffle",            &CommandProcessor::XShuffle       }
+, { "size",               &CommandProcessor::XSize          }
+, { "skin",               &CommandProcessor::XSkin          }
+, { "status",             &CommandProcessor::XStatus        }
+, { "stop",               &CommandProcessor::XStop          }
+, { "time",               &CommandProcessor::XTime          }
+, { "use",                &CommandProcessor::XUse           }
+, { "version",            &CommandProcessor::XVersion       }
+, { "volume",             &CommandProcessor::XVolume        }
+, { "write meta rst",     &CommandProcessor::XWriteMetaRst  }
+, { "write meta set",     &CommandProcessor::XWriteMetaSet  }
+, { "write meta to",      &CommandProcessor::XWriteMetaTo   }
 };
 
 char CommandProcessor::Cmd_QueryDefault[] = ""; // This object is identified by instance
@@ -483,8 +199,9 @@ CommandProcessor::SyntaxException::SyntaxException(const char* fmt, ...)
 }
 
 CommandProcessor::CommandProcessor()
-: CurPlaylist(&GUI::GetDefaultPL())
+: CurSI(&GUI::GetDefaultPL())
 , Command(NULL)
+, SyncJob(PRI_Sync)
 , vd_message(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
 {}
@@ -538,10 +255,11 @@ void CommandProcessor::Exec()
     *ape = 0;
   }
   try
-  { if (Request[0] != '*')
+  { // TODO: it is not up to the command interpreter to handle interface specific prefixes
+    if (Request[0] != '*')
     { Command = "(load)";
       CommandType = false;
-      CmdLoad();
+      XLoad();
       Command = NULL;
     } else
     { ++Request;
@@ -604,19 +322,6 @@ void CommandProcessor::Exec()
     Messages.append('\n');
   }
 }
-
-const char* ACommandProcessor::Execute(const char* cmd)
-{ char* buffer = Request = strdup(cmd);
-  Reply.clear();
-  Exec();
-  free(buffer);
-  return Reply.cdata();
-}
-
-ACommandProcessor* ACommandProcessor::Create()
-{ return new CommandProcessor();
-}
-
 
 /*char* CommandProcessor::ParseQuotedString()
 { char* result;
@@ -681,7 +386,7 @@ static const strmap<5,cfg_disp> dispmap[] =
 , { "url",  CFG_DISP_FILENAME }
 };
 cfg_disp CommandProcessor::ParseDisp(const char* arg)
-{ const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
+{ const strmap<5,cfg_disp>* mp = mapsearch(dispmap, arg);
   if (!mp)
     throw SyntaxException("Expected {file|info|tag|url} but found \"%s\".", arg);
   return mp->Val;
@@ -880,12 +585,12 @@ bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
 *  remote command handlers
 *
 ****************************************************************************/
-void CommandProcessor::CmdGetMessages()
+void CommandProcessor::XGetMessages()
 { Reply.append(Messages, Messages.length());
   Messages.clear();
 }
 
-void CommandProcessor::CmdCd()
+void CommandProcessor::XCd()
 { // return current value
   if (CurDir)
     Reply.append(CurDir);
@@ -894,76 +599,75 @@ void CommandProcessor::CmdCd()
     CurDir = ParseURL(Request);
 }
 
-void CommandProcessor::CmdReset()
-{ CurItem.reset();
-  CurPlaylist = &GUI::GetDefaultPL();
+void CommandProcessor::XReset()
+{ CurSI.SetRoot(&GUI::GetDefaultPL());
   CurDir.reset();
   Messages.clear();
 }
 
 // PLAY CONTROL
 
-void CommandProcessor::CmdLoad()
+void CommandProcessor::XLoad()
 { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
   Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
-void CommandProcessor::CmdPlay()
+void CommandProcessor::XPlay()
 { ExtLoadHelper lh( Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
   Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
-void CommandProcessor::CmdEnqueue()
+void CommandProcessor::XEnqueue()
 {
   // TODO:
 }
 
-void CommandProcessor::CmdStop()
+void CommandProcessor::XStop()
 { SendCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
 }
 
-void CommandProcessor::CmdPause()
+void CommandProcessor::XPause()
 { CommandType = true;
   Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
   SendCtrlCommand(Ctrl::MkPause(op));
 }
 
-void CommandProcessor::CmdNext()
+void CommandProcessor::XNext()
 { CommandType = true;
   int count = *Request ? ParseInt(Request) : 1;
   SendCtrlCommand(Ctrl::MkSkip(count, true));
 }
 
-void CommandProcessor::CmdPrev()
+void CommandProcessor::XPrev()
 { CommandType = true;
   int count = *Request ? ParseInt(Request) : 1;
   SendCtrlCommand(Ctrl::MkSkip(-count, true));
 }
 
-void CommandProcessor::CmdRewind()
+void CommandProcessor::XRewind()
 { CommandType = true;
   Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
   SendCtrlCommand(Ctrl::MkScan(op|Ctrl::Op_Rewind));
 }
 
-void CommandProcessor::CmdForward()
+void CommandProcessor::XForward()
 { CommandType = true;
   Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
   SendCtrlCommand(Ctrl::MkScan(op));
 }
 
-void CommandProcessor::CmdJump()
+void CommandProcessor::XJump()
 { CommandType = true;
   double pos = ParseDouble(Request);
   SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
 }
 
-void CommandProcessor::CmdSavestream()
+void CommandProcessor::XSavestream()
 { SendCtrlCommand(Ctrl::MkSave(Request));
 }
 
-void CommandProcessor::CmdVolume()
+void CommandProcessor::XVolume()
 { Reply.appendf("%f", Ctrl::GetVolume());
   if (*Request)
   { bool   sign = *Request == '+' || *Request == '-';
@@ -975,13 +679,13 @@ void CommandProcessor::CmdVolume()
   }
 }
 
-void CommandProcessor::CmdShuffle()
+void CommandProcessor::XShuffle()
 { CommandType = true;
   Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
   SendCtrlCommand(Ctrl::MkShuffle(op));
 }
 
-void CommandProcessor::CmdRepeat()
+void CommandProcessor::XRepeat()
 { CommandType = true;
   Ctrl::Op op = *Request ? ParseBool(Request) : Ctrl::Op_Toggle;
   SendCtrlCommand(Ctrl::MkRepeat(op));
@@ -993,7 +697,7 @@ static bool IsRewind()
 static bool IsForward()
 { return Ctrl::GetScan() == DECFAST_FORWARD;
 }
-void CommandProcessor::CmdQuery()
+void CommandProcessor::XQuery()
 { static const strmap<8, bool (*)()> map[] =
   { { "forward", &IsForward       },
     { "pause",   &Ctrl::IsPaused  },
@@ -1008,7 +712,7 @@ void CommandProcessor::CmdQuery()
   Reply.append((*op->Val)());
 }
 
-void CommandProcessor::CmdCurrent()
+void CommandProcessor::XCurrent()
 { static const strmap<5,char> map[] =
   { { "",     0 },
     { "root", 1 },
@@ -1030,7 +734,7 @@ void CommandProcessor::CmdCurrent()
     Reply.append(cur->GetPlayable().URL);
 }
 
-void CommandProcessor::CmdStatus()
+void CommandProcessor::XStatus()
 { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
   if (song)
   { switch (ParseDisp(Request))
@@ -1050,7 +754,7 @@ void CommandProcessor::CmdStatus()
   }
 }
 
-void CommandProcessor::CmdTime()
+void CommandProcessor::XTime()
 { SongIterator loc;
   Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, 0));
   if (cmd->Flags == Ctrl::RC_OK)
@@ -1058,8 +762,8 @@ void CommandProcessor::CmdTime()
   cmd->Destroy();
 }
 
-void CommandProcessor::CmdLocation()
-{ static const strmap<7, char> map[] =
+void CommandProcessor::XLocation()
+{ static const strmap<7,char> map[] =
   { { "",       0 },
     { "play",   0 },
     { "stopat", 1 }
@@ -1075,137 +779,233 @@ void CommandProcessor::CmdLocation()
 }
 
 // PLAYLIST
+static const strmap<10,TECH_ATTRIBUTES> stopatmap[] =
+{ { "invalid",  TATTR_INVALID }
+, { "list",     TATTR_PLAYLIST }
+, { "playlist", TATTR_PLAYLIST }
+, { "song",     TATTR_SONG }
+};
+void CommandProcessor::ParsePrevNext(char* arg, NavParams& par)
+{ const char* cp = strtok(arg, " \t,");
+  if (!cp)
+    return;
+  par.Count = ParseInt(cp);
+  cp = strtok(NULL, " \t,");
+  if (!cp)
+    return;
+  par.StopAt = TATTR_NONE;
+  do
+  { const strmap<10,TECH_ATTRIBUTES>* mp = mapsearch(stopatmap, cp);
+    if (!mp)
+      throw SyntaxException("Expected {song|playlist|invalid}[,...] but found \"%s\".", cp);
+    par.StopAt |= mp->Val;
+    cp = strtok(NULL, " \t,");
+  } while (cp);
+}
 
-void CommandProcessor::CmdPlaylist()
+void CommandProcessor::NavigationResult(Location::NavigationResult result)
+{ if (result)
+    Messages.appendf("E %s\n", result.cdata());
+  else
+    XPlItem();
+}
+
+void CommandProcessor::XPlaylist()
 { int_ptr<Playable> pp = Playable::GetByURL(ParseURL(Request));
   //if (pp->GetFlags() & Playable::Enumerable)
-  { CurPlaylist = pp;
-    CurItem = NULL;
-    Reply.append(CurPlaylist->URL);
+  { CurSI.SetRoot(pp);
+    Reply.append(pp->URL);
   }
 };
 
-void CommandProcessor::PlSkip(int count)
-{ CurPlaylist->RequestInfo(IF_Child, PRI_Sync);
-  int_ptr<PlayableInstance> (Playable::*dir)(const PlayableInstance*) const
-    = &Playable::GetNext;
-  if (count < 0)
-  { count = -count;
-    dir = &Playable::GetPrev;
+void CommandProcessor::XPlNext()
+{ NavParams par = { 1, TATTR_SONG };
+  ParsePrevNext(Request, par);
+  NavigationResult(CurSI.NavigateCount(par.Count, par.StopAt, SyncJob));
+}
+
+void CommandProcessor::XPlPrev()
+{ NavParams par = { 1, TATTR_SONG };
+  ParsePrevNext(Request, par);
+  NavigationResult(CurSI.NavigateCount(-par.Count, par.StopAt, SyncJob));
+}
+
+void CommandProcessor::XPlNextItem()
+{ NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
+  ParsePrevNext(Request, par);
+  const size_t depth = CurSI.GetLevel();
+  NavigationResult(CurSI.NavigateCount(par.Count, par.StopAt, SyncJob, depth, depth ? depth : 1));
+}
+
+void CommandProcessor::XPlPrevItem()
+{ NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
+  ParsePrevNext(Request, par);
+  const size_t depth = CurSI.GetLevel();
+  NavigationResult(CurSI.NavigateCount(-par.Count, par.StopAt, SyncJob, depth, depth ? depth : 1));
+}
+
+void CommandProcessor::XPlEnter()
+{ XPlItem();
+  Location::NavigationResult ret = CurSI.NavigateInto();
+  if (ret)
+  { Messages.appendf("E %s\n", ret.cdata());
+    Reply.clear();
   }
-  while (count--)
-  { CurItem = (CurPlaylist->*dir)(CurItem);
-    if (!CurItem)
-      break;
+}
+
+void CommandProcessor::XPlLeave()
+{ int count = *Request ? ParseInt(Request) : 1;
+  NavigationResult(CurSI.NavigateUp(count));
+}
+
+void CommandProcessor::XPlNavigate()
+{ const char* cp = Request;
+  NavigationResult(CurSI.Deserialize(cp, SyncJob));
+}
+
+void CommandProcessor::XPlReset()
+{ XPlItem();
+  CurSI.Reset();
+}
+
+void CommandProcessor::XPlCurrent()
+{ Playable* root = CurSI.GetRoot();
+  if (root)
+    Reply.append(root->URL);
+}
+
+void CommandProcessor::XPlParent()
+{ APlayable* parent;
+  switch (CurSI.GetLevel())
+  {case 0:
+    return;
+   case 1:
+    parent = CurSI.GetRoot();
+    break;
+   default: // >= 2
+    parent = CurSI.GetCallstack()[CurSI.GetLevel()-2];
+  }
+  Reply.append(parent->GetPlayable().URL);
+}
+
+void CommandProcessor::XPlItem()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur)
+    Reply.append(cur->GetPlayable().URL);
+}
+
+void CommandProcessor::XPlDepth()
+{ if (CurSI.GetRoot())
+    Reply.append((int)CurSI.GetCallstack().size());
+}
+
+void CommandProcessor::XPlCallstack()
+{ foreach (PlayableInstance*const*, item, CurSI.GetCallstack())
+  { Reply.append((*item)->GetPlayable().URL);
+    Reply.append('\n');
   }
 }
 
-void CommandProcessor::CmdPlNext()
-{ if (!CurPlaylist)
-    return;
-  int count = *Request ? ParseInt(Request) : 1;
-  PlSkip(count);
-  CmdPlItem();
+void CommandProcessor::XPlIndex()
+{ if (CurSI.GetRoot())
+  { const SongIterator::OffsetInfo& off = CurSI.CalcOffsetInfo();
+    Reply.append(off.Index+1);
+  }
 }
 
-void CommandProcessor::CmdPlPrev()
-{ if (!CurPlaylist)
-    return;
-  int count = *Request ? ParseInt(Request) : 1;
-  PlSkip(-count);
-  CmdPlItem();
+void CommandProcessor::XPlItemIndex()
+{ if (CurSI.GetLevel())
+  { PlayableInstance* pi = CurSI.GetCallstack()[CurSI.GetLevel()-1];
+    if (pi)
+      Reply.append(pi->GetIndex());
+  }
 }
 
-void CommandProcessor::CmdPlReset()
-{ CmdPlItem();
-  CurItem = NULL;
-}
-
-void CommandProcessor::CmdPlCurrent()
-{ if (CurPlaylist)
-    Reply.append(CurPlaylist->URL);
-}
-
-void CommandProcessor::CmdPlItem()
-{ if (CurItem)
-    Reply.append(CurItem->GetPlayable().URL);
-}
-
-void CommandProcessor::CmdPlIndex()
-{ if (CurItem)
-    Reply.append(CurItem->GetIndex());
-}
-
-void CommandProcessor::CmdUse()
-{ if (CurPlaylist)
+void CommandProcessor::XUse()
+{ Playable* root = CurSI.GetRoot();
+  if (root)
   { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
-    lh.AddItem(CurPlaylist);
+    lh.AddItem(root);
     Reply.append(lh.SendCommand());
   } else
     Reply.append(Ctrl::RC_NoList);
 };
 
-void CommandProcessor::CmdPlClear()
-{ if (CurPlaylist)
-  { CurPlaylist->RequestInfo(IF_Obj, PRI_Sync);
-    Reply.append(CurPlaylist->GetInfo().obj->num_items);
-    CurPlaylist->Clear();
+
+// Playlist modification
+
+Playable* CommandProcessor::PrepareEditPlaylist()
+{ if (CurSI.GetLevel() > 1)
+    Messages.append("E Cannot modify nested playlist.\n");
+  else
+  { Playable* root = CurSI.GetRoot();
+    if (!root)
+      Messages.append("E No current playlist.\n");
+    else
+    { root->RequestInfo(IF_Obj|IF_Tech|IF_Child, PRI_Sync);
+      if (root->GetInfo().tech->attributes & TATTR_SONG)
+        Messages.append("E Cannot edit a song as playlist.\n");
+      else
+        return root;
+    }
+  }
+  return NULL; // Error
+}
+
+inline PlayableInstance* CommandProcessor::CurrentPlaylistItem()
+{ return CurSI.GetLevel() ? CurSI.GetCallstack()[0] : NULL;
+}
+
+void CommandProcessor::XPlClear()
+{ Playable* root = PrepareEditPlaylist();
+  if (root)
+  { CurSI.Reset();
+    Reply.append(root->GetInfo().obj->num_items);
+    if (!root->Clear())
+      Reply.clear();
   }
 }
 
-void CommandProcessor::CmdPlAdd()
-{ if (CurPlaylist)
-  { CurPlaylist->RequestInfo(IF_Child, PRI_Sync);
+void CommandProcessor::XPlAdd()
+{ Playable* root = PrepareEditPlaylist();
+  if (root)
+  { PlayableInstance* cur = CurrentPlaylistItem();
     URLTokenizer tok(Request);
     const char* url;
     int count = 0;
-    Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+    Mutex::Lock lck(root->Mtx); // Atomic
     while (tok.Next(url))
     { if (!url)
       { Reply.append(tok.Current());
         break; // Bad URL
       }
-      CurPlaylist->InsertItem(*Playable::GetByURL(ParseURL(url)), CurItem);
+      root->InsertItem(*Playable::GetByURL(ParseURL(url)), cur);
       ++count;
     }
     Reply.append(count);
   }
 }
 
-void CommandProcessor::CmdPlRemove()
-{ if (CurItem && CurPlaylist->RemoveItem(CurItem))
-  { Reply.append(CurItem->GetPlayable().URL);
-    CurItem = CurPlaylist->GetNext(CurItem);
+void CommandProcessor::XPlRemove()
+{ Playable* root = PrepareEditPlaylist();
+  if (root)
+  { PlayableInstance* cur = CurrentPlaylistItem();
+    if (!cur)
+      Messages.append("E No current item to remove.\n");
+    else if (root->RemoveItem(cur))
+    { Reply.append(cur->GetPlayable().URL);
+      CurSI.NavigateCount(1, ~TATTR_NONE, SyncJob, 0, 1);
+    }
   }
-}
-
-int CommandProcessor::PlFlatInsert(const url123& url)
-{
-  int_ptr<Playable> dir = Playable::GetByURL(url);
-  // Request simple RPL info to force all recursive playlists to load.
-  dir->RequestInfo(IF_Rpl, PRI_Sync);
-
-  vector_int<APlayable> list;
-  { // get all songs
-    Location iter(dir);
-    JobSet job(PRI_Sync);
-    while (iter.NavigateCount(1, TATTR_SONG, job) == NULL)
-      list.append() = &iter.GetCurrent();
-  }
-
-  Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
-  foreach (const int_ptr<APlayable>*, app, list)
-    CurPlaylist->InsertItem(**app, CurItem);
-
-  return list.size();
 }
 
 void CommandProcessor::PlDir(bool recursive)
-{ if (CurPlaylist)
-  { CurPlaylist->RequestInfo(IF_Child, PRI_Sync);
+{ Playable* root = PrepareEditPlaylist();
+  if (root)
+  { // collect the content
     URLTokenizer tok(Request);
     const char* curl;
-    int count = 0;
+    vector_int<APlayable> list;
     while (tok.Next(curl))
     { url123 url = ParseURL(curl);
       if (strchr(url, '?'))
@@ -1213,35 +1013,52 @@ void CommandProcessor::PlDir(bool recursive)
         break; // Bad URL
       }
       url = amp_make_dir_url(url, recursive);
-      count += PlFlatInsert(url);
+      int_ptr<Playable> dir = Playable::GetByURL(url);
+      // Request simple RPL info to force all recursive playlists to load.
+      dir->RequestInfo(IF_Rpl, PRI_Sync);
+      { // get all songs
+        class Location iter(dir);
+        while (iter.NavigateCount(1, TATTR_SONG, SyncJob) == NULL)
+        { APlayable* cur = iter.GetCurrent();
+          if (&cur->GetPlayable() != root) // Do not create recursion
+            list.append() = cur;
+        }
+      }
     }
-    Reply.append(count);
+    // do the insert
+    { PlayableInstance* cur = CurrentPlaylistItem();
+      Mutex::Lock lck(root->Mtx); // Atomic
+      foreach (const int_ptr<APlayable>*, app, list)
+        root->InsertItem(**app, cur);
+    }
+    Reply.append((int)list.size());
   }
 }
 
-void CommandProcessor::CmdDir()
+void CommandProcessor::XDir()
 { PlDir(false);
 }
 
-void CommandProcessor::CmdRdir()
+void CommandProcessor::XRdir()
 { PlDir(true);
 }
 
-void CommandProcessor::CmdPlSort()
+void CommandProcessor::XPlSort()
 {
   // TODO:
 }
 
-void CommandProcessor::CmdPlSave()
+void CommandProcessor::XPlSave()
 { int rc = Ctrl::RC_NoList;
-  if (CurPlaylist)
+  Playable* root = PrepareEditPlaylist();
+  if (root)
   { const char* savename = Request;
     if (!*savename)
     { /*if ((CurPlaylist->GetFlags() & Playable::Mutable) != Playable::Mutable)
       { rc = Ctrl::RC_InvalidItem;
         goto end;
       }*/
-      savename = CurPlaylist->URL;
+      savename = root->URL;
     }
     /* TODO !!!
     rc = CurPlaylist->Save(savename, cfg.save_relative*PlayableCollection::SaveRelativePath)
@@ -1328,14 +1145,9 @@ void CommandProcessor::AppendReplayGain(float tg, float tp, float ag, float ap)
   }
 }
 
-void CommandProcessor::CmdInfoFormat()
-{ // get song object
-  int_ptr<APlayable> song(ParseAPlayable(Request));
-  if (song == NULL)
-    return;
-  // get info
-  song->RequestInfo(IF_Phys|IF_Tech|IF_Obj, PRI_Sync);
-  const INFO_BUNDLE_CV& info = song->GetInfo();
+void CommandProcessor::DoFormatInfo(APlayable& item)
+{ item.RequestInfo(IF_Phys|IF_Tech|IF_Obj, PRI_Sync);
+  const INFO_BUNDLE_CV& info = item.GetInfo();
   // return info
   xstring tmpstr;
   { // Physical info
@@ -1367,14 +1179,9 @@ void CommandProcessor::CmdInfoFormat()
   }
 }
 
-void CommandProcessor::CmdInfoMeta()
-{ // get the song object
-  int_ptr<APlayable> song(ParseAPlayable(Request));
-  if (song == NULL)
-    return;
-  // get info
-  song->RequestInfo(IF_Meta, PRI_Sync);
-  const volatile META_INFO& meta = *song->GetInfo().meta;
+void CommandProcessor::DoMetaInfo(APlayable& item)
+{ item.RequestInfo(IF_Meta, PRI_Sync);
+  const volatile META_INFO& meta = *item.GetInfo().meta;
   AppendStringAttribute("TITLE", meta.title);
   AppendStringAttribute("ARTIST", meta.artist);
   AppendStringAttribute("ALBUM", meta.album);
@@ -1386,46 +1193,83 @@ void CommandProcessor::CmdInfoMeta()
   AppendReplayGain(meta.track_gain, meta.track_peak, meta.album_gain, meta.album_peak);
 }
 
-void CommandProcessor::CmdInfoPlaylist()
-{ int_ptr<Playable> list;
-  if (*Request == 0)
-    list = CurPlaylist;
-  else
-    list = Playable::GetByURL(ParseURL(Request));
-  if (list == NULL)
-    return;
-  // get info
-  list->RequestInfo(IF_Rpl|IF_Drpl, PRI_Sync);
-  { const volatile RPL_INFO& rpl = *list->GetInfo().rpl;
+void CommandProcessor::DoPlaylistInfo(APlayable& item)
+{ item.RequestInfo(IF_Rpl|IF_Drpl, PRI_Sync);
+  { const volatile RPL_INFO& rpl = *item.GetInfo().rpl;
     AppendIntAttribute("SONGS=%u\n", rpl.songs);
     AppendIntAttribute("LISTS=%u\n", rpl.lists);
     AppendIntAttribute("INVALID=%u\n", rpl.invalid);
   }
-  { const volatile DRPL_INFO& drpl = *list->GetInfo().drpl;
+  { const volatile DRPL_INFO& drpl = *item.GetInfo().drpl;
     AppendFloatAttribute("TOTALLENGTH=%.6f\n", drpl.totallength);
     AppendFloatAttribute("TOTALSIZE=%.0f\n", drpl.totalsize);
   }
 }
 
-void CommandProcessor::CmdInfoItem()
-{ if (CurItem == NULL)
+void CommandProcessor::XInfoFormat()
+{ // get song object
+  int_ptr<APlayable> song(ParseAPlayable(Request));
+  if (song)
+    DoFormatInfo(*song);
+}
+
+void CommandProcessor::XInfoMeta()
+{ // get the song object
+  int_ptr<APlayable> song(ParseAPlayable(Request));
+  if (song)
+    DoMetaInfo(*song);
+}
+
+void CommandProcessor::XInfoPlaylist()
+{ int_ptr<Playable> list;
+  if (*Request == 0)
+    list = CurSI.GetRoot();
+  else
+    list = Playable::GetByURL(ParseURL(Request));
+  if (list)
+    DoPlaylistInfo(*list);
+}
+
+void CommandProcessor::XPlInfoItem()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur == NULL)
     return;
-  CurItem->RequestInfo(IF_Item|IF_Attr, PRI_Sync);
-  { const volatile ITEM_INFO& item = *CurItem->GetInfo().item;
+  cur->RequestInfo(IF_Item|IF_Attr|IF_Slice, PRI_Sync);
+  { const volatile ITEM_INFO& item = *cur->GetInfo().item;
     AppendStringAttribute("ALIAS", item.alias);
-    AppendStringAttribute("START", item.start);
-    AppendStringAttribute("STOP", item.stop);
+    int_ptr<class Location> loc = cur->GetStartLoc();
+    AppendStringAttribute("START", loc ? loc->Serialize() : xstring());
+    loc = cur->GetStopLoc();
+    AppendStringAttribute("STOP", loc ? loc->Serialize() : xstring());
     AppendFloatAttribute("PREGAP=%.6f\n", item.pregap);
     AppendFloatAttribute("POSTGAP=%.6f\n", item.postgap);
     AppendFloatAttribute("GAIN=%.1f\n", item.gain);
   }
-  { const volatile ATTR_INFO& attr = *CurItem->GetInfo().attr;
+  { const volatile ATTR_INFO& attr = *cur->GetInfo().attr;
     AppendFlagsAttribute2("OPTIONS", attr.ploptions, PlOptionsMap);
     AppendStringAttribute("AT", attr.at);
   }
 }
 
-void CommandProcessor::CmdInfoRefresh()
+void CommandProcessor::XPlInfoFormat()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur == NULL)
+    DoFormatInfo(*cur);
+}
+
+void CommandProcessor::XPlInfoMeta()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur == NULL)
+    DoMetaInfo(*cur);
+}
+
+void CommandProcessor::XPlInfoPlaylist()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur == NULL)
+    DoPlaylistInfo(*cur);
+}
+
+void CommandProcessor::XInfoRefresh()
 { // get the song object
   int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song == NULL)
@@ -1433,7 +1277,7 @@ void CommandProcessor::CmdInfoRefresh()
   song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
 }
 
-void CommandProcessor::CmdInfoInvalidate()
+void CommandProcessor::XInfoInvalidate()
 { // get the song object
   int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song == NULL)
@@ -1445,7 +1289,7 @@ struct meta_val
 { xstring META_INFO::* Field;
   DECODERMETA          Flag;
 };
-void CommandProcessor::CmdWriteMetaSet()
+void CommandProcessor::XWriteMetaSet()
 {
   static const strmap<12,meta_val> map[] =
   { { "ALBUM",     { &META_INFO::album    , DECODER_HAVE_ALBUM    } }
@@ -1492,11 +1336,11 @@ void CommandProcessor::CmdWriteMetaSet()
     }
    done:
     val = Request;
-    DEBUGLOG(("CommandProcessor::CmdWriteMetaSet: %s = %s\n", op->Str, Request));
+    DEBUGLOG(("CommandProcessor::WriteMetaSet: %s = %s\n", op->Str, Request));
   }
 }
 
-void CommandProcessor::CmdWriteMetaTo()
+void CommandProcessor::XWriteMetaTo()
 { if (*Request == 0)
     return;
   const url123& url = ParseURL(Request);
@@ -1506,7 +1350,7 @@ void CommandProcessor::CmdWriteMetaTo()
   Reply.appendf("%i", song->SaveMetaInfo(Meta, MetaFlags));
 }
 
-void CommandProcessor::CmdWriteMetaRst()
+void CommandProcessor::XWriteMetaRst()
 { // return old values
   if (MetaFlags & DECODER_HAVE_TITLE)
     AppendStringAttribute("TITLE", Meta.title);
@@ -1533,19 +1377,19 @@ void CommandProcessor::CmdWriteMetaRst()
 
 // GUI
 
-void CommandProcessor::CmdShow()
+void CommandProcessor::XShow()
 { GUI::Show(true);
 }
 
-void CommandProcessor::CmdHide()
+void CommandProcessor::XHide()
 { GUI::Show(false);
 }
 
-void CommandProcessor::CmdQuit()
+void CommandProcessor::XQuit()
 { GUI::Quit();
 }
 
-void CommandProcessor::CmdOpen()
+void CommandProcessor::XOpen()
 { char* arg2 = Request + strcspn(Request, " \t");
   if (*arg2)
   { *arg2++ = 0;
@@ -1580,7 +1424,7 @@ void CommandProcessor::CmdOpen()
   }
 }
 
-void CommandProcessor::CmdSkin()
+void CommandProcessor::XSkin()
 { Reply.append(xstring(Cfg::Get().defskin));
   if (*Request)
     Cfg::ChangeAccess().defskin = Request;
@@ -1588,7 +1432,7 @@ void CommandProcessor::CmdSkin()
 
 // CONFIGURATION
 
-void CommandProcessor::CmdVersion()
+void CommandProcessor::XVersion()
 { Reply.append(AMP_VERSION);
 }
 
@@ -1625,7 +1469,7 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "workersnorm",     &amp_cfg::num_workers    }
 };
 
-void CommandProcessor::CmdOption()
+void CommandProcessor::XOption()
 { char* cp = strchr(Request, '=');
   if (cp)
     *cp++ = 0;
@@ -1637,7 +1481,7 @@ void CommandProcessor::CmdOption()
   }
 }
 
-void CommandProcessor::CmdDefault()
+void CommandProcessor::XDefault()
 {
   size_t len = strcspn(Request, " \t");
   Request[len] = 0;
@@ -1658,31 +1502,31 @@ void CommandProcessor::CmdDefault()
   }
 }
 
-void CommandProcessor::CmdSize()
+void CommandProcessor::XSize()
 { if (!*Request)
     Request = NULL;
   DoOption(&amp_cfg::mode);
 };
 
-void CommandProcessor::CmdFont()
+void CommandProcessor::XFont()
 { if (!*Request)
     Request = NULL;
   DoFontOption(NULL);
 }
 
-void CommandProcessor::CmdFloat()
+void CommandProcessor::XFloat()
 { if (!*Request)
     Request = NULL;
   DoOption(&amp_cfg::floatontop);
 }
 
-void CommandProcessor::CmdAutouse()
+void CommandProcessor::XAutouse()
 { if (!*Request)
     Request = NULL;
   DoOption(&amp_cfg::autouse);
 }
 
-void CommandProcessor::CmdPlayonload()
+void CommandProcessor::XPlayonload()
 { if (!*Request)
     Request = NULL;
   DoOption(&amp_cfg::playonload);
@@ -1796,7 +1640,7 @@ PLUGIN_TYPE CommandProcessor::LoadPlugin(PLUGIN_TYPE type)
   return type;
 }
 
-void CommandProcessor::CmdPluginLoad()
+void CommandProcessor::XPluginLoad()
 {
   size_t len = strcspn(Request, " \t");
   if (Request[len] == 0)
@@ -1846,7 +1690,7 @@ PLUGIN_TYPE CommandProcessor::UnloadPlugin(PLUGIN_TYPE type)
   return type;
 }
 
-void CommandProcessor::CmdPluginUnload()
+void CommandProcessor::XPluginUnload()
 { size_t len = strcspn(Request, " \t");
   if (Request[len] == 0)
     throw SyntaxException("Plug-in name missing.");
@@ -1890,7 +1734,7 @@ bool CommandProcessor::ReplacePluginList(PluginList& list)
   return true;
 }
 
-void CommandProcessor::CmdPluginList()
+void CommandProcessor::XPluginList()
 { size_t len = strcspn(Request, " \t");
   char* np = Request + len;
   if (*np)
@@ -1910,7 +1754,7 @@ void CommandProcessor::CmdPluginList()
   }
 }
 
-void CommandProcessor::CmdPluginParams()
+void CommandProcessor::XPluginParams()
 { size_t len = strcspn(Request, " \t");
   if (!Request[len])
     return; // missing plug-in name
@@ -1946,7 +1790,7 @@ void CommandProcessor::CmdPluginParams()
     }
     #ifdef DEBUG_LOG
     for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
-      DEBUGLOG(("CommandProcessor::CmdPluginParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value.cdata()));
+      DEBUGLOG(("CommandProcessor::PluginParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value.cdata()));
     #endif
   }
 }
@@ -1972,16 +1816,8 @@ MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
   return WinDefWindowProc(hwnd, msg, mp1, mp2);
 }
 
-inline void CommandProcessor::CreateServiceWindow()
+void CommandProcessor::CreateServiceWindow()
 { PMRASSERT(WinRegisterClass(amp_player_hab, "PM123_CommandProcessor", &ServiceWinFn, 0, 0));
   ServiceHwnd = WinCreateWindow(HWND_OBJECT, "PM123_CommandProcessor", NULL, 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
   PMASSERT(ServiceHwnd != NULLHANDLE);
-}
-
-void ACommandProcessor::Init()
-{ CommandProcessor::CreateServiceWindow();
-}
-
-void ACommandProcessor::Uninit()
-{ CommandProcessor::DestroyServiceWindow();
 }

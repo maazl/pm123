@@ -268,7 +268,7 @@ class InfoDialog
 
  private: // Repository
   static InfoDialog* Factory(const KeyType& key);
-  static int        Comparer(const InfoDialog& inst, const KeyType& key);
+  static int        Comparer(const KeyType& key, const InfoDialog& inst);
   typedef inst_index<InfoDialog, const KeyType, &InfoDialog::Comparer> Repository;
  public:
   // Factory method. Returns always the same instance for the same set of objects.
@@ -396,8 +396,8 @@ InfoDialog* InfoDialog::Factory(const KeyType& key)
   return ret;
 }
 
-int InfoDialog::Comparer(const InfoDialog& inst, const KeyType& key)
-{ return KeyType::compare(inst.Key, key);
+int InfoDialog::Comparer(const KeyType& key, const InfoDialog& inst)
+{ return KeyType::compare(key, inst.Key);
 }
 
 int_ptr<AInfoDialog> AInfoDialog::GetByKey(const KeyType& set)

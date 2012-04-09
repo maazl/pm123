@@ -113,7 +113,7 @@ class PlaylistMenu
     class_delegate2<PlaylistMenu, const PlayableChangeArgs, MapEntry> InfoDelegate;
 
     MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*));
-    static int      compare(const MapEntry& entry, const USHORT& key);
+    static int      compare(const USHORT& key, const MapEntry& entry);
   };
   typedef sorted_vector<MapEntry, USHORT, &MapEntry::compare> MapType;
 

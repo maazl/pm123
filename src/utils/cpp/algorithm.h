@@ -36,22 +36,125 @@
 
 /* Algorithmns */
 
-// binary search
-bool binary_search_base(const void*const* data, size_t size, int (*fcmp)(const void* elem, const void* key),
-  const void* key, size_t& pos);
-inline bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
-  const void* key, size_t& pos)
-{ return binary_search_base(data.begin(), data.size(), fcmp, key, pos); }
-
+/// Binary search
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \a size].
+/// @param data Pointer to first element of an array to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param num Number of elements in the array.
+/// @param size Size of the elements in the array.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \a size then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
+bool binary_search( const void* key, size_t& pos,
+  const void* data, size_t num, size_t size, int (*fcmp)(const void* key, const void* elem) );
+/// Binary search
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \a num].
+/// @param data Pointer to an array of pointers to elements to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param num Number of elements in the array.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \a num then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
+bool binary_search( const void* key, size_t& pos,
+  const void*const* data, size_t num, int (*fcmp)(const void* key, const void* elem) );
+/// Binary search
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \c data.size()].
+/// @param data Array of pointers to elements to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \c data.size() then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
+inline bool binary_search( const void* key, size_t& pos,
+  const vector_base& data, int (*fcmp)(const void* key, const void* elem) )
+{ return binary_search(key, pos, data.begin(), data.size(), fcmp); }
+/// Generic binary search (stronly typed)
+/// @tparam T element type
+/// @tparam K key type
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \a num].
+/// @param data Pointer to first element of an array to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param num Number of elements in the array.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \a size then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
 template <class T, class K>
-inline bool binary_search(T*const* data, size_t size, int (*fcmp)(T* elem, K* key),
-  K* key, size_t& pos)
-{ return binary_search_base((const void**)data, size, (int (*)(const void* elem, const void* key))fcmp, key, pos);
+inline bool binary_search(K* key, size_t& pos, T* data, size_t num, int (*fcmp)(K* key, T* elem))
+{ return binary_search(key, pos, (const void**)data, num, sizeof(T), (int (*)(const void*, const void*))fcmp);
 }
+/// Generic binary search (stronly typed)
+/// @tparam T element type
+/// @tparam K key type
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \a num].
+/// @param data Pointer to an array of pointers to elements to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param num Number of elements in the array.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \a size then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
 template <class T, class K>
-inline bool binary_search(const vector<T>& data, int (*fcmp)(T* elem, K* key),
-  K* key, size_t& pos)
-{ return binary_search_base(data, data.size(), (int (*)(const void* elem, const void* key))fcmp, key, pos);
+inline bool binary_search(K* key, size_t& pos, T*const* data, size_t num, int (*fcmp)(K* key, T* elem))
+{ return binary_search(key, pos, (const void**)data, num, (int (*)(const void*, const void*))fcmp);
+}
+/// Generic binary search (stronly typed)
+/// @tparam T element type
+/// @tparam K key type
+/// @param key Key to search for.
+/// @param pos [out] Location where the key is found or where it should have been inserted.
+/// \a pos is in the domain [0, \c data.size()].
+/// @param data Array of pointers to elements to search for.
+/// The array must be ordered with respect to the comparer \a fcmp.
+/// @param fcmp Comparer to compare objects against keys.
+/// The comparer should return < 0 if the element is less than key, > 0 if it is greater and
+/// = 0 if they are equal.
+/// The comparison could be asymmetric, i.e. the key type may be distinct from the object type.
+/// @return \c true if the element at \a pos exactly matches \a key, \c false otherwise.
+/// If \a pos returns \c data.size() then the function always returns \c false.
+/// @remarks The function makes no assumptions about the pointers to the elements and the pointer to the key.
+/// They are simply passed to \a *fcmp.
+/// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
+template <class T, class K>
+inline bool binary_search(K* key, size_t& pos, const vector<T>& data, int (*fcmp)(K* key, T* elem))
+{ return binary_search(key, pos, data, data.size(), (int (*)(const void*, const void*))fcmp);
 }
 
 // rotate pointer array in place

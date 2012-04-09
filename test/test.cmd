@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+SIGNAL OFF ANY
+
 pipe = '\pipe\pm123'
 CALL VALUE 'PIPE',pipe,'OS2ENVIRONMENT'
 
@@ -46,7 +48,10 @@ CALL DoInit
 /* execute test cases */
 CALL SysFileTree 'test_*.cmd', files, 'FO'
 CALL QSort files
-DO i = 1 TO files.0
+summary.current = 0
+recover:
+DO i = summary.current + 1 TO files.0
+  summary.current = i
   file = FILESPEC('N', files.i)
   IF args.0 > 0 THEN DO
     include = 0
@@ -59,7 +64,9 @@ DO i = 1 TO files.0
     IF \include THEN ITERATE
     END
   file = SUBSTR(file, 1, LENGTH(file)-4)
+  /*SIGNAL ON syntax NAME TestCrashed*/
   CALL DoTest file
+  SIGNAL OFF syntax
   END
 
 /* print summary */
@@ -107,6 +114,18 @@ DoFinish: PROCEDURE EXPOSE summary.
   sum = summary.passed + summary.failed
   SAY "Failed: "summary.failed", passed: "summary.passed", total: "sum
   RETURN
+
+TestCrashed:
+  /* For some myterious reason this function is called twice on the same error */
+  IF summary.signal \= summary.current THEN DO
+    summary.signal = summary.current
+    SAY "crashed" CONDITION('D')
+    SIGNAL OFF syntax
+    summary.failed = summary.failed + 1
+    /*CALL 'teardown'*/
+    END
+  ELSE
+  SIGNAL recover
 
 /* sort stem variable
    call qsort stem[, first][, last]

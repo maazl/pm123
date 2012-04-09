@@ -26,31 +26,43 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef  ACOMMANDPROCESSOR_H
+#define  ACOMMANDPROCESSOR_H
 
-#include "container/stringmap.h"
-
-
-stringset_own& stringset_own::operator=(const stringset_own& r)
-{ clear();
-  prepare_assign(r.size());
-  vector_own_base_copy(*this, r.begin());
-  return *this;
-}
+#include <config.h>
+#include <cpp/xstring.h>
 
 
-int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)
-{ return strnicmp(str, abbrev, strlen(abbrev));
-}
+/** Class to execute pipe commands with a local context. */
+class ACommandProcessor
+{protected: // working set
+  char*          Request;
+  xstringbuilder Reply;
 
-const char* mapsearcha2_core(const char* cmd, const char* map, size_t count, size_t size)
-{ const char* elem = (const char*)bsearch(cmd, map, count, size, (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
-  // Work around to find more precise matches in case of ambiguous abbreviations.
-  const char* const last = map + count*size;
-  const char* elem2 = elem;
-  while ( (elem2 += size) != last        // not the end of the array
-    && strabbrevicmp(elem2, elem) == 0 ) // elem2 is still based on elem
-  { if (strabbrevicmp(cmd, elem2) == 0)  // it matches
-      elem = elem2;
-  }
-  return elem;
-}
+ private: // non-copyable
+  ACommandProcessor(const ACommandProcessor&);
+  void operator=(const ACommandProcessor&);
+ protected:
+  ACommandProcessor() {}
+  /// Executes the Command \c Request and return a value in \c Reply.
+  /// Note that \c Request is mutable. The referenced buffer content will be destroyed.
+  virtual void Exec() = 0;
+ public:
+  virtual ~ACommandProcessor() {}
+  /// Executes the Command \a cmd and return a value in \a ret.
+  /// Note that \a cmd is mutable. The buffer content will be destroyed.
+  const char* Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply.cdata(); }
+  /// Same as above, but copies the command buffer first.
+  const char* Execute(const char* cmd);
+
+  /// Use this factory method to create instances.
+  static ACommandProcessor* Create();
+
+  /// Initialize command processor service.
+  static void Init();
+  /// Shutdown command processor service.
+  static void Uninit();
+};
+
+#endif
+

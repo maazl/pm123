@@ -37,7 +37,7 @@
 /** A SongIterator is a Location intended to be used to play a Playable object.
  * In contrast to Location it owns it's root.
  * @remarks The class is non-polymorphic. You must not change the root by calling
- * Location::SetRoot, Location::Swap or Location::operator=.
+ * Location::SetRoot, Location::Swap or Location::operator= directly.
  */
 class SongIterator : public Location
 {public:

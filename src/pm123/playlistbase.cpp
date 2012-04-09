@@ -713,7 +713,7 @@ HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
   unsigned tattr = pp.GetInfo().tech->attributes;
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), tattr));
   IC state = IC_Pending;
-  if ((pp.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID))
+  if (tattr & TATTR_INVALID)
     state = IC_Invalid;
   else if (tattr & (TATTR_SONG|TATTR_PLAYLIST))
     state = IC_Normal;
@@ -730,7 +730,7 @@ void PlaylistBase::SetTitle()
   // Generate Window Title
   const char* append = "";
   unsigned tattr = Content->GetInfo().tech->attributes;
-  if ((Content->GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID))
+  if (tattr & TATTR_INVALID)
     append = " [invalid]";
   else if (Content->IsInUse())
     append = " [used]";
@@ -981,7 +981,7 @@ PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
   { const INFO_BUNDLE_CV& info = (*rpp)->Data->Content->GetInfo();
     unsigned pattr = info.phys->attributes;
     unsigned tattr = info.tech->attributes;
-    if ((pattr & PATTR_INVALID) || (tattr & TATTR_INVALID))
+    if (tattr & TATTR_INVALID)
     { ret |= RT_Invld;
       continue;
     }
@@ -1197,7 +1197,7 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
     Playable& par_list = parent.GetPlayable();
     vector_int<PlayableRef> new_items;
     { Location si(&par_list);
-      if (si.NavigateTo(*rec->Data->Content))
+      if (si.NavigateTo(rec->Data->Content))
         // Error sub-item is no longer part of the playlist.
         return;
       JobSet job(PRI_Normal);
@@ -1210,7 +1210,7 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
           else
             break;
         }
-        new_items.append() = &(PlayableRef&)si.GetCurrent();
+        new_items.append() = (PlayableRef*)si.GetCurrent();
         DEBUGLOG(("PlaylistBase::UserFlattenAll found %p\n", &*new_items[new_items.size()-1]));
       }
     }

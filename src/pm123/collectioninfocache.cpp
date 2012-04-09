@@ -56,7 +56,7 @@ InfoFlags CollectionInfo::RequestAI(InfoFlags& what, Priority pri, Reliability r
 *
 ****************************************************************************/
 
-int CollectionInfoCache::CacheEntry::compare(const CacheEntry& l, const PlayableSetBase& r)
+int CollectionInfoCache::CacheEntry::compare(const PlayableSetBase& l, const CacheEntry& r)
 { return PlayableSetBase::compare(l, r);
 }
 

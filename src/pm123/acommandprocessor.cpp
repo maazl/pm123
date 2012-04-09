@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,31 +26,28 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define INCL_WIN
+#include "acommandprocessor.h"
+#include "commandprocessor.h"
+#include <string.h>
 
-#include "container/stringmap.h"
 
-
-stringset_own& stringset_own::operator=(const stringset_own& r)
-{ clear();
-  prepare_assign(r.size());
-  vector_own_base_copy(*this, r.begin());
-  return *this;
+const char* ACommandProcessor::Execute(const char* cmd)
+{ char* buffer = Request = strdup(cmd);
+  Reply.clear();
+  Exec();
+  free(buffer);
+  return Reply.cdata();
 }
 
-
-int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)
-{ return strnicmp(str, abbrev, strlen(abbrev));
+ACommandProcessor* ACommandProcessor::Create()
+{ return new CommandProcessor();
 }
 
-const char* mapsearcha2_core(const char* cmd, const char* map, size_t count, size_t size)
-{ const char* elem = (const char*)bsearch(cmd, map, count, size, (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
-  // Work around to find more precise matches in case of ambiguous abbreviations.
-  const char* const last = map + count*size;
-  const char* elem2 = elem;
-  while ( (elem2 += size) != last        // not the end of the array
-    && strabbrevicmp(elem2, elem) == 0 ) // elem2 is still based on elem
-  { if (strabbrevicmp(cmd, elem2) == 0)  // it matches
-      elem = elem2;
-  }
-  return elem;
+void ACommandProcessor::Init()
+{ CommandProcessor::CreateServiceWindow();
+}
+
+void ACommandProcessor::Uninit()
+{ CommandProcessor::DestroyServiceWindow();
 }

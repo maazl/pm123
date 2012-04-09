@@ -70,6 +70,7 @@ class vector_base
   /// @details This is O(1).
   void              swap(vector_base& r);
 
+ public:
   /// @brief Access an element by number.
   /// @param where Precondition: \a where in [0,size()-1], Performance: O(1)
   /// @details This is in fact like operator[], but since this method is not type safe
@@ -108,7 +109,6 @@ class vector_base
   /// @param where Precondition: \a where in [0,size()-1], Performance: O(n)
   /// @details The function is not type safe and should not be exposed public.
   void*             erase(size_t where)            { void** p = Data + where; return erase(p); }
- public:
   /// @brief Return the number of elements in the container.
   /// @details This is not equal to the storage capacity.
   size_t            size() const                   { return Size; }

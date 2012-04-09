@@ -1,0 +1,17 @@
+#
+# Playlist created with PM123 Playlist Plug-in 1.0
+# Do not modify!
+#
+#START 0:05
+# 30 kiB, 0 s, 12073, 12073 kbps, 44.1 kHz, Mono
+test.ogg
+>12073,44100,1,30602,0.000
+#STOP -7
+# 30 kiB, 0 s, 12073, 12073 kbps, 44.1 kHz, Mono
+test.ogg
+>12073,44100,1,30602,0.000
+#START 5.878
+#STOP 0:0:10
+# 30 kiB, 0 s, 12073, 12073 kbps, 44.1 kHz, Mono
+test.ogg
+>12073,44100,1,30602,0.000

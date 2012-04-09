@@ -76,7 +76,7 @@ class CollectionInfoCache
     public CollectionInfo
   { explicit CacheEntry(const PlayableSetBase& key) : PlayableSet(key), CollectionInfo((PlayableSet&)*this) {};
     explicit CacheEntry(PlayableSet& key) : PlayableSet(), CollectionInfo((PlayableSet&)*this) { swap(key); };
-    static int      compare(const CacheEntry& l, const PlayableSetBase& r);
+    static int      compare(const PlayableSetBase& l, const CacheEntry& r);
   };
 
  protected: // Context
