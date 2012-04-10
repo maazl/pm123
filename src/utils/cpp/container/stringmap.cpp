@@ -44,13 +44,15 @@ int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)
 
 const char* mapsearcha2_core(const char* cmd, const char* map, size_t count, size_t size)
 { const char* elem = (const char*)bsearch(cmd, map, count, size, (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
-  // Work around to find more precise matches in case of ambiguous abbreviations.
-  const char* const last = map + count*size;
-  const char* elem2 = elem;
-  while ( (elem2 += size) != last        // not the end of the array
-    && strabbrevicmp(elem2, elem) == 0 ) // elem2 is still based on elem
-  { if (strabbrevicmp(cmd, elem2) == 0)  // it matches
-      elem = elem2;
+  if (elem)
+  { // Work around to find more precise matches in case of ambiguous abbreviations.
+    const char* const last = map + count*size;
+    const char* elem2 = elem;
+    while ( (elem2 += size) != last        // not the end of the array
+      && strabbrevicmp(elem2, elem) == 0 ) // elem2 is still based on elem
+    { if (strabbrevicmp(cmd, elem2) == 0)  // it matches
+        elem = elem2;
+    }
   }
   return elem;
 }
