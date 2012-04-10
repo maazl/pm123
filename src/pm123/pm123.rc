@@ -882,7 +882,7 @@ MENU MNU_RECORD
   MENUITEM "Refresh",                    IDM_PL_REFRESH
   MENUITEM SEPARATOR
   MENUITEM "~Remove from list",          IDM_PL_REMOVE
-  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
+  SUBMENU  "E~xpand content",            IDM_PL_FLATTEN
   { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
     MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
   }
@@ -948,7 +948,7 @@ MENU PM_REC_MENU
   }
   MENUITEM SEPARATOR
   MENUITEM "~Remove Item",               IDM_PL_REMOVE
-  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
+  SUBMENU  "E~xpand content",            IDM_PL_FLATTEN
   { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
     MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
   }
