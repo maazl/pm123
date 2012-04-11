@@ -489,12 +489,13 @@ class PAStream
 
   /*int Record(const char* device, pa_stream_flags_t flags)
                                                 { return pa_stream_connect_record(Stream, device, &Attr, flags); }*/
-  pa_stream_state_t GetState() const throw()    { return Stream ? pa_stream_get_state(Stream) : PA_STREAM_UNCONNECTED; }
-  void WaitReady() throw (PAStreamException);
+  pa_stream_state_t  GetState() const throw()   { return Stream ? pa_stream_get_state(Stream) : PA_STREAM_UNCONNECTED; }
+  void               WaitReady() throw (PAStreamException);
 
-  pa_usec_t GetTime() throw (PAStreamException);
-  void Cork(bool pause) throw (PAStreamException);
-  void Flush() throw (PAStreamException);
+  pa_usec_t          GetTime() throw (PAStreamException);
+  const pa_timing_info* GetTimingInfo() throw ();
+  void               Cork(bool pause) throw (PAStreamException);
+  void               Flush() throw (PAStreamException);
  private:
   static void StateCB(pa_stream *p, void *userdata) throw();
 };

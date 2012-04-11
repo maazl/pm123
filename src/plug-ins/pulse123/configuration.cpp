@@ -48,6 +48,8 @@ Cfg Configuration;
 void Cfg::Load()
 { // Defaults
   SinkKeepAlive = false;
+  SinkMinLatency = 300;
+  SinkMaxLatency = 800;
   SourceRate = 48000;
   SourceChannels = 2;
 
@@ -55,6 +57,8 @@ void Cfg::Load()
   ini_load(SinkKeepAlive);
   ini_load(Sink);
   ini_load(SinkPort);
+  ini_load(SinkMinLatency);
+  ini_load(SinkMaxLatency);
   ini_load(SourceServer);
   ini_load(Source);
   ini_load(SourcePort);
@@ -67,6 +71,8 @@ void Cfg::Save()
   ini_save(SinkKeepAlive);
   ini_save(Sink);
   ini_save(SinkPort);
+  ini_save(SinkMinLatency);
+  ini_save(SinkMaxLatency);
   ini_save(SourceServer);
   ini_save(Source);
   ini_save(SourcePort);

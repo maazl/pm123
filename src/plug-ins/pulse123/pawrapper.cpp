@@ -521,6 +521,13 @@ pa_usec_t PAStream::GetTime() throw (PAStreamException)
   return time;
 }
 
+const pa_timing_info* PAStream::GetTimingInfo() throw ()
+{ PAContext::Lock lock;
+  if (GetState() != PA_STREAM_READY)
+    return NULL;
+  return pa_stream_get_timing_info(Stream);
+}
+
 void PAStream::Cork(bool pause) throw (PAStreamException)
 { DEBUGLOG(("PAStream(%p{%p})::Cork(%u)\n", this, Stream, pause));
   PAContext::Lock lock;

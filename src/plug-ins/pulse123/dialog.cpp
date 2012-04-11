@@ -221,6 +221,10 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { SetItemText(CB_SERVER, Configuration.SinkServer);
         PostMsg(UM_CONNECT, 0, 0);
       }
+      sb_setnumlimits(GetHwnd(), SB_MINLATENCY, 0, 1000, 4);
+      sb_setnumlimits(GetHwnd(), SB_MAXLATENCY, 100, 5000, 4);
+      PMRASSERT(SendItemMsg(SB_MINLATENCY, SPBM_SETCURRENTVALUE, MPFROMLONG(Configuration.SinkMinLatency), 0));
+      PMRASSERT(SendItemMsg(SB_MAXLATENCY, SPBM_SETCURRENTVALUE, MPFROMLONG(Configuration.SinkMaxLatency), 0));
       return ret;
     }
 
@@ -234,6 +238,8 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
         Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
+        Configuration.SinkMinLatency = QuerySpinbuttonValue(SB_MINLATENCY);
+        Configuration.SinkMaxLatency = QuerySpinbuttonValue(SB_MAXLATENCY);
       }
       break;
     }
@@ -344,8 +350,8 @@ LoadWizard::LoadWizard(HMODULE module, HWND owner, const xstring& title)
 static const char* SamplingRates[] =
 { "8000", "11025", "12000", "16000", "22050", "24000", "32000", "44100", "48000", "96000" };
 
-static int SamplingRateCmp(const char* elem, int* key)
-{ return atoi(elem) - *key;
+static int SamplingRateCmp(int* key, const char* elem)
+{ return *key - atoi(elem);
 }
 
 MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -367,7 +373,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         //PMRASSERT(WinSendMsg(sb, SPBM_SETMASTER, MPFROMHWND(NULLHANDLE), 0));
         PMRASSERT(WinSendMsg(sb, SPBM_SETARRAY, MPFROMP(SamplingRates), MPFROMSHORT(sizeof SamplingRates/sizeof *SamplingRates)));
         size_t pos;
-        if ( !binary_search(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp, &Configuration.SourceRate, pos)
+        if ( !binary_search(&Configuration.SourceRate, pos, SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp)
           && ( pos == sizeof SamplingRates/sizeof *SamplingRates
             || (pos && 2*Configuration.SourceRate < atoi(SamplingRates[pos]) + atoi(SamplingRates[pos-1])) ))
           --pos;

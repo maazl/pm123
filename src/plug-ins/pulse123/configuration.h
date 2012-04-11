@@ -39,6 +39,8 @@ extern struct Cfg
   bool    SinkKeepAlive;
   xstring Sink;
   xstring SinkPort;
+  int     SinkMinLatency; // ms
+  int     SinkMaxLatency; // ms
   xstring SourceServer;
   xstring Source;
   xstring SourcePort;

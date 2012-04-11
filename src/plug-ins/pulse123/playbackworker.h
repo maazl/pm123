@@ -95,6 +95,8 @@ class PlaybackWorker
   xstring            Server;
   xstring            Sink;
   xstring            Port;
+  int                MinLatency;
+  int                MaxLatency;
  private:
   PAContext          Context;
   PASampleSpec       SS;
@@ -107,6 +109,7 @@ class PlaybackWorker
   PM123_TIME         TimeOffset;
   uint64_t           WriteIndexOffset;
   bool               TrashFlag;
+  bool               LowWater;
   BackupBuffer       Buffer;
   PABasicOperation   DrainOp;
   class_delegate<PlaybackWorker, const int> DrainOpDeleg;
@@ -114,7 +117,7 @@ class PlaybackWorker
  public:
   PlaybackWorker() throw();
   ~PlaybackWorker();
-  ULONG Init(const xstring& server, const xstring& sink, const xstring& port) throw();
+  ULONG Init(const xstring& server, const xstring& sink, const xstring& port, int minlatency, int maxlatency) throw();
   ULONG Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
              void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw();
   ULONG Close() throw();

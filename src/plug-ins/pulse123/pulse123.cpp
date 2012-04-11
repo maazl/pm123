@@ -163,7 +163,7 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle, unsigned long flag
 /// Initialize the output plug-in.
 ULONG DLLENTRY output_init(void** A)
 { PlaybackWorker* w = new PlaybackWorker();
-  ULONG ret = w->Init(Configuration.SinkServer, Configuration.Sink, Configuration.SinkPort);
+  ULONG ret = w->Init(Configuration.SinkServer, Configuration.Sink, Configuration.SinkPort, Configuration.SinkMinLatency, Configuration.SinkMaxLatency);
   if (ret == 0)
     *A = w;
   return ret;

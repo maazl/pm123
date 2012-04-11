@@ -217,11 +217,13 @@ PlaybackWorker::PlaybackWorker() throw()
 { DEBUGLOG(("PlaybackWorker(%p)::PlaybackWorker()\n", this));
 }
 
-ULONG PlaybackWorker::Init(const xstring& server, const xstring& sink, const xstring& port) throw()
+ULONG PlaybackWorker::Init(const xstring& server, const xstring& sink, const xstring& port, int minlatency, int maxlatency) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::Init(%s)\n", this, server.cdata()));
   Server = server;
   Sink = sink;
   Port = port;
+  MinLatency = minlatency;
+  MaxLatency = maxlatency;
   try
   { if (!Server || !*Server)
       throw PAException(PLUGIN_ERROR,
@@ -287,6 +289,7 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     TimeOffset = pos;
     WriteIndexOffset = 0;
     TrashFlag = true;
+    LowWater = false;
     Buffer.Reset();
 
     Stream.WaitReady();
@@ -323,6 +326,10 @@ ULONG PlaybackWorker::SetPause(bool pause) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::SetPause(%u)\n", this, pause));
   try
   { Stream.Cork(pause);
+    if (LowWater)
+    { LowWater = false;
+      (*OutputEvent)(W, OUTEVENT_HIGH_WATER);
+    }
     return 0;
 
   } catch (const PAException& ex)
@@ -343,6 +350,10 @@ ULONG PlaybackWorker::TrashBuffers(PM123_TIME pos) throw()
   }
   TimeOffset = pos;
   TrashFlag = true;
+  if (!LowWater)
+  { LowWater = true;
+    (*OutputEvent)(W, OUTEVENT_LOW_WATER);
+  }
   return ret;
 }
 
@@ -395,7 +406,24 @@ BOOL PlaybackWorker::IsPlaying() throw()
 }
 
 PM123_TIME PlaybackWorker::GetPosition() throw()
-{ try
+{ // Check for buffer level
+  const pa_timing_info* ti = Stream.GetTimingInfo();
+  if (ti)
+  { unsigned ms = pa_bytes_to_usec(ti->write_index - ti->read_index, &SS) / 1000;
+    if (LowWater)
+    { if (ms > MinLatency + MaxLatency)
+      { LowWater = false;
+        (*OutputEvent)(W, OUTEVENT_HIGH_WATER);
+      }
+    } else
+    { if (ms < MinLatency)
+      { LowWater = true;
+        (*OutputEvent)(W, OUTEVENT_LOW_WATER);
+      }
+    }
+  }
+  // get time
+  try
   { if (!TrashFlag && Stream.GetState() == PA_STREAM_READY)
     { double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
       tmp = Buffer.GetPosByWriteIndex((uint64_t)tmp + WriteIndexOffset);

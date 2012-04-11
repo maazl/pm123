@@ -32,30 +32,42 @@
 
 DLGTEMPLATE DLG_CONFIG
 {
-  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 224, 98, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
+  DIALOG "Pulse123 Configuration",          DLG_CONFIG,   0,  0, 232,118, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
     FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+    PRESPARAMS                     MAKE_PPU_SIZE_CONSTR(232,118,   0,  0)
   {
-    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 52, 216, 44, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 72, 224, 44, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~URL",                 ST_GENERIC,   8, 80,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_SERVER,   64,  8, 152, 80, CBS_DROPDOWN
+    LTEXT           "~URL",                 ST_GENERIC,   8,100,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SERVER,   64, 28, 160, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Context",             ST_GENERIC,   8, 68,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 68, 152,  8, WS_TABSTOP
+    LTEXT           "~Context",             ST_GENERIC,   8, 88,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 88, 160,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "Status"                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP
-    LTEXT           "enter server name above",ST_STATUS, 64, 56, 152,  8, DT_BOTTOM|WS_TABSTOP
+    LTEXT           "Status"                ST_GENERIC,   8, 76,  52,  8, DT_BOTTOM|WS_GROUP
+    LTEXT           "enter server name above",ST_STATUS, 64, 76, 160,  8, DT_BOTTOM|WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
-    GROUPBOX " Select Target ",             GB_GENERIC,   4, 20, 216, 32, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " Select Target ",             GB_GENERIC,   4, 40, 224, 32, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Sink",                ST_GENERIC,   8, 36,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_SINKSRC,  64,  4, 152, 40, CBS_DROPDOWNLIST
+    LTEXT           "~Sink",                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_SINKSRC,  64, 24, 160, 40, CBS_DROPDOWNLIST
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Port",                ST_GENERIC,   8, 24,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    COMBOBOX        "",                     CB_PORT,     64, -8, 152, 40, CBS_DROPDOWNLIST
+    LTEXT           "~Port",                ST_GENERIC,   8, 44,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    COMBOBOX        "",                     CB_PORT,     64, 12, 160, 40, CBS_DROPDOWNLIST
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+
+    GROUPBOX " Buffer control ",            GB_GENERIC,   4, 20, 224, 20, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT           "~Min buffer",         ST_GENERIC,   8, 24,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    SPINBUTTON                              SB_MINLATENCY,64,24,  32,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|SPBS_FASTSPIN
+    LTEXT           "ms",                   ST_GENERIC, 100, 24,  12,  8, DT_BOTTOM
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
+    LTEXT           "sa~fe buffer",        ST_GENERIC, 120, 24,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    SPINBUTTON                              SB_MAXLATENCY,176,24, 32,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|SPBS_FASTSPIN
+    LTEXT           "ms",                   ST_GENERIC, 212, 24,  12,  8, DT_BOTTOM
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
 
     DEFPUSHBUTTON   "OK",                   DID_OK,       8,  4,  52, 12, BS_DEFAULT|WS_GROUP
     PUSHBUTTON      "Cancel",               DID_CANCEL,  64,  4,  52, 12, WS_VISIBLE

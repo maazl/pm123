@@ -38,19 +38,21 @@ extern PLUGIN_CONTEXT Ctx;
 
 #endif
 
-#define DLG_CONFIG   100
-#define DLG_RECORD   102
+#define DLG_CONFIG     100
+#define DLG_RECORD     102
 
-#define GB_GENERIC  1000
-#define ST_GENERIC  1001
-#define CB_SERVER   2000
-#define CB_PBKEEP   2001
-#define ST_STATUS   2005
-#define CB_SINKSRC  2010
-#define CB_PORT     2011
-#define SB_RATE     2020
-#define RB_MONO     2021
-#define RB_STEREO   2022
+#define GB_GENERIC    1000
+#define ST_GENERIC    1001
+#define CB_SERVER     2000
+#define CB_PBKEEP     2001
+#define ST_STATUS     2005
+#define CB_SINKSRC    2010
+#define CB_PORT       2011
+#define SB_MINLATENCY 2015
+#define SB_MAXLATENCY 2016
+#define SB_RATE       2020
+#define RB_MONO       2021
+#define RB_STEREO     2022
 
 #endif /* PM123_PULSE123_H */
 
