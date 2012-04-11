@@ -71,6 +71,7 @@ class GlueImp : private Glue
   static FORMAT_INFO2      LastFormat;        // Format of last request_buffer
   static float*            LastBuffer;        // Last buffer requested by decoder
   static float             Gain;              // Replay gain adjust
+  static time_t            LowWaterLimit;     // OUTEVENT_LOW_WATER expires at ...
   static int_ptr<Output>   OutPlug;           // currently initialized output plug-in.
   static PluginList        FilterPlugs;       // List of initialized visual plug-ins.
   static int_ptr<Decoder>  DecPlug;           // currently active decoder plug-in.
@@ -119,6 +120,7 @@ PM123_TIME        GlueImp::PosOffset;
 FORMAT_INFO2      GlueImp::LastFormat;
 float*            GlueImp::LastBuffer;
 float             GlueImp::Gain;
+time_t            GlueImp::LowWaterLimit;
 int_ptr<Output>   GlueImp::OutPlug;
 PluginList        GlueImp::FilterPlugs(PLUGIN_FILTER);
 int_ptr<Decoder>  GlueImp::DecPlug;
@@ -194,6 +196,8 @@ ULONG GlueImp::Init()
   // setup callback handlers
   DParams.DecEvent = &DecEventHandler;
   //dparams.save_filename   = NULL;
+
+  LowWaterLimit = 0;
 
   // Fetch current active output
   { PluginList outputs(PLUGIN_OUTPUT);
@@ -457,6 +461,11 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
   // We are beyond the end?
   if (GlueImp::Flags.bit(GlueImp::FLG_PlaystopSent))
     return 0;
+  // Check for OUTEVENT_LOW_WATER expire.
+  if (GlueImp::LowWaterLimit && time(NULL) > GlueImp::LowWaterLimit)
+  { LowWaterLimit = 0;
+    GlueImp::DecPlug->DecoderEvent(OUTEVENT_HIGH_WATER);
+  }
   // pass request to output
   int ret = (*GlueImp::Procs.output_request_buffer)(a, format, buf);
   GlueImp::LastFormat = *format;
@@ -594,15 +603,18 @@ OutEventHandler(void* w, OUTEVENTTYPE event)
   OutEvent(event);
   // route high/low water events to the DecPlug (if any)
   switch (event)
-  {case OUTEVENT_LOW_WATER:
+  {default:
+    return;
+   case OUTEVENT_LOW_WATER:
+    if (GlueImp::LowWaterLimit == 0)
+      GlueImp::LowWaterLimit = time(NULL) + 20; // revoke OUTEVENT_LOW_WATER after 20 seconds
+    break;
    case OUTEVENT_HIGH_WATER:
-    { if (DecPlug != NULL)
-        GlueImp::DecPlug->DecoderEvent(event);
-      break;
-    }
-   default: // avoid warnings
+     GlueImp::LowWaterLimit = 0;
     break;
   }
+  if (DecPlug != NULL)
+    GlueImp::DecPlug->DecoderEvent(event);
 }
 
 
