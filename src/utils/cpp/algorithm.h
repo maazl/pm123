@@ -91,7 +91,7 @@ bool binary_search( const void* key, size_t& pos,
 inline bool binary_search( const void* key, size_t& pos,
   const vector_base& data, int (*fcmp)(const void* key, const void* elem) )
 { return binary_search(key, pos, data.begin(), data.size(), fcmp); }
-/// Generic binary search (stronly typed)
+/// Generic binary search (strongly typed)
 /// @tparam T element type
 /// @tparam K key type
 /// @param key Key to search for.
@@ -113,7 +113,7 @@ template <class T, class K>
 inline bool binary_search(K* key, size_t& pos, T* data, size_t num, int (*fcmp)(K* key, T* elem))
 { return binary_search(key, pos, (const void**)data, num, sizeof(T), (int (*)(const void*, const void*))fcmp);
 }
-/// Generic binary search (stronly typed)
+/// Generic binary search (strongly typed)
 /// @tparam T element type
 /// @tparam K key type
 /// @param key Key to search for.
@@ -135,7 +135,7 @@ template <class T, class K>
 inline bool binary_search(K* key, size_t& pos, T*const* data, size_t num, int (*fcmp)(K* key, T* elem))
 { return binary_search(key, pos, (const void**)data, num, (int (*)(const void*, const void*))fcmp);
 }
-/// Generic binary search (stronly typed)
+/// Generic binary search (strongly typed)
 /// @tparam T element type
 /// @tparam K key type
 /// @param key Key to search for.

@@ -97,18 +97,10 @@ class DialogBase
 
   void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Dialog item functions
-  HWND              GetDlgItem(ULONG id) { return WinWindowFromID(HwndFrame, id); }
-  MRESULT           SendItemMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
+  HWND              GetCtrl(ULONG id) { return WinWindowFromID(HwndFrame, id); }
+  MRESULT           SendCtrlMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
                     { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
-  void              EnableControl(ULONG id, bool check);
-  xstring           QueryItemText(ULONG id) { return WinQueryDlgItemXText(HwndFrame, id); }
-  void              SetItemText(ULONG id, const char* text);
-  bool              QueryButtonCheckstate(ULONG id);
-  void              CheckButton(ULONG id, bool check);
-  ULONG             QuerySelectedRadiobutton(ULONG id);
-  void              SetSpinbuttonLimits(ULONG id, LONG low, LONG high, USHORT len);
-  LONG              QuerySpinbuttonValue(ULONG id);
-  void              SetSpinbuttomValue(ULONG id, LONG value);
+  void              EnableCtrl(ULONG id, bool check) { WinEnableControl(HwndFrame, id, check); }
 
   // Set Help Manager
   void              SetHelpMgr(HWND hhelp);

@@ -71,7 +71,8 @@ class GlueImp : private Glue
   static FORMAT_INFO2      LastFormat;        // Format of last request_buffer
   static float*            LastBuffer;        // Last buffer requested by decoder
   static float             Gain;              // Replay gain adjust
-  static time_t            LowWaterLimit;     // OUTEVENT_LOW_WATER expires at ...
+  static time_t            LowWaterLimit;     // != 0 => we are at high priority, OUTEVENT_LOW_WATER expires at ...
+  static TID               DecTID;            // Thread ID of the decoder thread
   static int_ptr<Output>   OutPlug;           // currently initialized output plug-in.
   static PluginList        FilterPlugs;       // List of initialized visual plug-ins.
   static int_ptr<Decoder>  DecPlug;           // currently active decoder plug-in.
@@ -101,6 +102,8 @@ class GlueImp : private Glue
   /// Handle song updates while playing (ReplayGain).
   static void              SongNotification(void*, const PlayableChangeArgs& args);
 
+  static void              SetDecoderPriority(bool high);
+
  private: // glue
   PROXYFUNCDEF int DLLENTRY GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf);
   PROXYFUNCDEF void DLLENTRY GlueCommitBuffer(void* a, int len, PM123_TIME posmarker);
@@ -121,6 +124,7 @@ FORMAT_INFO2      GlueImp::LastFormat;
 float*            GlueImp::LastBuffer;
 float             GlueImp::Gain;
 time_t            GlueImp::LowWaterLimit;
+TID               GlueImp::DecTID;
 int_ptr<Output>   GlueImp::OutPlug;
 PluginList        GlueImp::FilterPlugs(PLUGIN_FILTER);
 int_ptr<Decoder>  GlueImp::DecPlug;
@@ -308,6 +312,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
 
   GlueImp::DecCommand(DECODER_SAVEDATA);
 
+  GlueImp::DecTID = 0;
   rc = GlueImp::DecCommand(DECODER_PLAY);
   if (rc != 0)
     GlueImp::DecSetActive(NULL);
@@ -326,6 +331,7 @@ ULONG Glue::DecStop()
 { GlueImp::SongDeleg.detach();
   GlueImp::Song.reset();
   ULONG rc = GlueImp::DecCommand(DECODER_STOP);
+  GlueImp::DecTID = 0;
   // Do not deactivate the DecPlug immediately.
   return rc;
 }
@@ -466,6 +472,14 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
   { LowWaterLimit = 0;
     GlueImp::DecPlug->DecoderEvent(OUTEVENT_HIGH_WATER);
   }
+  // Decoder Priority
+  if (!DecTID)
+  { // examine decoder thread ID
+    TIB* tib;
+    DosGetInfoBlocks(&tib, NULL);
+    DecTID = tib->tib_ptib2->tib2_ultid;
+    SetDecoderPriority(LowWaterLimit != 0);
+  }
   // pass request to output
   int ret = (*GlueImp::Procs.output_request_buffer)(a, format, buf);
   GlueImp::LastFormat = *format;
@@ -596,6 +610,16 @@ DecEventHandler(void* a, DECEVENTTYPE event, void* param)
   DecEvent(args);
 }
 
+void GlueImp::SetDecoderPriority(bool high)
+{ TID dectid = GlueImp::DecTID;
+  DEBUGLOG(("GlueImp::SetDecoderPriority(%u) - %i\n", high, dectid));
+  if (dectid)
+  { const volatile amp_cfg& cfg = Cfg::Get();
+    int priority = high ? cfg.pri_high : cfg.pri_normal;
+    DosSetPriority(PRTYS_THREAD, priority >> 8, priority & 0xff, dectid);
+  }
+}
+
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
 OutEventHandler(void* w, OUTEVENTTYPE event)
@@ -606,11 +630,13 @@ OutEventHandler(void* w, OUTEVENTTYPE event)
   {default:
     return;
    case OUTEVENT_LOW_WATER:
+    SetDecoderPriority(false);
     if (GlueImp::LowWaterLimit == 0)
-      GlueImp::LowWaterLimit = time(NULL) + 20; // revoke OUTEVENT_LOW_WATER after 20 seconds
+      GlueImp::LowWaterLimit = time(NULL) + Cfg::Get().pri_limit; // revoke OUTEVENT_LOW_WATER after xx seconds
     break;
    case OUTEVENT_HIGH_WATER:
-     GlueImp::LowWaterLimit = 0;
+    SetDecoderPriority(true);
+    GlueImp::LowWaterLimit = 0;
     break;
   }
   if (DecPlug != NULL)

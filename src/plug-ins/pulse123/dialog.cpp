@@ -35,6 +35,7 @@
 #include <plugin.h>
 #include <utilfct.h>
 #include <cpp/pmutils.h>
+#include <cpp/dlgcontrols.h>
 #include <cpp/algorithm.h>
 #include <os2.h>
 
@@ -75,15 +76,15 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { MRESULT ret = DialogBase::DlgProc(msg, mp1, mp2);
       do_warpsans(GetHwnd());
       // Populate MRU list
-      HWND ctrl = GetDlgItem(CB_SERVER);
-      WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(Configuration.SinkServer.cdata()));
+      ComboBox cb(GetCtrl(CB_SERVER));
+      cb.InsertItem(Configuration.SinkServer);
       char key[] = "Server1";
       do
       { xstring url;
         ini_query(key, url);
         if (!url)
           break;
-        WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(url.cdata()));
+        cb.InsertItem(url);
       } while (++key[sizeof key -2] <= '9');
       return ret;
     }
@@ -92,8 +93,8 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("IntrospectBase::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
-      { HWND ctrl = GetDlgItem(CB_SERVER);
-        const xstring& server = WinQueryWindowXText(ctrl);
+      { ComboBox cb(GetCtrl(CB_SERVER));
+        const xstring& server = cb.QueryText();
         Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
         // update MRU list
         if (server.length())
@@ -105,9 +106,9 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           { if (len >= 0)
             {skip:
               url.reset();
-              len = (SHORT)SHORT1FROMMR(WinSendMsg(ctrl, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
+              len = (SHORT)SHORT1FROMMR(WinSendMsg(cb.Hwnd, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
               if (len >= 0)
-              { WinSendMsg(ctrl, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
+              { WinSendMsg(cb.Hwnd, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(url.allocate(len)));
                 DEBUGLOG(("IntrospectBase::DlgProc: save MRU %i: (%i) %s\n", i, len, url.cdata()));
                 ++i;
                 if (url == server)
@@ -218,13 +219,15 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SinkPort));
       // Set current value
       if (Configuration.SinkServer)
-      { SetItemText(CB_SERVER, Configuration.SinkServer);
+      { ComboBox(+GetCtrl(CB_SERVER)).SetText(Configuration.SinkServer);
         PostMsg(UM_CONNECT, 0, 0);
       }
-      sb_setnumlimits(GetHwnd(), SB_MINLATENCY, 0, 1000, 4);
-      sb_setnumlimits(GetHwnd(), SB_MAXLATENCY, 100, 5000, 4);
-      PMRASSERT(SendItemMsg(SB_MINLATENCY, SPBM_SETCURRENTVALUE, MPFROMLONG(Configuration.SinkMinLatency), 0));
-      PMRASSERT(SendItemMsg(SB_MAXLATENCY, SPBM_SETCURRENTVALUE, MPFROMLONG(Configuration.SinkMaxLatency), 0));
+      SpinButton sb(GetCtrl(SB_MINLATENCY));
+      sb.SetLimits(0, 5000, 4);
+      sb.SetValue(Configuration.SinkMinLatency);
+      sb = SpinButton(GetCtrl(SB_MAXLATENCY));
+      sb.SetLimits(100, 10000, 4);
+      sb.SetValue(Configuration.SinkMaxLatency);
       return ret;
     }
 
@@ -238,8 +241,8 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
         Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
-        Configuration.SinkMinLatency = QuerySpinbuttonValue(SB_MINLATENCY);
-        Configuration.SinkMaxLatency = QuerySpinbuttonValue(SB_MAXLATENCY);
+        Configuration.SinkMinLatency = SpinButton(GetCtrl(SB_MINLATENCY)).QueryValue();
+        Configuration.SinkMaxLatency = SpinButton(GetCtrl(SB_MAXLATENCY)).QueryValue();
       }
       break;
     }
@@ -265,44 +268,38 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
-      HWND ctrl = GetDlgItem(CB_SINKSRC);
+      ComboBox cb(GetCtrl(CB_SINKSRC));
       // save old value
-      xstring oldsink = WinQueryWindowXText(ctrl);
+      const xstring& oldsink = cb.QueryText();
       // delete old list
-      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      cb.DeleteAll();
       SelectedSink = -1;
       // insert new list and restore old value if reasonable.
       xstring def;
       def.sprintf("default (%s)", Server.default_sink_name.cdata());
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(def.cdata())), >= 0);
-      /* LM_INSERTMULTITEMS seems not to work.
-      LBOXINFO insert = { 0, Sinks.size() };
-      // HACK: Sinks is a list of pointers to PASinkInfo.
-      // PASinkInfo starts with an xstring name. xsting is binary compatible to const char*.
-      // So Sinks.begin() is compatible to const char** as required by LM_INSERTMULTITEMS.
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTMULTITEMS, MPFROMP(&insert), MPFROMP(Sinks.begin())), >= 0);*/
+      cb.InsertItem(def);
       if (Sinks.size() != 0)
       { int defsink = -1;
         for (unsigned i = 0; i < Sinks.size(); ++i)
         { PASinkInfo& sink = *Sinks[i];
-          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(sink.name.cdata())), >= 0);
+          cb.InsertItem(sink.name);
           if (SelectedSink < 0 && sink.name.compareToI(oldsink) == 0)
             SelectedSink = i;
           if (defsink < 0 && sink.name.compareToI(Server.default_sink_name) == 0)
             defsink = i;
         }
-        PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(SelectedSink+1), MPFROMSHORT(TRUE)));        // Otherwise set new default
+        cb.Select(SelectedSink+1);
         if (SelectedSink < 0)
           SelectedSink = defsink;
       }
     }
    case UM_UPDATE_PORT:
     { DEBUGLOG(("ConfigDialog::DlgProc:UM_UPDATE_PORT %i\n", SelectedSink));
-      HWND ctrl = GetDlgItem(CB_PORT);
+      ComboBox cb(GetCtrl(CB_PORT));
       // save old value
-      xstring oldport = WinQueryWindowXText(ctrl);
+      const xstring& oldport = cb.QueryText();
       // delete old list
-      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      cb.DeleteAll();
       // insert new list and restore old value if reasonable.
       xstring def;
       int selected = -1;
@@ -312,13 +309,13 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           def.sprintf("default (%s)", sink.active_port->name.cdata());
         for (unsigned i = 0; i < sink.ports.size(); ++i)
         { PAPortInfo& port = sink.ports[i];
-          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(port.name.cdata())), >= 0);
+          cb.InsertItem(port.name);
           if (selected < 0 && port.name.compareToI(oldport) == 0)
             selected = i;
         }
       }
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(0), MPFROMP(def ? def.cdata() : "default")), >= 0);
-      PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected+1), MPFROMSHORT(TRUE)));
+      cb.InsertItem(def ? def.cdata() : "default", 0);
+      cb.Select(selected+1);
       return 0;
     }
   }
@@ -361,7 +358,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { MRESULT ret = IntrospectBase::DlgProc(msg, mp1, mp2);
       SetTitle(Title);
       if (Configuration.SourceServer)
-      { SetItemText(CB_SERVER, Configuration.SourceServer);
+      { ComboBox(+GetCtrl(CB_SERVER)).SetText(Configuration.SourceServer);
         PostMsg(UM_CONNECT, 0, 0);
       }
       if (Configuration.Source)
@@ -369,15 +366,14 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (Configuration.SourcePort)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SourcePort));
       // Init rate spin button
-      { HWND sb = GetDlgItem(SB_RATE);
-        //PMRASSERT(WinSendMsg(sb, SPBM_SETMASTER, MPFROMHWND(NULLHANDLE), 0));
-        PMRASSERT(WinSendMsg(sb, SPBM_SETARRAY, MPFROMP(SamplingRates), MPFROMSHORT(sizeof SamplingRates/sizeof *SamplingRates)));
+      { SpinButton sb(GetCtrl(SB_RATE));
+        sb.SetItems(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates);
         size_t pos;
         if ( !binary_search(&Configuration.SourceRate, pos, SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp)
           && ( pos == sizeof SamplingRates/sizeof *SamplingRates
             || (pos && 2*Configuration.SourceRate < atoi(SamplingRates[pos]) + atoi(SamplingRates[pos-1])) ))
           --pos;
-        PMRASSERT(WinSendMsg(sb, SPBM_SETCURRENTVALUE, MPFROMLONG(pos), 0));
+        sb.SetValue(pos);
       }
       WinCheckButton(GetHwnd(), Configuration.SourceChannels == 1 ? RB_MONO : RB_STEREO, TRUE);
       return ret;
@@ -392,9 +388,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Configuration.Source = source.length() && !source.startsWithI("default") ? source : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
         Configuration.SourcePort = port.length() && !port.startsWithI("default") ? port : xstring();
-        long pos;
-        PMRASSERT(SendItemMsg(SB_RATE, SPBM_QUERYVALUE, MPFROMP(&pos), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
-        Configuration.SourceRate = atoi(SamplingRates[pos]);
+        Configuration.SourceRate = atoi(SamplingRates[SpinButton(GetCtrl(SB_RATE)).QueryValue()]);
         Configuration.SourceChannels = WinQueryButtonCheckstate(GetHwnd(), RB_MONO) ? 1 : 2;
       }
       break;
@@ -421,44 +415,38 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
-      HWND ctrl = GetDlgItem(CB_SINKSRC);
+      ComboBox cb(GetCtrl(CB_SINKSRC));
       // save old value
-      xstring oldsink = WinQueryWindowXText(ctrl);
+      const xstring& oldsink = cb.QueryText();
       // delete old list
-      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      cb.DeleteAll();
       SelectedSource = -1;
       // insert new list and restore old value if reasonable.
       xstring def;
       def.sprintf("default (%s)", Server.default_sink_name.cdata());
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(def.cdata())), >= 0);
-      /* LM_INSERTMULTITEMS seems not to work.
-      LBOXINFO insert = { 0, Sinks.size() };
-      // HACK: Sinks is a list of pointers to PASinkInfo.
-      // PASinkInfo starts with an xstring name. xsting is binary compatible to const char*.
-      // So Sinks.begin() is compatible to const char** as required by LM_INSERTMULTITEMS.
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTMULTITEMS, MPFROMP(&insert), MPFROMP(Sinks.begin())), >= 0);*/
+      cb.InsertItem(def);
       if (Sources.size() != 0)
       { int defsink = -1;
         for (unsigned i = 0; i < Sources.size(); ++i)
         { PASourceInfo& source = *Sources[i];
-          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(source.name.cdata())), >= 0);
+          cb.InsertItem(source.name);
           if (SelectedSource < 0 && source.name.compareToI(oldsink) == 0)
             SelectedSource = i;
           if (defsink < 0 && source.name.compareToI(Server.default_sink_name) == 0)
             defsink = i;
         }
-        PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(SelectedSource+1), MPFROMSHORT(TRUE)));        // Otherwise set new default
+        cb.Select(SelectedSource+1);
         if (SelectedSource < 0)
           SelectedSource = defsink;
       }
     }
    case UM_UPDATE_PORT:
     { DEBUGLOG(("LoadWizard::DlgProc:UM_UPDATE_PORT %i\n", SelectedSource));
-      HWND ctrl = GetDlgItem(CB_PORT);
+      ComboBox cb(GetCtrl(CB_PORT));
       // save old value
-      xstring oldport = WinQueryWindowXText(ctrl);
+      const xstring& oldport = cb.QueryText();
       // delete old list
-      PMRASSERT(WinSendMsg(ctrl, LM_DELETEALL, 0, 0));
+      cb.DeleteAll();
       // insert new list and restore old value if reasonable.
       xstring def;
       int selected = -1;
@@ -468,13 +456,13 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           def.sprintf("default (%s)", source.active_port->name.cdata());
         for (unsigned i = 0; i < source.ports.size(); ++i)
         { PAPortInfo& port = source.ports[i];
-          PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(port.name.cdata())), >= 0);
+          cb.InsertItem(port.name);
           if (selected < 0 && port.name.compareToI(oldport) == 0)
             selected = i;
         }
       }
-      PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(0), MPFROMP(def ? def.cdata() : "default")), >= 0);
-      PMRASSERT(WinSendMsg(ctrl, LM_SELECTITEM, MPFROMSHORT(selected+1), MPFROMSHORT(TRUE)));
+      cb.InsertItem(def ? def.cdata() : "default", 0);
+      cb.Select(selected+1);
       return 0;
     }
   }

@@ -310,26 +310,36 @@ DLGTEMPLATE CFG_PLAYBACK
 {
   DIALOG         "",                                    CFG_PLAYBACK,       0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
-  { GROUPBOX     " Replay Gain ",                       GB_GENERIC,         4,  4, 248, 98, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "Enable ~Replay Gain processing",      CB_RG_ENABLE,      12, 82, 236, 10, WS_GROUP
-    LTEXT        "~Used values in order",               ST_GENERIC         12, 70,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX                                             LB_RG_LIST         12, 36,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
-    LTEXT        "Available ~values",                   ST_GENERIC        146, 70,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX                                             LB_RG_AVAILABLE   146, 36,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
-    CTEXT        "~Action",                             ST_GENERIC,       114, 70,  26, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    PUSHBUTTON   "\036",                                PB_RG_UP,         114, 54,  12, 10, WS_TABSTOP
-    PUSHBUTTON   "\037",                                PB_RG_DOWN,       114, 40,  12, 10
-    PUSHBUTTON   "\021",                                PB_RG_ADD,        130, 54,  12, 10
-    PUSHBUTTON   "\020",                                PB_RG_REMOVE,     130, 40,  12, 10
-    SPINBUTTON                                          SB_RG_PREAMP,      12, 22,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "dB",                                  ST_GENERIC,        54, 22,  16, 10, DT_VCENTER
+  { GROUPBOX     " Replay Gain ",                       GB_GENERIC,         4, 40, 248, 96, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "Enable ~Replay Gain processing",      CB_RG_ENABLE,      12,116, 236, 10, WS_GROUP
+    LTEXT        "~Used values in order",               ST_GENERIC         12,106,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LISTBOX                                             LB_RG_LIST         12, 72,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+    LTEXT        "Available ~values",                   ST_GENERIC        146,106,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LISTBOX                                             LB_RG_AVAILABLE   146, 72,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+    CTEXT        "~Action",                             ST_GENERIC,       114,106,  26, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    PUSHBUTTON   "\036",                                PB_RG_UP,         114, 90,  12, 10, WS_TABSTOP
+    PUSHBUTTON   "\037",                                PB_RG_DOWN,       114, 76,  12, 10
+    PUSHBUTTON   "\021",                                PB_RG_ADD,        130, 90,  12, 10
+    PUSHBUTTON   "\020",                                PB_RG_REMOVE,     130, 76,  12, 10
+    SPINBUTTON                                          SB_RG_PREAMP,      12, 58,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
+    LTEXT        "dB",                                  ST_GENERIC,        54, 58,  16, 10, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
-    LTEXT "~Preamp for tracks with Replay Gain information",ST_GENERIC,    70, 22, 176, 10, DT_VCENTER|DT_MNEMONIC
+    LTEXT "~Preamp for tracks with Replay Gain information",ST_GENERIC,    70, 58, 176, 10, DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_RG_PREAMP_OTHER,12, 10,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "dB",                                  ST_GENERIC,        54, 10,  16, 10, DT_VCENTER
+    SPINBUTTON                                          SB_RG_PREAMP_OTHER,12, 46,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
+    LTEXT        "dB",                                  ST_GENERIC,        54, 46,  16, 10, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
-    LTEXT        "Preamp for ~other tracks",            ST_GENERIC,        70, 10, 176, 10, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "Preamp for ~other tracks",            ST_GENERIC,        70, 46, 176, 10, DT_BOTTOM|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+
+    GROUPBOX     " Decoder priority "                   GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    LTEXT        "~Normal priority",                    ST_GENERIC,        12, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    COMBOBOX     "",                                    CB_PRI_NORM,       64,-18,  62, 48, CBS_DROPDOWNLIST
+    LTEXT        "~High priority",                      ST_GENERIC,       130, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    COMBOBOX     "",                                    CB_PRI_HIGH,      182,-18,  62, 48, CBS_DROPDOWNLIST
+    LTEXT        "~Low priority after",                 ST_GENERIC,        12, 10,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    SPINBUTTON                                          SB_PRI_LIMIT,      64, 10,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "s",                                   ST_GENERIC,        98, 10,  12, 10, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   }
 }

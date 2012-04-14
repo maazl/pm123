@@ -46,6 +46,7 @@
 
 #include <cpp/container/inst_index.h>
 #include <cpp/pmutils.h>
+#include <cpp/dlgcontrols.h>
 #include <cpp/cppvdelegate.h>
 
 #include <stdio.h>
@@ -162,6 +163,7 @@ class InfoDialog
                     PageBase(InfoDialog& parent, ULONG rid, const xstring& title);
     InfoDialog&     GetParent() { return (InfoDialog&)Parent; }
     xstring         QueryItemTextOrNULL(ULONG id);
+    void            CheckButton(ULONG id, unsigned state);
     HWND            SetCtrlText(ULONG id, Fields fld, const char* text);
     HWND            SetCtrlCB(ULONG id, Fields fld, bool flag);
     void            SetCtrlRB(ULONG id1, Fields fld, int btn);
@@ -426,8 +428,12 @@ InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid, const xstring& tit
 }
 
 xstring InfoDialog::PageBase::QueryItemTextOrNULL(ULONG id)
-{ const xstring& ret = QueryItemText(id);
+{ const xstring& ret = WinQueryDlgItemXText(GetHwnd(), id);
   return ret.length() ? ret : xstring();
+}
+
+inline void InfoDialog::PageBase::CheckButton(ULONG id, unsigned state)
+{ WinCheckButton(GetHwnd(), id, state);
 }
 
 HWND InfoDialog::PageBase::SetCtrlText(ULONG id, Fields fld, const char* text)
@@ -786,7 +792,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // setup first destination
-    SetItemText(EF_WMURL, Dest[0]->GetPlayable().URL.cdata());
+    EntryField(+GetCtrl(EF_WMURL)).SetText(Dest[0]->GetPlayable().URL);
     PostMsg(UM_START, 0, 0);
     break;
 
@@ -808,17 +814,17 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // else
       { // Update progress bar
         SWP swp;
-        PMRASSERT(WinQueryWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARBG), &swp));
+        PMRASSERT(WinQueryWindowPos(GetCtrl(SB_WMBARBG), &swp));
         swp.cx = swp.cx * (i+1) / Dest.size();
-        PMRASSERT(WinSetWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARFG), NULLHANDLE, 0,0, swp.cx,swp.cy, SWP_SIZE));
+        PMRASSERT(WinSetWindowPos(GetCtrl(SB_WMBARFG), NULLHANDLE, 0,0, swp.cx,swp.cy, SWP_SIZE));
       }
 
       StatusReport* rep = (StatusReport*)PVOIDFROMMP(mp2);
       if (rep->RC == PLUGIN_OK)
       { // Everything fine, next item
-        SetItemText(EF_WMSTATUS, "");
+        EntryField(+GetCtrl(EF_WMSTATUS)).SetText("");
         ++i; // next item (if any)
-        SetItemText(EF_WMURL, (size_t)i < Dest.size() ? Dest[i]->GetPlayable().URL.cdata() : "");
+        EntryField(+GetCtrl(EF_WMURL)).SetText((size_t)i < Dest.size() ? Dest[i]->GetPlayable().URL.cdata() : "");
         return 0;
       }
       // Error, worker halted
@@ -831,9 +837,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Enable skip buttons
-      EnableControl(PB_RETRY,     true);
-      EnableControl(PB_WMSKIP,    true);
-      EnableControl(PB_WMSKIPALL, true);
+      EnableCtrl(PB_RETRY,     true);
+      EnableCtrl(PB_WMSKIP,    true);
+      EnableCtrl(PB_WMSKIPALL, true);
       return 0;
     }
 
@@ -842,8 +848,8 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case DID_CANCEL:
       Cancel = true;
       ResumeSignal.Set();
-      SetItemText(EF_WMSTATUS, "- cancelling -");
-      EnableControl(DID_CANCEL,  false);
+      EntryField(+GetCtrl(EF_WMSTATUS)).SetText("- cancelling -");
+      EnableCtrl(DID_CANCEL, false);
       break;
 
      case PB_WMSKIPALL:
@@ -853,9 +859,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       ++CurrentItem;
      case PB_RETRY:
       // Disable skip buttons
-      EnableControl(PB_RETRY,     false);
-      EnableControl(PB_WMSKIP,    false);
-      EnableControl(PB_WMSKIPALL, false);
+      EnableCtrl(PB_RETRY,     false);
+      EnableCtrl(PB_WMSKIP,    false);
+      EnableCtrl(PB_WMSKIPALL, false);
       ResumeSignal.Set();
     }
     return 0;
@@ -966,7 +972,7 @@ void InfoDialog::ShowPage(PageNo page)
   PageBase* pp = (PageBase*)Pages[page];
   ASSERT(pp);
   RequestPage(pp);
-  SendItemMsg(NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(pp->GetPageID()), 0);
+  SendCtrlMsg(NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(pp->GetPageID()), 0);
   SetVisible(true);
 }
 
@@ -1165,8 +1171,8 @@ void PlayableInstanceInfoDialog::PageItemInfo::SetModified()
 { if (Modified)
     return;
   Modified = true;
-  PMRASSERT(WinEnableControl(GetHwnd(), PB_APPLY, TRUE));
-  PMRASSERT(WinEnableControl(GetHwnd(), PB_UNDO, TRUE));
+  EnableCtrl(PB_APPLY, true);
+  EnableCtrl(PB_UNDO, true);
 }
 
 const char* PlayableInstanceInfoDialog::PageItemInfo::FormatGap(char* buffer, float gap)
@@ -1187,7 +1193,7 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
   bool valid = true;
   // Extract Parameters and validate
   url123 url;
-  xstring tmp = QueryItemText(EF_INFOURL);
+  xstring tmp = WinQueryDlgItemXText(GetHwnd(), EF_INFOURL);
   valid &= SetCtrlEFValid(EF_INFOURL, tmp.length() != 0 && (url = url123::normalizeURL(tmp)) != NULL);
 
   ItemInfo item;
@@ -1229,18 +1235,18 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     }
     // TODO refresh on job completion?
   }
-  tmp = QueryItemText(EF_INFOPREGAP);
+  tmp = WinQueryDlgItemXText(GetHwnd(), EF_INFOPREGAP);
   valid &= SetCtrlEFValid(EF_INFOPREGAP, tmp.length() == 0
     || (sscanf(tmp, "%f%n", &item.pregap, &len) == 1 && len == tmp.length() && item.pregap >= 0) );
-  tmp = QueryItemText(EF_INFOPOSTGAP);
+  tmp = WinQueryDlgItemXText(GetHwnd(), EF_INFOPOSTGAP);
   valid &= SetCtrlEFValid(EF_INFOPOSTGAP, tmp.length() == 0
     || (sscanf(tmp, "%f%n", &item.postgap, &len) == 1 && len == tmp.length() && item.postgap >= 0) );
-  tmp = QueryItemText(EF_INFOGAIN);
+  tmp = WinQueryDlgItemXText(GetHwnd(), EF_INFOGAIN);
   valid &= SetCtrlEFValid(EF_INFOGAIN, tmp.length() == 0
     || (sscanf(tmp, "%f%n", &item.gain, &len) == 1 && len == tmp.length() && fabs(item.gain) < 100) );
 
-  attr.ploptions = PLO_ALTERNATION * QueryButtonCheckstate(CB_INFOALTERNATION)
-      | PLO_SHUFFLE * SendItemMsg(RB_INFOPLSHINHERIT, BM_QUERYCHECKINDEX, 0, 0) ;
+  attr.ploptions = PLO_ALTERNATION * CheckBox(GetCtrl(CB_INFOALTERNATION)).QueryCheckState()
+      | PLO_SHUFFLE * RadioButton(GetCtrl(RB_INFOPLSHINHERIT)).QueryCheckIndex();
 
   if (!valid)
     return;
@@ -1273,7 +1279,7 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
       const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
-      SetItemText(EF_INFOURL, data.URL);
+      EntryField(+GetCtrl(EF_INFOURL)).SetText(data.URL);
       { const ITEM_INFO& item = data.Info.Item;
         SetCtrlText(EF_INFOALIAS,   F_ITEM_INFO, item.alias);
         SetCtrlText(EF_INFOSTART,   F_ITEM_INFO, item.start);
@@ -1287,8 +1293,8 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
         SetCtrlCB(CB_INFOALTERNATION, F_ATTR_INFO, (attr.ploptions & PLO_ALTERNATION) != 0);
         SetCtrlRB(RB_INFOPLSHINHERIT, F_ATTR_INFO, (attr.ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE)) / PLO_SHUFFLE);
       }
-      EnableControl(PB_APPLY, FALSE);
-      EnableControl(PB_UNDO, FALSE);
+      EnableCtrl(PB_APPLY, false);
+      EnableCtrl(PB_UNDO, false);
       Modified = false;
       InUpdate = false;
       return 0;

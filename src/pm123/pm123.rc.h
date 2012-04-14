@@ -366,6 +366,9 @@
 #define PB_RG_REMOVE       1466
 #define SB_RG_PREAMP       1467
 #define SB_RG_PREAMP_OTHER 1468
+#define CB_PRI_NORM        1470
+#define CB_PRI_HIGH        1471
+#define SB_PRI_LIMIT       1472
 
 #define CFG_DEC_CONFIG     1500
 #define CFG_FIL_CONFIG     1501

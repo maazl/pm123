@@ -586,13 +586,16 @@ detected that it will run out of data soon.<br>
     <code>OUTEVENT_HIGH_WATER</code> - the output plug-in
 detected a clear condition.</li>
 </ul>
-<p>The events may be used to speed up the data source e.g. by
-manipulating the decoder thread's priority. If you get <code>OUTEVENT_HIGH_WATER</code>
-you should return to normal behavior.</p>
+<p>The events may be used to speed up the data source. If you get <code>OUTEVENT_HIGH_WATER</code>
+you should return to normal behavior. There is one task that the core
+engine does for you: <em>PM123 automatically changes the priority of
+the decoder thread</em>. So if there is nothing more the decoder can do
+(e.g. QoS settings) it could safely ignore the events.
+</p>
 <p>The event handler may be called from any thread in any
 context. It might be called when the decoder is in stopped state if the
-end of the stream has been reached recently. This should be ignored.</p>
-<p>You will usually get a <code>OUTEVENT_LOW_WATER</code>
+end of the stream has been reached recently. This should be ignored.
+You will usually get a <code>OUTEVENT_LOW_WATER</code>
 call immediately after the decoding started or after a seek command
 because the buffers are not yet filled.</p>
 <var></var>

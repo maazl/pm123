@@ -68,7 +68,7 @@
  *   border with upper window border and resizes the control with 1/2 of the parent
  *   window change.
  */
-#define MAKE_PPU_RESIZE_INFO(xn,xd,yn,yd,wn,wd,hn,hd) PPU_RESIZEINFO, ((xn)*16777216+(xd)*65536+(yn)*256+(yd)), ((wn)*16777216+(wd)*65536+(hn)*256+(hd))
+#define MAKE_PPU_RESIZE_INFO(xn,xd,yn,yd,wn,wd,hn,hd) PPU_RESIZEINFO, (xn)*16777216+(xd)*65536+(yn)*256+(yd), (wn)*16777216+(wd)*65536+(hn)*256+(hd)
 
 /** @brief Presentation parameter type for resizing dialog window controls.
  * The value must be of type PPResizeConstr.
@@ -89,7 +89,11 @@
  * If the maximum values are zero there is no max constraint.
  * @example @code PRESPARAMS MAKE_PPU_SIZE_CONSTR(10,4,0,0) @endcode
  */
-#define MAKE_PPU_SIZE_CONSTR(xmin,ymin,xmax,ymax) PPU_RESIZECONSTR, ((xmin)*65536+(ymin)), ((xmax)*65536+(ymax))
+#define MAKE_PPU_SIZE_CONSTR(xmin,ymin,xmax,ymax) PPU_RESIZECONSTR, (xmin)*65536+(ymin), (xmax)*65536+(ymax)
+
+#define CD_EFDATA(length) 8, length, 0, 0
+
+#define CD_SPBCDATA(length, low, high) 24,0, length,0, (low)&0xffff,(low)>>16, (high)&0xffff,(high)>>16, 0,0, 0,0
 
 #ifndef RC_INVOKED
 

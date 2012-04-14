@@ -409,7 +409,8 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
 { // Check for buffer level
   const pa_timing_info* ti = Stream.GetTimingInfo();
   if (ti)
-  { unsigned ms = pa_bytes_to_usec(ti->write_index - ti->read_index, &SS) / 1000;
+  { long ms = pa_bytes_to_usec(ti->write_index - ti->read_index, &SS) / 1000;
+    DEBUGLOG(("PlaybackWorker::GetPosition Timing info: %u, %u, %u\n", ms, MinLatency, MaxLatency));
     if (LowWater)
     { if (ms > MinLatency + MaxLatency)
       { LowWater = false;

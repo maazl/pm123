@@ -182,51 +182,6 @@ void DialogBase::PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2)
   PMRASSERT(WinPostMsg(HwndFrame, msg, mp1, mp2));
 }
 
-void DialogBase::EnableControl(ULONG item, bool check)
-{ WinEnableControl(HwndFrame, item, check);
-}
-
-void DialogBase::SetItemText(ULONG item, const char* text)
-{ WinSetDlgItemText(HwndFrame, item, text);
-}
-
-bool DialogBase::QueryButtonCheckstate(ULONG item)
-{ return WinQueryButtonCheckstate(HwndFrame, item);
-}
-void DialogBase::CheckButton(ULONG item, bool check)
-{ WinCheckButton(HwndFrame, item, check);
-}
-ULONG DialogBase::QuerySelectedRadiobutton(ULONG id)
-{ HWND cur = WinWindowFromID(HwndFrame, id);
-  PMASSERT(cur);
-  HWND first = cur;
-  HWND prev = cur; // Work around for PM bug
-  cur = WinEnumDlgItem(HwndFrame, cur, EDI_FIRSTGROUPITEM);
-  do
-  { if (WinSendMsg(cur, BM_QUERYCHECK, 0, 0))
-      return WinQueryWindowUShort(cur, QWS_ID);
-    prev = cur;
-    cur = WinEnumDlgItem(HwndFrame, cur, EDI_NEXTGROUPITEM);
-  } while (cur != first && cur != prev);
-  return 0;
-}
-
-void DialogBase::SetSpinbuttonLimits(ULONG id, LONG low, LONG high, USHORT len)
-{ HWND sb = WinWindowFromID(HwndFrame, id);
-  if (sb != NULLHANDLE)
-  { PMRASSERT(WinSendMsg(sb, SPBM_SETLIMITS, MPFROMLONG(high), MPFROMLONG(low)));
-    PMRASSERT(WinSendMsg(sb, SPBM_SETTEXTLIMIT, MPFROMSHORT(len), 0));
-  }
-}
-LONG DialogBase::QuerySpinbuttonValue(ULONG id)
-{ LONG ret;
-  PMRASSERT(SendItemMsg(id, SPBM_QUERYVALUE, MPFROMP(&ret), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
-  return ret;
-}
-void DialogBase::SetSpinbuttomValue(ULONG id, LONG value)
-{ SendItemMsg(id, SPBM_SETCURRENTVALUE, MPFROMLONG(value), 0);
-}
-
 void DialogBase::SetHelpMgr(HWND hhelp)
 { DEBUGLOG(("DialogBase(%p)::SetHelpMgr(%p)\n", this, hhelp));
   PMRASSERT(WinAssociateHelpInstance(hhelp, GetHwnd()));
