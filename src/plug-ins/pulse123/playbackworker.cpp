@@ -410,7 +410,7 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
   const pa_timing_info* ti = Stream.GetTimingInfo();
   if (ti)
   { long ms = pa_bytes_to_usec(ti->write_index - ti->read_index, &SS) / 1000;
-    DEBUGLOG(("PlaybackWorker::GetPosition Timing info: %u, %u, %u\n", ms, MinLatency, MaxLatency));
+    DEBUGLOG2(("PlaybackWorker::GetPosition Timing info: %u, %u, %u\n", ms, MinLatency, MaxLatency));
     if (LowWater)
     { if (ms > MinLatency + MaxLatency)
       { LowWater = false;
@@ -428,7 +428,7 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
   { if (!TrashFlag && Stream.GetState() == PA_STREAM_READY)
     { double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
       tmp = Buffer.GetPosByWriteIndex((uint64_t)tmp + WriteIndexOffset);
-      DEBUGLOG(("PlaybackWorker::GetPosition: %f\n", tmp));
+      DEBUGLOG2(("PlaybackWorker::GetPosition: %f\n", tmp));
       return tmp;
     }
   } catch (const PAException& ex)
