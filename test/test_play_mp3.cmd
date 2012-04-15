@@ -13,7 +13,7 @@ CALL Assert 'lasttime', '> 0'
 CALL SysSleep(1)
 time = CallPipe('time')
 CALL Assert 'DATATYPE(time,"N")', ''
-CALL Assert 'time', '>= lasttime+1'
+CALL Assert 'time', '>= lasttime+1', lasttime
 
 CALL CallPipe 'pause'
 CALL Assert 'RESULT', '= 0'
@@ -33,7 +33,7 @@ CALL Assert 'RESULT', '= 0'
 CALL SysSleep(1)
 time = CallPipe('time')
 CALL Assert 'DATATYPE(time,"N")', ''
-CALL Assert 'time', '>= lasttime+1'
+CALL Assert 'time', '>= lasttime+1', lasttime
 
 EXIT
 
@@ -47,7 +47,7 @@ CallPipe: PROCEDURE EXPOSE lastcmd
 
 Assert:
   INTERPRET 'result = 'ARG(1)
-  INTERPRET 'IF \(result 'ARG(2)') THEN EXIT ''Expected "''ARG(1) ARG(2)''", found "''result''", last command: "''lastcmd''"'''
+  INTERPRET 'IF \(result 'ARG(2)') THEN EXIT ''Expected "''ARG(1) ARG(2)''", found "''result''" "''ARG(3)''", last command: "''lastcmd''"'''
   RETURN
 
 Fail:

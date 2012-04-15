@@ -9,5 +9,6 @@ IF \ABBREV(rc, 'READY') THEN DO
   IF \ABBREV(rc, 'READY') THEN
     EXIT 'Cannot open pipe 'pipe': 'rc
   END
+  CALL 'pipecmd' 'reset'
 EXIT
 
