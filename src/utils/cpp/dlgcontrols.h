@@ -56,7 +56,7 @@ struct CheckBox : ControlBase
 
 struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
-  SHORT       QueryCheckIndex() const              { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
+  SHORT       QueryCheckIndex() const               { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      QueryCheckID() const;
 };
 

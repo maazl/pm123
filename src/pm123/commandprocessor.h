@@ -128,6 +128,7 @@ class CommandProcessor : public ACommandProcessor
   //void PostMessage(MESSAGE_TYPE type, const char* fmt, ...);
   static void DLLENTRY MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg);
   vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message;
+  vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message2; // for thread 1
   //void ThrowSyntaxException(const char* msg, ...);
   //static void ThrowArgumentException(const char* arg)
   //{ throw SyntaxException(xstring::sprintf("Invalid argument \"%s\".", arg)); }

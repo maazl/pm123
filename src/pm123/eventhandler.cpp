@@ -80,7 +80,6 @@ EventHandler::Handler EventHandler::SetLocalHandler(Handler eh)
 
   Mutex::Lock lock(LocalMtx);
   int_ptr<DispatchTable> dp(LocalHandlers);
-  Handler oh = NULL;
   if (!eh)
   { // remove a local handler
     if (!dp || dp->size() < tid)
@@ -94,7 +93,7 @@ EventHandler::Handler EventHandler::SetLocalHandler(Handler eh)
     memset(ndp->get() + dp->size(), 0, (tid - dp->size()) * sizeof(Handler));
     dp = ndp;
   }
-  swap(oh, (*dp)[tid-1]);
+  swap(eh, (*dp)[tid-1]);
   LocalHandlers = dp;
-  return oh;
+  return eh;
 }

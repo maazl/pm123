@@ -647,7 +647,8 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
  ok:
   if (handle)
     xio_fclose(handle);
-  tech.decoder = dp->ModRef->Key;
+  if (dp)
+    tech.decoder = dp->ModRef->Key;
   if (rc != 0)
   { phys.attributes = PATTR_INVALID;
     tech.attributes = TATTR_INVALID;

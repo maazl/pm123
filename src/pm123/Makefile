@@ -114,7 +114,7 @@ playlistmanager.h:	..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\c
 inspector.h:	..\utils\cpp\windowbase.h ..\utils\cpp\smartptr.h ..\utils\cpp\queue.h ..\utils\cpp\container\vector.h
 ..\utils\cpp/showaccel.h:	..\utils\cpp/container/sorted_vector.h
 infobundle.cpp:	123_util.h infobundle.h playableset.h playable.h ..\utils\debuglog.h
-infodialog.cpp:	infodialog.h dependencyinfo.h pm123.h gui.h pm123.rc.h configuration.h eventhandler.h ..\include\decoder_plug.h ..\include\plugin.h ..\utils\utilfct.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\pmutils.h ..\utils\cpp\cppvdelegate.h
+infodialog.cpp:	infodialog.h dependencyinfo.h pm123.h gui.h pm123.rc.h configuration.h eventhandler.h ..\include\decoder_plug.h ..\include\plugin.h ..\utils\utilfct.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\pmutils.h ..\utils\cpp\dlgcontrols.h ..\utils\cpp\cppvdelegate.h
 inspector.cpp:	inspector.h pm123.rc.h pm123.h configuration.h controller.h location.h playable.h dependencyinfo.h ..\utils\utilfct.h ..\utils\snprintf.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 ..\utils\cpp/Mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
 loadhelper.cpp:	loadhelper.h configuration.h gui.h

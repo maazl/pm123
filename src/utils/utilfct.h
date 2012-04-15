@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_UTILS_H
-#define PM123_UTILS_H
+#ifndef UTILFCT_H
+#define UTILFCT_H
 
 /** @brief Presentation parameter type for resizing dialog window controls.
  * The value must be of type PPResizeInfo.

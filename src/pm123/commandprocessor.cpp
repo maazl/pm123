@@ -203,6 +203,7 @@ CommandProcessor::CommandProcessor()
 , Command(NULL)
 , SyncJob(PRI_Sync)
 , vd_message(&CommandProcessor::MessageHandler, this)
+, vd_message2(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
 {}
 
@@ -1800,14 +1801,17 @@ MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case CommandProcessor::UM_LOAD_PLUGIN:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      EventHandler::LocalRedirect red(cmd->vd_message2);
       return MRFROMLONG(cmd->LoadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
    case CommandProcessor::UM_UNLOAD_PLUGIN:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      EventHandler::LocalRedirect red(cmd->vd_message2);
       return MRFROMLONG(cmd->UnloadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
    case CommandProcessor::UM_LOAD_PLUGIN_LIST:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
+      EventHandler::LocalRedirect red(cmd->vd_message2);
       return MRFROMLONG(cmd->ReplacePluginList(*(PluginList*)PVOIDFROMMP(mp2)));
     }
   }
