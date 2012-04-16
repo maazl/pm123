@@ -30,6 +30,7 @@
 #define INCL_BASE
 #include "controller.h"
 #include "dependencyinfo.h"
+#include "songiterator.h"
 #include "configuration.h"
 #include "decoder.h"
 #include "gui.h"
@@ -94,8 +95,7 @@ class CtrlImp
   // Delegates for the tracked events of the decoder, the output and the current song.
   static delegate<void, const Glue::DecEventArgs>    DecEventDelegate;
   static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
-  //static delegate<void, const PlayableChangeArgs>    CurrentSongDelegate;
-  static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
+  static delegate<void, const CollectionChangeArgs>  CurrentRootDelegate;
 
   // Occasionally used constant.
   static const vector_int<PlayableInstance> EmptyStack;
@@ -171,7 +171,7 @@ class CtrlImp
   /// Event handler for tracking modifications of the currently playing song.
   static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
   /// Event handler for tracking modifications of the currently loaded object.
-  static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
+  static void  CurrentRootEventHandler(void*, const CollectionChangeArgs& args);
   // Event handler for asynchronous changes to the SongIterator (not any prefetched one).
   //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
 
@@ -235,7 +235,7 @@ event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
 delegate<void, const Glue::DecEventArgs> CtrlImp::DecEventDelegate(&CtrlImp::DecEventHandler);
 delegate<void, const OUTEVENTTYPE>       CtrlImp::OutEventDelegate(&CtrlImp::OutEventHandler);
-delegate<void, const PlayableChangeArgs> CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
+delegate<void, const CollectionChangeArgs> CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
 
 const vector_int<PlayableInstance> CtrlImp::EmptyStack;
 JobSet CtrlImp::SyncJob(PRI_Sync);
@@ -609,7 +609,7 @@ void CtrlImp::OutEventHandler(void*, const OUTEVENTTYPE& event)
   }
 }*/
 
-void CtrlImp::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
+void CtrlImp::CurrentRootEventHandler(void*, const CollectionChangeArgs& args)
 { DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x, %x})\n",
     &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded));
   { const int_ptr<APlayable>& ps = GetRoot();

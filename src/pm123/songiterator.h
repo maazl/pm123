@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,13 +34,52 @@
 #include "playable.h"
 
 
+class ShuffleWorker : public Iref_count
+{private:
+  /// Hack to inject the seed into the comparer without making CacheComparer
+  /// a member function.
+  struct KeyType
+  { const PlayableInstance&   Item;
+    long                      Value;
+    long                      Seed;
+    KeyType(PlayableInstance& item, long value, long seed) : Item(item), Value(value), Seed(seed) {}
+  };
+ public:
+  const int_ptr<Playable>     Playlist;
+  const long                  Seed;
+ private:
+  static long                 CalcHash(const PlayableInstance& item, long seed);
+  KeyType                     MakeKey(PlayableInstance& item) { return KeyType(item, CalcHash(item, Seed), Seed); }
+  static int                  ItemComparer(const KeyType& key, const PlayableInstance& item);
+  static int                  ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item);
+  void                        PlaylistChangeNotification(const CollectionChangeArgs& args);
+  void                        UpdateItem(PlayableInstance& item);
+  void                        Update();
+
+ private:
+  typedef sorted_vector_int<PlayableInstance,KeyType,&ShuffleWorker::ItemComparer> ItemsType;
+  typedef sorted_vector_int<PlayableInstance,PlayableInstance,&ShuffleWorker::ChangeSetComparer> ChangeSetType;
+ private:
+  ItemsType                   Items;
+  ChangeSetType               ChangeSet;
+  class_delegate<ShuffleWorker,const CollectionChangeArgs> PlaylistDeleg;
+
+ public:
+  ShuffleWorker(Playable& playlist, long seed);
+  int                         GetIndex(PlayableInstance& item);
+  int_ptr<PlayableInstance>   Next(PlayableInstance* pi);
+  int_ptr<PlayableInstance>   Prev(PlayableInstance* pi);
+};
+
 /** A SongIterator is a Location intended to be used to play a Playable object.
  * In contrast to Location it owns it's root.
  * @remarks The class is non-polymorphic. You must not change the root by calling
  * Location::SetRoot, Location::Swap or Location::operator= directly.
  */
 class SongIterator : public Location
-{public:
+{private:
+
+ public:
   struct OffsetInfo
   { /// Song index within the current root counting from 0. The value is -1
     /// if the information is not yet available because of an asynchronous requests.
@@ -55,6 +94,22 @@ class SongIterator : public Location
     /// Add another offset. Note that the singular values -1 always win.
     OffsetInfo& operator+=(const OffsetInfo& r);
   };
+
+ public:
+  /// @brief Iteration options
+  /// @details The options have slightly different meaning than in ATTR_INFO.
+  /// Setting \c PLO_SHUFFLE enables shuffle mode at the top level.
+  /// Setting \c PLO_NO_SHUFFLE entirely disables shuffle mode also overriding
+  /// \c PLO_SHUFFLE in nested playlists. This is the default.
+  /// Setting neither of them enables shuffle processing but does not turn it on
+  /// at the top level.
+  PL_OPTIONS                  Options;
+ private:
+  static int                  ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem);
+ private:
+  long                        ShuffleSeed;
+  sorted_vector_int<ShuffleWorker, Playable, &SongIterator::ShuffleWorkerComparer> ShuffleWorkerCache;
+
   // Implementation note:
   // Strictly speaking SongIterator should have a class member of type
   // int_ptr<Playable> to keep the reference to the root object alive.
@@ -63,12 +118,14 @@ class SongIterator : public Location
  public:
   explicit                    SongIterator(Playable* root = NULL)
                               : Location(root)
+                              , Options(PLO_NO_SHUFFLE)
                               { // Increment reference counter
                                 int_ptr<Playable> ptr(GetRoot());
                                 ptr.toCptr();
                               }
                               SongIterator(const SongIterator& r)
                               : Location(r)
+                              , Options(PLO_NO_SHUFFLE)
                               { // Increment reference counter
                                 int_ptr<Playable> ptr(GetRoot());
                                 ptr.toCptr();

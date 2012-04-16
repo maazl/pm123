@@ -1,5 +1,5 @@
 /*  
- * Copyright 2007-2011 Marcel Müller
+ * Copyright 2007-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,6 +47,25 @@
 #include <time.h>
 
 
+enum CollectionChangeType
+{ PCT_None,                // No items are added/removed from the collection
+  PCT_Insert,              // Item just inserted
+  PCT_Move,                // Item has just moved
+  PCT_Delete,              // Item just deleted
+  PCT_All                  // The collection has entirely changed
+};
+
+struct CollectionChangeArgs : PlayableChangeArgs
+{ CollectionChangeType        Type;
+  CollectionChangeArgs(APlayable& inst, APlayable* orig, InfoFlags loaded, InfoFlags changed, InfoFlags invalidated)
+                                             : PlayableChangeArgs(inst, orig, loaded, changed, invalidated), Type(PCT_None) {}
+  CollectionChangeArgs(APlayable& inst, InfoFlags loaded, InfoFlags changed)
+                                             : PlayableChangeArgs(inst, loaded, changed), Type(PCT_None) {}
+  CollectionChangeArgs(APlayable& inst)      : PlayableChangeArgs(inst), Type(PCT_None) {}
+  CollectionChangeArgs(APlayable& inst, CollectionChangeType type, APlayable* item, InfoFlags loaded, InfoFlags changed)
+  : PlayableChangeArgs(inst, item, loaded, changed, IF_None), Type(type) {}
+};
+
 
 /** @brief Class to support any playable object.
  *
@@ -83,7 +102,7 @@ class Playable
     public CollectionInfo,
     public INFO_BUNDLE_CV
   {private:
-    static const ItemInfo   Item;           // always empty!
+    static const ItemInfo   Item;            // always empty!
    public:
     MyInfo();
     ~MyInfo()                                { if (item != &Item) delete item; }
@@ -136,7 +155,7 @@ class Playable
 
  private: // Services to update the Info* variables.
   /// Raise the \c InfoChange event and include dependent information in \c Changed and \c Invalidated.
-  void                      RaiseInfoChange(PlayableChangeArgs& args);
+  void                      RaiseInfoChange(CollectionChangeArgs& args);
   /// @brief Update the structure components.
   /// @return return the information that has changed.
   /// @remarks Once a playable object is constructed this function must not be called
@@ -219,6 +238,9 @@ class Playable
   virtual xstring           GetDisplayName() const;
 
   virtual const INFO_BUNDLE_CV& GetInfo() const;
+
+  /// Access the InfoChange event, but only the public part.
+  event_pub<const CollectionChangeArgs>& GetInfoChange() { return (event_pub<const CollectionChangeArgs>&)APlayable::GetInfoChange(); }
 
   /// Return true if the current object is marked as in use.
   virtual bool              IsInUse() const;

@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1022" level="3" sublinks="*">
+<head>
+  <title>Shullfle mode</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
+<h2>PM123 shuffle mode</h2>
+<p>From PM123 1.41 a new shuffle algorithm has been implemented. It
+provides the following properties:</p>
+<ul>
+  <li><strong>Shuffle is deterministic.</strong> I.e. using
+previous/next song
+results in repeatable behavior. This includes nested playlists.</li>
+  <li>The deterministic shuffle sequence changes only if the top level
+playlist has been completed or if a new (or the same) object is loaded
+into the player.</li>
+  <li><em>Items in different, nested playlists are never exchanged.</em>
+I.e. all items of one nested playlists are played before another
+(random) item of the parent playlist is taken.</li>
+  <li>It <em>keeps the order of unmodified items</em> when the
+playlist is altered. Even reloading a playlist from disk does not
+change the shuffle sequence for items that still exist somewhere in the
+list.</li>
+  <li>It inserts new playlist items at a random location. This implies
+that new items might not be played if the playback is already active.</li>
+  <li>Moving playlist item inside a list does not change the shuffle
+sequence.</li>
+  <li>Changing properties of playlist items does not change the shuffle
+sequence.</li>
+  <li>The shuffle mode can be enabled or disabled in <a
+ href="infodialog.html#iteminfo">playlist references</a>. This
+overrides the user setting for a nested playlist.</li>
+</ul>
+<h3>How does it work?</h3>
+<ul>
+  <li>PM123 gives each playlist item a unique id.</li>
+  <li>A random seed is created when shuffle is enabled.</li>
+  <li>A hash value is calculated for each playlist item from the random
+seed an the unique id.</li>
+  <li>The items in each playlist are ordered by this hash.</li>
+</ul>
+That's all.<br>
+</body>
+</html>

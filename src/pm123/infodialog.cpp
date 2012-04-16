@@ -34,6 +34,7 @@
 #define INCL_PM
 #include "infodialog.h"
 #include "dependencyinfo.h"
+#include "location.h"
 #include "pm123.h"
 #include "gui.h"
 #include "pm123.rc.h"

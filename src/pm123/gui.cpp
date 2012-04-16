@@ -31,6 +31,7 @@
 
 
 #include "gui.h"
+#include "songiterator.h"
 #include "dialog.h"
 #include "filedlg.h"
 #include "properties.h"

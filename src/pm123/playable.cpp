@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -122,7 +122,7 @@ Playable::Playable(const url123& url)
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Notify about dyeing
-  PlayableChangeArgs args(*this);
+  CollectionChangeArgs args(*this);
   RaiseInfoChange(args);
   // No more events.
   GetInfoChange().reset();
@@ -149,7 +149,7 @@ void Playable::SetInUse(bool used)
   bool changed = InUse != used;
   InUse = used;
   // TODO: keep origin in case of cascaded execution
-  PlayableChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
+  CollectionChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
   RaiseInfoChange(args);
 }
 
@@ -158,7 +158,7 @@ void Playable::SetModified(bool modified, APlayable* origin)
   Mutex::Lock lock(Mtx);
   bool changed = Modified != modified;
   Modified = modified;
-  PlayableChangeArgs args(*this, origin, IF_Usage, changed * IF_Usage, IF_None);
+  CollectionChangeArgs args(*this, origin, IF_Usage, changed * IF_Usage, IF_None);
   RaiseInfoChange(args);
 }
 
@@ -181,7 +181,7 @@ InfoFlags Playable::Invalidate(InfoFlags what)
   // TODO: invalidate CIC also.
   if (what)
   { Mutex::Lock lock(Mtx);
-    PlayableChangeArgs args(*this, this, IF_None, IF_None, what);
+    CollectionChangeArgs args(*this, this, IF_None, IF_None, what);
     RaiseInfoChange(args);
   }
   return what;
@@ -211,7 +211,7 @@ void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags cached, InfoFlag
     changed &= Info.InfoStat.Cache(cached) | reliable;
     reliable = Info.InfoStat.EndUpdate(reliable);
     if (reliable|changed)
-    { PlayableChangeArgs args(*this, reliable, changed);
+    { CollectionChangeArgs args(*this, reliable, changed);
       RaiseInfoChange(args);
     }
   }
@@ -280,7 +280,7 @@ static inline void SetDependentInfo(InfoFlags& what)
     what |= IF_Display;
 }
 
-void Playable::RaiseInfoChange(PlayableChangeArgs& args)
+void Playable::RaiseInfoChange(CollectionChangeArgs& args)
 { SetDependentInfo(args.Changed);
   SetDependentInfo(args.Invalidated);
   APlayable::RaiseInfoChange(args);
@@ -438,20 +438,24 @@ void Playable::DoLoadInfo(JobSet& job)
     
     // Update information, but only if still in service.
     Mutex::Lock lock(Mtx);
-    InfoFlags changed = UpdateInfo(info, what2);
+    CollectionChangeArgs args(*this);
+    args.Changed = UpdateInfo(info, what2);
     // update children
     if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
     { EnsurePlaylist();
-      changed |= IF_Child * UpdateCollection(children.Children);
+      if (UpdateCollection(children.Children))
+      { args.Changed |= IF_Child;
+        args.Type = PCT_All;
+      }
       if (Modified)
       { // Well, the playlist content is currently the only thing that can be modified.
         // So reset the flag on reload.
         Modified = false;
-        changed |= IF_Usage;
+        args.Changed |= IF_Usage;
       }
     }
     // Raise the first bunch of change events.
-    PlayableChangeArgs args(*this, upd.Commit(what2), changed);
+    args.Loaded = upd.Commit(what2);
     RaiseInfoChange(args);
   }
   // Now only aggregate information should be incomplete.
@@ -484,7 +488,7 @@ void Playable::DoLoadInfo(JobSet& job)
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // handle aggregate information of playlist items
     // For the event below
-    PlayableChangeArgs args(*this);
+    CollectionChangeArgs args(*this);
     if (upd)
     { // Request for default recursive playlist information (without exclusions)
       // is to be completed.
@@ -540,7 +544,7 @@ void Playable::DoLoadInfo(JobSet& job)
   Mutex::Lock lock(Mtx);
   InfoFlags changed = UpdateInfo(info, upd);
   // Raise event
-  PlayableChangeArgs args(*this, upd.Commit(), changed);
+  CollectionChangeArgs args(*this, upd.Commit(), changed);
   RaiseInfoChange(args);
 }
 
@@ -719,7 +723,7 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
 void Playable::SetMetaInfo(const META_INFO* meta)
 { DEBUGLOG(("Playable(%p)::SetMetaInfo({...})\n", this));
   Mutex::Lock lock(Mtx);
-  PlayableChangeArgs change(*this);
+  CollectionChangeArgs change(*this);
   if (Info.InfoStat.BeginUpdate(IF_Meta))
   { if (meta == NULL)
       meta = &MetaInfo::Empty;
@@ -894,8 +898,7 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
     Modified = true;
   }
 
-  CollectionChangeArgs args(*this, *ep, PCT_Insert);
-  args.Loaded = args.Changed = what;
+  CollectionChangeArgs args(*this, PCT_Insert, ep, what, what);
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &ep->GetPlayable());
   RaiseInfoChange(args);
@@ -930,7 +933,7 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     what &= ~IF_Child;
   // done!
   Info.InfoStat.EndUpdate(IF_Child);
-  PlayableChangeArgs args(*this, what|IF_Child, what);
+  CollectionChangeArgs args(*this, PCT_Move, item, what|IF_Child, what);
   RaiseInfoChange(args);
   return true;
 }
@@ -963,8 +966,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
   }
 
   DEBUGLOG(("Playable::RemoveItem: before change event\n"));
-  CollectionChangeArgs args(*this, *item, PCT_Delete);
-  args.Loaded = args.Changed = what;
+  CollectionChangeArgs args(*this, PCT_Delete, item, what, what);
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &item->GetPlayable());
   RaiseInfoChange(args);
@@ -1004,7 +1006,7 @@ bool Playable::Clear()
 
   upd.Commit();
   // TODO: join invalidate events
-  PlayableChangeArgs args(*this, what|IF_Child, what);
+  CollectionChangeArgs args(*this, PCT_All, this, what|IF_Child, what);
   RaiseInfoChange(args);
   return true;
 }
@@ -1034,7 +1036,7 @@ bool Playable::Sort(ItemComparer comp)
   ASSERT(index.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  PlayableChangeArgs args(*this, IF_Child, IF_Child*changed);
+  CollectionChangeArgs args(*this, IF_Child, IF_Child*changed);
   RaiseInfoChange(args);
   return true;
 }
@@ -1058,7 +1060,7 @@ bool Playable::Shuffle()
   ASSERT(newcontent.size() == 0); // All items should have been reused
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  PlayableChangeArgs args(*this, IF_Child, IF_Child*changed);
+  CollectionChangeArgs args(*this, IF_Child, IF_Child*changed);
   RaiseInfoChange(args);
   return true;
 }
@@ -1153,7 +1155,7 @@ int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo)
   Mutex::Lock lock(Mtx);
   if (Info.InfoStat.Check(IF_Meta, REL_Cached))
     return 0;
-  PlayableChangeArgs change(*this);
+  CollectionChangeArgs change(*this);
   if (!Info.InfoStat.BeginUpdate(IF_Meta))
   { // cannot lock meta info => invalidate instead
     change.Invalidated = Info.InfoStat.Invalidate(IF_Meta);

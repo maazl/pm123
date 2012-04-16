@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 Marcel Mueeller
+ * Copyright 2007-2012 Marcel Mueeller
  *           1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
@@ -42,6 +42,7 @@
 #include "infodialog.h"
 #include "inspector.h"
 #include "playable.h"
+#include "songiterator.h"
 #include "dependencyinfo.h"
 #include "loadhelper.h"
 #include "pm123.h"
@@ -249,7 +250,7 @@ void PlaylistBase::InitDlg()
   dk_add_window(GetHwnd(), 0);
 
   // register events
-  Content->GetInfoChange() += RootInfoDelegate;
+  Content->APlayable::GetInfoChange() += RootInfoDelegate;
   Ctrl::GetChangeEvent() += RootPlayStatusDelegate;
 
   SetTitle();

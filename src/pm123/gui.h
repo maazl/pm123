@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,7 +31,6 @@
 
 #define INCL_WIN
 #include "controller.h"
-#include "songiterator.h"
 #include "playable.h"
 #include "pm123.rc.h"
 #include <os2.h>
@@ -46,6 +45,7 @@ class LoadHelper;
 class PlaylistMenu;
 struct CfgChangeArgs;
 class PluginEventArgs;
+class SongIterator;
 
 class GUI
 {public:

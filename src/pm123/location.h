@@ -75,9 +75,9 @@ class Location : public Iref_count
   //vector_own<class_delegate2<Location, const PlayableChangeArgs, const int> > CallstackDeleg;
 #ifdef DEBUG
  private:
-  class_delegate<Location, const PlayableChangeArgs> RootChangeDeleg;
+  class_delegate<Location, const CollectionChangeArgs> RootChangeDeleg;
  private:
-  void                        RootChange(const PlayableChangeArgs& args); 
+  void                        RootChange(const CollectionChangeArgs& args);
 #endif
  private:
   /// Recursive iteration over *this.

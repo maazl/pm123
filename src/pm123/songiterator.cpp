@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 M.Mueller
+ * Copyright 2012-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,11 +31,147 @@
 #include <debuglog.h>
 
 
-/****************************************************************************
+/*
+*
+*  class ShuffleWorker
+*
+*/
+
+ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
+: Playlist(&playlist)
+, Seed(seed)
+, PlaylistDeleg(*this, &ShuffleWorker::PlaylistChangeNotification)
+{ // Set marker for full update on the first request.
+  ChangeSet.append();
+  // Observe playlist changes
+  playlist.GetInfoChange() += PlaylistDeleg;
+}
+
+long ShuffleWorker::CalcHash(const PlayableInstance& item, long seed)
+{ // TODO: use a reasonable hash algorithm.
+  return seed ^ (long)&item;
+}
+
+int ShuffleWorker::ItemComparer(const KeyType& key, const PlayableInstance& item)
+{ long pikey = CalcHash(item, key.Seed);
+  if (key.Value > pikey)
+    return 1;
+  if (key.Value < pikey)
+    return -1;
+  return (int)&key.Item - (int)&item;
+}
+
+int ShuffleWorker::ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item)
+{ return (int)&key - (int)&item;
+}
+
+void ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::PlaylistChangeNotification({&%p, %p, %x..., %u})\n",
+    this, Playlist.get(), &args.Instance, args.Origin, args.Changed, args.Type));
+  if (args.Changed & IF_Child)
+  { switch (args.Type)
+    {case PCT_Insert:
+     case PCT_Delete:
+       // Already PCT_All mode
+       if (ChangeSet.size() == 1 && ChangeSet[0] == NULL)
+         break;
+       // Limit change set size
+       if ((int)ChangeSet.size() <= args.Instance.GetPlayable().GetInfo().obj->num_items / 7 + 1)
+       { PlayableInstance* pi = (PlayableInstance*)args.Origin;
+         ChangeSet.get(*pi) = pi;
+         break;
+       }
+       // Change set too large => convert to PCT_All mode
+     case PCT_All:
+       if (ChangeSet.size() != 1 || ChangeSet[0])
+       { ChangeSet.clear();
+         ChangeSet.append();
+       }
+     default:;
+    }
+  }
+}
+
+void ShuffleWorker::UpdateItem(PlayableInstance& item)
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::UpdateItem(&%p)\n", this, Playlist.get(), &item));
+  KeyType key(MakeKey(item));
+  size_t pos;
+  if (Items.binary_search(key, pos))
+  { // Item is in the list.
+    if (item.GetIndex() == 0)
+      // But it should no longer be.
+      Items.erase(pos);
+  } else
+  { // Item is not in the list.
+    if (item.GetIndex())
+      // But it should be.
+      Items.insert(pos) = &item;
+  }
+}
+
+void ShuffleWorker::Update()
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Update()\n", this, Playlist.get()));
+  if (!ChangeSet.size()) // Double check below
+    return;
+  // Get changes
+  ChangeSetType changes;
+  { // Synchronize to Playlist to avoid collisions with PlaylistChangeNotification.
+    Mutex::Lock lock(Playlist->Mtx);
+    changes.swap(ChangeSet);
+  }
+  switch (changes.size())
+  {case 0:
+    return;
+   case 1:
+    if (changes[0] == NULL)
+    { // Full update
+      int_ptr<PlayableInstance> pi;
+      while ((pi = Playlist->GetNext(pi)) != NULL)
+        UpdateItem(*pi);
+    }
+   default:
+    // Delta update
+    foreach (const int_ptr<PlayableInstance>*, pip, changes)
+      UpdateItem(**pip);
+  }
+}
+
+int ShuffleWorker::GetIndex(PlayableInstance& item)
+{ Update();
+  size_t pos;
+  if (!Items.binary_search(MakeKey(item), pos))
+    return -1;
+  return pos;
+}
+
+int_ptr<PlayableInstance> ShuffleWorker::Next(PlayableInstance* pi)
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Next(%p)\n", this, Playlist.get(), pi));
+  Update();
+  size_t index = 0;
+  if (pi && Items.binary_search(MakeKey(*pi), index))
+    ++index;
+  return index < Items.size() ? Items[index] : NULL;
+}
+
+int_ptr<PlayableInstance> ShuffleWorker::Prev(PlayableInstance* pi)
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Prev(%p)\n", this, Playlist.get(), pi));
+  Update();
+  size_t index = Items.size() -1;
+  if (pi)
+  { size_t pos;
+    Items.binary_search(MakeKey(*pi), pos);
+    if (pos)
+      index = pos -1;
+  }
+  return index < Items.size() ? Items[index] : NULL;
+}
+
+
+/*
 *
 *  class SongIterator
 *
-****************************************************************************/
+*/
 
 SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo& r)
 { if (Index >= 0)
@@ -51,6 +187,10 @@ SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo&
       Time = -1;
   }
   return *this;
+}
+
+int SongIterator::ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem)
+{ return (int)&key - (int)elem.Playlist.get();
 }
 
 void SongIterator::SetRoot(Playable* root)

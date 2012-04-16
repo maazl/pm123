@@ -75,20 +75,6 @@ struct PlayableChangeArgs
   void                        Reset()             { Changed = IF_None; Loaded = IF_None; Invalidated = IF_None; }
 };
 
-enum CollectionChangeType
-{ PCT_All,                 // The collection has entirely changed
-  PCT_Insert,              // Item just inserted
-  PCT_Move,                // Item has just moved
-  PCT_Delete               // Item about to be deleted
-};
-
-struct CollectionChangeArgs : public PlayableChangeArgs
-{ CollectionChangeType        Type;
-  PlayableInstance&           Before;
-  CollectionChangeArgs(APlayable& inst, PlayableInstance& item, CollectionChangeType type)
-  : PlayableChangeArgs(inst), Type(type), Before(item) {}
-};
-
 
 class Playable;
 class Location;
