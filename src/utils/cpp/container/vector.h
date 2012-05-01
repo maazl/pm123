@@ -291,8 +291,8 @@ class vector_int : public vector<T>
   /// Destructor
   ~vector_int()                                    { clear(); }
   /// @brief Adjust the size to a given value.
-  /// @details If the array is increased NULL values are appended.
-  /// If not NULL items are removed, their reference counter is decremented.
+  /// @details If the array is increased \c NULL values are appended.
+  /// If not \c NULL items are removed, their reference counter is decremented.
   void              set_size(size_t size);
   /// Remove all elements and decrement their reference counter.
   void              clear();

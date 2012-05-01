@@ -1203,7 +1203,7 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
         return;
       JobSet job(PRI_Normal);
       for (;;)
-      { Location::NavigationResult rc = si.NavigateCount(1, TATTR_SONG, job, 1);
+      { Location::NavigationResult rc = si.NavigateCount(job, 1, TATTR_SONG, 1);
         if (rc)
         { if (rc.length() == 0)
             // TODO: dependency ???

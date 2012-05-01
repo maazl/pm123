@@ -65,10 +65,6 @@ class Location : public Iref_count
   typedef xstring             NavigationResult;
 
  protected:
-  /// Direction function type for \c PrevNextCore
-  typedef int_ptr<PlayableInstance> (Playable::*DirFunc)(const PlayableInstance*) const;
-
- private:
   Playable*                   Root;
   vector_int<PlayableInstance> Callstack;
   PM123_TIME                  Position;
@@ -79,15 +75,19 @@ class Location : public Iref_count
  private:
   void                        RootChange(const CollectionChangeArgs& args);
 #endif
- private:
-  /// Recursive iteration over *this.
-
-  /// The function returns only items that match stopat.
-  /// The iteration stops with an error when the callstack comes to level slice (default top).
-  /// In this case "End" is returned.
-  void x();
+ protected:
+  /// Enter the current item.
+  /// @pre \c *GetCurrent() is a valid playlist.
+  virtual void                Enter();
+  /// Leave the current innermost playlist.
+  /// @pre \c Callstack.size() is at least 1.
+  virtual void                Leave();
+  /// Advance current item to the previous or next one. This takes care of shuffle mode.
+  /// @param direction \c true := forward, \c false := backward.
+  /// @pre \c Callstack.size() is at least 1. Child information of \c GetPlaylist() is available.
+  virtual void                PrevNextCore(bool direction);
   /// Navigate to the next or previous matching item.
-  /// @param dirfunc \c &Playable::GetNext or \c &Playable::GetPrev to identify the direction.
+  /// @param dir \c true := forward, \c false := backward.
   /// @param stopat Only stop at items that have at least one bit of this parameter set.
   /// @param job Priority and \c DependencySet of asynchronous requests if the navigation command could not be completed
   /// because of missing informations on sub items. (Tech info and slice info is required.)
@@ -100,7 +100,15 @@ class Location : public Iref_count
   /// PrevNextCore will not enter this list. It will return or skip the nested list,
   /// depending on whether \c TATTR_PLAYLIST is set in \a stopat.
   /// @return See \c NavigationResult.
-  NavigationResult            PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
+  /// @post If the function returned \c NULL then \c GetCurrent() points to an item
+  /// with \c tech->attributes \c & \a stopat.
+  NavigationResult            NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
+
+  /// Helper for double dispatch at \c Swap.
+  virtual void                Swap2(Location& l, int magic);
+  static void                 CallSwap2(Location& r, Location& l, int magic) { r.Swap2(l, magic); }
+
+ private:
   /// Assign new root (Location must be initial before)
   #ifdef DEBUG
   void                        AssignRoot(Playable* root);
@@ -133,19 +141,21 @@ class Location : public Iref_count
   /// Check whether this Location has assigned a root.
   bool                        operator!() const            { return !Root; }
   /// Swap two instances.
-  void                        Swap(Location& r);
-  /// Resets the current Location to its initial value at the start of the current root.
-  void                        Reset();
+  virtual void                Swap(Location& r);
   /// Assign other instance
-  Location&                   operator=(const Location& r);
+  virtual Location&           operator=(const Location& r);
   /// Reinitialize the Location with a new root. This implicitly clears the Location.
-  void                        SetRoot(Playable* root)      { Reset(); AssignRoot(root); }
+  virtual void                SetRoot(Playable* root)      { Reset(); AssignRoot(root); }
   /// Query the current root object.
   Playable*                   GetRoot() const              { return Root; }
   /// Get the current item within the current root where this Location points to.
   /// @return This returns the root itself unless the Location has been modified since the last initialization.
   /// It will return NULL if there is currently no root.
   APlayable*                  GetCurrent() const;
+  /// Get the innermost entered playlist.
+  /// @return NULL if none.
+  /// @remarks \c GetPlaylist() will never return the current item.
+  Playable*                   GetPlaylist() const;
   /// Get the entire call stack to get from the root to the current item.
   /// @details The current item is the last entry in the returned call stack
   /// unless the current item equals the root. In this case an empty container
@@ -154,6 +164,7 @@ class Location : public Iref_count
   /// before the first item of a playlist.
   const vector<PlayableInstance>& GetCallstack() const     { return Callstack; }
   /// Returns the time offset of this Location within the current item.
+  /// The offset is only non-zero if \c GetCurrent() is a song.
   /// @remarks This is not the same as the time offset within the current root.
   PM123_TIME                  GetPosition() const          { return Position; }
   /// Depth of the current location. (= size of the callstack)
@@ -173,6 +184,9 @@ class Location : public Iref_count
   /// - UINT_MAX -> pp is not in call stack
   size_t                      FindInCallstack(const Playable* pp) const;
 
+  /// Resets the current Location to its initial value at the start of the current root.
+  /// @param level reset up to
+  void                        Reset();
   /// Navigate \a count items forward or backward.
   /// @param count Number of items to skip. >&nbsp;0 => forward <&nbsp;0 => backward, =&nbsp;0 => no-op.
   /// @param stopat only count items with at least one bit in \a stopat set in \c TECH_INFO::attributes.
@@ -188,46 +202,46 @@ class Location : public Iref_count
   /// PrevNextCore will not enter this list. It will return or skip the nested list,
   /// depending on whether \c TATTR_PLAYLIST is set in \a stopat.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth = 0, unsigned maxdepth = INT_MAX);
-  /// Navigate to the parent \a index times.
-  /// @param index Number of navigations. It must be >= 0 and <= \c GetLevel().
+  NavigationResult            NavigateCount(JobSet& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = INT_MAX);
+  /// @brief Navigate to the parent \a index times.
+  /// @param index Number of navigations. It must be <= \c GetLevel().
   ///        Of course, you cannot navigate up from the root.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateUp(int index = 1);
+  /// @details Calling \c NavigateUp(0) will reset the Position within the current song (if any).
+  NavigationResult            NavigateUp(unsigned count = 1);
   /// @brief Navigate into a (nested) playlist
   /// @details The function enters a playlist but does not advance to it's first item.
   /// This results in a NULL entry at the end of the call stack.
   /// You can't enter sons or invalid items.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateInto();
+  NavigationResult            NavigateInto(JobSet& job);
   /// Navigate explicitly to a given PlayableInstance.
   /// @param pi The PlayableInstance must be a child of the current item.
   /// \a pi might be \c NULL to explicitly navigate before the start of a playlist without leaving it.
   /// @return See \c NavigationResult, but NavigateTo will never depend on outstanding information and return "".
-  /// @details This method can be used to explicitely build the callstack.
+  /// @details This method can be used to explicitly build the callstack.
   NavigationResult            NavigateTo(PlayableInstance* pi);
-  /// Navigate to an occurency of \a url within the current deepmost playlist.
-  /// @details If the addressed item is a playlist the list is entered implicitely.
+  /// Navigate to an occurrence of \a url within the current deepmost playlist.
   /// @param url
-  /// - If the url is \c '..' the current playlist is left (see NavigateUp).
+  /// - If the url is \c '..' the current playlist is left (see \c NavigateUp).
   /// - If the url is \c NULL only the index is used to count the items (see NavigateCount).
-  /// @param index Navigate to the index-th occurency of url within the current playlist.
+  /// @param index Navigate to the index-th occurrence of \a url within the current playlist.
   /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
   /// @param flat If flat is \c true all content from the current location is flattened.
   /// So the Navigation goes to the item in the set of non-recursive items in the current playlist
   /// and all sublists.
   /// If Navigate with flat = true succeeds, the current item is always a song.
   /// @return See \c NavigationResult.
-  NavigationResult            Navigate(const xstring& url, int index, bool flat, JobSet& job);
-  /// Set the current location and song as time offset.
+  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, bool flat);
+  /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
   /// The navigation starts from the current location.
+  /// @param mindepth Do not navigate to a higher level than \a mindepth.
+  /// This can be used to restrict the navigation to the current song or to the current playlist.
   /// @return See \c NavigationResult.
-  /// @remarks If this is a song, the call is similar to SetLocation().
-  /// If current is a playlist the navigation applies to the whole list content.
-  /// If you want to navigate within the root call Reset before.
+  /// @remarks If you want to navigate within the root call Reset before.
   /// If Navigate succeeds, the current item is always a song.
-  NavigationResult            Navigate(PM123_TIME offset, JobSet& job);
+  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth = 0);
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
@@ -246,7 +260,7 @@ class Location : public Iref_count
   /// at the priority level \a pri and you have to retry the deserialization later.
   /// Note that the value of \c *this is undefined in this case and must restore
   /// the previous value in case of relative navigation.
-  NavigationResult            Deserialize(const char*& str, JobSet& job);
+  NavigationResult            Deserialize(JobSet& job, const char*& str);
 
   /// @brief relational comparison
   /// @return The return value is zero if the iterators are equal.

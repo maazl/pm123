@@ -103,7 +103,7 @@ class CtrlImp
 
  private: // internal functions, not thread safe
   /// Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
-  /// Precondition: an object must have been loaded.
+  /// @pre an object must have been loaded.
   static PrefetchEntry* Current() { return PrefetchList[0]; }
   /// Raise any pending controller events.
   static void  RaiseControlEvents();
@@ -143,11 +143,11 @@ class CtrlImp
   /// Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
   /// If we try to move the current song pointer out of the range of the that that si relies on,
   /// the function returns false and si is in reset state.
-         bool  SkipCore(Location& si, int count);
+         bool  SkipCore(SongIterator& si, int count);
   /// Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
-  static bool  AdjustNext(Location& si);
+  static bool  AdjustNext(SongIterator& si);
   /// Jump to the location si. The function will destroy the content of si.
-         void  NavigateCore(Location& si);
+         void  NavigateCore(SongIterator& si);
   // Register events to a new current song and request some information if not yet known.
   //static void  AttachCurrentSong(APlayable& ps);
   /// Clears the prefetch list and keep the first element if keep is true.
@@ -401,9 +401,9 @@ void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const v
   SetStackUsage(newppi, newstack.end(), true);
 }
 
-bool CtrlImp::SkipCore(Location& si, int count)
+bool CtrlImp::SkipCore(SongIterator& si, int count)
 { DEBUGLOG(("Ctrl::SkipCore({%s}, %i)\n", si.Serialize().cdata(), count));
-  const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, SyncJob);
+  const SongIterator::NavigationResult& rc = si.NavigateCount(SyncJob, count, TATTR_SONG);
   if (rc)
   { StrArg = rc;
     Flags = RC_BadIterator;
@@ -412,18 +412,18 @@ bool CtrlImp::SkipCore(Location& si, int count)
   return true;
 }
 
-bool CtrlImp::AdjustNext(Location& si)
+bool CtrlImp::AdjustNext(SongIterator& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
   APlayable& ps = *si.GetCurrent();
   ps.RequestInfo(IF_Tech|IF_Child, PRI_Sync);
   if (ps.GetInfo().tech->attributes & TATTR_SONG)
     return true;
-  const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, SyncJob);
+  const SongIterator::NavigationResult& rc = si.NavigateCount(SyncJob, 1, TATTR_SONG);
   DEBUGLOG(("Ctrl::AdjustNext: %s\n", rc.cdata()));
   return !rc;  
 }
 
-void CtrlImp::NavigateCore(Location& si)
+void CtrlImp::NavigateCore(SongIterator& si)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Loc);
@@ -541,7 +541,7 @@ void CtrlImp::CheckPrefetch(double pos)
       { PrefetchEntry& pe = *ped[--n]; 
         if (plp && pe.Loc.GetLevel() >= 1)
         { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
-          if (pe.Loc.NavigateCount(1, TATTR_SONG, SyncJob, 1))// we played the last item of a top level entry
+          if (pe.Loc.NavigateCount(SyncJob, 1, TATTR_SONG, 1))// we played the last item of a top level entry
             plp->RemoveItem(pip);
         }
         delete &pe;
@@ -719,14 +719,13 @@ void CtrlImp::MsgPlayStop()
 { DEBUGLOG(("Ctrl::MsgPlayStop() {%x} - %u\n", Flags, Playing));
 
   if (Playing)
-  { // Set new playing position
+  { SongIterator& si = Current()->Loc;
+    si.NavigateUp(0);
+    // Set new playing position
     if ( Cfg::Get().retainonstop && Flags != Op_Reset
-      && Current()->Loc.GetCurrent()->GetInfo().obj->songlength > 0 )
+      && si.GetCurrent()->GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
-      Current()->Loc.Navigate(time, SyncJob);
-    } else
-    { int_ptr<Location> start = Current()->Loc.GetCurrent()->GetStartLoc();
-      Current()->Loc.Navigate(start ? start->GetPosition() : 0, SyncJob);
+      si.NavigateTime(SyncJob, time);
     }
   }
 
@@ -795,20 +794,21 @@ void CtrlImp::MsgNavigate()
   { Reply(RC_NoSong);
     return;
   }
-  sco_ptr<Location> sip;
+  sco_ptr<SongIterator> sip;
   if (Flags & 0x02)
   { // Reset location
-    sip = new Location(&GetRoot()->GetPlayable());
+    sip = new SongIterator(&GetRoot()->GetPlayable());
   } else
   { // Start from current location
     // We must fetch the current playing time first, because this may change Current().
     PM123_TIME time = FetchCurrentSongTime();
-    sip = new Location(Current()->Loc);
-    sip->Navigate(time, SyncJob);
+    sip = new SongIterator(Current()->Loc);
+    sip->NavigateUp(0);
+    sip->NavigateTime(SyncJob, time);
   }
   if (StrArg && StrArg.length())
   { const char* cp = StrArg.cdata();
-    const Location::NavigationResult rc = sip->Deserialize(cp, SyncJob);
+    const SongIterator::NavigationResult rc = sip->Deserialize(SyncJob, cp);
     if (rc && !(Flags & 0x04))
     { StrArg = rc;
       NumArg = cp - StrArg.cdata();
@@ -818,9 +818,9 @@ void CtrlImp::MsgNavigate()
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
   } else
-  { if (Flags & 0x01)
-      NumArg += sip->GetPosition();
-    const Location::NavigationResult rc = sip->Navigate(NumArg, SyncJob);
+  { if (!(Flags & 0x01))
+      sip->NavigateUp(0);
+    const SongIterator::NavigationResult rc = sip->NavigateTime(SyncJob, NumArg);
     if (rc && !(Flags & 0x04))
     { StrArg = rc;
       NumArg = -1;
@@ -839,10 +839,10 @@ void CtrlImp::MsgJump()
   APlayable* ps = GetRoot();
   if (!ps)
     Reply(RC_NoSong);
-  else if (&ps->GetPlayable() != ((Location*)PtrArg)->GetRoot())
+  else if (&ps->GetPlayable() != ((SongIterator*)PtrArg)->GetRoot())
     Reply(RC_InvalidItem);
   else
-    NavigateCore(*(Location*)PtrArg);
+    NavigateCore(*(SongIterator*)PtrArg);
 }
 
 void CtrlImp::MsgSkip()
@@ -875,7 +875,7 @@ void CtrlImp::MsgSkip()
   }
 
   // Navigation
-  Location si = Current()->Loc; // work on a temporary object => copy constructor
+  SongIterator si = Current()->Loc; // work on a temporary object => copy constructor
   if (!Flags)
     si.Reset();
   if (!SkipCore(si, (int)NumArg))
@@ -884,7 +884,7 @@ void CtrlImp::MsgSkip()
       switch ((int)NumArg)
       {case 1:
        case -1:
-        if (!si.NavigateCount((int)NumArg, TATTR_SONG, SyncJob))
+        if (!si.NavigateCount(SyncJob, (int)NumArg, TATTR_SONG))
           goto ok;
       }
     }
@@ -985,6 +985,10 @@ void CtrlImp::MsgShuffle()
 { DEBUGLOG(("Ctrl::MsgShuffle() {%x} - %u\n", Flags, Scan));
   if (SetFlag(Shuffle))
     Pending |= EV_Shuffle;
+  const PL_OPTIONS options = Shuffle * PLO_SHUFFLE;
+  Mutex::Lock lock(PLMtx);
+  foreach (PrefetchEntry**, pepp, PrefetchList)
+    (*pepp)->Loc.SetOptions(options);
 }
 
 /* Adjusts repeat flag. */
@@ -1007,9 +1011,10 @@ void CtrlImp::MsgLocation()
   { // Fetch time first because that may change Current().
     SongIterator*& sip = (SongIterator*&)PtrArg;
     *sip = Current()->Loc; // copy
+    sip->NavigateUp(0);
     PM123_TIME pos = FetchCurrentSongTime();
     if (pos)
-      sip->Navigate(pos, SyncJob);
+      sip->NavigateTime(SyncJob, pos);
   }
   Reply(RC_OK);
 }

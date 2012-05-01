@@ -189,14 +189,84 @@ SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo&
   return *this;
 }
 
+SongIterator::SongIterator(Playable* root)
+: Location(root)
+, Options(PLO_NO_SHUFFLE)
+//, ShuffleSeed(0)
+, IsShuffleCache(PLO_NONE)
+{ // Increment reference counter
+  int_ptr<Playable> ptr(GetRoot());
+  ptr.toCptr();
+  Reshuffle();
+}
+SongIterator::SongIterator(const SongIterator& r)
+: Location(r)
+, Options(r.Options)
+, ShuffleSeed(r.ShuffleSeed)
+, ShuffleWorkerCache(r.ShuffleWorkerCache)
+, IsShuffleCache(r.IsShuffleCache)
+{ // Increment reference counter
+  int_ptr<Playable> ptr(GetRoot());
+  ptr.toCptr();
+}
+
+SongIterator::~SongIterator()
+{ int_ptr<Playable>().fromCptr(GetRoot());
+}
+
 int SongIterator::ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem)
 { return (int)&key - (int)elem.Playlist.get();
+}
+
+void SongIterator::ShuffleWorkerCacheCleanup()
+{ size_t pos = ShuffleWorkerCache.size();
+  DEBUGLOG(("SongIterator(%p)::ShuffleWorkerCacheCleanup() - %u\n", this, pos));
+  while (pos--)
+    if (!FindInCallstack(ShuffleWorkerCache[pos]->Playlist))
+      ShuffleWorkerCache.erase(pos);
+}
+
+void SongIterator::Enter()
+{ Playable& list = GetCurrent()->GetPlayable();
+  PL_OPTIONS plo = (PL_OPTIONS)list.GetInfo().attr->ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE);
+  if (plo)
+    IsShuffleCache = plo;
+  Location::Enter();
+}
+
+void SongIterator::Leave()
+{ APlayable* cur = GetCurrent();
+  if (cur)
+  ShuffleWorkerCache.erase(cur->GetPlayable());
+  IsShuffleCache = PLO_NONE;
+  Location::Leave();
+}
+
+void SongIterator::PrevNextCore(bool direction)
+{ if (!IsShuffle())
+  { Location::PrevNextCore(direction);
+    return;
+  }
+  // Prev/next in shuffle mode
+  DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
+  const size_t depth = Callstack.size() -1;
+  Playable& list = depth ? Callstack[depth-1]->GetPlayable() : *Root;
+  // Shuffle cache lookup
+  int_ptr<ShuffleWorker>& sw = ShuffleWorkerCache.get(list);
+  if (!sw)
+    // Cache miss
+    sw = new ShuffleWorker(list, ShuffleSeed);
+  // Navigate
+  int_ptr<PlayableInstance>& pi = Callstack[depth];
+  pi = direction ? sw->Next(pi) : sw->Prev(pi);
 }
 
 void SongIterator::SetRoot(Playable* root)
 { int_ptr<Playable> ptr(root);
   ptr.toCptr();
   ptr.fromCptr(GetRoot());
+  ShuffleWorkerCache.clear();
+  IsShuffleCache = PLO_NONE;
   Location::SetRoot(root);
 }
 
@@ -207,6 +277,73 @@ SongIterator& SongIterator::operator=(const SongIterator& r)
   ptr.fromCptr(GetRoot());
   Location::operator=(r);
   return *this;
+}
+
+void SongIterator::Swap2(Location& l, int magic)
+{ DEBUGLOG(("SongIterator(%p)::Swap2(&%p, %i)\n", this, &l, magic));
+  // swap location slice
+  Location::Swap2(l, magic);
+  if (magic)
+  { // swap two SongIterator
+    SongIterator& si = (SongIterator&)l;
+    swap(Options, si.Options);
+    swap(ShuffleSeed, si.ShuffleSeed);
+    ShuffleWorkerCache.swap(si.ShuffleWorkerCache);
+    swap(IsShuffleCache, si.IsShuffleCache);
+  } else
+  { // do post processing
+    IsShuffleCache = PLO_NONE;
+    ShuffleWorkerCacheCleanup();
+  }
+}
+
+void SongIterator::Swap(Location& r)
+{ DEBUGLOG(("SongIterator(%p)::Swap(&%p)\n", this, &r));
+  CallSwap2(r, *this, 1);
+}
+
+void SongIterator::SetOptions(PL_OPTIONS options)
+{ Options = options;
+  // Cache cleanup
+  if (options & PLO_NO_SHUFFLE)
+  { // clear cache completely
+    ShuffleWorkerCache.clear();
+    return;
+  }
+  IsShuffleCache = PLO_NONE;
+  if (!(options & PLO_SHUFFLE))
+  { // Clear cache up to the first entry that overrides PLO_*SHUFFLE.
+    Playable* root = GetRoot();
+    if (root)
+    { ShuffleWorkerCache.erase(*root);
+      foreach (PlayableInstance*const*, ppi, GetCallstack())
+      { PlayableInstance* pi = *ppi;
+        if (!pi)
+          break;
+        PL_OPTIONS plo = (PL_OPTIONS)pi->GetInfo().attr->ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE);
+        if (!plo)
+          break;
+        ShuffleWorkerCache.erase(pi->GetPlayable());
+      }
+    }
+  }
+}
+
+bool SongIterator::IsShuffle() const
+{ if (Options & PLO_NO_SHUFFLE)
+    return false;
+  if (!IsShuffleCache)
+  { size_t depth = Callstack.size();
+    while (depth > 1)
+    { ((SongIterator&)*this).IsShuffleCache = (PL_OPTIONS)Callstack[depth-2]->GetInfo().attr->ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE);
+      if (IsShuffleCache)
+        goto done;
+      --depth;
+    }
+    ((SongIterator&)*this).IsShuffleCache = (Options & PLO_SHUFFLE)|PLO_NO_SHUFFLE;
+  }
+ done:
+  return !(IsShuffleCache & PLO_NO_SHUFFLE);
 }
 
 SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(size_t level)

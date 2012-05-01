@@ -1213,7 +1213,7 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     Location::NavigationResult nr;
     if (item.start)
     { cp = item.start;
-      nr = loc.Deserialize(cp, job);
+      nr = loc.Deserialize(job, cp);
       job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOSTART, nr == NULL || nr.length() == 0); // in dubio pro rheo
@@ -1221,7 +1221,7 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     if (item.stop)
     { loc.Reset();
       cp = item.stop;
-      nr = loc.Deserialize(cp, job);
+      nr = loc.Deserialize(job, cp);
       job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOSTOP, nr == NULL || nr.length() == 0); // in dubio pro rheo
@@ -1229,7 +1229,7 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     if (attr.at)
     { loc.Reset();
       cp = attr.at;
-      nr = loc.Deserialize(cp, job);
+      nr = loc.Deserialize(job, cp);
       job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOAT, nr == NULL || nr.length() == 0); // in dubio pro rheo

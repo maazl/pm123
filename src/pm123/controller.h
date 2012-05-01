@@ -70,7 +70,7 @@ Navigate   Serialized iterator Location in         0x01  relative      Jump to l
                                                          syntax error
 ---------------------------------------------------------------------------------------------------------------
 Jump                           in/out:                                 Jump to location
-                               Location*                               This will change the Song and/or the
+                               SongIterator*                           This will change the Song and/or the
                                                                        playing position.
                                                                        The old position is returned in place.
 ---------------------------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ Pause                                              0x01  pause         Set or un
                                                    0x02  resume        Pause is reset on stop.
                                                    0x03  toggle
 ---------------------------------------------------------------------------------------------------------------
-Scan                                               0x01  scan on       Set/reset forwad/rewind.
+Scan                                               0x01  scan on       Set/reset forward/rewind.
                                                    0x02  scan off      If flag 0x04 is not set fast forward is
                                                    0x03  toggle        controlled. Setting fast forward
                                                    0x04  rewind        automatically stops rewinding and vice
@@ -291,7 +291,7 @@ class Ctrl
   { return new ControlCommand(Cmd_Skip, xstring(), count, relative); }
   static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, bool relative, bool global)
   { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1)); }
-  static ControlCommand* MkJump(Location* iter)
+  static ControlCommand* MkJump(SongIterator* iter)
   { return new ControlCommand(Cmd_Jump, xstring(), iter, 0); }
   static ControlCommand* MkStopAt(const xstring& iter, PM123_TIME start, bool global)
   { return new ControlCommand(Cmd_StopAt, iter, start, global<<1); }

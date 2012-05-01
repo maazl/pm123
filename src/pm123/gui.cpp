@@ -1100,17 +1100,18 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         // navigation within the current song
         if (songlength <= 0)
           return 0;
-        CurrentIter->Navigate(relpos * songlength, job);
+        CurrentIter->NavigateUp(0);
+        CurrentIter->NavigateTime(job, relpos * songlength);
       } else switch (Cfg::Get().altnavig)
       {case CFG_ANAV_TIME:
         // Navigate only at the time scale
         if (root->GetInfo().drpl->totallength > 0)
         { CurrentIter->Reset();
-          bool r = CurrentIter->Navigate(relpos * root->GetInfo().drpl->totallength, job);
+          bool r = CurrentIter->NavigateTime(job, relpos * root->GetInfo().drpl->totallength);
           DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
           break;
         }
-        // else if no total time is availabe use song time navigation
+        // else if no total time is available use song time navigation
        case CFG_ANAV_SONG:
        case CFG_ANAV_SONGTIME:
         // navigate at song and optional time scale
@@ -1122,13 +1123,14 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           if (relpos > num_items)
             relpos = num_items;
           CurrentIter->Reset();
-          bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, job);
+          bool r = CurrentIter->NavigateCount(job, (int)floor(relpos), TATTR_SONG);
           DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
           // navigate within the song
           const PM123_TIME songlength = CurrentSong()->GetInfo().obj->songlength;
           if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
           { relpos -= floor(relpos);
-            CurrentIter->Navigate(relpos * songlength, job);
+            CurrentIter->NavigateUp(0);
+            CurrentIter->NavigateTime(job, relpos * songlength);
           }
         }
       }

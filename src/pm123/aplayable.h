@@ -42,7 +42,6 @@
 
 
 class APlayable;
-class PlayableInstance;
 /** Parameters for InfoChange Event
  * An initial Event with Changed, Loaded and Invalidated == IF_None is fired
  * just when the playable instance dies. You can check for that with IsInitial().

@@ -822,32 +822,32 @@ void CommandProcessor::XPlaylist()
 void CommandProcessor::XPlNext()
 { NavParams par = { 1, TATTR_SONG };
   ParsePrevNext(Request, par);
-  NavigationResult(CurSI.NavigateCount(par.Count, par.StopAt, SyncJob));
+  NavigationResult(CurSI.NavigateCount(SyncJob, par.Count, par.StopAt));
 }
 
 void CommandProcessor::XPlPrev()
 { NavParams par = { 1, TATTR_SONG };
   ParsePrevNext(Request, par);
-  NavigationResult(CurSI.NavigateCount(-par.Count, par.StopAt, SyncJob));
+  NavigationResult(CurSI.NavigateCount(SyncJob, -par.Count, par.StopAt));
 }
 
 void CommandProcessor::XPlNextItem()
 { NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
   ParsePrevNext(Request, par);
   const size_t depth = CurSI.GetLevel();
-  NavigationResult(CurSI.NavigateCount(par.Count, par.StopAt, SyncJob, depth, depth ? depth : 1));
+  NavigationResult(CurSI.NavigateCount(SyncJob, par.Count, par.StopAt, depth, depth ? depth : 1));
 }
 
 void CommandProcessor::XPlPrevItem()
 { NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
   ParsePrevNext(Request, par);
   const size_t depth = CurSI.GetLevel();
-  NavigationResult(CurSI.NavigateCount(-par.Count, par.StopAt, SyncJob, depth, depth ? depth : 1));
+  NavigationResult(CurSI.NavigateCount(SyncJob, -par.Count, par.StopAt, depth, depth ? depth : 1));
 }
 
 void CommandProcessor::XPlEnter()
 { XPlItem();
-  Location::NavigationResult ret = CurSI.NavigateInto();
+  Location::NavigationResult ret = CurSI.NavigateInto(SyncJob);
   if (ret)
   { Messages.appendf("E %s\n", ret.cdata());
     Reply.clear();
@@ -861,7 +861,7 @@ void CommandProcessor::XPlLeave()
 
 void CommandProcessor::XPlNavigate()
 { const char* cp = Request;
-  NavigationResult(CurSI.Deserialize(cp, SyncJob));
+  NavigationResult(CurSI.Deserialize(SyncJob, cp));
 }
 
 void CommandProcessor::XPlReset()
@@ -995,7 +995,7 @@ void CommandProcessor::XPlRemove()
       Messages.append("E No current item to remove.\n");
     else if (root->RemoveItem(cur))
     { Reply.append(cur->GetPlayable().URL);
-      CurSI.NavigateCount(1, ~TATTR_NONE, SyncJob, 0, 1);
+      CurSI.NavigateCount(SyncJob, 1, ~TATTR_NONE, 0, 1);
     }
   }
 }
@@ -1019,7 +1019,7 @@ void CommandProcessor::PlDir(bool recursive)
       dir->RequestInfo(IF_Rpl, PRI_Sync);
       { // get all songs
         class Location iter(dir);
-        while (iter.NavigateCount(1, TATTR_SONG, SyncJob) == NULL)
+        while (iter.NavigateCount(SyncJob, 1, TATTR_SONG) == NULL)
         { APlayable* cur = iter.GetCurrent();
           if (&cur->GetPlayable() != root) // Do not create recursion
             list.append() = cur;

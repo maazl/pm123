@@ -329,7 +329,7 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
   { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
     Location* si = new Location(&RefTo->GetPlayable());
     const char* cp = localstr;
-    const xstring& err = si->Deserialize(cp, job);
+    const xstring& err = si->Deserialize(job, cp);
     if (err)
     { if (err.length() == 0) // delayed
         return CR_Delayed;

@@ -63,22 +63,28 @@ void Location::AssignRoot(Playable* root)
   Root = p;
 }*/
 
-void Location::Swap(Location& r)
-{ DEBUGLOG(("Location(%p)::Swap(&%p)\n", this, &r));
+void Location::Swap2(Location& l, int magic)
+{ DEBUGLOG(("Location(%p)::Swap2(&%p, %i)\n", this, &l, magic));
   #ifdef DEBUG
   Playable* tmp = Root;
-  AssignRoot(r.Root);
-  r.AssignRoot(tmp);
+  AssignRoot(l.Root);
+  l.AssignRoot(tmp);
   #else
   swap(Root, r.Root);
   #endif
-  Callstack.swap(r.Callstack);
-  swap(Position, r.Position);
+  Callstack.swap(l.Callstack);
+  swap(Position, l.Position);
+}
+
+void Location::Swap(Location& r)
+{ DEBUGLOG(("Location(%p)::Swap(&%p)\n", this, &r));
+  r.Swap2(*this, 0);
 }
 
 void Location::Reset()
 { Position = 0;
-  Callstack.clear();
+  while (Callstack.size())
+    Leave();
 }
 
 Location& Location::operator=(const Location& r)
@@ -88,12 +94,22 @@ Location& Location::operator=(const Location& r)
   return *this;
 }
 
-// Do not inline because of cyclic type dependency
 APlayable* Location::GetCurrent() const
 { if (Callstack.size() == 0)
     return Root;
   else
     return Callstack[Callstack.size()-1];
+}
+
+Playable* Location::GetPlaylist() const
+{ switch (Callstack.size())
+  {case 0:
+    return 0;
+   case 1:
+    return Root;
+   default:
+    return &Callstack[Callstack.size()-1]->GetPlayable();
+  }
 }
 
 size_t Location::FindInCallstack(const Playable* pp) const
@@ -107,9 +123,29 @@ size_t Location::FindInCallstack(const Playable* pp) const
   return UINT_MAX;
 }
 
+void Location::Enter()
+{ DEBUGLOG(("Location(%p)::Enter()\n", this));
+  Callstack.append();
+}
 
-Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth, unsigned maxdepth)
-{ DEBUGLOG(("Location(%p)::PrevNextCore(, %x, {%u,}, %i, %i) - %u\n", this, stopat, job.Pri, mindepth, maxdepth, Callstack.size()));
+void Location::Leave()
+{ DEBUGLOG(("Location(%p)::Leave()\n", this));
+  Callstack.erase(Callstack.size()-1);
+}
+
+void Location::PrevNextCore(bool direction)
+{ size_t cssize = Callstack.size();
+  ASSERT(cssize);
+  int_ptr<PlayableInstance>& pi = Callstack[cssize-1];
+  Playable& list = cssize > 1 ? Callstack[cssize-2]->GetPlayable() : *Root;
+  DEBUGLOG(("Location(%p)::PrevNextCore(%u) %p{%s} -> %p{%s}\n", this,
+    direction, &list, list.URL.getDisplayName().cdata(), pi.get(), PlayableInstance::DebugName(pi)));
+  pi = direction ? list.GetNext(pi) : list.GetPrev(pi);
+  DEBUGLOG(("Location::PrevNextCore -> %p{%s}\n", pi.get(), PlayableInstance::DebugName(pi)));
+}
+
+Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
+{ DEBUGLOG(("Location(%p)::NavigateCountCore({%u,}, %u, %x, %i, %i) - %u\n", this, job.Pri, dir, stopat, mindepth, maxdepth, Callstack.size()));
   ASSERT(stopat);
   ASSERT(Callstack.size() >= mindepth);
   ASSERT(maxdepth >= Callstack.size());
@@ -130,41 +166,27 @@ Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUT
     if (job.RequestInfo(*cur, IF_Tech|IF_Slice|IF_Child))
       return xstring::empty; // Delayed!!!
     if ((cur->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
-    { DEBUGLOG(("Location::PrevNextCore enter %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata()));
-      // Playlist? => Enter
-      Callstack.append();
-    } else
+      Enter();
+    else
     {noenter:
-      switch (Callstack.size())
-      {case 0:
+      if (Callstack.size() == 0)
         return "End";
-       case 1:
-        cur = Root;
-        break;
-       default:
-        cur = Callstack[Callstack.size()-2];
-      }
     }
     // Now Callstack.size() is at least 1 and
     // cur points to the parent playlist of Callstack[Callstack.size()-1].
 
     // TODO: start/stop location
-    int_ptr<PlayableInstance>& pi = Callstack[Callstack.size()-1];
-    DEBUGLOG(("Location::PrevNextCore %p{%s} -> %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata(), pi.get(), PlayableInstance::DebugName(pi)));
     // Find next item in *cur before/after pi that is not in call stack (recursion check)
-    pi = (cur->GetPlayable().*dirfunc)(pi);
-    DEBUGLOG(("Location::PrevNextCore %p -> %p{%s}\n", cur, pi.get(), PlayableInstance::DebugName(pi)));
+    PrevNextCore(dir);
     // End of list => go to parent
-    if (pi == NULL)
+    if (Callstack[Callstack.size()-1] == NULL)
     { if (Callstack.size() == mindepth)
         return "End";
-      // leave
-      DEBUGLOG(("Location::PrevNextCore leave %p{%s}\n", cur, cur->GetPlayable().URL.getDisplayName().cdata()));
-      Callstack.erase(Callstack.size()-1);
+      Leave();
       goto noenter;
     }
 
-    cur = pi;
+    cur = Callstack[Callstack.size()-1];
     if (cur && job.RequestInfo(*cur, IF_Tech|IF_Slice|IF_Child))
       return xstring::empty; // Delayed!!!
 
@@ -173,17 +195,15 @@ Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUT
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned mindepth, unsigned maxdepth)
+Location::NavigationResult Location::NavigateCount(JobSet& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
 { Location::NavigationResult ret;
   if (count)
-  { DirFunc dir = &Playable::GetNext;
-    if (count < 0)
-    { dir = &Playable::GetPrev;
+  { bool dir = count > 0;
+    if (!dir)
       count = -count;
-    }
     // TODO: we could skip entire playlists here if < count.
     do
-    { ret = PrevNextCore(dir, stopat, job, mindepth, maxdepth);
+    { ret = NavigateCountCore(job, dir, stopat, mindepth, maxdepth);
       if (ret)
         break;
     } while (--count);
@@ -191,55 +211,101 @@ Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES st
   return ret;
 }
 
-Location::NavigationResult Location::NavigateUp(int index)
-{ DEBUGLOG(("Location::NavigateUp(%i)\n", index));
-  if (index < 0)
-    return "Cannot navigate to the parent a negative number of times.";
+Location::NavigationResult Location::NavigateUp(unsigned count)
+{ DEBUGLOG(("Location::NavigateUp(%u)\n", count));
   Position = 0;
-  if (index > (int)Callstack.size())
-  { Callstack.clear();
-    return xstring().sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
-      index, Callstack.size());
+  xstring ret;
+  if (count > Callstack.size())
+  { ret.sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
+      count, Callstack.size());
+    count = Callstack.size();
   }
-  Callstack.set_size(Callstack.size() - index);
-  return xstring(); // NULL
+  while (count--)
+    Leave();
+  return ret;
 }
 
-Location::NavigationResult Location::NavigateInto()
-{ APlayable* cur = GetCurrent();
+Location::NavigationResult Location::NavigateInto(JobSet& job)
+{ DEBUGLOG(("Location(%p)::NavigateInto({%u,})\n", job.Pri));
+  APlayable* cur = GetCurrent();
   if (!cur)
     return "Can not enter NULL.";
   if (FindInCallstack(&cur->GetPlayable()) < Callstack.size())
     return "Can not enter recursive playlist.";
-  cur->RequestInfo(IF_Tech, PRI_Sync);
+  job.RequestInfo(*cur, IF_Tech);
   if (!(cur->GetInfo().tech->attributes & TATTR_PLAYLIST))
     return "Current item is not a playlist.";
-  Callstack.append();
+  Enter();
   return xstring(); // NULL
 }
 
 Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
 { DEBUGLOG(("Location(%p)::NavigateTo(&%p)\n", this, &pi));
-  if (pi && !pi->HasParent(&GetCurrent()->GetPlayable()))
+  if (pi && !pi->HasParent(GetPlaylist()))
     return "Instance is no child of the current item.";
-  Callstack.append() = pi;
+  Callstack[Callstack.size()-1] = pi;
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::Navigate(const xstring& url, int index, bool flat, JobSet& job)
-{ DEBUGLOG(("Location(%p)::Navigate(%s, %i, %u, {%u,})\n", this,
-    url ? url.cdata() : "<null>", index, flat, job.Pri));
+Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, bool flat)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %u)\n", this,
+    job.Pri, url.cdata(), index, flat));
+
+  if (!Root)
+    return "Cannot navigate without root.";
+
+  int maxdepth = flat ? INT_MAX : Callstack.size();
+
+  if (!url)
+    return NavigateCount(job, index, TATTR_SONG, 0, maxdepth);
 
   if (url == "..")
   { if (flat)
       return "Flat navigation to .. is not valid.";
+    if (index < 0)
+      return "Cannot navigate up a negative number of times.";
     return NavigateUp(index);
   }
   
-  if (index == 0)
-    return "Cannot navigate to index 0.";
+  // Auto enter playlist
+  { APlayable* cur = GetCurrent();
+    if (cur)
+    { if (job.RequestInfo(*cur, IF_Tech))
+        return xstring::empty; // delayed
+      if ((cur->GetInfo().tech->attributes & (TATTR_PLAYLIST|TATTR_SONG)) == TATTR_PLAYLIST)
+      { Enter();
+        if (!flat)
+          ++maxdepth;
+      }
+    }
+  }
+  xstring ret;
+  // URL lookup
+  Playable* pp = GetPlaylist();
+  if (!pp)
+    return "Cannot navigate to item inside a song.";
+  const url123& absurl = pp->URL.makeAbsolute(url);
+  if (!absurl)
+    return ret.sprintf("Invalid URL %s", url.cdata());
+  pp = Playable::GetByURL(absurl);
 
-  APlayable* cur = GetCurrent();
+  // Do navigation
+  if (index)
+  { bool dir = index > 0;
+    if (!dir)
+      index = -index;
+    do
+    { do
+      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, 0, maxdepth);
+        if (ret)
+          goto done;
+      } while (&GetCurrent()->GetPlayable() != pp);
+    } while (--index);
+  }
+ done:
+  return ret;
+
+/* APlayable* cur = GetCurrent();
   if (cur == NULL)
     return "Cannot navigate without root.";
   // Request required information
@@ -371,21 +437,15 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       return xstring().sprintf("Cannot navigate into the recursive item %s.",
         pi->GetPlayable().URL.cdata());
     
-    DirFunc dirfunc;
-    if (index > 0)
-    { // forward lookup
-      dirfunc = &Playable::GetNext;
-    } else
-    { // reverse lookup
-      dirfunc = &Playable::GetPrev;
+    bool direction = index > 0;
+    if (!direction) // reverse lookup
       index = -index;
-    }
 
     if (flat)
     { // flat URL navigation
       size_t level = Callstack.size();
       do
-      { const xstring& ret = PrevNextCore(dirfunc, TATTR_SONG, job, level);
+      { const xstring& ret = NavigateCountCore(direction, TATTR_SONG, job, level);
         if (ret)
         { if (ret == xstring::empty)
             return ret;
@@ -398,27 +458,106 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
     } else // !flat
     { // Normal URL navigation
       do
-      { pi = (pc.*dirfunc)(pi);
+      { PrevNextCore(direction);
+        pi = Callstack[Callstack.size()-1];
         if (pi == NULL)
           return xstring().sprintf("The item %s is no child of %s.",
             url.cdata(), cur->GetPlayable().URL.cdata());
       } while (&pi->GetPlayable() != pp || --index);
     }
     return xstring(); // NULL
-  }
+  }*/
 }
 
-Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
-{ DEBUGLOG(("Location(%p)::Navigate(%f, {%u,}) - %u\n", offset, job.Pri, Callstack.size()));
+Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %f, %u) - %u\n", this, job.Pri, offset, mindepth, Callstack.size()));
   
-  APlayable* cur = Root;
-  if (cur == NULL)
+  if (Root == NULL)
     return "Cannot Navigate without root.";
-    // Request Tech info
-  if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
-    return xstring::empty; // Delayed
 
-  // Prepare exclude list
+  xstring ret;
+  if (offset == 0)
+    return ret; // no-op
+
+  const bool direction = offset > 0;
+
+  // Try to navigate within the current song.
+  APlayable* cur = GetCurrent();
+  if (cur)
+  {retry:
+    Position += offset;
+    if (!direction)
+    { if (Position >= 0)
+        return ret; // Navigation within song succeeded
+      offset = Position; // remaining part
+    } else
+    { if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
+        return xstring::empty;
+      if (cur->GetInfo().tech->attributes & TATTR_SONG)
+      { const PM123_TIME songlength = cur->GetInfo().obj->songlength;
+        if (Position < songlength)
+          return ret; // Navigation within song succeeded
+        else if (songlength < 0)
+          return "Indeterminate song length.";
+        offset = Position - songlength; // remaining part
+      }
+    }
+  } // else we entered a playlist but did not navigate to an item.
+  Position = 0;
+
+ next:
+  ret = NavigateCountCore(job, direction, TATTR_SONG|TATTR_PLAYLIST, mindepth);
+  if (ret)
+    return ret;
+
+ afterskip:
+  cur = GetCurrent();
+  if (!(cur->GetInfo().tech->attributes & TATTR_PLAYLIST))
+  { // Song item
+    if (!direction)
+    { // Navigate from back.
+      if (job.RequestInfo(*cur, IF_Obj))
+        return xstring::empty;
+      Position = cur->GetInfo().obj->songlength;
+      if (Position < 0)
+      { Position = 0;
+        return "Indeterminate song length.";
+      }
+    }
+    goto retry;
+  } else
+  { size_t i = Callstack.size() -1;
+    PlayableSet exclude(i);
+    while (i--)
+      exclude.add(Callstack[i]->GetPlayable());
+    if (exclude.contains(Callstack[Callstack.size()-1]->GetPlayable()))
+      goto next; // recursive list
+    InfoFlags what = IF_Drpl;
+    const volatile AggregateInfo& ai = cur->RequestAggregateInfo(exclude, what, PRI_None);
+    if (what)
+      goto next; // We do not have aggregate info.
+    PM123_TIME totallength = ai.Drpl.totallength;
+    if (totallength < 0)
+      goto next; // Length of playlist indeterminate
+    if (!direction)
+    { // backward
+      if (totallength + offset > 0)
+        goto next;
+      offset += totallength;
+    } else
+    { // forward
+      if (offset > totallength)
+        goto next;
+      offset -= totallength;
+    }
+    // Skip playlist
+    ret = NavigateCountCore(job, direction, TATTR_SONG|TATTR_PLAYLIST, mindepth, Callstack.size());
+    if (ret)
+      return ret;
+    goto afterskip;
+  }
+
+/*  // Prepare exclude list
   PlayableSet exclude;
   foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
   { cur = *pipp;
@@ -428,14 +567,11 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
   // Implicit: cur = &GetCurrent();
 
   // Identify direction
-  DirFunc dirfunc;
   int sign;
   if (offset >= 0)
-  { dirfunc = &Playable::GetNext;
-    sign = 1;
+  { sign = 1;
   } else
-  { dirfunc = &Playable::GetPrev;
-    sign = -1;
+  { sign = -1;
     offset = -offset;
   }
 
@@ -450,7 +586,8 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
 
     volatile const AggregateInfo* ai;
     for(;;)
-    { pi = (pc.*dirfunc)(pi);
+    { PrevNextCore(sign > 0);
+      pi = Callstack[Callstack.size()-1];
       if (pi == NULL)
         return xstring().sprintf("Time %f is beyond the length of %s.",
           offset*sign, pc.URL.cdata());
@@ -489,44 +626,44 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
     // TODO: start and stop slice
     Position = offset;
   }
-  return xstring(); // NULL
+  return xstring(); // NULL*/
 }
 
 xstring Location::Serialize(bool withpos) const
 { DEBUGLOG(("Location(%p)::Serialize()\n", this));
   /*if (!Root)
     return xstring();*/ // NULL
-  xstring ret = xstring::empty;
+  xstringbuilder ret;
   Playable* list = Root;
   for (const int_ptr<PlayableInstance>* cpp = Callstack.begin(); cpp != Callstack.end(); ++cpp)
-  { // Fetch info
-    Playable& p = (*cpp)->GetPlayable();
-    // append url to result
-    ret = ret + "\"" + p.URL.makeRelative(list->URL) + "\"";
-    // check if the item is unique
-    unsigned n = 1;
-    const PlayableInstance* pi2 = *cpp;
-    while ((pi2 = list->GetPrev(pi2)) != NULL)
-      n += &p == &pi2->GetPlayable();
-    if (n > 1)
-    { // Not unique => provide index
-      char buf[14];
-      sprintf(buf, "[%u]", n);
-      ret = ret + buf;
+  { if (*cpp)
+    { // Fetch info
+      Playable& p = (*cpp)->GetPlayable();
+      // append url to result
+      ret.append('\"');
+      ret.append(p.URL.makeRelative(list->URL));
+      ret.append('\"');
+      // check if the item is unique
+      unsigned n = 1;
+      const PlayableInstance* pi2 = *cpp;
+      while ((pi2 = list->GetPrev(pi2)) != NULL)
+        n += &p == &pi2->GetPlayable();
+      if (n > 1) // Not unique => provide index
+        ret.appendf("[%u]", n);
+      list = &p;
     }
     // next
-    ret = ret + ";";
-    list = &p;
+    ret.append(';');
   }
   if (withpos && Position)
   { char buf[32];
-    ret = ret + PM123Time::toString(buf, Position);
+    ret.append(PM123Time::toString(buf, Position));
   }
   return ret;
 }
 
-Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
-{ DEBUGLOG(("Location(%p)::Deserialize(%s, {%u, }) - %s\n", this, str, job.Pri, Serialize(true).cdata()));
+Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
+{ DEBUGLOG(("Location(%p)::Deserialize({%u, }, %s) - %s\n", this, job.Pri, str, Serialize(true).cdata()));
   // Skip leading white space.
   str += strspn(str, " \t");
   
@@ -576,7 +713,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
         }
 
         // do the navigation
-        const xstring& ret = Navigate(url, index, flat, job);
+        const xstring& ret = Navigate(job, url, index, flat);
         if (ret)
           return ret;
 
@@ -633,7 +770,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          const xstring& ret = Navigate(t[0], job);
+          const xstring& ret = NavigateTime(job, t[0]);
           if (ret)
             return ret;
 
@@ -655,7 +792,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
             url.assign(str, len2);
 
           // do the navigation
-          const xstring& ret = Navigate(url, index, flat, job);
+          const xstring& ret = Navigate(job, url, index, flat);
           if (ret)
             return ret;
         }
