@@ -327,10 +327,16 @@ ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
   PM123_TIME stop  = 1E99;
   { int_ptr<Location> lp = ps.GetStartLoc();
     if (lp)
-      start = lp->GetPosition();
+    { start = lp->GetPosition();
+      if (start < 0)
+        start = 0;
+    }
     lp = ps.GetStopLoc();
     if (lp)
-      stop = lp->GetPosition();
+    { stop = lp->GetPosition();
+      if (stop < 0)
+        stop = 1E99;
+    }
   }
   
   if (Scan == DECFAST_REWIND)
@@ -725,7 +731,8 @@ void CtrlImp::MsgPlayStop()
     if ( Cfg::Get().retainonstop && Flags != Op_Reset
       && si.GetCurrent()->GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
-      si.NavigateTime(SyncJob, time);
+      if (time >= 0)
+        si.NavigateTime(SyncJob, time);
     }
   }
 
@@ -804,7 +811,8 @@ void CtrlImp::MsgNavigate()
     PM123_TIME time = FetchCurrentSongTime();
     sip = new SongIterator(Current()->Loc);
     sip->NavigateUp(0);
-    sip->NavigateTime(SyncJob, time);
+    if (time >= 0)
+      sip->NavigateTime(SyncJob, time);
   }
   if (StrArg && StrArg.length())
   { const char* cp = StrArg.cdata();
@@ -1013,7 +1021,7 @@ void CtrlImp::MsgLocation()
     *sip = Current()->Loc; // copy
     sip->NavigateUp(0);
     PM123_TIME pos = FetchCurrentSongTime();
-    if (pos)
+    if (pos >= 0)
       sip->NavigateTime(SyncJob, pos);
   }
   Reply(RC_OK);

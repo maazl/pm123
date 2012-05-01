@@ -1516,15 +1516,18 @@ void GUIImp::RefreshTimers(HPS hps)
 
   PM123_TIME list_left = -1;
   PM123_TIME play_left = total_song;
+  PM123_TIME position = CurrentIter->GetPosition();
+  if (position < 0)
+    position = 0;
   if (play_left > 0)
-    play_left -= CurrentIter->GetPosition();
+    play_left -= position;
   if (total_time > 0)
-    list_left = total_time - offset - CurrentIter->GetPosition();
+    list_left = total_time - offset - position;
 
   double pos = -1.;
   if (!IsAltSlider)
   { if (total_song > 0)
-      pos = CurrentIter->GetPosition()/total_song;
+      pos = position/total_song;
   } else switch (Cfg::Get().altnavig)
   {case CFG_ANAV_SONG:
     if (is_playlist)
@@ -1537,7 +1540,7 @@ void GUIImp::RefreshTimers(HPS hps)
     break;
    case CFG_ANAV_TIME:
     if (root->GetInfo().obj->songlength > 0)
-    { pos = (offset + CurrentIter->GetPosition()) / root->GetInfo().obj->songlength;
+    { pos = (offset + position) / root->GetInfo().obj->songlength;
       break;
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
@@ -1550,15 +1553,15 @@ void GUIImp::RefreshTimers(HPS hps)
       else break;
       // Add current song time
       if (total_song > 0)
-        pos += CurrentIter->GetPosition()/total_song;
+        pos += position/total_song;
       pos /= total_items;
     }
   }
-  bmp_draw_slider( hps, pos, IsAltSlider );
-  bmp_draw_timer ( hps, CurrentIter->GetPosition());
+  bmp_draw_slider(hps, pos, IsAltSlider);
+  bmp_draw_timer (hps, position);
 
-  bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
-  bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
+  bmp_draw_tiny_timer(hps, POS_TIME_LEFT, play_left);
+  bmp_draw_tiny_timer(hps, POS_PL_LEFT,   list_left);
 }
 
 /* Constructs a information text for currently loaded file

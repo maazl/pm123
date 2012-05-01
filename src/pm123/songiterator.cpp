@@ -346,12 +346,12 @@ bool SongIterator::IsShuffle() const
   return !(IsShuffleCache & PLO_NO_SHUFFLE);
 }
 
-SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(size_t level)
+SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(unsigned level)
 { DEBUGLOG(("SongIterator(%p)::GetOffsetInfo(%u)\n", this, level));
   ASSERT(level <= GetLevel());
   if (level == GetLevel())
-    return OffsetInfo(0, GetPosition());
+    return OffsetInfo(0, Position >= 0 ? Position : 0);
   OffsetInfo off = CalcOffsetInfo(level+1);
-
+  // TODO: Playlist offset!
   return off;
 }

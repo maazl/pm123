@@ -82,7 +82,7 @@ void Location::Swap(Location& r)
 }
 
 void Location::Reset()
-{ Position = 0;
+{ Position = -1;
   while (Callstack.size())
     Leave();
 }
@@ -152,7 +152,7 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
 
   if (!Root)
     return "Cannot navigate without root.";
-  Position = 0;
+  Position = -1;
 
   APlayable* cur;
   do
@@ -213,7 +213,7 @@ Location::NavigationResult Location::NavigateCount(JobSet& job, int count, TECH_
 
 Location::NavigationResult Location::NavigateUp(unsigned count)
 { DEBUGLOG(("Location::NavigateUp(%u)\n", count));
-  Position = 0;
+  Position = -1;
   xstring ret;
   if (count > Callstack.size())
   { ret.sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
@@ -298,175 +298,11 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
     { do
       { ret = NavigateCountCore(job, dir, ~TATTR_NONE, 0, maxdepth);
         if (ret)
-          goto done;
+          return ret;
       } while (&GetCurrent()->GetPlayable() != pp);
     } while (--index);
   }
- done:
   return ret;
-
-/* APlayable* cur = GetCurrent();
-  if (cur == NULL)
-    return "Cannot navigate without root.";
-  // Request required information
-  if (job.RequestInfo(*cur, IF_Tech|IF_Child|IF_Slice))
-    return xstring::empty; // Delayed
-
-  // For flat navigation...
-  PlayableSet exclude;
-  volatile const AggregateInfo* ai;
-  InfoFlags what;
-  if (flat)
-  { // Request RPL info
-    ai = &job.RequestAggregateInfo(*cur, exclude, what = IF_Rpl);
-    if (what)
-      return xstring::empty; // Delayed
-    // Prepare exclude list
-    const int_ptr<PlayableInstance>* pipp = Callstack.begin();
-    const int_ptr<PlayableInstance>* pepp = Callstack.begin();
-    while (pipp != pepp)
-    { Playable& p = (*pipp++)->GetPlayable();
-      exclude.get(p) = &p;
-    } 
-  }
-
- recurse:
-  // Navigate in synchronized context
-  Mutex::Lock lck(cur->GetPlayable().Mtx);
-  // Preconditions
-  const Playable& pc = cur->GetPlayable();
-  unsigned attr = cur->GetInfo().tech->attributes;
-  if (attr & TATTR_INVALID)
-    return xstring().sprintf("Cannot navigate into invalid item %s.", pc.URL.cdata());
-  if (!(attr & TATTR_PLAYLIST))
-    return xstring().sprintf("Cannot navigate into song item %s.", pc.URL.cdata());
-
-  PlayableInstance* pi = NULL;
-  // search item in the list
-  if (!url || url.length() == 0)
-  { // Navigation by index only
-    if (flat)
-    { // Flat index navigation
-      int songs = ai->Rpl.songs;
-      if (index < 0)
-        index += songs;
-      if (index < 1 || index > songs)
-        return xstring().sprintf("Index %i is out of bounds. %s has %i song items",
-          index, pc.URL.cdata(), songs);
-      // loop until we cross the number of items
-      for (;;)
-      { pi = pc.GetNext(pi);
-        if (pi == NULL)
-          return xstring().sprintf("Unexpected end of list %i/%i.", index, songs);
-        // Terminate loop if the number of subitems is unknown or if it is larger than the required index.
-        ai = &pi->RequestAggregateInfo(exclude, what = IF_Rpl, PRI_None);
-        if (what)
-        { DEBUGLOG(("Location::NavigateFlat: Rpl info of %s not available.\n", pi->GetPlayable().URL.cdata()));
-          return xstring::empty; // Should not happen
-        }
-        if ((int)ai->Rpl.songs >= index)
-          break;
-        index -= ai->Rpl.songs;
-      }
-      // We found a matching location.
-      ASSERT(index > 0);
-      Position = 0;
-      Callstack.append() = pi;
-      // Apply the residual offset to the subitem if any.
-      if (job.RequestInfo(*pi, IF_Tech|IF_Child|IF_Slice))
-      { DEBUGLOG(("Location::NavigateFlat: Tech info of %s not available.\n", cur->GetPlayable().URL.cdata()));
-        return xstring::empty; // Should not happen
-      }
-      if ((pi->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
-      { cur = pi;
-        exclude.get(cur->GetPlayable()) = &cur->GetPlayable();
-        // effectively a recursive call to ourself.
-        goto recurse;
-      }
-      // If we are at a song item, the index should match exactly.
-      ASSERT(index == 1);
-      return xstring(); // NULL
-
-    } else // !flat
-    { // Index navigation
-      int count = pc.GetInfo().obj->num_items;
-      // address from back
-      if (index < 0)
-        index += count + 1;
-      // address by index
-      if (index <= 0 || index > count)
-        return xstring().sprintf("Index %i is beyond the limits (%u) of the playlist %s.",
-          index, count, cur->GetPlayable().URL.cdata());
-
-      // Speed up: start from back if closer to it
-      if ((index<<1) > count)
-      { // iterate from behind
-        index = count - index;
-        do
-          pi = pc.GetPrev(pi);
-        while (index--);
-      } else
-      { // iterate from the front
-        do
-          pi = pc.GetNext(pi);
-        while (index--);
-      }
-      // Postcondition
-      if (FindInCallstack(&pi->GetPlayable()) != UINT_MAX)
-        return xstring().sprintf("Cannot navigate into the recursive item %s.",
-          pi->GetPlayable().URL.cdata());
-    }
-    
-    // TODO: conflicting slice?
-    Position = 0;
-    Callstack.append() = pi;
-    return xstring(); // NULL
-
-  } else
-  { // look for a certain URL
-    const url123& absurl = cur->GetPlayable().URL.makeAbsolute(url);
-    if (!absurl)
-      return xstring().sprintf("The URL %s cannot be understood within the context of %s.",
-        url.cdata(), cur->GetPlayable().URL.cdata());
-    const int_ptr<Playable>& pp = Playable::FindByURL(absurl);
-    if (pp == NULL)
-      // If the url is in the playlist it MUST exist in the repository, otherwise => error.
-      return xstring().sprintf("The item %s is not part of %s.",
-        url.cdata(), cur->GetPlayable().URL.cdata());
-    if (FindInCallstack(pp) != UINT_MAX)
-      return xstring().sprintf("Cannot navigate into the recursive item %s.",
-        pi->GetPlayable().URL.cdata());
-    
-    bool direction = index > 0;
-    if (!direction) // reverse lookup
-      index = -index;
-
-    if (flat)
-    { // flat URL navigation
-      size_t level = Callstack.size();
-      do
-      { const xstring& ret = NavigateCountCore(direction, TATTR_SONG, job, level);
-        if (ret)
-        { if (ret == xstring::empty)
-            return ret;
-          else
-            return xstring().sprintf("The item %s is not part of %s.",
-              url.cdata(), GetCurrent()->GetPlayable().URL.cdata());
-        }
-      } while (&GetCurrent()->GetPlayable() != pp || --index);
-
-    } else // !flat
-    { // Normal URL navigation
-      do
-      { PrevNextCore(direction);
-        pi = Callstack[Callstack.size()-1];
-        if (pi == NULL)
-          return xstring().sprintf("The item %s is no child of %s.",
-            url.cdata(), cur->GetPlayable().URL.cdata());
-      } while (&pi->GetPlayable() != pp || --index);
-    }
-    return xstring(); // NULL
-  }*/
 }
 
 Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth)
@@ -481,152 +317,70 @@ Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset
 
   const bool direction = offset > 0;
 
-  // Try to navigate within the current song.
-  APlayable* cur = GetCurrent();
-  if (cur)
-  {retry:
-    Position += offset;
-    if (!direction)
-    { if (Position >= 0)
-        return ret; // Navigation within song succeeded
-      offset = Position; // remaining part
-    } else
-    { if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
-        return xstring::empty;
-      if (cur->GetInfo().tech->attributes & TATTR_SONG)
-      { const PM123_TIME songlength = cur->GetInfo().obj->songlength;
+  for (;;)
+  { unsigned maxdepth = UINT_MAX;
+    APlayable* cur = GetCurrent();
+    if (!cur)
+      goto next; // we entered a playlist but did not navigate to an item.
+    if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
+      return xstring::empty;
+    if (cur->GetInfo().tech->attributes & TATTR_SONG)
+    { // Try to navigate within the current song.
+      if (direction)
+      { if (Position < 0)
+          Position = 0;
+        Position += offset;
+        const PM123_TIME songlength = cur->GetInfo().obj->songlength;
         if (Position < songlength)
           return ret; // Navigation within song succeeded
         else if (songlength < 0)
           return "Indeterminate song length.";
         offset = Position - songlength; // remaining part
+      } else // Backwards
+      { if (Position < 0)
+        { Position = cur->GetInfo().obj->songlength;
+          if (Position < 0)
+            return "Indeterminate song length.";
+        }
+        Position += offset;
+        if (Position >= 0)
+          return ret; // Navigation within song succeeded
+        offset = Position; // remaining part
       }
-    }
-  } // else we entered a playlist but did not navigate to an item.
-  Position = 0;
-
- next:
-  ret = NavigateCountCore(job, direction, TATTR_SONG|TATTR_PLAYLIST, mindepth);
-  if (ret)
-    return ret;
-
- afterskip:
-  cur = GetCurrent();
-  if (!(cur->GetInfo().tech->attributes & TATTR_PLAYLIST))
-  { // Song item
-    if (!direction)
-    { // Navigate from back.
-      if (job.RequestInfo(*cur, IF_Obj))
-        return xstring::empty;
-      Position = cur->GetInfo().obj->songlength;
-      if (Position < 0)
-      { Position = 0;
-        return "Indeterminate song length.";
-      }
-    }
-    goto retry;
-  } else
-  { size_t i = Callstack.size() -1;
-    PlayableSet exclude(i);
-    while (i--)
-      exclude.add(Callstack[i]->GetPlayable());
-    if (exclude.contains(Callstack[Callstack.size()-1]->GetPlayable()))
-      goto next; // recursive list
-    InfoFlags what = IF_Drpl;
-    const volatile AggregateInfo& ai = cur->RequestAggregateInfo(exclude, what, PRI_None);
-    if (what)
-      goto next; // We do not have aggregate info.
-    PM123_TIME totallength = ai.Drpl.totallength;
-    if (totallength < 0)
-      goto next; // Length of playlist indeterminate
-    if (!direction)
-    { // backward
-      if (totallength + offset > 0)
-        goto next;
-      offset += totallength;
     } else
-    { // forward
-      if (offset > totallength)
-        goto next;
-      offset -= totallength;
+    { // Playlist => try to skip entirely
+      size_t i = Callstack.size() -1;
+      PlayableSet exclude(i);
+      while (i--)
+        exclude.add(Callstack[i]->GetPlayable());
+      if (exclude.contains(Callstack[Callstack.size()-1]->GetPlayable()))
+        goto next; // recursive list
+      InfoFlags what = IF_Drpl;
+      const volatile AggregateInfo& ai = cur->RequestAggregateInfo(exclude, what, PRI_None);
+      if (what)
+        goto next; // We do not have aggregate info.
+      PM123_TIME totallength = ai.Drpl.totallength;
+      if (totallength < 0)
+        goto next; // Length of playlist indeterminate
+      if (!direction)
+      { // backward
+        if (totallength + offset > 0)
+          goto next;
+        offset += totallength;
+      } else
+      { // forward
+        if (offset > totallength)
+          goto next;
+        offset -= totallength;
+      }
+      // Skip playlist
+      maxdepth = Callstack.size();
     }
-    // Skip playlist
-    ret = NavigateCountCore(job, direction, TATTR_SONG|TATTR_PLAYLIST, mindepth, Callstack.size());
+   next:
+    ret = NavigateCountCore(job, direction, TATTR_SONG|TATTR_PLAYLIST, mindepth, maxdepth);
     if (ret)
       return ret;
-    goto afterskip;
   }
-
-/*  // Prepare exclude list
-  PlayableSet exclude;
-  foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
-  { cur = *pipp;
-    Playable& p = cur->GetPlayable();
-    exclude.get(p) = &p;
-  }
-  // Implicit: cur = &GetCurrent();
-
-  // Identify direction
-  int sign;
-  if (offset >= 0)
-  { sign = 1;
-  } else
-  { sign = -1;
-    offset = -offset;
-  }
-
- recurse:
-  // Navigate in synchronized context
-  Mutex::Lock lck(cur->GetPlayable().Mtx);
-
-  if ((cur->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
-  { // cur is playlist => flat time navigation
-    const Playable& pc = cur->GetPlayable();
-    int_ptr<PlayableInstance> pi;
-
-    volatile const AggregateInfo* ai;
-    for(;;)
-    { PrevNextCore(sign > 0);
-      pi = Callstack[Callstack.size()-1];
-      if (pi == NULL)
-        return xstring().sprintf("Time %f is beyond the length of %s.",
-          offset*sign, pc.URL.cdata());
-      // Request aggregate info
-      InfoFlags what;
-      ai = &job.RequestAggregateInfo(*pi, exclude, what = IF_Drpl);
-      if (what)
-        return xstring::empty; // Delayed
-      // Check offset
-      if (ai->Drpl.unk_length || ai->Drpl.totallength > offset)
-      { // Found location
-        cur = pi;
-        exclude.get(cur->GetPlayable()) = &cur->GetPlayable();
-        // effectively a recursive call to ourself.
-        goto recurse;
-      }
-      offset -= ai->Drpl.totallength;
-    }
-  
-  } else
-  { // cur is song
-    PM123_TIME songlen = cur->GetInfo().obj->songlength;
-    if (sign < 0)
-    { // reverse navigation
-      if (songlen < 0)
-        return xstring().sprintf("Cannot navigate from back of %s with unknown songlength.",
-          cur->GetPlayable().URL.cdata());
-      if (offset >= songlen)
-        return xstring().sprintf("Time index -%f is before the start of the song %s with length %f.",
-          offset, cur->GetPlayable().URL.cdata(), songlen);
-      offset = songlen - offset;
-    } else if (songlen >= 0 && offset >= songlen)
-    { return xstring().sprintf("Time index %f is behind the end of the song %s at %f.",
-        offset, cur->GetPlayable().URL.cdata(), songlen);
-    }
-    // TODO: start and stop slice
-    Position = offset;
-  }
-  return xstring(); // NULL*/
 }
 
 xstring Location::Serialize(bool withpos) const
@@ -655,7 +409,7 @@ xstring Location::Serialize(bool withpos) const
     // next
     ret.append(';');
   }
-  if (withpos && Position)
+  if (withpos && Position >= 0)
   { char buf[32];
     ret.append(PM123Time::toString(buf, Position));
   }
@@ -831,7 +585,11 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
 
     // Check their order
     if (*lcpp != *rcpp) // Instance equality is equivalent to equality.
-    { // Lock the parent collection to make the comparison below reliable.
+    { if (!*lcpp)
+        return -level;
+      if (!*rcpp)
+        return level;
+      // Lock the parent collection to make the comparison below reliable.
       Mutex::Lock lock((Mutex&)lroot->Mtx); // Mutex is mutable
       // TODO: unordered because one item has been removed?
       // Currently the remaining one is always considered to be greater.
@@ -867,7 +625,7 @@ InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Prior
   ASSERT(level <= GetLevel());
   ASSERT((what & ~IF_Aggreg) == 0);
   // Position
-  if ((what & IF_Drpl) && Position)
+  if ((what & IF_Drpl) && Position > 0)
   { dest.Drpl.totallength += Position;
     APlayable& cur = *GetCurrent();
     if ( cur.RequestInfo(IF_Phys|IF_Tech, pri) == IF_None

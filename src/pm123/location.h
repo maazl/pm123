@@ -65,8 +65,18 @@ class Location : public Iref_count
   typedef xstring             NavigationResult;
 
  protected:
+  /// Current Root element
   Playable*                   Root;
+  /// @brief Current CallStack
+  /// @details The last entry is the currently selected item.
+  /// If the Callstack is empty, the current item is \c Root.
+  /// The last entry may be \c NULL, indicating that you entered a playlist
+  /// but you did navigate to a sub item so far. The location is then
+  /// before the start of the list or after the end respectively.
   vector_int<PlayableInstance> Callstack;
+  /// @brief Location within the current song (if any).
+  /// @details -1 means that the position is before the start or after the end respectively.
+  /// The actual meaning depends on whether you navigate forward or backwards.
   PM123_TIME                  Position;
   //vector_own<class_delegate2<Location, const PlayableChangeArgs, const int> > CallstackDeleg;
 #ifdef DEBUG
@@ -122,7 +132,7 @@ class Location : public Iref_count
   /// @param root Optionally assign a root object where the Location belongs to.
   ///        This can be changed later by \c SetRoot().
   explicit                    Location(Playable* root = NULL)
-                              : Position(0)
+                              : Position(-1)
   #ifdef DEBUG
                               , RootChangeDeleg(*this, &Location::RootChange)
   #endif
@@ -136,7 +146,7 @@ class Location : public Iref_count
   #endif
                               { DEBUGLOG(("Location(%p)::Location(%p&{%p})\n", this, &r, r.Root)); AssignRoot(r.Root); }
   #ifdef DEBUG
-                              ~Location()                  { DEBUGLOG(("Location(%p)::~Location()\n", this)); }
+  virtual                     ~Location()                  { DEBUGLOG(("Location(%p)::~Location()\n", this)); }
   #endif
   /// Check whether this Location has assigned a root.
   bool                        operator!() const            { return !Root; }
@@ -163,8 +173,11 @@ class Location : public Iref_count
   /// The last entry in the call stack may be \c NULL if the Location points
   /// before the first item of a playlist.
   const vector<PlayableInstance>& GetCallstack() const     { return Callstack; }
-  /// Returns the time offset of this Location within the current item.
-  /// The offset is only non-zero if \c GetCurrent() is a song.
+  /// @brief Returns the time offset of this Location within the current item.
+  /// @details The offset is only valid if \c GetCurrent() is a song.
+  /// @return The offset in seconds from the beginning of the current song.
+  /// A value of \c -1 indicates that the position has not yet been set.
+  /// In case the current item is a playlist the function always return \c -1.
   /// @remarks This is not the same as the time offset within the current root.
   PM123_TIME                  GetPosition() const          { return Position; }
   /// Depth of the current location. (= size of the callstack)
@@ -277,6 +290,8 @@ class Location : public Iref_count
   /// level must be less than the current depth of \c *this.
   /// The absolute return value will not be less than level except for a equal condition.
   /// The current thread must own both Location objects.
+  /// @remarks The comparison takes undefined playlist locations (i.e. \c GetCurrent() is \c NULL)
+  /// and undefined song locations (i.e. \c GetPosition() is \c -1) as before the start rather than after the end.
   int                         CompareTo(const Location& r, unsigned level = 0, bool withpos = true) const;
 
   /// @brief Return the aggregate from the front of root to this location within root.

@@ -159,7 +159,7 @@ argument stops saving a stream.</td>
 (scale 0-100, of course). If a sign is included, <tt><var>&lt;n&gt;</var></tt>
 is added to the current volume level. If <tt><var>&lt;n&gt;</var></tt>
 is omitted the volume is unchanged.</td>
-      <td>Previous volume setting or empty line on error.</td>
+      <td>Previous volume setting or empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="shuffle"></a>shuffle </tt>[<tt>on</tt>|<tt>off</tt>]
@@ -190,7 +190,7 @@ playlist. If only one song is currently loaded into the player <tt>current
 root</tt>
 will also return the song.<br>
 By default <tt>current</tt> returns the current song.</td>
-      <td>Current objects URL or empty line if none.</td>
+      <td>Current objects URL or empty if none.</td>
     </tr>
     <tr>
       <td><tt><a name="status"></a>status
@@ -207,15 +207,16 @@ commands for this purpose.</td>
       <td valign="top"><tt><a name="time"></a>time</tt></td>
       <td valign="top">Return the current playing time. If no playback
 is active and a resume position has been saved it is returned.</td>
-      <td valign="top">Playing time in seconds.</td>
+      <td valign="top">Playing time in seconds, -1 if not available or
+empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="location"></a>location </tt>[<tt>play</tt>|<tt>stopat</tt>]</td>
       <td>Query the current playing location (default).<br>
       <tt>location&nbsp;stopat</tt> return the current stop location if
 any.</td>
-      <td><a href="../location.html">Location string</a> or empty line
-if none.</td>
+      <td><a href="../location.html">Location string</a> or empty if
+none.</td>
     </tr>
   </tbody>
 </table>

@@ -186,7 +186,7 @@ class SongIterator : public Location
   /// \a level must be in the range [0,GetLevel()].
   /// @remarks Note that GetOffsetInfo may return different results
   /// for the same Playable object depending on the call stack entries < \a level.
-  OffsetInfo                  CalcOffsetInfo(size_t level = 0);
+  OffsetInfo                  CalcOffsetInfo(unsigned level = 0);
 };
 
 #endif
