@@ -269,21 +269,26 @@ DLGTEMPLATE CFG_SETTINGS1
   DIALOG         "",                                    CFG_SETTINGS1,      0,  0, 260,148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 42, 248, 36, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 58, 112, 12, WS_GROUP
-    AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 58, 112, 12
-    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 46, 112, 12, DT_VCENTER|DT_MNEMONIC
+    GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 54, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 70, 112, 12, WS_GROUP
+    AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 70, 112, 12
+    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 58, 112, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 46,  52, 12, WS_GROUP
-    AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 46,  52, 12
+    AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 58,  52, 12, WS_GROUP
+    AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 58,  52, 12
 
-    GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 20, 112, 12, WS_GROUP
-    LTEXT        "Alternate s~lider:",                  ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
+    GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 48, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 32, 112, 12, WS_GROUP
+    LTEXT        "Alt. slider f~unction",               ST_GENERIC,        12, 20,  52, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72,  8,  52, 12, WS_TABSTOP|WS_GROUP
-    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132,  8,  52, 12
-    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,      192,  8,  52, 12
+    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72, 20,  52, 12, WS_TABSTOP|WS_GROUP
+    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132, 20,  52, 12
+    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,      192, 20,  52, 12
+    LTEXT        "Alt. slider b~utton",                 ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTORADIOBUTTON "A~lt key",                         RB_ALTKEY,         72,  8,  52, 12, WS_TABSTOP|WS_GROUP
+    AUTORADIOBUTTON "C~trl Key",                        RB_CTRLKEY,       132,  8,  52, 12
+    AUTORADIOBUTTON "S~hift key",                       RB_SHIFTKEY,      192,  8,  52, 12
   }
 }
 

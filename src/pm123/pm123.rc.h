@@ -312,6 +312,9 @@
 #define RB_SONGONLY        1271
 #define RB_SONGTIME        1272
 #define RB_TIMEONLY        1273
+#define RB_ALTKEY          1275
+#define RB_CTRLKEY         1276
+#define RB_SHIFTKEY        1277
 
 #define CFG_SETTINGS2      1300
 

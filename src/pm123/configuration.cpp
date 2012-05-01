@@ -63,6 +63,7 @@ const amp_cfg Cfg::Default =
 , false
 , false
 , CFG_ANAV_SONG
+, CFG_ABUT_ALT
 , true
 , true // recurse_dnd
 , true
@@ -179,6 +180,7 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.retainonstop);
   load_ini_int(HIni, cfg.restartonstart);
   load_ini_int(HIni, cfg.altnavig);
+  load_ini_int(HIni, cfg.altbutton);
   load_ini_int(HIni, cfg.autoturnaround);
   load_ini_int(HIni, cfg.recurse_dnd);
   load_ini_int(HIni, cfg.folders_first);
@@ -246,6 +248,7 @@ void Cfg::SaveIni()
     save_ini_bool (HIni, cfg.retainonstop);
     save_ini_bool (HIni, cfg.restartonstart);
     save_ini_value(HIni, cfg.altnavig);
+    save_ini_value(HIni, cfg.altbutton);
     save_ini_bool (HIni, cfg.autoturnaround);
     save_ini_bool (HIni, cfg.recurse_dnd);
     save_ini_bool (HIni, cfg.folders_first);

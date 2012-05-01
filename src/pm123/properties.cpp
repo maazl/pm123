@@ -201,19 +201,21 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
 
       CheckBox(+GetCtrl(CB_TURNAROUND    )).SetCheckState(cfg.autoturnaround);
       CheckBox(+GetCtrl(RB_SONGONLY+cfg.altnavig)).SetCheckState(true);
+      CheckBox(+GetCtrl(RB_ALTKEY+cfg.altbutton)).SetCheckState(true);
 
       return 0;
     }
 
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.playonload  = CheckBox(GetCtrl(CB_PLAYONLOAD)).QueryCheckState();
-      cfg.retainonexit= CheckBox(GetCtrl(CB_RETAINONEXIT)).QueryCheckState();
-      cfg.retainonstop= CheckBox(GetCtrl(CB_RETAINONSTOP)).QueryCheckState();
-      cfg.restartonstart= CheckBox(GetCtrl(CB_RESTARTONSTART)).QueryCheckState();
+      cfg.playonload     = CheckBox(GetCtrl(CB_PLAYONLOAD)).QueryCheckState();
+      cfg.retainonexit   = CheckBox(GetCtrl(CB_RETAINONEXIT)).QueryCheckState();
+      cfg.retainonstop   = CheckBox(GetCtrl(CB_RETAINONSTOP)).QueryCheckState();
+      cfg.restartonstart = CheckBox(GetCtrl(CB_RESTARTONSTART)).QueryCheckState();
 
       cfg.autoturnaround = CheckBox(GetCtrl(CB_TURNAROUND)).QueryCheckState();
-      cfg.altnavig = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).QueryCheckIndex();
+      cfg.altnavig       = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).QueryCheckIndex();
+      cfg.altbutton      = (cfg_abutton)RadioButton(GetCtrl(RB_ALTKEY)).QueryCheckIndex();
     }
   }
   return SettingsPageBase::DlgProc(msg, mp1, mp2);

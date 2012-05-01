@@ -86,6 +86,13 @@ enum cfg_anav
   CFG_ANAV_TIME
 };
 
+// Alternate navigation button
+enum cfg_abutton
+{ CFG_ABUT_ALT,
+  CFG_ABUT_CTRL,
+  CFG_ABUT_SHIFT
+};
+
 enum cfg_rgtype
 { CFG_RG_NONE,
   CFG_RG_ALBUM,
@@ -102,7 +109,8 @@ struct amp_cfg
   bool    retainonexit;       // Retain playing position on exit.
   bool    retainonstop;       // Retain playing position on stop.
   bool    restartonstart;     // Restart playing on startup.
-  cfg_anav altnavig;          // Alternate navigation method 0=song only, 1=song&time, 2=time only
+  cfg_anav altnavig;          // Alternate navigation method
+  cfg_abutton altbutton;      // Alternate navigation button
   bool    autoturnaround;     // Turn around at prev/next when at the end of a playlist
   bool    recurse_dnd;        // Drag and drop of folders recursive
   bool    folders_first;      // Place subfolders before content
