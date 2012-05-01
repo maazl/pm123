@@ -474,6 +474,22 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
     Cfg::ChangeAccess().*option = mp->Val;
   }
 }
+void CommandProcessor::DoOption(cfg_abutton amp_cfg::* option)
+{ static const strmap<6,cfg_abutton> map[] =
+  { { "alt",   CFG_ABUT_ALT   }
+  , { "ctrl",  CFG_ABUT_CTRL  }
+  , { "shift", CFG_ABUT_SHIFT }
+  };
+  Reply.append(map[ReadCfg().*option].Str);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (Request)
+  { const strmap<10,cfg_abutton>* mp = mapsearch(map, Request);
+    if (!mp)
+      throw SyntaxException("Expected {alt|ctrl|shift} but found \"%s\".", Request);
+    Cfg::ChangeAccess().*option = mp->Val;
+  }
+}
 void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
 { Reply.append(dispmap[3 - ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
@@ -1438,6 +1454,7 @@ void CommandProcessor::XVersion()
 // PM123 option
 const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 { { "altslider",       &amp_cfg::altnavig       }
+, { "altbutton",       &amp_cfg::altbutton      }
 , { "autouse",         &amp_cfg::autouse        }
 , { "bufferlevel",     &amp_cfg::buff_fill      }
 , { "buffersize",      &amp_cfg::buff_size      }

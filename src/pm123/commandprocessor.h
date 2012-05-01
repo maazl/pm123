@@ -186,6 +186,7 @@ class CommandProcessor : public ACommandProcessor
   void DoOption(int amp_cfg::* option);
   void DoOption(xstring amp_cfg::* option);
   void DoOption(cfg_anav amp_cfg::* option);
+  void DoOption(cfg_abutton amp_cfg::* option);
   void DoOption(cfg_disp amp_cfg::* option);
   void DoOption(cfg_scroll amp_cfg::* option);
   void DoOption(cfg_mode amp_cfg::* option);
