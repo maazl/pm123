@@ -484,7 +484,7 @@ void CommandProcessor::DoOption(cfg_abutton amp_cfg::* option)
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
-  { const strmap<10,cfg_abutton>* mp = mapsearch(map, Request);
+  { const strmap<6,cfg_abutton>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {alt|ctrl|shift} but found \"%s\".", Request);
     Cfg::ChangeAccess().*option = mp->Val;
