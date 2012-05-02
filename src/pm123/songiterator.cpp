@@ -27,6 +27,7 @@
  */
 
 #include "songiterator.h"
+#include <stdint.h>
 
 #include <debuglog.h>
 
@@ -48,8 +49,14 @@ ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
 }
 
 long ShuffleWorker::CalcHash(const PlayableInstance& item, long seed)
-{ // TODO: use a reasonable hash algorithm.
-  return seed ^ (long)&item;
+{ uint64_t key = ((uint64_t)seed << 32) + (long)&item;
+  key += ~key << 18;
+  key ^= key >> 31;
+  key *= 21;
+  key ^= key >> 11;
+  key += key << 6;
+  key ^= key >> 22;
+  return (long)key;
 }
 
 int ShuffleWorker::ItemComparer(const KeyType& key, const PlayableInstance& item)
@@ -128,6 +135,7 @@ void ShuffleWorker::Update()
       int_ptr<PlayableInstance> pi;
       while ((pi = Playlist->GetNext(pi)) != NULL)
         UpdateItem(*pi);
+      break;
     }
    default:
     // Delta update
@@ -192,12 +200,12 @@ SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo&
 SongIterator::SongIterator(Playable* root)
 : Location(root)
 , Options(PLO_NO_SHUFFLE)
-//, ShuffleSeed(0)
+, ShuffleSeed(0)
 , IsShuffleCache(PLO_NONE)
 { // Increment reference counter
   int_ptr<Playable> ptr(GetRoot());
   ptr.toCptr();
-  Reshuffle();
+  //Reshuffle();
 }
 SongIterator::SongIterator(const SongIterator& r)
 : Location(r)
@@ -279,27 +287,21 @@ SongIterator& SongIterator::operator=(const SongIterator& r)
   return *this;
 }
 
-void SongIterator::Swap2(Location& l, int magic)
-{ DEBUGLOG(("SongIterator(%p)::Swap2(&%p, %i)\n", this, &l, magic));
+void SongIterator::Swap2(Location& l)
+{ DEBUGLOG(("SongIterator(%p)::Swap2(&%p)\n", this, &l));
   // swap location slice
-  Location::Swap2(l, magic);
-  if (magic)
-  { // swap two SongIterator
-    SongIterator& si = (SongIterator&)l;
-    swap(Options, si.Options);
-    swap(ShuffleSeed, si.ShuffleSeed);
-    ShuffleWorkerCache.swap(si.ShuffleWorkerCache);
-    swap(IsShuffleCache, si.IsShuffleCache);
-  } else
-  { // do post processing
-    IsShuffleCache = PLO_NONE;
-    ShuffleWorkerCacheCleanup();
-  }
+  Location::Swap2(l);
+  // do post processing
+  IsShuffleCache = PLO_NONE;
+  ShuffleWorkerCacheCleanup();
 }
 
 void SongIterator::Swap(Location& r)
 { DEBUGLOG(("SongIterator(%p)::Swap(&%p)\n", this, &r));
-  CallSwap2(r, *this, 1);
+  CallSwap2(r, *this);
+  // do post processing
+  IsShuffleCache = PLO_NONE;
+  ShuffleWorkerCacheCleanup();
 }
 
 void SongIterator::SetOptions(PL_OPTIONS options)
@@ -340,7 +342,7 @@ bool SongIterator::IsShuffle() const
         goto done;
       --depth;
     }
-    ((SongIterator&)*this).IsShuffleCache = (Options & PLO_SHUFFLE)|PLO_NO_SHUFFLE;
+    ((SongIterator&)*this).IsShuffleCache = Options & PLO_SHUFFLE ? PLO_SHUFFLE : PLO_NO_SHUFFLE;
   }
  done:
   return !(IsShuffleCache & PLO_NO_SHUFFLE);

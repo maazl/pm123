@@ -1,8 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head>
-<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-<link rel="stylesheet" href="infstyle.css" type="text/css">
-<title>History of changes</title></head>
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <link rel="stylesheet" href="infstyle.css" type="text/css">
+  <title>History of changes</title>
+</head>
 <body>
 <h2>PM123's History</h2>
 <h3>PM123 1.41 (alpha 1)</h3>
@@ -10,14 +12,18 @@
   <li>Added <em>Pulseaudio</em> client support, playback and recording.</li>
   <li>Added <em>playlist plug-in</em> support.</li>
   <li>Switched PM123 engine to 32 bits per sample.</li>
-  <li>Significant speed up when invoking large playlists with many http URLs
-    as long as you use no old decoder plug-ins.</li>
+  <li>Significant speed up when invoking large playlists with many http
+URLs as long as you use no old decoder plug-ins.</li>
   <li>Moved replay gain processing to PM123 core.</li>
-  <li>Upgrade to libsndfile 1.0.23</li>
   <li>Access to meta data through pipe interface.</li>
-  <li>Switched to dynamic string library with shared storage to save memory.</li>
-  <li>Removed most length restrictions of meta data and reduced memory footprint of song and playlist objects in PM123.</li>
-  <li>Reset high decoder thread priority after 20 seconds to prevent from unresponsive UI.</li>
+  <li>Implemented new shuffle algorithm that can deal with nested
+playlists.</li>
+  <li>Switched to dynamic string library with shared storage to save
+memory.</li>
+  <li>Removed most length restrictions of meta data and reduced memory
+footprint of song and playlist objects in PM123.</li>
+  <li>Reset high decoder thread priority after 20 seconds to prevent
+from unresponsive UI.</li>
 </ul>
 <blockquote>
   <h4>MPG123</h4>
@@ -33,13 +39,21 @@
   <li>Moved replay gain processing to PM123 core.</li>
   <li>Moved logarithmic volume control to os2audio.</li>
 </ul>
+<blockquote>
+  <h4>wavplay</h4>
+</blockquote>
+<ul>
+  <li>Upgrade to libsndfile 1.0.23.</li>
+</ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>
 <ul>
-  <li>Switched code generation to Pentium classic instruction set. PM123 will no longer run on i486.</li>
+  <li>Switched code generation to Pentium classic instruction set.
+PM123 will no longer run on i486.</li>
   <li>Unified ini file (except for CDDAPLAY).</li>
   <li>Save window positions per object.</li>
   <li>Added a bunch of new commands to the remote interface.</li>
-  <li>Implemented <em>alternate slider navigation</em> by pressing the Alt
+  <li>Implemented <em>alternate slider navigation</em> by pressing the
+Alt
 key. This allows to seek within whole playlists by using the slider.</li>
   <li>Standard equalizer removed. This one was supported by
 mpg123 only, so it makes no sense in the PM123 core.</li>
@@ -57,13 +71,15 @@ Furthermore you may append dropped or double-clicked items to the
 default playlist instead of loading them immediately.</li>
   <li>Playlists, Playlist manager, Bookmarks are now basically
 the same. This offers <i>plenty much of new features</i>.</li>
-  <li>Support for <em>nested playlists</em>. Playlists may be nested as
+  <li>Support for <em>nested playlists</em>. Playlists may be nested
+as
 deep as you like. This allows structured bookmarks too.</li>
   <li>Properly handling of recursions in nested playlists.</li>
   <li>Support for directories. PM123 no longer needs to expand
 the folder content at the moment where a folder is dropped to the
 player or a playlist.</li>
-  <li>Added <em>song and playlist slicing</em>. A playlist entry may now
+  <li>Added <em>song and playlist slicing</em>. A playlist entry may
+now
 reference only a part of a song or another playlist.</li>
   <li>Added support for bookmarks with current playing position.</li>
   <li>Added support for bookmarks to playlists and playlist items.</li>
@@ -181,7 +197,8 @@ played, and next song does go back to the same song.</li>
 the playlist. Missed files are marked with a special icon and skipped
 at use of the playlist.</li>
   <li>The sources now can be compiled via Open Watcom 1.7.</li>
-  <li>The sources now can be compiled via GNU C++. Thanks to Dmitry Froloff.</li>
+  <li>The sources now can be compiled via GNU C++. Thanks to Dmitry
+Froloff.</li>
   <li>Added support of Cyrillic letters (Russian CP866) to the
 first default skin font. Thanks to ntim.</li>
   <li>The default skin draws a bit rate digit by digit.
@@ -687,8 +704,8 @@ directory listbox AND it must be the current directory listed in the
 file listbox AND the filename entry field must be empty, or "*" or the
 default "*.*".</li>
   <li>HUGE playlist (~900 songs and more) are now able to load.</li>
-  <li>pm123 doesn't crash when loading playlist from the command 
-line for an already opened instance. This includes .m3u since they are
+  <li>pm123 doesn't crash when loading playlist from the command line
+for an already opened instance. This includes .m3u since they are
 now loaded as playlists.</li>
   <li>Fixed problem when loading playlist and a song from the
 unloaded playlist was already playing.</li>
@@ -748,7 +765,7 @@ songs.</li>
   <li>Added support for Xing Variable Bitrate MP3s.</li>
   <li>Added auto-repause kludge so that when MMOS/2 gives access
 back to the sound device, the bug in MMOS/2 doesn't unpause mpg123.</li>
-  <li>Added new 10 bands ISO normal frequency equalizer for MP3s 
+  <li>Added new 10 bands ISO normal frequency equalizer for MP3s
 *only*. The interface (which also needs to be fixed) will not be
 updated until Taneli has more time on his hands, but here are the
 bands. Also note that the decibel calculation was wrong before (way too
@@ -946,5 +963,5 @@ and more consistent with the total time.</li>
 <ul>
   <li>First public release</li>
 </ul>
-
-</body></html>
+</body>
+</html>

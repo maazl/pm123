@@ -810,6 +810,7 @@ void CtrlImp::MsgNavigate()
     // We must fetch the current playing time first, because this may change Current().
     PM123_TIME time = FetchCurrentSongTime();
     sip = new SongIterator(Current()->Loc);
+    sip->SetOptions(PLO_NONE);
     sip->NavigateUp(0);
     if (time >= 0)
       sip->NavigateTime(SyncJob, time);
@@ -927,7 +928,10 @@ void CtrlImp::MsgLoad()
   if (url)
   { int_ptr<Playable> play = Playable::GetByURL(url);
     { Mutex::Lock lock(PLMtx);
-      PrefetchList.append() = new PrefetchEntry(0, SongIterator(play));
+      PrefetchEntry* pe = new PrefetchEntry(0, SongIterator(play));
+      pe->Loc.Reshuffle();
+      pe->Loc.SetOptions(Shuffle * PLO_SHUFFLE);
+      PrefetchList.append() = pe;
       // assign change event handler
       //Current()->Iter.Change += SongIteratorDelegate;
       Pending |= EV_Root|EV_Song;
@@ -1053,14 +1057,14 @@ void CtrlImp::MsgDecStop()
   Glue::DecStop();
 
   // Navigation
-  if (!(GetRoot()->GetInfo().tech->attributes & TATTR_SONG))
-  { if ( ( !SkipCore(pep->Loc, dir)
-        && (!Repeat || !SkipCore(pep->Loc, dir)) )
-      || (Repeat && pep->Loc.CompareTo(Current()->Loc, 0, false) == 0) ) // no infinite loop
-    { delete pep;
-      goto eol; // end of list => same as end of song
-    }
+  if ( ( !SkipCore(pep->Loc, dir)
+      && (!Repeat || !SkipCore(pep->Loc, dir)) )
+    || (Repeat && pep->Loc.CompareTo(Current()->Loc, 0, false) == 0) ) // no infinite loop
+  { delete pep;
+    Current()->Loc.Reshuffle();
+    goto eol; // end of list => same as end of song
   }
+
   // Avoid to open more than one decoder instance at a time.
   Glue::DecClose();
 

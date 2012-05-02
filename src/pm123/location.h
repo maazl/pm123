@@ -115,8 +115,8 @@ class Location : public Iref_count
   NavigationResult            NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
 
   /// Helper for double dispatch at \c Swap.
-  virtual void                Swap2(Location& l, int magic);
-  static void                 CallSwap2(Location& r, Location& l, int magic) { r.Swap2(l, magic); }
+  virtual void                Swap2(Location& l);
+  static void                 CallSwap2(Location& r, Location& l) { r.Swap2(l); }
 
  private:
   /// Assign new root (Location must be initial before)

@@ -63,8 +63,8 @@ void Location::AssignRoot(Playable* root)
   Root = p;
 }*/
 
-void Location::Swap2(Location& l, int magic)
-{ DEBUGLOG(("Location(%p)::Swap2(&%p, %i)\n", this, &l, magic));
+void Location::Swap2(Location& l)
+{ DEBUGLOG(("Location(%p)::Swap2(&%p)\n", this, &l));
   #ifdef DEBUG
   Playable* tmp = Root;
   AssignRoot(l.Root);
@@ -78,7 +78,7 @@ void Location::Swap2(Location& l, int magic)
 
 void Location::Swap(Location& r)
 { DEBUGLOG(("Location(%p)::Swap(&%p)\n", this, &r));
-  r.Swap2(*this, 0);
+  r.Swap2(*this);
 }
 
 void Location::Reset()

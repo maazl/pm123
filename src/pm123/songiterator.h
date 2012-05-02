@@ -153,7 +153,7 @@ class SongIterator : public Location
   virtual void                Enter();
   virtual void                Leave();
   virtual void                PrevNextCore(bool direction);
-  virtual void                Swap2(Location& l, int magic);
+  virtual void                Swap2(Location& l);
  public:
   explicit                    SongIterator(Playable* root = NULL);
                               SongIterator(const SongIterator& r);
