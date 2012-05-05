@@ -253,7 +253,7 @@ static int StandardComparer(const DirScan::Entry* l, const DirScan::Entry* r)
 
 static int FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r)
 { if ((l->Attributes ^ r->Attributes) & FILE_DIRECTORY)
-    return (l->Attributes & FILE_DIRECTORY) - (r->Attributes & FILE_DIRECTORY);
+    return (r->Attributes & FILE_DIRECTORY) - (l->Attributes & FILE_DIRECTORY);
   else
     return stricmp(l->URL, r->URL);
 }
