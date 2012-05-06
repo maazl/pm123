@@ -168,8 +168,8 @@ class GUIImp : private GUI
   static void      PluginNotification(const void*, const PluginEventArgs& args);
   static void      ConfigNotification(const void*, const CfgChangeArgs& args);
 
-  static Playable* CurrentRoot()             { return CurrentIter->GetRoot(); }
-  static APlayable* CurrentSong()            { return CurrentIter->GetCurrent(); }
+  static Playable* CurrentRoot()             { return CurrentIter ? CurrentIter->GetRoot() : NULL; }
+  static APlayable* CurrentSong()            { return CurrentIter ? CurrentIter->GetCurrent() : NULL; }
 
   static void      PostCtrlCommand(Ctrl::ControlCommand* cmd) { Ctrl::PostCommand(cmd, &GUIImp::ControllerEventCB); }
 
@@ -1479,9 +1479,10 @@ void GUIImp::ShowContextMenu()
   }
 
   // Update status
-  mn_enable_item(context_menu, IDM_M_TAG,     CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_WRITABLE));
-  mn_enable_item(context_menu, IDM_M_SAVE,    CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_STORABLE));
-  mn_enable_item(context_menu, IDM_M_CURRENT_SONG, CurrentIter && CurrentIter->GetRoot());
+  APlayable* const cur = CurrentSong();
+  mn_enable_item(context_menu, IDM_M_TAG,     cur && (cur->GetInfo().phys->attributes & PATTR_WRITABLE) && (cur->GetInfo().tech->attributes & TATTR_WRITABLE));
+  mn_enable_item(context_menu, IDM_M_SAVE,    cur && (cur->GetInfo().tech->attributes & TATTR_STORABLE));
+  mn_enable_item(context_menu, IDM_M_CURRENT_SONG, cur != NULL);
   mn_enable_item(context_menu, IDM_M_CURRENT_PL, CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_PLAYLIST));
   mn_enable_item(context_menu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
   mn_enable_item(context_menu, IDM_M_NORMAL,  bmp_is_mode_supported(CFG_MODE_REGULAR));
@@ -1489,7 +1490,6 @@ void GUIImp::ShowContextMenu()
   mn_enable_item(context_menu, IDM_M_FONT,    Cfg::Get().font_skinned );
   mn_enable_item(context_menu, IDM_M_FONT1,   bmp_is_font_supported(0));
   mn_enable_item(context_menu, IDM_M_FONT2,   bmp_is_font_supported(1));
-  mn_enable_item(context_menu, IDM_M_ADDBOOK, CurrentIter && CurrentIter->GetRoot());
 
   mn_check_item(context_menu, IDM_M_FLOAT,  Cfg::Get().floatontop);
   mn_check_item(context_menu, IDM_M_SAVE,   !!Ctrl::GetSavename());
