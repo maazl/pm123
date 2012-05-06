@@ -1104,7 +1104,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
     *errortext = id3file.GetLastError();
   id3file.Close();
 
-  if (!errortext && *savename)
+  if (!*errortext && savename)
   { // Must replace the file.
     eacopy(surl2file(url), surl2file(savename));
     *errortext = MPG123::ReplaceFile(savename, url);
