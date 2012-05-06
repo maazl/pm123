@@ -390,7 +390,7 @@ InfoDialog* InfoDialog::Factory(const KeyType& key)
   #endif
   if (key.size() > 1)
     ret = new MultipleInfoDialog(key);
-  if (key.Parent)
+  else if (key.Parent)
     ret = new PlayableInstanceInfoDialog(key);
   else
     ret = new SingleInfoDialog(key);
