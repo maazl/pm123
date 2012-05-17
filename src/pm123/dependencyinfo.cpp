@@ -101,6 +101,27 @@ xstring DependencyInfoPath::DebugDump() const
 *
 ****************************************************************************/
 
+/*struct JoinIterator
+{ DependencyInfoPath::Entry* L;
+  DependencyInfoPath::Entry* R;
+  enum Mode
+  { Done,
+    LeftOuter,
+    RightOuter,
+    Inner
+  } Compare();
+};
+
+JoinIterator::Mode JoinIterator::Compare()
+{ if (L == NULL)
+   return R == NULL ? Done : RightOuter;
+  if (R == NULL || L->Inst.get() < R->Inst.get())
+   return LeftOuter;
+  if (L->Inst.get() > R->Inst.get())
+    return RightOuter;
+  return Inner;
+}*/
+
 void DependencyInfoSet::Join(DependencyInfoPath& r)
 { DEBUGLOG(("DependencyInfoSet(%p{{%u,},{%u,}})::Join(&{{%u,}})\n",
     this, MandatorySet.size(), OptionalSet.size(), r.Size()));
@@ -118,7 +139,9 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
   Entry* re = ri < r.Size() ? AccessMandatorySet(r)[ri] : NULL;
   SetType roset; // right outer set
   while (le || re)
-  { if (le == NULL || le->Inst.get() > re->Inst.get())
+  { if (re == NULL)
+      goto lo1;
+    if (le == NULL || le->Inst.get() > re->Inst.get())
     { // current right entry does not match
       outer |= 1;
       Entry*& lo = OptionalSet.get(*re->Inst);
@@ -130,8 +153,9 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
         AccessMandatorySet(r).erase(ri);
       }
       re = ri < r.Size() ? AccessMandatorySet(r)[ri] : NULL;
-    } else if (re == NULL || le->Inst.get() < re->Inst.get())
+    } else if (le->Inst.get() < re->Inst.get())
     { // current left entry does not match
+     lo1:
       outer |= 2;
       Entry*& ro = roset.get(*le->Inst);
       if (ro)
@@ -159,10 +183,13 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
     le = li < OptionalSet.size() ? OptionalSet[li] : NULL;
     re = ri < roset.size() ? roset[ri] : NULL;
     while (le || re)
-    { if (le == NULL || le->Inst.get() > re->Inst.get())
+    { if (re == NULL)
+        goto lo2;
+      if (le == NULL || le->Inst.get() > re->Inst.get())
       { // current right entry does not match
-      } else if (re == NULL || le->Inst.get() < re->Inst.get())
+      } else if (le->Inst.get() < re->Inst.get())
       { // current left entry does not match
+       lo2:
         OptionalSet.erase(li);
         le = li < OptionalSet.size() ? OptionalSet[li] : NULL;
         continue;
@@ -179,15 +206,18 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
     le = li < OptionalSet.size() ? OptionalSet[li] : NULL;
     re = ri < roset.size() ? roset[ri] : NULL;
     while (le || re)
-    { if (le == NULL || le->Inst.get() > re->Inst.get())
+    { if (re == NULL)
+        goto lo3;
+      if (le == NULL || le->Inst.get() > re->Inst.get())
       { // current right entry does not match
         roset.erase(ri);
         OptionalSet.insert(li) = re;
         ++li;
         re = ri < roset.size() ? roset[ri] : NULL;
         continue;
-      } else if (re == NULL || le->Inst.get() < re->Inst.get())
+      } else if (le->Inst.get() < re->Inst.get())
       { // current left entry does not match
+       lo3:;
       } // else match
       { le->Merge(re->What, re->Exclude);
         re = ++ri < roset.size() ? roset[ri] : NULL;

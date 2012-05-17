@@ -263,6 +263,7 @@
 #define IDH_PLAYFOLDER     1026
 #define IDH_INSPECTOR      1027
 #define IDH_ID3_EDITOR     1028
+#define IDH_SHUFFLE        1029
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
 #define IDH_SETTINGSIO     1052

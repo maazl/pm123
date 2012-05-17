@@ -179,7 +179,7 @@ class Location : public Iref_count
   /// @brief Returns the time offset of this Location within the current item.
   /// @details The offset is only valid if \c GetCurrent() is a song.
   /// @return The offset in seconds from the beginning of the current song.
-  /// A value of \c -1 indicates that the position has not yet been set.
+  /// A value of \c <0 indicates that the position has not yet been set.
   /// In case the current item is a playlist the function always return \c -1.
   /// @remarks This is not the same as the time offset within the current root.
   PM123_TIME                  GetPosition() const          { return Position; }
