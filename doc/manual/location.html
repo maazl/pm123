@@ -5,7 +5,7 @@
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
-<h2>PM123 playlist location strings</h2>
+<h2>PM123 playlist location and navigation strings</h2>
 <p>PM123 uses a special notation to store playing positions. These
 strings are used at
 </p>
@@ -23,8 +23,10 @@ In case of playlists it is an entire call stack. A call stack in
 general consists of several parts separated by '<tt>;</tt>' or new-line
 (if the new-line character is allowed). URLs in the parts may be
 enclosed with double quotes (<tt>"</tt>) to avoid confusion with
-special characters.
-</p>
+special characters.</p>
+<p>In case of navigation, the location string may also specify relative
+pos2itions. This includes that you can also navigate to the parent with
+<tt>".."</tt>. </p>
 <h3>Examples:</h3>
 <blockquote>
   <pre>my_nested_playlist.lst<br>my_favorite_song.mp3[2]<br>3:44</pre>
@@ -166,7 +168,15 @@ it's
 sublists. </li>
   <li><b><tt>..</tt></b><br>
 Navigate one level up. This makes only sense if we are currently not at
-the top level. </li>
+the top level.</li>
+  <li><b><tt>.</tt></b><br>
+Navigate before the start of the current level. I.e. if the current
+item is a playlist the next relative forward navigation will start from
+the start of the list rather than the current position. If the current
+item is a song, the time navigation count from the start of the song
+(or the end in case of negative values).</li>
+  <li><b><tt>/</tt></b><br>
+Start over from the current root.</li>
 </ul>
 <p>It is an error to
 </p>
@@ -177,7 +187,7 @@ the top level. </li>
   </li>
 </ul>
 <p>If relative navigation is used remember that the current location is
-always a song. So you need at least one '<tt>..;</tt>' to get to the
+usually a song. So you need '<tt>..;</tt>' to get to the
 deep most playlist.
 </p>
 <h4>Time syntax</h4>
@@ -185,18 +195,19 @@ If the current item is a song you may only specify a time offset from
 the beginning. Syntax:
 <ul>
   <li><b><tt><var>seconds</var></tt></b></li>
-  <li><b><tt><var>seconds</var>.<var>fractionals</var></tt></b></li>
+  <li><b><tt><var>seconds</var>.<var>fractional</var></tt></b></li>
   <li><b><tt><var>minutes</var>:<var>seconds</var></tt></b></li>
-  <li><b><tt><var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></b></li>
+  <li><b><tt><var>minutes</var>:<var>seconds</var>.<var>fractional</var></tt></b></li>
   <li><b><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></b></li>
-  <li><b><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></b></li>
+  <li><b><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractional</var></tt></b></li>
   <li><b><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></b></li>
-  <li><b><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></b></li>
+  <li><b><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractional</var></tt></b></li>
 </ul>
 <p>It is valid to specify offsets larger the one minute as seconds and
 so on.<br>
 Using a sufficient number of fractional digits it is possible to
 address locations with an accuracy of one sample. However, some decoder
-plug-ins may bend it.</p>
+plug-ins may bend it.<br>
+You must not enclose time offsets with quotes.</p>
 </body>
 </html>

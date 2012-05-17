@@ -82,11 +82,13 @@ is specified, you can leave more than one nested playlist at once.</td>
 on error.</td>
     </tr>
     <tr>
-      <td valign="top"><tt><a name="pl_navigate"></a>pl navigate <var>&lt;location&gt;</var></tt>
+      <td valign="top"><tt><a name="pl_navigate"></a>pl navigate </tt>[<tt><var>&lt;location&gt;</var></tt>]
       </td>
-      <td valign="top">Navigate within the playlist. The command uses
+      <td valign="top">Return the current location and optionally
+navigate within the playlist. The command uses
 the <a href="../location.html">location string syntax</a>. </td>
-      <td valign="top">URL of the item or an empty line on error.</td>
+      <td valign="top">Current location or empty on
+error.</td>
     </tr>
     <tr>
       <td><tt><a name="pl_reset"></a>pl reset</tt></td>
@@ -137,12 +139,16 @@ empty on error</td>
     <tr>
       <td valign="top"><tt><a name="pl_callstack"></a>pl callstack</tt></td>
       <td valign="top">Query the current call stack when navigating in
-recursive playlists.</td>
-      <td valign="top">URL of parent playlists. One per line and from
-top to bottom.</td>
+recursive playlists. The command uses <a href="../location.html">location
+string syntax</a>.<br>
+This is similar to <a href="#pl_navigate"><tt>pl navigate</tt></a>,
+but does not include the
+location within the current song. </td>
+      <td valign="top">URLs of parent playlists. One per line and from
+top to bottom, empty on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="use"></a>use</tt></td>
+      <td><tt><a name="use">CALL CallPipe 'pl reset' </a>use</tt></td>
       <td>Use the current playlist. This is equivalent to '<tt>load <var>&lt;URL
 to current playlist&gt;</var></tt>'.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
@@ -154,7 +160,8 @@ to current playlist&gt;</var></tt>'.</td>
   <li>
     <p><a name="note1"></a>If you pass relative URLs the path set with
 the <a href="general.html#cd">cd</a> command is used as root. Note
-that this does not apply to location strings.</p>
+that this does not apply to locatioCALL CallPipe 'pl reset'<br>
+n strings.</p>
   </li>
   <li><a name="note2"></a>Note that the navigation will never enter
 recursive playlists. But the recursive list itself is reported if the

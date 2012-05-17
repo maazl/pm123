@@ -16,7 +16,7 @@ class/interface.</p>
 W - write access<br>
 O&nbsp;- observer<br>
 <i>Italic</i> indicates indirect usage through delegation.<br>
-lowercase letters indicate local access.<br>
+lowercase letters indicate local access.
 </p>
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
@@ -30,31 +30,27 @@ Name</th>
       <th>Info</th>
       <th>Slice</th>
       <th>Children</th>
-      <th>Thread</th>
+      <th>Worker class</th>
       <th>Uses class</th>
     </tr>
     <tr>
-      <td>Loaded root object into the player<br>
-      </td>
+      <td>Loaded root object into the player </td>
       <td>&nbsp;</td>
       <td>RW</td>
       <td>RO</td>
       <td>R</td>
       <td><i>R</i></td>
-      <td>controller</td>
+      <td>Ctrl</td>
       <td><tt>APlayable</tt></td>
     </tr>
     <tr>
-      <td>Current object to play<br>
-      </td>
-      <td>&nbsp;<br>
-      </td>
+      <td>Current object to play </td>
+      <td>&nbsp; </td>
       <td>RW</td>
       <td>RO</td>
-      <td>&nbsp;<br>
-      </td>
+      <td>&nbsp; </td>
       <td>&nbsp;</td>
-      <td>controller</td>
+      <td>Ctrl</td>
       <td><tt>APlayable</tt></td>
     </tr>
     <tr>
@@ -62,10 +58,11 @@ Name</th>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>R</td>
+      <td><br>
+      </td>
       <td>&nbsp;</td>
-      <td>decoder</td>
-      <td><tt>APlayable</tt></td>
+      <td>Glue</td>
+      <td><tt>Playable</tt></td>
     </tr>
     <tr>
       <td>Calculate time offset</td>
@@ -74,8 +71,8 @@ Name</th>
       <td>&nbsp;</td>
       <td>R</td>
       <td>&nbsp;</td>
-      <td>controller</td>
-      <td><tt>APlayable</tt></td>
+      <td>Ctrl</td>
+      <td><tt>SongIterator</tt></td>
     </tr>
     <tr>
       <td colspan="1" rowspan="1">Display timers and info</td>
@@ -88,14 +85,14 @@ Name</th>
       <td><tt>APlayable</tt></td>
     </tr>
     <tr>
-      <td>Enumerate Songs, call stack entry</td>
+      <td>Enumerate Songs</td>
       <td>&nbsp;</td>
       <td>R</td>
       <td>&nbsp;</td>
       <td>R</td>
       <td><i>RO</i></td>
       <td>*</td>
-      <td><tt>CallstackEntry</tt></td>
+      <td><tt>SongIterator</tt></td>
     </tr>
     <tr>
       <td>Show/edit a playlist</td>
@@ -154,7 +151,7 @@ Name</th>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
       <td>RW</td>
-      <td>pipe</td>
+      <td>Pipe</td>
       <td><tt>Playable</tt></td>
     </tr>
     <tr>
@@ -164,7 +161,7 @@ Name</th>
       <td>RW</td>
       <td>R</td>
       <td>&nbsp;</td>
-      <td>pipe</td>
+      <td>Pipe</td>
       <td><tt>PlayableInstance</tt></td>
     </tr>
     <tr>
@@ -201,45 +198,40 @@ Name</th>
       <td>Add a bookmark</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>R<br>
-      </td>
+      <td>R </td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
       <td>GUI</td>
       <td><tt>PlayableRef</tt></td>
     </tr>
     <tr>
-      <td>Display bookmark/MRU menu<br>
-      </td>
+      <td>Display bookmark/MRU menu </td>
       <td>RO</td>
       <td>RO</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
       <td>RO</td>
       <td>GUI</td>
-      <td><tt>APlayable, Playable<br>
-      </tt></td>
+      <td><tt>APlayable </tt></td>
     </tr>
     <tr>
       <td>Add MRU</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>R<br>
-      </td>
+      <td>R </td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>GUI, pipe</td>
+      <td>GUI, Pipe</td>
       <td><tt>PlayableSlice</tt></td>
     </tr>
     <tr>
       <td>Loading multiple items into PM123</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>R<br>
-      </td>
+      <td>R </td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>GUI, pipe</td>
+      <td>GUI, Pipe</td>
       <td><tt>PlayableRef</tt></td>
     </tr>
     <tr>
@@ -249,7 +241,7 @@ Name</th>
       <td>W</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>worker</td>
+      <td>APlayable</td>
       <td><tt>APlayable</tt></td>
     </tr>
     <tr>
@@ -259,7 +251,7 @@ Name</th>
       <td>w</td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
-      <td>worker</td>
+      <td>Aplayable</td>
       <td><tt>PlayableRef</tt></td>
     </tr>
     <tr style="vertical-align: bottom;">
@@ -281,10 +273,8 @@ Name</th>
       <td>RWO</td>
       <td>RO</td>
       <td>RO</td>
-      <td><span style="font-style: italic;">O</span><i><br>
-      </i></td>
-      <td align="center">RW<br>
-      </td>
+      <td><span style="font-style: italic;">O</span><i> </i></td>
+      <td align="center">RW </td>
       <td><tt>&nbsp;</tt></td>
     </tr>
     <tr>
@@ -294,8 +284,7 @@ Name</th>
       <td><b>RWO</b></td>
       <td><b>ro</b></td>
       <td><b>RWO</b></td>
-      <td align="center">RW<br>
-      </td>
+      <td align="center">RW </td>
       <td><tt>APlayable</tt></td>
     </tr>
     <tr>
@@ -313,8 +302,7 @@ Name</th>
     <tr>
       <td><tt>PlayableRef</tt></td>
       <td><b>RO</b></td>
-      <td><i>RWO</i><b><br>
-      </b></td>
+      <td><i>RWO</i><b> </b></td>
       <td><b>RWO</b></td>
       <td>RO</td>
       <td style="font-style: italic;">O</td>
@@ -330,16 +318,6 @@ Name</th>
       <td style="font-style: italic;">O</td>
       <td align="center">R</td>
       <td><tt>PlayableRef</tt></td>
-    </tr>
-    <tr>
-      <td><tt>CallstackEntry</tt></td>
-      <td><b>RO</b></td>
-      <td><i>RWO</i></td>
-      <td>RO</td>
-      <td>RO</td>
-      <td style="font-style: italic;">O</td>
-      <td align="center">-</td>
-      <td><tt>PlayableSlice</tt></td>
     </tr>
   </tbody>
 </table>

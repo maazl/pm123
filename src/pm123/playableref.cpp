@@ -412,9 +412,11 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
             ss = 0;
           if (es < 0)
             es = len;
-          ai.Drpl.totallength += es - ss;
-          // approximate size
-          ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
+          if (es > ss) // empty slice?
+          { ai.Drpl.totallength += es - ss;
+            // approximate size
+            ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
+          }
           ai.Drpl.unk_length += sai.Drpl.unk_length;
           ai.Drpl.unk_size += sai.Drpl.unk_size;
         } else

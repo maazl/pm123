@@ -58,12 +58,13 @@ iterators of nested playlists have conflicting settings.</td>
       <td>When starting the first error messages about
 non-existing show up. This messages should be suppressed.</td>
     </tr>
-    <tr class="open">
-      <td width="15%"><em>5 medium bug, open</em></td>
+    <tr class="fixed">
+      <td width="15%"><em>5 medium bug, fixed</em></td>
       <td>Decoder starts at wrong priority</td>
       <td>In playlist mode when the data for the next song is
 prefetched the new decoder thread does not inherit the priority from
-the old thread. This may cause the playback to have drop outs.</td>
+the old thread. This may cause the playback to have drop outs.<br>
+Mainly fixed: the priority is fixed as soon as possible.</td>
     </tr>
     <tr class="fixed">
       <td width="15%"><em>6 medium bug, fixed </em></td>

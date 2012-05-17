@@ -877,7 +877,11 @@ void CommandProcessor::XPlLeave()
 
 void CommandProcessor::XPlNavigate()
 { const char* cp = Request;
-  NavigationResult(CurSI.Deserialize(SyncJob, cp));
+  const Location::NavigationResult& result = CurSI.Deserialize(SyncJob, cp);
+  if (result)
+    Messages.appendf("E %s at %.30s\n", result.cdata(), cp);
+  else
+    Reply.append(CurSI.Serialize(true, '\n'));
 }
 
 void CommandProcessor::XPlReset()
@@ -917,10 +921,7 @@ void CommandProcessor::XPlDepth()
 }
 
 void CommandProcessor::XPlCallstack()
-{ foreach (PlayableInstance*const*, item, CurSI.GetCallstack())
-  { Reply.append((*item)->GetPlayable().URL);
-    Reply.append('\n');
-  }
+{ Reply.append(CurSI.Serialize(false, '\n'));
 }
 
 void CommandProcessor::XPlIndex()

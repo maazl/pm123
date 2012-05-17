@@ -54,9 +54,38 @@ CALL Assert 'data.invalid', '= "0"'
 CALL Assert 'SafeFormat(data.totallength,3)', '= 10.777', reply
 CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 18.6', reply
 
-/* test stop -7 */
+/* test start/stop slice */
 CALL CallPipe 'pl nextitem'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST.OGG"'
+
+CALL CallPipe 'pl info playlist'
+reply = result
+CALL Parse result
+CALL Assert 'data.songs', '= "1"'
+CALL Assert 'data.lists', '= "0"'
+CALL Assert 'data.invalid', '= "0"'
+CALL Assert 'SafeFormat(data.totallength,3)', '= 4.122', reply
+CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 7.1', reply
+
+/* test negative slice */
+CALL CallPipe 'pl nextitem'
+CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST.OGG"'
+/* Check the slice */
+CALL CallPipe 'pl info item'
+reply = result
+CALL Parse result
+CALL Assert 'data.start', '= "0:10"', reply
+CALL Assert 'data.stop', '> "0:07.776"', reply
+CALL Assert 'data.stop', '<= "0:07.777"', reply
+
+CALL CallPipe 'pl info playlist'
+reply = result
+CALL Parse result
+CALL Assert 'data.songs', '= "1"'
+CALL Assert 'data.lists', '= "0"'
+CALL Assert 'data.invalid', '= "0"'
+CALL Assert 'SafeFormat(data.totallength,3)', '= 0', reply
+CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 0', reply
 
 EXIT
 

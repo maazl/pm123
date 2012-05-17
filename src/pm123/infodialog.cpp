@@ -657,7 +657,7 @@ InfoFlags InfoDialog::PageTechInfo::GetRequestFlags()
 
 
 HWND InfoDialog::PageMetaInfo::SetEFText(ULONG id, Fields fld, const char* text)
-{ HWND ctrl = PageBase::SetCtrlText(id, fld, text);
+{ HWND ctrl = PageBase::SetCtrlText(id, fld, text ? text : "");
   WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(!MetaWrite), 0);
   return ctrl;
 }

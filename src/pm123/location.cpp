@@ -82,7 +82,7 @@ void Location::Swap(Location& r)
 }
 
 void Location::Reset()
-{ Position = -1;
+{ Position = -2;
   while (Callstack.size())
     Leave();
 }
@@ -104,11 +104,12 @@ APlayable* Location::GetCurrent() const
 Playable* Location::GetPlaylist() const
 { switch (Callstack.size())
   {case 0:
-    return 0;
+    return NULL;
    case 1:
     return Root;
    default:
-    return &Callstack[Callstack.size()-1]->GetPlayable();
+    PlayableInstance* pi = Callstack[Callstack.size()-2];
+    return pi ? &pi->GetPlayable() : NULL;
   }
 }
 
@@ -145,14 +146,14 @@ void Location::PrevNextCore(bool direction)
 }
 
 Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
-{ DEBUGLOG(("Location(%p)::NavigateCountCore({%u,}, %u, %x, %i, %i) - %u\n", this, job.Pri, dir, stopat, mindepth, maxdepth, Callstack.size()));
+{ DEBUGLOG(("Location(%p)::NavigateCountCore({%u,}, %u, %x, %u, %u) - %u\n", this, job.Pri, dir, stopat, mindepth, maxdepth, Callstack.size()));
   ASSERT(stopat);
   ASSERT(Callstack.size() >= mindepth);
   ASSERT(maxdepth >= Callstack.size());
 
   if (!Root)
     return "Cannot navigate without root.";
-  Position = -1;
+  Position = -2;
 
   APlayable* cur;
   do
@@ -213,15 +214,20 @@ Location::NavigationResult Location::NavigateCount(JobSet& job, int count, TECH_
 
 Location::NavigationResult Location::NavigateUp(unsigned count)
 { DEBUGLOG(("Location::NavigateUp(%u)\n", count));
-  Position = -1;
   xstring ret;
-  if (count > Callstack.size())
+  unsigned level = GetLevel();
+  if (count > level)
   { ret.sprintf("Cannot navigate %i times to the parent item while the current depth is only %u.",
-      count, Callstack.size());
-    count = Callstack.size();
+      count, level);
+    count = level;
   }
-  while (count--)
-    Leave();
+  if (count)
+  { if (Position >= -1)
+      --count;
+    Position = -2;
+    while (count--)
+      Leave();
+  }
   return ret;
 }
 
@@ -233,16 +239,23 @@ Location::NavigationResult Location::NavigateInto(JobSet& job)
   if (FindInCallstack(&cur->GetPlayable()) < Callstack.size())
     return "Can not enter recursive playlist.";
   job.RequestInfo(*cur, IF_Tech);
-  if (!(cur->GetInfo().tech->attributes & TATTR_PLAYLIST))
-    return "Current item is not a playlist.";
-  Enter();
+  if (cur->GetInfo().tech->attributes & TATTR_PLAYLIST)
+    Enter();
+  else if (Position == -2)
+    Position = -1; // Enter song
+  else
+    return "Navigation is already at a song.";
   return xstring(); // NULL
 }
 
 Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
 { DEBUGLOG(("Location(%p)::NavigateTo(&%p)\n", this, &pi));
-  if (pi && !pi->HasParent(GetPlaylist()))
-    return "Instance is no child of the current item.";
+  Playable* list = GetPlaylist();
+  if (!list)
+    return "Must enter a playlist before using NavigateTo.";
+  if (pi && !pi->HasParent(list))
+    return "Instance is no child of the current playlist.";
+  Position = -2;
   Callstack[Callstack.size()-1] = pi;
   return xstring(); // NULL
 }
@@ -257,19 +270,22 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
   int maxdepth = flat ? INT_MAX : Callstack.size();
 
   if (!url)
-    return NavigateCount(job, index, TATTR_SONG, 0, maxdepth);
+    return NavigateCount(job, index, ~TATTR_NONE, Callstack.size(), maxdepth);
 
-  if (url == "..")
+  xstring ret;
+  if (url == "/" || url == "\\")
+  { Reset();
+    return ret;
+  } else if (url == "..")
   { if (flat)
       return "Flat navigation to .. is not valid.";
     if (index < 0)
       return "Cannot navigate up a negative number of times.";
     return NavigateUp(index);
   }
-  
-  // Auto enter playlist
+  // Auto enter root
   { APlayable* cur = GetCurrent();
-    if (cur)
+    if (cur && cur == Root)
     { if (job.RequestInfo(*cur, IF_Tech))
         return xstring::empty; // delayed
       if ((cur->GetInfo().tech->attributes & (TATTR_PLAYLIST|TATTR_SONG)) == TATTR_PLAYLIST)
@@ -279,7 +295,13 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
       }
     }
   }
-  xstring ret;
+  if (url == ".")
+  { if (Position != -2)
+      Position = -1;
+    else if (Callstack.size())
+      NavigateTo(NULL);
+    return ret;
+  }
   // URL lookup
   Playable* pp = GetPlaylist();
   if (!pp)
@@ -296,7 +318,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
       index = -index;
     do
     { do
-      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, 0, maxdepth);
+      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, Callstack.size(), maxdepth);
         if (ret)
           return ret;
       } while (&GetCurrent()->GetPlayable() != pp);
@@ -383,14 +405,18 @@ Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset
   }
 }
 
-xstring Location::Serialize(bool withpos) const
-{ DEBUGLOG(("Location(%p)::Serialize()\n", this));
+xstring Location::Serialize(bool withpos, char delimiter) const
+{ DEBUGLOG(("Location(%p)::Serialize(%u, %c)\n", this, withpos, delimiter));
+  ASSERT(strchr(";\t\n", delimiter));
   /*if (!Root)
     return xstring();*/ // NULL
   xstringbuilder ret;
   Playable* list = Root;
   for (const int_ptr<PlayableInstance>* cpp = Callstack.begin(); cpp != Callstack.end(); ++cpp)
-  { if (*cpp)
+  { // next
+    if (ret.length())
+      ret.append(delimiter);
+    if (*cpp)
     { // Fetch info
       Playable& p = (*cpp)->GetPlayable();
       // append url to result
@@ -406,46 +432,55 @@ xstring Location::Serialize(bool withpos) const
         ret.appendf("[%u]", n);
       list = &p;
     }
-    // next
-    ret.append(';');
   }
-  if (withpos && Position >= 0)
-  { char buf[32];
-    ret.append(PM123Time::toString(buf, Position));
+  if (withpos && Position != -2)
+  { if (ret.length())
+      ret.append(delimiter);
+    if (Position >= 0)
+    { char buf[32];
+      ret.append(PM123Time::toString(buf, Position));
+    }
   }
   return ret;
 }
 
 Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
 { DEBUGLOG(("Location(%p)::Deserialize({%u, }, %s) - %s\n", this, job.Pri, str, Serialize(true).cdata()));
-  // Skip leading white space.
-  str += strspn(str, " \t");
+  NavigationResult ret;
+  bool flat = false;
+  size_t len = 0;
   
-  for (;; str += strspn(str, ";\r\n"))
-  { bool flat = false;
-   restart:
+  for (;; str += len)
+  { xstring url;
+    int index = 1;
     DEBUGLOG(("Location::Deserialize now at %s\n", str));
     // Determine type of part
     switch (*str)
     {case 0: // end
-      return xstring(); // NULL
+      return ret; // NULL
 
-     case ';': // String starts with a part seperator => use absolute navigation. 
+     case ' ':
+     case '\t': // whitespace => skip
+      len = strspn(++str, " \t");
+      continue;
+
+     case ';':
      case '\r':
-     case '\n':
-      Reset();
-      break;
+     case '\n': // delimiter => enter (whatever to enter)
+      ret = NavigateInto(job);
+      if (ret)
+        return ret;
+      flat = false;
+      len = strspn(++str, ";\r\n");
+      continue;
       
      case '*': // Flat navigation
       flat = true;
-      str += 1 + strspn(str+1, " \t");
-      goto restart;
+      len = 1;
+      continue;
      
      case '"': // Quoted playlist item
-      { xstring url;
-        size_t index = 1;
-        size_t len;
-        const char* ep = strchr(str+1, '"');
+      { const char* ep = strchr(str+1, '"');
         if (ep == NULL)
         { url = str+1;
           len = 1 + url.length(); // end of string => set str to the terminating \0
@@ -459,56 +494,60 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
             --len2;
           if (len2)
           { size_t n;
-            if (sscanf(ep, "[%u]%n", &index, &n) != 1 || n != len2 || index == 0)
+            if (sscanf(ep, "[%i]%n", &index, &n) != 1 || n != len2 || index == 0)
             { str = ep;
-              return xstring().sprintf("Syntax: invalid index at %*s", len2, ep);
+              return ret.sprintf("Syntax: invalid index at %.*s", len2, ep);
             }
           }
         }
-
-        // do the navigation
-        const xstring& ret = Navigate(job, url, index, flat);
-        if (ret)
-          return ret;
-
-        str += len;
       }
       break;
 
-     default:
-      { xstring url;
-        size_t index = 1;
-        size_t len = strcspn(str, ";\r\n");
-        size_t len2 = len;
-        while (str[len2-1] == ' ' || str[len2-1] == '\t')
-          --len2;
-        size_t end = strspn(str, "+-0123456789:. \t");
-        if (end >= len2)
+     case '0':
+     case '1':
+     case '2':
+     case '3':
+     case '4':
+     case '5':
+     case '6':
+     case '7':
+     case '8':
+     case '9':
+     case '.':
+     case '+':
+     case '-':
+      { len = strcspn(str+1, ";\r\n");
+        size_t end = strspn(str+1, "0123456789:. \t");
+        if (end == len && strcspn(str, "0123456789") <= end)
         { // Time value
+          while (str[len] == ' ' || str[len] == '\t')
+            --len;
+          ++len;
           const char* cp = str;
           bool sign = false;
           if (*cp == '-')
           { sign = true;
             ++cp;
-          }
+          } else if (*cp == '+')
+            ++cp;
           double t[4] = {0};
           double* dp = t;
           for(;;)
           { size_t n = 0;
             sscanf(cp, "%lf%n", dp, &n);
             cp += n;
-            if (cp == str + len2)
+            if (cp == str + len)
               break;
             if (*cp != ':')
-            { len2 -= cp - str;
+            { len -= cp - str;
               str = cp;
-              return xstring().sprintf("Syntax: invalid character at %*s\n", len2, cp);
+              return ret.sprintf("Syntax: invalid time value at %.*s\n", len, cp);
             }
             do
             { if (++dp == t + sizeof t / sizeof *t)
-              { len2 -= cp - str;
+              { len -= cp - str;
                 str = cp;
-                return xstring().sprintf("Syntax: to many ':' at %*s\n", len2, cp);
+                return ret.sprintf("Syntax: to many ':' at %.*s\n", len, cp);
               }
             } while (*++cp == ':');
           }
@@ -524,34 +563,39 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          const xstring& ret = NavigateTime(job, t[0]);
+          ret = NavigateTime(job, t[0]);
           if (ret)
             return ret;
-
-        } else
-        { // Unquoted playlist item
-          if (str[len2-1] == ']')
-          { // with index
-            char* ep = strnrchr(str, '[', len2);
-            size_t n;
-            if (ep == NULL || sscanf(ep+1, "%u%n", &index, &n) != 1 || (int)n != str+len2-ep-2 || index == 0)
-            { len2 -= ep - str;
-              str = ep+1;
-              return xstring().sprintf("Syntax: invalid index at %*s", len2, ep);
-            }
-            if (ep != str)
-              url.assign(str, ep-str);
-              // otherwise only index is specified => leave url NULL instead of ""
-          } else
-            url.assign(str, len2);
-
-          // do the navigation
-          const xstring& ret = Navigate(job, url, index, flat);
-          if (ret)
-            return ret;
+          continue;
         }
-        str += len;
+      }
+     default: // unquoted playlist item
+      { len = strcspn(str, ";\r\n");
+        while (str[len-1] == ' ' || str[len-1] == '\t')
+          --len;
+        if (str[len-1] == ']')
+        { // with index
+          char* ep = strnrchr(str, '[', len-1);
+          size_t n;
+          if (ep == NULL || sscanf(ep+1, "%u%n", &index, &n) != 1 || (int)n != str+len-ep-2 || index == 0)
+          { len -= ep - str;
+            str = ep+1;
+            return ret.sprintf("Syntax: invalid index at %*s", len, ep);
+          }
+          if (ep != str)
+            url.assign(str, ep-str);
+            // otherwise only index is specified => leave url NULL instead of ""
+        } else
+          url.assign(str, len);
     } }
+    // do the navigation
+    bool noenter = url == "." || url == "..";
+    ret = Navigate(job, url, index, flat);
+    if (ret)
+      return ret;
+    if (noenter) // skip delimiter to enter after "." or ".."
+      len = strspn(str += len, ";\r\n");
+    flat = false;
   } // next part
 }
 

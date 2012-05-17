@@ -14,10 +14,10 @@
   <li>Switched PM123 engine to 32 bits per sample.</li>
   <li>Significant speed up when invoking large playlists with many http
 URLs as long as you use no old decoder plug-ins.</li>
-  <li>Moved replay gain processing to PM123 core.</li>
-  <li>Access to meta data through pipe interface.</li>
   <li>Implemented new shuffle algorithm that can deal with nested
 playlists.</li>
+  <li>Moved replay gain processing to PM123 core.</li>
+  <li>Access to meta data through pipe interface.</li>
   <li>Switched to dynamic string library with shared storage to save
 memory.</li>
   <li>Removed most length restrictions of meta data and reduced memory
@@ -29,8 +29,8 @@ from unresponsive UI.</li>
   <h4>MPG123</h4>
 </blockquote>
 <ul>
-  <li>Rewrote MPG123 plugin. Now uses libmpg123 1.13.3</li>
-  <li>Gapless playback support for MP3.</li>
+  <li>Rewrote MPG123 plug-in. Now uses libmpg123 1.13.3</li>
+  <li><em>Gap-less playback</em> support for MP3.</li>
 </ul>
 <blockquote>
   <h4>os2audio</h4>
@@ -46,6 +46,7 @@ from unresponsive UI.</li>
   <li>Upgrade to libsndfile 1.0.23.</li>
 </ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>
+<blockquote>This is a fork of PM123 1.32.</blockquote>
 <ul>
   <li>Switched code generation to Pentium classic instruction set.
 PM123 will no longer run on i486.</li>
@@ -57,7 +58,7 @@ Alt
 key. This allows to seek within whole playlists by using the slider.</li>
   <li>Standard equalizer removed. This one was supported by
 mpg123 only, so it makes no sense in the PM123 core.</li>
-  <li><em>Gapless playback</em> in playlist mode. Subsequent songs are
+  <li><em>Gap-less playback</em> in playlist mode. Subsequent songs are
 prefetched before the current song has finally ended. The output and
 the filter plug-ins are no longer reinitialized between the songs.</li>
   <li>Navigation across song borders. A seek in playlist mode

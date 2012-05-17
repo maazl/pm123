@@ -21,13 +21,14 @@ list is
 equivalent to calling <tt>RequestInfo</tt> with the same parameters.</li>
   <li>If (some of) the requested information is not immediately
 available <em>wait for the <tt>InfoChange</tt> event</em>
-with the corresponding Loaded flags set. Note that if you requested
+with the corresponding <tt>Loaded</tt> flags set. Note that if you
+requested
 more than one information each info may be available at a different
 time. You should collect the bits if you need several infos together.</li>
   <li><em>Do your work</em> with the information, but do it <em>not in
-the callback handler</em>.<br>
-  </li>
-  <li>Deregister your observer unless you need it for other purposes.</li>
+the callback handler</em>. </li>
+  <li>Cancel your observer registration unless you need it for other
+purposes.</li>
 </ol>
 The helper classes <tt>WaitInfo</tt> and <tt>WaitAggregateInfo</tt>
 will assist the above steps.
@@ -41,7 +42,7 @@ a "local echo". Instead you should apply the change to the playable
 object and wait for the update notification of your own change to
 refresh the GUI. This has the advantage that you are also synchronized
 to changes made by other windows or even by the <a
- href="../manual/remote.html">remote interface</a>.<br>
+ href="../manual/remote.html">remote interface</a>.
 </p>
 </body>
 </html>

@@ -43,8 +43,8 @@ class PlayableSetBase;
 /** Class to identify a deep location within a playlist or a song.
  * @details A location can point to anything within the scope of it's root. I.e.
  * - the root,
- * - a start of a song,
- * - a start of a song in a nested playlist,
+ * - a song,
+ * - a song within a (nested) playlist,
  * - a time offset within a song,
  * - a nested playlist and
  * - into a nested playlist before its first song.
@@ -61,7 +61,7 @@ class Location : public Iref_count
   /// - ""        => Further information from other objects is required. Retry later.
   /// - "End"     => The end of the list has been reached.
   /// - any other => Not successful because of a syntax error or a non-existing
-  ///                 or out of bounds reference. Error Message as plain text.
+  ///                or out of bounds reference. Error Message as plain text.
   typedef xstring             NavigationResult;
 
  protected:
@@ -75,7 +75,10 @@ class Location : public Iref_count
   /// before the start of the list or after the end respectively.
   vector_int<PlayableInstance> Callstack;
   /// @brief Location within the current song (if any).
-  /// @details -1 means that the position is before the start or after the end respectively.
+  /// @details Everything >= 0 is a location within the current song.
+  /// Negative values are singular:
+  /// - -1 means that the position is before the start or after the end respectively.
+  /// - -2 means that the current song has not yet been entered and we are still at the level of the enclosing playlist.
   /// The actual meaning depends on whether you navigate forward or backwards.
   PM123_TIME                  Position;
   //vector_own<class_delegate2<Location, const PlayableChangeArgs, const int> > CallstackDeleg;
@@ -186,7 +189,7 @@ class Location : public Iref_count
   /// - 1 = Root is a playlist and we are at an immediate sub item of this list.
   /// - 2 = We are in a nested playlist item.
   /// - ...
-  size_t                      GetLevel() const             { return Callstack.size(); }
+  unsigned                    GetLevel() const             { return Callstack.size() + (Position >= -1); }
 
   /// Check whether a Playable object is already in the call stack.
   /// @param pp Playable item to search for. This might be NULL.
@@ -195,7 +198,7 @@ class Location : public Iref_count
   /// - 1 -> child of root
   /// - ...
   /// - UINT_MAX -> pp is not in call stack
-  size_t                      FindInCallstack(const Playable* pp) const;
+  unsigned                    FindInCallstack(const Playable* pp) const;
 
   /// Resets the current Location to its initial value at the start of the current root.
   /// @param level reset up to
@@ -245,6 +248,8 @@ class Location : public Iref_count
   /// and all sublists.
   /// If Navigate with flat = true succeeds, the current item is always a song.
   /// @return See \c NavigationResult.
+  /// @remarks \c Navigate will automatically enter the root playlist if necessary.
+  /// It will not enter any other playlist.
   NavigationResult            Navigate(JobSet& job, const xstring& url, int index, bool flat);
   /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
@@ -258,7 +263,7 @@ class Location : public Iref_count
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
-  xstring                     Serialize(bool withpos = true) const;
+  xstring                     Serialize(bool withpos = true, char delimiter = ';') const;
   /// Deserialize the current instance from a string and return a error message (if any).
   /// @param str \a str is relative. To enforce an absolute location call \c Reset() before.
   /// @param job Priority of asynchronous requests if the navigation command could not be completed
