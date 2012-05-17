@@ -7,14 +7,18 @@
   <meta name="author" content="Marcel Müller">
   <style type="text/css">
 .open {
-background-color: #ffcccc;
+  background-color: #ffcccc;
 }
 .test {
-background-color: #ffffcc;
+  background-color: #ffffcc;
 }
 .fixed {
-background-color: #ccffcc;
+  background-color: #ccffcc;
 }
+.cancel {
+  background-color: #cccccc;
+}
+
   </style>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
@@ -27,25 +31,11 @@ background-color: #ccffcc;
       <th width="25%">Topic</th>
       <th width="55%">Details</th>
     </tr>
-    <tr class="open">
-      <td width="15%"><strong>1 major todo, open</strong></td>
-      <td>Shuffle not working</td>
-      <td>There are some open issues how this should work with
-respect to nested playlists and the previous/next buttons when the
-playlist is modified.</td>
-    </tr>
     <tr class="test">
       <td width="15%">3 minor todo, untested</td>
       <td>Handling of start and stop positions in nested playlists</td>
       <td>There are several complications when start/stop
 iterators of nested playlists have conflicting settings.</td>
-    </tr>
-    <tr class="open">
-      <td width="15%"><em>5 medium bug, open</em></td>
-      <td>Decoder starts at wrong priority</td>
-      <td>In playlist mode when the data for the next song is
-prefetched the new decoder thread does not inherit the priority from
-the old thread. This may cause the playback to have drop outs.</td>
     </tr>
     <tr class="open">
       <td width="15%"><em>11 medium bug, open</em></td>
@@ -140,8 +130,8 @@ data strings can be quite long. This can cause the scroller to take a
 reasonable amount of time to return to the start. An option to restrict
 the length of the meta data for the scroller display would be helpful.</td>
     </tr>
-    <tr class="open">
-      <td valign="top" width="15%">26 minor todo, open </td>
+    <tr class="cancel">
+      <td valign="top" width="15%">26 minor todo, cancelled </td>
       <td valign="top">Implement buffering for write access in xio.dll.
       </td>
       <td valign="top">xio.dll currently disables the buffer if an
@@ -150,8 +140,8 @@ object is opened for write access. </td>
     <tr class="open">
       <td valign="top" width="15%">27 medium bug, open </td>
       <td valign="top">Playback has drop outs with heavy system load. </td>
-      <td valign="top">The priority handling seems to be somehow broken.
-      </td>
+      <td valign="top">The priority handling seems to be somehow
+broken. </td>
     </tr>
   </tbody>
 </table>

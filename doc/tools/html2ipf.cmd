@@ -718,15 +718,33 @@ doTagHTML_LEVEL:
 return 0;
 
 doTagHTML_SUBLINKS: PROCEDURE EXPOSE Global. SubTagValue
- Global.SubLinks = Global.SubLinks + 1;
- i = Global.SubLinks;
- Global.SubLinks.i = translate(SubTagValue);
+ SubTagValue = translate(SubTagValue)
+ i = Global.SubLinks + 1;
+ DO FOREVER
+  p = POS(';',SubTagValue);
+  IF p == 0 THEN
+   LEAVE;
+  Global.SubLinks.i = LEFT(SubTagValue, p-1);
+  i = i + 1;
+  SubTagValue = SUBSTR(SubTagValue, p+1);
+  END;
+ Global.SubLinks.i = SubTagValue;
+ Global.SubLinks = i;
 return 0;
 
-doTagHTML_NOSUBLINKS:
- Global.NoSubLinks = Global.NoSubLinks + 1;
- i = Global.NoSubLinks;
- Global.NoSubLinks.i = translate(SubTagValue);
+doTagHTML_NOSUBLINKS: PROCEDURE EXPOSE Global. SubTagValue
+ SubTagValue = translate(SubTagValue)
+ i = Global.NoSubLinks + 1;
+ DO FOREVER
+  p = POS(';',SubTagValue);
+  IF p == 0 THEN
+   LEAVE;
+  Global.NoSubLinks.i = LEFT(SubTagValue, p-1);
+  i = i + 1;
+  SubTagValue = SUBSTR(SubTagValue, p+1);
+  END;
+ Global.NoSubLinks.i = SubTagValue;
+ Global.NoSubLinks = i;
 return 0;
 
 doTagHEAD:
