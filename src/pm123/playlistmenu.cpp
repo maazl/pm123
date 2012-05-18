@@ -295,6 +295,7 @@ PlaylistMenu::MapEntry* PlaylistMenu::InsertEntry(MapEntry* parent, SHORT where,
   const unsigned tattr = data.GetInfo().tech->attributes;
   const bool invalid = (tattr & TATTR_INVALID) != 0;
   DEBUGLOG(("PlaylistMenu::InsertEntry: %i\n", mi.id));
+  mi.afAttribute = MIA_CHECKED*CheckInUse(subp);
   // Invalid?
   if (invalid)
     mi.afAttribute |= MIA_DISABLED;
@@ -320,7 +321,7 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
 
   mapp->Status |= InUpdate;
 
-  Playable& p = mapp->Data->GetPlayable();
+  APlayable& p = *mapp->Data;
   const unsigned tattr = p.GetInfo().tech->attributes;
   const bool invalid = (p.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
   // remove invalid?
@@ -329,8 +330,9 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
     mapp->Status &= ~InUpdate;
     return;
   }
-  PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEMATTR,
-    MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROM2SHORT(MIA_DISABLED, MIA_DISABLED * invalid)));
+  PMRASSERT(WinSendMsg( parp->HwndSub, MM_SETITEMATTR,
+    MPFROM2SHORT(mapp->IDMenu, FALSE),
+    MPFROM2SHORT(MIA_DISABLED|MIA_CHECKED, MIA_DISABLED*invalid | MIA_CHECKED*CheckInUse(mapp)) ));
   MENUITEM mi;
   PMRASSERT(WinSendMsg(parp->HwndSub, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
   DEBUGLOG(("PlaylistMenu::UpdateItem: %x - %p\n", tattr, mi.hwndSubMenu));
@@ -614,7 +616,7 @@ void PlaylistMenu::RemoveMapEntry(USHORT mid)
     RemoveMapEntry(mapp);
 }
 
-xstring PlaylistMenu::MakeMenuItemText(MapEntry* mapp, size_t index)
+xstring PlaylistMenu::MakeMenuItemText(const MapEntry* mapp, size_t index)
 { xstring text = mapp->Data->GetDisplayName();
   if (text.length() > 30) // limit length?
     text.sprintf("%.30s...", text.cdata());
@@ -623,10 +625,22 @@ xstring PlaylistMenu::MakeMenuItemText(MapEntry* mapp, size_t index)
   return text;
 }
 
+bool PlaylistMenu::CheckInUse(const MapEntry* mapp) const
+{ unsigned inuse = mapp->Data->GetInUse();
+  while (inuse)
+  { mapp = mapp->Parent;
+    if (mapp == NULL)
+      return true;
+    if (mapp->Data->GetInUse() != --inuse)
+      return false;
+  }
+  return false;
+}
+
 void PlaylistMenu::InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p{%s},%x,%x}, %p) {%u, %x, %p}\n", this,
     &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
-  if ((args.Changed & (IF_Phys|IF_Tech|IF_Display)) && !mapp->Status.bitset(0))
+  if ((args.Changed & (IF_Phys|IF_Tech|IF_Display|IF_Usage)) && !mapp->Status.bitset(0))
     PMASSERT(WinPostMsg(HwndOwner, UM_UPDATEITEM, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
   if ((args.Changed & IF_Child) && !mapp->Status.bitset(1))
     PMRASSERT(WinPostMsg(HwndOwner, UM_UPDATELIST, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));

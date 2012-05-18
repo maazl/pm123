@@ -163,7 +163,9 @@ class PlaylistMenu
   /// Update menu item
   void              UpdateItem(MapEntry* mapp);
   /// Generate the item text for a menu item.
-  xstring           MakeMenuItemText(MapEntry* mapp, size_t index);
+  xstring           MakeMenuItemText(const MapEntry* mapp, size_t index);
+  /// Check whether a menu item is currently directly in use.
+  bool              CheckInUse(const MapEntry* mapp) const;
   /// Called from \c APlayable->InfoChange when a menu item changes.
   void              InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp);
 
