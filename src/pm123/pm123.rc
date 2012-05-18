@@ -100,6 +100,8 @@ MENU MNU_MAIN
   { MENUITEM "Show Playlist ~info",        IDM_M_PLINFO
     MENUITEM "Show ~Detailed view",        IDM_M_DETAILED
     MENUITEM "Show ~tree view",            IDM_M_TREEVIEW
+    SUBMENU "Browse ~content",             IDM_M_PLEXPAND
+    {}
     MENUITEM SEPARATOR
     MENUITEM "~Bookmark playlist...",      IDM_M_ADDPLBOOK
     MENUITEM "Bookmark playlist ~location...",IDM_M_ADDPLBOOK_TIME

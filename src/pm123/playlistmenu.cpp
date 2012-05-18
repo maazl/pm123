@@ -597,8 +597,8 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
   mapp->InfoDelegate.detach();
   // delete children recursively
   RemoveSubItems(mapp);
-  // now destroy the submenu if any
-  if (mapp->HwndSub != NULLHANDLE)
+  // now destroy the submenu if any, but not at the top level
+  if (mapp->HwndSub != NULLHANDLE && mapp->Parent)
     PMRASSERT(WinDestroyWindow(mapp->HwndSub));
   // update first free ID (optimization)
   if (mapp->IDMenu < ID1stfree)
@@ -653,3 +653,11 @@ bool PlaylistMenu::AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFl
   return true;
 }
 
+bool PlaylistMenu::DetachMenu(USHORT menuid)
+{ MapEntry* mapp = MenuMap.find(menuid);
+  if (!mapp) // registered map entry?
+    return false;
+  // delete old stuff later
+  PMRASSERT(WinPostMsg(HwndOwner, UM_MENUEND, MPFROMSHORT(menuid), MPFROMP(mapp)));
+  return true;
+}

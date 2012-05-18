@@ -639,6 +639,13 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
     break;
 
+   case WM_MENUEND:
+    if (HWNDFROMMP(mp2) == ContextMenu)
+    { // Detach the current playlist from the menu to avoid strong references.
+      MenuWorker->DetachMenu(IDM_M_PLEXPAND);
+    }
+    break;
+
    case WM_TIMER:
     DEBUGLOG2(("GUIImp::DlgProc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
     switch (LONGFROMMP(mp1))
@@ -1434,17 +1441,16 @@ void GUIImp::LoadPluginMenu(HWND hMenu)
 
 void GUIImp::ShowContextMenu()
 {
-  static HWND context_menu = NULLHANDLE;
   bool new_menu = false;
-  if (context_menu == NULLHANDLE)
-  { context_menu = WinLoadMenu(HWND_OBJECT, 0, MNU_MAIN);
-    mn_make_conditionalcascade(context_menu, IDM_M_LOAD,   IDM_M_LOADFILE);
-    mn_make_conditionalcascade(context_menu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
-    mn_make_conditionalcascade(context_menu, IDM_M_HELP,   IDH_MAIN);
+  if (ContextMenu == NULLHANDLE)
+  { ContextMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_MAIN);
+    mn_make_conditionalcascade(ContextMenu, IDM_M_LOAD,   IDM_M_LOADFILE);
+    mn_make_conditionalcascade(ContextMenu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
+    mn_make_conditionalcascade(ContextMenu, IDM_M_HELP,   IDH_MAIN);
 
     MenuWorker = new PlaylistMenu(HPlayer, IDM_M_LAST, IDM_M_LAST_E);
-    MenuWorker->AttachMenu(context_menu, IDM_M_BOOKMARKS, *DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    MenuWorker->AttachMenu(context_menu, IDM_M_LOAD, *LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
+    MenuWorker->AttachMenu(ContextMenu, IDM_M_BOOKMARKS, *DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    MenuWorker->AttachMenu(ContextMenu, IDM_M_LOAD, *LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
     new_menu = true;
   }
 
@@ -1463,43 +1469,47 @@ void GUIImp::ShowContextMenu()
   if (IsPluginChanged || new_menu)
   { // Update plug-ins.
     MENUITEM mi;
-    PMRASSERT(WinSendMsg(context_menu, MM_QUERYITEM, MPFROM2SHORT(IDM_M_PLUG, TRUE), MPFROMP(&mi)));
+    PMRASSERT(WinSendMsg(ContextMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_M_PLUG, TRUE), MPFROMP(&mi)));
     IsPluginChanged = false;
     LoadPluginMenu(mi.hwndSubMenu);
   }
 
   if (IsAccelChanged || new_menu)
   { MENUITEM mi;
-    PMRASSERT(WinSendMsg(context_menu, MM_QUERYITEM, MPFROM2SHORT(IDM_M_LOAD, TRUE), MPFROMP(&mi)));
+    PMRASSERT(WinSendMsg(ContextMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_M_LOAD, TRUE), MPFROMP(&mi)));
     // Append asisstents from decoder plug-ins
     memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
     IsAccelChanged = false;
     Decoder::AppendLoadMenu(mi.hwndSubMenu, IDM_M_LOADOTHER, 2, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
-    (MenuShowAccel(WinQueryAccelTable(amp_player_hab, HFrame))).ApplyTo(new_menu ? context_menu : mi.hwndSubMenu);
+    (MenuShowAccel(WinQueryAccelTable(amp_player_hab, HFrame))).ApplyTo(new_menu ? ContextMenu : mi.hwndSubMenu);
   }
 
   // Update status
   APlayable* const cur = CurrentSong();
-  mn_enable_item(context_menu, IDM_M_TAG,     cur && (cur->GetInfo().phys->attributes & PATTR_WRITABLE) && (cur->GetInfo().tech->attributes & TATTR_WRITABLE));
-  mn_enable_item(context_menu, IDM_M_SAVE,    cur && (cur->GetInfo().tech->attributes & TATTR_STORABLE));
-  mn_enable_item(context_menu, IDM_M_CURRENT_SONG, cur != NULL);
-  mn_enable_item(context_menu, IDM_M_CURRENT_PL, CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_PLAYLIST));
-  mn_enable_item(context_menu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
-  mn_enable_item(context_menu, IDM_M_NORMAL,  bmp_is_mode_supported(CFG_MODE_REGULAR));
-  mn_enable_item(context_menu, IDM_M_TINY,    bmp_is_mode_supported(CFG_MODE_TINY));
-  mn_enable_item(context_menu, IDM_M_FONT,    Cfg::Get().font_skinned );
-  mn_enable_item(context_menu, IDM_M_FONT1,   bmp_is_font_supported(0));
-  mn_enable_item(context_menu, IDM_M_FONT2,   bmp_is_font_supported(1));
+  mn_enable_item(ContextMenu, IDM_M_TAG,     cur && (cur->GetInfo().phys->attributes & PATTR_WRITABLE) && (cur->GetInfo().tech->attributes & TATTR_WRITABLE));
+  mn_enable_item(ContextMenu, IDM_M_SAVE,    cur && (cur->GetInfo().tech->attributes & TATTR_STORABLE));
+  mn_enable_item(ContextMenu, IDM_M_CURRENT_SONG, cur != NULL);
+  bool ispl = CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_PLAYLIST);
+  mn_enable_item(ContextMenu, IDM_M_CURRENT_PL, ispl);
+  mn_enable_item(ContextMenu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
+  mn_enable_item(ContextMenu, IDM_M_NORMAL,  bmp_is_mode_supported(CFG_MODE_REGULAR));
+  mn_enable_item(ContextMenu, IDM_M_TINY,    bmp_is_mode_supported(CFG_MODE_TINY));
+  mn_enable_item(ContextMenu, IDM_M_FONT,    Cfg::Get().font_skinned );
+  mn_enable_item(ContextMenu, IDM_M_FONT1,   bmp_is_font_supported(0));
+  mn_enable_item(ContextMenu, IDM_M_FONT2,   bmp_is_font_supported(1));
 
-  mn_check_item(context_menu, IDM_M_FLOAT,  Cfg::Get().floatontop);
-  mn_check_item(context_menu, IDM_M_SAVE,   !!Ctrl::GetSavename());
-  mn_check_item(context_menu, IDM_M_FONT1,  Cfg::Get().font == 0);
-  mn_check_item(context_menu, IDM_M_FONT2,  Cfg::Get().font == 1);
-  mn_check_item(context_menu, IDM_M_NORMAL, Cfg::Get().mode == CFG_MODE_REGULAR);
-  mn_check_item(context_menu, IDM_M_SMALL,  Cfg::Get().mode == CFG_MODE_SMALL);
-  mn_check_item(context_menu, IDM_M_TINY,   Cfg::Get().mode == CFG_MODE_TINY);
+  mn_check_item(ContextMenu, IDM_M_FLOAT,  Cfg::Get().floatontop);
+  mn_check_item(ContextMenu, IDM_M_SAVE,   !!Ctrl::GetSavename());
+  mn_check_item(ContextMenu, IDM_M_FONT1,  Cfg::Get().font == 0);
+  mn_check_item(ContextMenu, IDM_M_FONT2,  Cfg::Get().font == 1);
+  mn_check_item(ContextMenu, IDM_M_NORMAL, Cfg::Get().mode == CFG_MODE_REGULAR);
+  mn_check_item(ContextMenu, IDM_M_SMALL,  Cfg::Get().mode == CFG_MODE_SMALL);
+  mn_check_item(ContextMenu, IDM_M_TINY,   Cfg::Get().mode == CFG_MODE_TINY);
 
-  WinPopupMenu(HPlayer, HPlayer, context_menu, pos.x, pos.y, 0,
+  if (ispl)
+    MenuWorker->AttachMenu(ContextMenu, IDM_M_PLEXPAND, *CurrentIter->GetRoot(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
+
+  WinPopupMenu(HPlayer, HPlayer, ContextMenu, pos.x, pos.y, 0,
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 

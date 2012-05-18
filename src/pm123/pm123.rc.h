@@ -113,6 +113,7 @@
 #define IDM_M_LOAD          551
 #define IDM_M_PLRELOAD      552
 #define IDM_M_RELOAD        553
+#define IDM_M_PLEXPAND      554
 #define IDM_M_INSPECTOR     559
 #define IDM_M_LOADFILE      560
 #define IDM_M_URL           561

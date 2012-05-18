@@ -62,12 +62,19 @@ class PlaylistMenu
 {public:
   enum EntryFlags
   { None            = 0x00,
-    DummyIfEmpty    = 0x01,     // Create dummy entry if content is empty.
-    Enumerate       = 0x02,     // Enumerate items
-    Separator       = 0x04,     // Place separator before and after the generated entries unless it's the beginning/end
-    Recursive       = 0x10,     // create sub menus for playlist or folder items
-    SkipInvalid     = 0x20,     // exclude invalid entries.
-    Prefetch        = 0x40      // Prefetch list content of next menu level.
+    /// Create dummy entry if content is empty.
+    DummyIfEmpty    = 0x01,
+    /// Enumerate first 10 items.
+    Enumerate       = 0x02,
+    /// Place separator before and after the generated entries
+    /// unless it's the begin or end.
+    Separator       = 0x04,
+    /// Create sub menus for playlist or folder items.
+    Recursive       = 0x10,
+    /// Exclude invalid entries.
+    SkipInvalid     = 0x20,
+    /// Prefetch list content of next menu level.
+    Prefetch        = 0x40
   };
   /// Window messages related to the PlaylistMenu.
   /// @remarks The ID's here must be distinct from the user messages of any other window.
@@ -172,6 +179,8 @@ class PlaylistMenu
   /// If the IDs are not sufficient the content is truncated. But the IDs to nested items
   /// are only assigned if a submenu is opened.
   bool              AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
+  /// Detach a menu from a submenu item.
+  bool              DetachMenu(USHORT menuid);
 
  public:
   /// Maximum number of menu items in one sub menu. Larger playlists are truncated.
