@@ -32,7 +32,7 @@
       <th width="55%">Details</th>
     </tr>
     <tr class="fixed">
-      <td width="15%"><strong>1 major todo, fixed</strong></td>
+      <td width="15%"><strong>1 major todo, fixed (1.41a)</strong></td>
       <td>Shuffle not working</td>
       <td>There are some open issues how this should work with
 respect to nested playlists and the previous/next buttons when the
@@ -59,7 +59,7 @@ iterators of nested playlists have conflicting settings.</td>
 non-existing show up. This messages should be suppressed.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><em>5 medium bug, fixed</em></td>
+      <td width="15%"><em>5 medium bug, fixed (1.41a)</em></td>
       <td>Decoder starts at wrong priority</td>
       <td>In playlist mode when the data for the next song is
 prefetched the new decoder thread does not inherit the priority from
@@ -67,7 +67,7 @@ the old thread. This may cause the playback to have drop outs.<br>
 Mainly fixed: the priority is fixed as soon as possible.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><em>6 medium bug, fixed </em></td>
+      <td width="15%"><em>6 medium bug, fixed (1.41a) </em></td>
       <td>Deadlocks with recursive
 playlists</td>
       <td>With recursive playlist structures PM123 sometimes
@@ -75,7 +75,7 @@ deadlocks because the list semaphore are not requested top down. In
 fact there is no top and no bottom in this case.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><em>7 medium todo, fixed</em></td>
+      <td width="15%"><em>7 medium todo, fixed (1.41a)</em></td>
       <td>Invalid HTTP URLs take minutes</td>
       <td>When an URL target is not available or invalid, it may
 take several minutes for PM123 to notify this. If you have many of such
@@ -85,20 +85,20 @@ This is a design problem, because any decoder plug-in might try to open
 the URL without success, every time waiting for a timeout.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><strong>8 major bug, fixed</strong></td>
+      <td width="15%"><strong>8 major bug, fixed (1.40a4)</strong></td>
       <td>EAs lost when editing meta information</td>
       <td>The 'Edit file info' feature of mpg123 and oggplay
 destroys any EA information.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%">9 minor todo, fixed</td>
+      <td width="15%">9 minor todo, fixed (1.41a)</td>
       <td>Code page handling of ID3 V1.x and ID3 V2.x tags</td>
       <td>If the input and output code page is different the ID3
 tags are not turn around stable. This causes special characters to be
 destroyed when saving the tag.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><em>10 medium todo, fixed</em></td>
+      <td width="15%"><em>10 medium todo, fixed (1.41a)</em></td>
       <td>PM lock-up when slider is used while a worker thread
 gets information on a playlist.</td>
       <td>Thread 1 acquires playlist mutex when slider is used.
@@ -145,7 +145,7 @@ playlists to another playlist, because all of the contained items are
 equivalent.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><strong>16 major bug, fixed</strong></td>
+      <td width="15%"><strong>16 major bug, fixed (1.41a)</strong></td>
       <td>Some meta information lost</td>
       <td>When saving Ogg vorbis comments all tags that PM123
 does not know are deleted silently.</td>
@@ -169,7 +169,7 @@ needs to be reworked and tested.</td>
 the remote interface so far.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%">19 minor todo, done</td>
+      <td width="15%">19 minor todo, done (1.41a)</td>
       <td>Save the size of the info dialog window</td>
       <td>Depending
 on the system settings a different size of the info dialog window is
@@ -213,11 +213,11 @@ reasonable amount of time to return to the start. An option to restrict
 the length of the meta data for the scroller display would be helpful.</td>
     </tr>
     <tr class="fixed">
-      <td width="15%"><em>25 medium bug, fixed</em> </td>
+      <td width="15%"><em>25 medium bug, fixed (1.41a)</em> </td>
       <td>Cannot Play valid MP3 file <tt>Gottesdienst_vom_22.08.2010.MP3</tt>
       </td>
       <td>mpg123.dll claims not to support this file.<br>
-update to new libmpg123. </td>
+=&gt; update to new libmpg123. </td>
     </tr>
     <tr class="cancel">
       <td valign="top" width="15%">26 minor todo, cancelled </td>
@@ -231,6 +231,12 @@ object is opened for write access. </td>
       <td valign="top">Playback has drop outs with heavy system load. </td>
       <td valign="top">The priority handling seems to be somehow
 broken. </td>
+    </tr>
+    <tr class="open">
+      <td valign="top" width="15%">28 medium bug, open </td>
+      <td valign="top">RealEQ sadly fails on mono files. </td>
+      <td valign="top">The RealEQ output is highly distorted if the
+playback stream has only one channel. </td>
     </tr>
   </tbody>
 </table>
