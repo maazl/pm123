@@ -137,8 +137,6 @@ class CtrlImp
   /// To set the in-use status initially pass EmptyStack as oldstack.
   /// To reset all in-use status pass EmptyStack as newstack.
   static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
-  /// Internal sub function to UpdateStackUsage
-  static void  SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set);
   /// Core logic of MsgSkip.
   /// Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
   /// If we try to move the current song pointer out of the range of the that that si relies on,
@@ -383,28 +381,20 @@ void CtrlImp::OutputStop()
     Current()->Offset = 0;
 }
 
-void CtrlImp::SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set)
-{ while (rend != rbegin)
-    // Depending on the object type this updates the status of a PlayableInstance
-    // or only the status of the underlying Playable.
-    (*--rend)->SetInUse(set);
-}
-
 void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack)
 { DEBUGLOG(("Ctrl::UpdateStackUsage({%u }, {%u })\n", oldstack.size(), newstack.size()));
-  PlayableInstance*const* oldppi = oldstack.begin();
-  PlayableInstance*const* newppi = newstack.begin();
+  const size_t limit = min(oldstack.size(), newstack.size());
+  size_t level;
   // skip identical part
-  // TODO? a more optimized approach may work on the sorted exclude lists.
-  while (oldppi != oldstack.end() && newppi != newstack.end() && *oldppi == *newppi)
-  { DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", *oldppi, *newppi));
-    ++oldppi;
-    ++newppi;
-  }
+  for (level = 0; level < limit && oldstack[level] == newstack[level]; ++level)
+    DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", oldstack[level], newstack[level]));
+  size_t i;
   // reset usage flags of part of old stack
-  SetStackUsage(oldppi, oldstack.end(), false);
+  for (i = oldstack.size(); i > level;)
+    oldstack[--i]->SetInUse(0);
   // set usage flags of part of the new stack
-  SetStackUsage(newppi, newstack.end(), true);
+  for (i = level; i < newstack.size(); ++i)
+    newstack[i]->SetInUse(i + 2); // Leave 0 and 1 for unused and current root.
 }
 
 bool CtrlImp::SkipCore(SongIterator& si, int count)
@@ -921,7 +911,7 @@ void CtrlImp::MsgLoad()
   CurrentRootDelegate.detach();
   if (PrefetchList.size())
   { UpdateStackUsage(Current()->Loc.GetCallstack(), EmptyStack);
-    Current()->Loc.GetRoot()->SetInUse(false);
+    Current()->Loc.GetRoot()->SetInUse(0);
     PrefetchClear(false);
   }
 
@@ -938,12 +928,12 @@ void CtrlImp::MsgLoad()
       // Raise events early, because load may take some time.
       RaiseControlEvents();
     }
-    play->SetInUse(true);
+    play->SetInUse(1);
     // Only load items that have a minimum of well known properties.
     // In case of enumerable items the content is required, in case of songs the decoder.
     play->RequestInfo(IF_Tech|IF_Child, PRI_Sync);
     if (play->GetInfo().tech->attributes & TATTR_INVALID)
-    { play->SetInUse(false);
+    { play->SetInUse(0);
       Reply(RC_InvalidItem);
       return;
     }

@@ -195,7 +195,7 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
     if (CIC)
       CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
   }
-  RaiseInfoChange(args);
+  InfoChange(args);
 }
 
 InfoFlags PlayableSlice::Invalidate(InfoFlags what)
@@ -204,7 +204,7 @@ InfoFlags PlayableSlice::Invalidate(InfoFlags what)
     ret |= CIC->DefaultInfo.InfoStat.Invalidate(what);
     // TODO: invalidate CIC entries also
   if (ret)
-    RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
+    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
   return ret;
 }
 
@@ -237,11 +237,9 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
       args2.Invalidated |= CIC->Invalidate(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
   }
   if (IsItemOverridden())
-  { args2.Changed     &= ~IF_Item;
-    args2.Invalidated &= ~IF_Item;
-  }
+    args2.Purge(IF_Item);
   if (!args2.IsInitial())
-    RaiseInfoChange(args2);
+    InfoChange(args2);
 }
 
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
@@ -256,7 +254,7 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
   // IF_Item is always available if we got beyond IsItemOverridden.
-  what &= ~IF_Item;
+  what &= ~(IF_Item|IF_Usage);
   InfoFlags what2 = what;
   // Forward all remaining requests to *RefTo.
   // TODO Forward aggregate only if no slice?
@@ -482,7 +480,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
       args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
       if (!args.IsInitial())
-      { RaiseInfoChange(args);
+      { InfoChange(args);
         args.Reset();
       }
     }
@@ -539,20 +537,21 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     }
   }
   if (!args.IsInitial())
-    RaiseInfoChange(args);
+    InfoChange(args);
 }
 
 const Playable& PlayableSlice::DoGetPlayable() const
 { return RefTo->GetPlayable();
 }
 
-bool PlayableSlice::IsInUse() const
-{ return RefTo->IsInUse();
-}
-
-void PlayableSlice::SetInUse(bool inuse)
-{ DEBUGLOG(("PlayableSlice(%p)::SetInUse(%u)\n", this, inuse));
-  RefTo->SetInUse(inuse);
+void PlayableSlice::SetInUse(unsigned used)
+{ DEBUGLOG(("PlayableSlice(%p)::SetInUse(%u)\n", this, used));
+  bool changed = InUse != used;
+  InUse = used;
+  // TODO: keep origin in case of cascaded execution
+  PlayableChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
+  InfoChange(args);
+  RefTo->SetInUse(used);
 }
 
 const INFO_BUNDLE_CV& PlayableSlice::GetInfo() const
@@ -638,7 +637,7 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
     Info.meta = &Meta;
   }
   if (!args.IsInitial())
-    RaiseInfoChange(args);
+    InfoChange(args);
 }
 
 void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
@@ -660,7 +659,7 @@ void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
     Info.meta = &Meta;
   }
   if (!args.IsInitial())
-    RaiseInfoChange(args);
+    InfoChange(args);
 }
 
 void PlayableRef::OverrideInfo(const INFO_BUNDLE& info, InfoFlags override)

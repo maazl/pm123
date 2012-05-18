@@ -283,7 +283,7 @@ class PlaylistBase
   /// Gets the display state of a record. See IC_* constants.
   /// Sub function to CalcIcon.
   /// This function is only called for used items.
-  virtual IC        GetRecordUsage(const RecordBase* rec) const = 0;
+  virtual IC        GetRecordUsage(const RecordBase* rec) const;
   /// Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);
   /// Set the window title

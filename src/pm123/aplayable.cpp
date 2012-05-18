@@ -161,12 +161,6 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   return ai;
 }
 
-void APlayable::RaiseInfoChange(const PlayableChangeArgs& args)
-{ DEBUGLOG(("APlayable(%p{%s})::RaiseInfoChange(&{&%p, %p, %x, %x, %x})\n", this, GetPlayable().URL.getShortName().cdata(),
-    &args.Instance, args.Origin, args.Loaded, args.Changed, args.Invalidated));
-  InfoChange(args);
-}
-
 /**
  * Worker classes that keeps track of requested informations that are not
  * ready to be evaluated because of missing dependencies.

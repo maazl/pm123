@@ -394,7 +394,7 @@ HWND PlaylistView::InitContextMenu()
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->IsInUse());
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetInUse());
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
     mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
     //mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
@@ -420,15 +420,6 @@ PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
   if (pp == *Content)
     return ICP_Recursive;
   return pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetNext(NULL) == NULL ? ICP_Empty : ICP_Closed;
-}
-
-PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
-{ DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  int_ptr<APlayable> root = Ctrl::GetRoot();
-  PlayableInstance* cur = rec->Data->Content;
-  if (!cur->IsInUse() && (!root || root->GetPlayable() != cur->GetPlayable()))
-    return IC_Shadow;
-  return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }
 
 const xstring PlaylistView::FormatSize(double size)

@@ -104,9 +104,6 @@ class PlaylistManager
   /// Determine type of Playable object
   /// Subfunction to CalcIcon.
   virtual ICP       GetPlaylistType(const RecordBase* rec) const;
-  /// Gets the Usage type of a record.
-  /// Subfunction to CalcIcon.
-  virtual IC        GetRecordUsage(const RecordBase* rec) const;
   /// check whether the current record is recursive
   bool              RecursionCheck(const RecordBase* rec) const;
   /// same with explicit parent for new items not yet added

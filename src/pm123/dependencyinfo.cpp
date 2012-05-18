@@ -166,8 +166,9 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
         MandatorySet.erase(li);
       }
       le = li < MandatorySet.size() ? MandatorySet[li] : NULL;
-    } // else match
-    { le->Merge(re->What, re->Exclude);
+    } else
+    { //  match
+      le->Merge(re->What, re->Exclude);
       le = ++li < MandatorySet.size() ? MandatorySet[li] : NULL;
       re = ++ri < r.Size() ? AccessMandatorySet(r)[ri] : NULL;
     }
@@ -193,8 +194,9 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
         OptionalSet.erase(li);
         le = li < OptionalSet.size() ? OptionalSet[li] : NULL;
         continue;
-      } // else match
-      { le->Merge(re->What, re->Exclude);
+      } else
+      { // match
+        le->Merge(re->What, re->Exclude);
         le = ++li < OptionalSet.size() ? OptionalSet[li] : NULL;
       }
       re = ++ri < roset.size() ? roset[ri] : NULL;
@@ -218,8 +220,9 @@ void DependencyInfoSet::Join(DependencyInfoPath& r)
       } else if (le->Inst.get() < re->Inst.get())
       { // current left entry does not match
        lo3:;
-      } // else match
-      { le->Merge(re->What, re->Exclude);
+      } else
+      { // match
+        le->Merge(re->What, re->Exclude);
         re = ++ri < roset.size() ? roset[ri] : NULL;
       }
       le = ++li < OptionalSet.size() ? OptionalSet[li] : NULL;

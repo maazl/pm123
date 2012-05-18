@@ -708,18 +708,33 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return ManagedDialog<DialogBase>::DlgProc(msg, mp1, mp2);
 }
 
+PlaylistBase::IC PlaylistBase::GetRecordUsage(const RecordBase* rec) const
+{ DEBUGLOG(("PlaylistBase::GetRecordUsage(%s)\n", RecordBase::DebugName(rec).cdata()));
+  PlayableInstance& pi = *rec->Data->Content;
+  unsigned usage = pi.GetInUse();
+  if (!usage)
+  { unsigned tattr = pi.GetInfo().tech->attributes;
+    if (tattr & TATTR_INVALID)
+      return IC_Invalid;
+    if (tattr & (TATTR_SONG|TATTR_PLAYLIST))
+      return IC_Normal;
+    return IC_Pending;
+  }
+  // Check whether the current call stack is the same as for the current Record ...
+  do
+  { rec = GetParent(rec);
+    if (APlayableFromRec(rec).GetInUse() != --usage)
+      return IC_Shadow;
+  } while (rec != NULL);
+  return Ctrl::IsPlaying() ? IC_Play : IC_Active;
+}
+
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
 { ASSERT(rec->Data->Content != NULL);
-  Playable& pp = rec->Data->Content->GetPlayable();
-  unsigned tattr = pp.GetInfo().tech->attributes;
+  PlayableInstance& pi = *rec->Data->Content;
+  unsigned tattr = pi.GetInfo().tech->attributes;
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), tattr));
-  IC state = IC_Pending;
-  if (tattr & TATTR_INVALID)
-    state = IC_Invalid;
-  else if (tattr & (TATTR_SONG|TATTR_PLAYLIST))
-    state = IC_Normal;
-  if (pp.IsInUse())
-    state = GetRecordUsage(rec);
+  IC state = GetRecordUsage(rec);
   if (tattr & TATTR_PLAYLIST)
     return IcoPlaylist[(tattr & TATTR_WRITABLE) != 0][state][GetPlaylistType(rec)];
   else
@@ -733,7 +748,7 @@ void PlaylistBase::SetTitle()
   unsigned tattr = Content->GetInfo().tech->attributes;
   if (tattr & TATTR_INVALID)
     append = " [invalid]";
-  else if (Content->IsInUse())
+  else if (Content->GetInUse())
     append = " [used]";
   DialogBase::SetTitle(xstring().sprintf("PM123: %s%s%s", Content->GetDisplayName().cdata(),
     (tattr & TATTR_PLAYLIST) && Content->IsModified() ? " (*)" : "", append));
@@ -1061,7 +1076,7 @@ void PlaylistBase::UpdatePlayStatus()
 }
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
-  if (rec->Data->Content->GetPlayable().IsInUse())
+  if (rec->Data->Content->GetPlayable().GetInUse())
   { InfoFlags req = IF_Usage;
     FilterRecordRequest(rec, req);
     PostRecordUpdate(rec, req);

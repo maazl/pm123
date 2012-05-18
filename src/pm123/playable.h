@@ -149,9 +149,6 @@ class Playable
   MyInfo                    Info;
   bool                      Modified;        // Current object has unsaved changes.
   sco_ptr<PlaylistData>     Playlist;        // Playlist informations, optional.
- private: // ... except for this ones. They are accessed atomically.
-  // Internal state
-  bool                      InUse;           // Current object is in use.
 
  private: // Services to update the Info* variables.
   /// Raise the \c InfoChange event and include dependent information in \c Changed and \c Invalidated.
@@ -242,10 +239,8 @@ class Playable
   /// Access the InfoChange event, but only the public part.
   event_pub<const CollectionChangeArgs>& GetInfoChange() { return (event_pub<const CollectionChangeArgs>&)APlayable::GetInfoChange(); }
 
-  /// Return true if the current object is marked as in use.
-  virtual bool              IsInUse() const;
   /// Mark the object as used (or not)
-  virtual void              SetInUse(bool used);
+  virtual void              SetInUse(unsigned used);
   /// Check whether the current Collection is a modified shadow of an unmodified backend.
   bool                      IsModified() const { return Modified; }
 

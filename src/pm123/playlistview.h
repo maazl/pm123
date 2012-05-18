@@ -135,9 +135,6 @@ class PlaylistView
   /// Determine type of Playable object
   /// Sub function to \c CalcIcon.
   virtual ICP       GetPlaylistType(const RecordBase* rec) const;
-  /// Gets the Usage type of a record.
-  /// Sub function to \c CalcIcon.
-  virtual IC        GetRecordUsage(const RecordBase* rec) const;
   /// Convert \a size [bytes] to a human readable format
   static const xstring FormatSize(double size);
   /// Convert \a time [s] to a human readable format

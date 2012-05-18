@@ -72,6 +72,7 @@ struct PlayableChangeArgs
   PlayableChangeArgs(APlayable& inst)             : Instance(inst), Origin(&inst), Loaded(IF_None), Changed(IF_None), Invalidated(IF_None) {}
   bool                        IsInitial() const   { return (Changed|Loaded|Invalidated) == IF_None; }
   void                        Reset()             { Changed = IF_None; Loaded = IF_None; Invalidated = IF_None; }
+  void                        Purge(InfoFlags what) { Loaded &= ~what; Changed &= ~what; Invalidated &= ~what; }
 };
 
 
@@ -94,22 +95,22 @@ class APlayable
  private:
   /// Keep track of scheduled asynchronous requests.
   AtomicUnsigned              AsyncRequest;
+ protected:
+  unsigned                    InUse;
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
- protected:
-  /// Fire the \c InfoChange change event.
-  void                        RaiseInfoChange(const PlayableChangeArgs& args);
 
+                              APlayable()         : InUse(0) {}
  public:
-  //                            APlayable(InfoFlags preset = IF_Usage|IF_Display) : InfoStat(preset) {}
-  virtual                     ~APlayable() {}
+  virtual                     ~APlayable()        {}
   /// Get't the referenced content.
           Playable&           GetPlayable()       { return (Playable&)DoGetPlayable(); }
   const   Playable&           GetPlayable() const { return DoGetPlayable(); }
-  /// Return true if the current object is marked as in use.
-  virtual bool                IsInUse() const = 0;
+  /// Return >0 if the current object is marked as in use.
+  /// The value is the depth in the callstack. 1 = Root, 2 = child of root ---
+          unsigned            GetInUse() const    { return InUse; }
   /// Mark the object as used (or not)
-  virtual void                SetInUse(bool used) = 0;
+  virtual void                SetInUse(unsigned used) = 0;
   /// Display name
   /// @return This returns either \c Info.meta.title or the object name of the current URL.
   /// Keep in mind that this may not return the expected value unless \c RequestInfo(IF_Display,...) has been called.

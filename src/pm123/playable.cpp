@@ -114,7 +114,6 @@ Playable::MyInfo::MyInfo()
 Playable::Playable(const url123& url)
 : URL(url),
   Modified(false),
-  InUse(false),
   LastAccess(clock())
 { DEBUGLOG(("Playable(%p)::Playable(%s)\n", this, url.cdata()));
 }
@@ -135,15 +134,11 @@ void Playable::SetAlias(const xstring& alias)
   Info.SetItem(ip);
 }
 
-bool Playable::IsInUse() const
-{ return InUse;
-}
-
 const INFO_BUNDLE_CV& Playable::GetInfo() const
 { return Info;
 }
 
-void Playable::SetInUse(bool used)
+void Playable::SetInUse(unsigned used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Mutex::Lock lock(Mtx);
   bool changed = InUse != used;
@@ -283,7 +278,7 @@ static inline void SetDependentInfo(InfoFlags& what)
 void Playable::RaiseInfoChange(CollectionChangeArgs& args)
 { SetDependentInfo(args.Changed);
   SetDependentInfo(args.Invalidated);
-  APlayable::RaiseInfoChange(args);
+  InfoChange(args);
 }
 
 InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)

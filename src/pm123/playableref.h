@@ -118,10 +118,8 @@ class PlayableSlice : public APlayable
   
   virtual const INFO_BUNDLE_CV& GetInfo() const;
 
-  /// Usage status
-  virtual bool              IsInUse() const;
   /// Change usage status.
-  virtual void              SetInUse(bool used);
+  virtual void              SetInUse(unsigned used);
 
   /// Return the overridden information.
   virtual InfoFlags         GetOverridden() const;
