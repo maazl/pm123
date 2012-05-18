@@ -725,7 +725,7 @@ PlaylistBase::IC PlaylistBase::GetRecordUsage(const RecordBase* rec) const
   { rec = GetParent(rec);
     if (APlayableFromRec(rec).GetInUse() != --usage)
       return IC_Shadow;
-  } while (rec != NULL);
+  } while (rec != NULL && usage);
   return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }
 
