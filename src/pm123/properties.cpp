@@ -66,7 +66,7 @@ class PropertyDialog : public NotebookDialogBase
   class SettingsPageBase : public PageBase
   {public:
     SettingsPageBase(PropertyDialog& parent, USHORT id)
-    : PageBase(parent, id, NULLHANDLE)//, DF_AutoResize)
+    : PageBase(parent, id, NULLHANDLE, DF_AutoResize)
     {}
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
@@ -150,7 +150,7 @@ class PropertyDialog : public NotebookDialogBase
   class AboutPage : public PageBase
   {public:
     AboutPage(PropertyDialog& parent)
-    : PageBase(parent, CFG_ABOUT, NULLHANDLE)//, DF_AutoResize)
+    : PageBase(parent, CFG_ABOUT, NULLHANDLE, DF_AutoResize)
     { MajorTitle = "~About"; }
    protected:
     virtual void    OnInit();

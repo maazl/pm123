@@ -100,7 +100,7 @@ MENU MNU_MAIN
   { MENUITEM "Show Playlist ~info",        IDM_M_PLINFO
     MENUITEM "Show ~Detailed view",        IDM_M_DETAILED
     MENUITEM "Show ~tree view",            IDM_M_TREEVIEW
-    SUBMENU "Browse ~content",             IDM_M_PLEXPAND
+    SUBMENU "Browse ~content",             IDM_M_PLCONTENT
     {}
     MENUITEM SEPARATOR
     MENUITEM "~Bookmark playlist...",      IDM_M_ADDPLBOOK
@@ -253,6 +253,7 @@ DLGTEMPLATE DLG_CONFIG
 {
   DIALOG "PM123 Properties", DLG_CONFIG, 0,  0, 270,196, NOT WS_SAVEBITS|FS_SIZEBORDER|WS_CLIPCHILDREN,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_MAXBUTTON|FCF_TASKLIST|FCF_NOBYTEALIGN
+    PRESPARAMS    MAKE_PPU_SIZE_CONSTR(270,196,   0,  0)
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     NOTEBOOK               NB_CONFIG,    0, 18, 270,178, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP
@@ -272,25 +273,41 @@ DLGTEMPLATE CFG_SETTINGS1
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 54, 248, 36, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 70, 112, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
     AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 70, 112, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 2,4,0,1)
     LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 58, 112, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 58,  52, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
     AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 58,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
 
     GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 48, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 32, 112, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 32, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     LTEXT        "Alt. slider f~unction",               ST_GENERIC,        12, 20,  52, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72, 20,  52, 12, WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
     AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132, 20,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
     AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,      192, 20,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
     LTEXT        "Alt. slider b~utton",                 ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "A~lt key",                         RB_ALTKEY,         72,  8,  52, 12, WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
     AUTORADIOBUTTON "C~trl Key",                        RB_CTRLKEY,       132,  8,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
     AUTORADIOBUTTON "S~hift key",                       RB_SHIFTKEY,      192,  8,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
   }
 }
 
@@ -300,16 +317,24 @@ DLGTEMPLATE CFG_SETTINGS2
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " Playlists ",                         GB_GENERIC,         4,  4, 248, 84, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 68, 112, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 68, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",
                                                         CB_RECURSEDND,     12, 56, 232, 12, WS_GROUP
-    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,   12, 44, 112, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,   12, 44, 232, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     LTEXT        "Append to the default playlist:",     ST_GENERIC,        12, 32, 232, 12, DT_BOTTOM
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "at ~drag & drop to the main window",  CB_AUTOAPPENDDND,  12, 20, 112, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
     AUTOCHECKBOX "at ~command line invokation",         CB_AUTOAPPENDCMD, 132, 20, 112, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 2,4,0,1)
     AUTOCHECKBOX "Remove played objects in the default playlist (~queue mode)",
                                                         CB_QUEUEMODE,      12,  8, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
   }
 }
 
@@ -317,34 +342,54 @@ DLGTEMPLATE CFG_PLAYBACK
 {
   DIALOG         "",                                    CFG_PLAYBACK,       0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
-  { GROUPBOX     " Replay Gain ",                       GB_GENERIC,         4, 40, 248, 96, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "Enable ~Replay Gain processing",      CB_RG_ENABLE,      12,116, 236, 10, WS_GROUP
-    LTEXT        "~Used values in order",               ST_GENERIC         12,106,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX                                             LB_RG_LIST         12, 72,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
-    LTEXT        "Available ~values",                   ST_GENERIC        146,106,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX                                             LB_RG_AVAILABLE   146, 72,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
-    CTEXT        "~Action",                             ST_GENERIC,       114,106,  26, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    PUSHBUTTON   "\036",                                PB_RG_UP,         114, 90,  12, 10, WS_TABSTOP
-    PUSHBUTTON   "\037",                                PB_RG_DOWN,       114, 76,  12, 10
-    PUSHBUTTON   "\021",                                PB_RG_ADD,        130, 90,  12, 10
-    PUSHBUTTON   "\020",                                PB_RG_REMOVE,     130, 76,  12, 10
-    SPINBUTTON                                          SB_RG_PREAMP,      12, 58,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
-    LTEXT        "dB",                                  ST_GENERIC,        54, 58,  16, 10, DT_BOTTOM
+  { GROUPBOX     " Replay Gain ",                       GB_GENERIC,         4, 42, 248, 96, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
+    AUTOCHECKBOX "Enable ~Replay Gain processing",      CB_RG_ENABLE,      12,118, 232, 10, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
+    LTEXT        "~Used values in order",               ST_GENERIC         12,108,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
+    LISTBOX                                             LB_RG_LIST         12, 74,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
+    LTEXT        "Available ~values",                   ST_GENERIC        146,108,  98, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
+    LISTBOX                                             LB_RG_AVAILABLE   146, 74,  98, 32, LS_EXTENDEDSEL|LS_MULTIPLESEL|LS_NOADJUSTPOS
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
+    CTEXT        "~Action",                             ST_GENERIC,       114,108,  26, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+    PUSHBUTTON   "\036",                                PB_RG_UP,         114, 92,  12, 10, WS_TABSTOP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+    PUSHBUTTON   "\037",                                PB_RG_DOWN,       114, 78,  12, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+    PUSHBUTTON   "\021",                                PB_RG_ADD,        130, 92,  12, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+    PUSHBUTTON   "\020",                                PB_RG_REMOVE,     130, 78,  12, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+    SPINBUTTON                                          SB_RG_PREAMP,      12, 60,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
+    LTEXT        "dB",                                  ST_GENERIC,        54, 60,  16, 10, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
-    LTEXT "~Preamp for tracks with Replay Gain information",ST_GENERIC,    70, 58, 176, 10, DT_BOTTOM|DT_MNEMONIC
+    LTEXT "~Preamp for tracks with Replay Gain information",ST_GENERIC,    70, 60, 176, 10, DT_BOTTOM|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_RG_PREAMP_OTHER,12, 46,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
-    LTEXT        "dB",                                  ST_GENERIC,        54, 46,  16, 10, DT_BOTTOM
+    SPINBUTTON                                          SB_RG_PREAMP_OTHER,12, 48,  40, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|WS_GROUP
+    LTEXT        "dB",                                  ST_GENERIC,        54, 48,  16, 10, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
-    LTEXT        "Preamp for ~other tracks",            ST_GENERIC,        70, 46, 176, 10, DT_BOTTOM|DT_MNEMONIC
+    LTEXT        "Preamp for ~other tracks",            ST_GENERIC,        70, 48, 176, 10, DT_BOTTOM|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     GROUPBOX     " Decoder priority "                   GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
-    LTEXT        "~Normal priority",                    ST_GENERIC,        12, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
+    LTEXT        "~Normal priority:",                   ST_GENERIC,        12, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     COMBOBOX     "",                                    CB_PRI_NORM,       64,-18,  62, 48, CBS_DROPDOWNLIST
-    LTEXT        "~High priority",                      ST_GENERIC,       130, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
+    LTEXT        "~High priority:",                     ST_GENERIC,       130, 22,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     COMBOBOX     "",                                    CB_PRI_HIGH,      182,-18,  62, 48, CBS_DROPDOWNLIST
-    LTEXT        "~Low priority after",                 ST_GENERIC,        12, 10,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
+    LTEXT        "~Low priority after:",                ST_GENERIC,        12, 10,  48, 10, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     SPINBUTTON                                          SB_PRI_LIMIT,      64, 10,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
     LTEXT        "s",                                   ST_GENERIC,        98, 10,  12, 10, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
@@ -357,26 +402,35 @@ DLGTEMPLATE CFG_IOSETTINGS
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " Remote control ",                    GB_GENERIC,         4,100, 248, 24, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
     RTEXT        "~Pipe name",                          ST_GENERIC,         8,104,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PIPE,           62,106,  72,  8, ES_MARGIN
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
 
     GROUPBOX     " Streaming audio ",                   GB_GENERIC,         4, 30, 248, 68, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
     RTEXT        "~HTTP Proxy",                         ST_GENERIC,         8, 76,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_HOST,     62, 78, 132,  8, ES_MARGIN
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
       CTLDATA 8, 512, 0, 0
     RTEXT        "P~ort",                               ST_GENERIC,       196, 76,  20, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,2,0,1, 0,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_PORT,    220, 78,  24,  8, ES_MARGIN
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,2,0,1, 0,2,0,1)
       CTLDATA 8, 5, 0, 0
     RTEXT        "~User name",                          ST_GENERIC,         8, 62,  48, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_USER,     62, 64,  72,  8, ES_MARGIN
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
       CTLDATA 8, 128, 0, 0
     RTEXT        "Pass~word",                           ST_GENERIC,       140, 62,  32, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_PASS,    176, 64,  68,  8, ES_MARGIN|ES_UNREADABLE
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
       CTLDATA 8, 128, 0, 0
     RTEXT        "Conn. ~timeout",                      ST_GENERIC,         8, 48,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
@@ -389,11 +443,12 @@ DLGTEMPLATE CFG_IOSETTINGS
     LTEXT        "kB",                                  ST_GENERIC,       100, 34,  20, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,    124, 34,  22, 12
+    SPINBUTTON                                          SB_FILLBUFFER,    144, 36,  28,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
     LTEXT        "% of buffer before play",             ST_GENERIC,       176, 34,  68, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_FILLBUFFER,    144, 36,  28,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
 
     GROUPBOX     " Performance ",                       GB_GENERIC,         4,  4, 248, 24, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
     RTEXT        "~Worker threads",                     ST_GENERIC,         8,  8,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     SPINBUTTON                                          SB_NUMWORKERS,     60, 10,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
@@ -411,40 +466,55 @@ DLGTEMPLATE CFG_DISPLAY1
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     GROUPBOX     " User interface ",                    GB_GENERIC,         4, 96, 248, 36, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12,112,  60, 12, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     SPINBUTTON                                          SB_DOCK,           76,114,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
     LTEXT        "pixels",                              ST_GENERIC,       104,112,  30, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "Save window ~positions per object",   CB_SAVEWNDPOSBYOBJ,12,100, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     GROUPBOX     " Title ",                             GB_GENERIC,         4, 46, 248, 48, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     LTEXT        "~Display text:",                      ST_GENERIC,        12, 74,  52, 10, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Filename",                         RB_DISP_FILENAME,  68, 74,  56, 10, WS_GROUP|WS_TABSTOP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Song title",                       RB_DISP_ID3TAG,   128, 74,  56, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Technical info",                   RB_DISP_FILEINFO, 188, 74,  56, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     LTEXT        "~Scrolls title:",                     ST_GENERIC,        12, 62,  52, 10, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Infinite",                         RB_SCROLL_INFINITE,68, 62,  56, 10, WS_GROUP|WS_TABSTOP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Once",                             RB_SCROLL_ONCE,   128, 62,  56, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Disable",                          RB_SCROLL_DISABLE,188, 62,  56, 10
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "~Turn around scroller",               CB_SCROLL_AROUND,  68, 50, 176, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 3,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     GROUPBOX     " Font ",                              GB_GENERIC,         4,  4, 248, 40, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Use skinned font for display (possibly no international characters support)",
                                                         CB_USE_SKIN_FONT,  12, 24, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     PUSHBUTTON   "~Choose font",                        PB_FONT_SELECT,    12, 10,  56, 12, WS_GROUP
     LTEXT        "#.Font",                              ST_FONT_SAMPLE,    76, 10, 168, 12, DT_VCENTER
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   }
 }
@@ -542,16 +612,25 @@ DLGTEMPLATE CFG_ABOUT
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     CTEXT    AMP_FULLNAME,                         ST_GENERIC,  4,124, 248, 16, DT_VCENTER
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,4,4, 1,1,0,2)
       PRESPARAMS PP_FONTNAMESIZE "18.Tms Rmn Bold Italic"
     CTEXT    "High Performance Audio Player for MPEG and other files.",
                                                    ST_GENERIC,  4,114, 248,  8, DT_VCENTER
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,4,4, 1,1,0,4)
     CTEXT    "",                                   ST_BUILT,    4,106, 248,  8, DT_VCENTER
-    GROUPBOX " Authors ",                          GB_GENERIC, 10, 55, 238, 53, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,4,4, 1,1,0,4)
+
+    GROUPBOX " Authors ",                          GB_GENERIC, 10, 61, 238, 47, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,3,4, 1,1,1,4)
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    MLE      "",                                   ST_AUTHORS, 13, 57, 232, 43, MLS_READONLY|MLS_VSCROLL|MLS_HSCROLL
-    GROUPBOX " Copyright, Credits and Greetings ", GB_GENERIC, 10,  5, 238, 47, NOT WS_TABSTOP|WS_GROUP
+    MLE      "",                                   ST_AUTHORS, 13, 63, 232, 37, MLS_READONLY|MLS_VSCROLL|MLS_HSCROLL
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,3,4, 1,1,1,4)
+
+    GROUPBOX " Copyright, Credits and Greetings ", GB_GENERIC, 10,  5, 238, 53, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,0,4, 1,1,3,4)
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    MLE      "",                                   ST_CREDITS, 13,  7, 232, 37, MLS_READONLY|MLS_WORDWRAP|MLS_VSCROLL
+    MLE      "",                                   ST_CREDITS, 13,  7, 232, 43, MLS_READONLY|MLS_WORDWRAP|MLS_VSCROLL
+      PRESPARAMS                         MAKE_PPU_RESIZE_INFO(0,1,0,4, 1,1,3,4)
   }
 }
 
@@ -858,10 +937,10 @@ ACCELTABLE ACL_PLAYLIST
 }
 
 MENU MNU_PLAYLIST
-{ MENUITEM "~Load this Playlist",        IDM_PL_USEALL
-  MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
+{ MENUITEM "~Load this playlist",        IDM_PL_USEALL
+  MENUITEM "Show ~detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show ~tree view",            IDM_PL_TREEVIEWALL
-  MENUITEM "Show Content ~info",         IDM_PL_INFOALL
+  MENUITEM "Show content ~info",         IDM_PL_INFOALL
   MENUITEM SEPARATOR
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
@@ -892,6 +971,9 @@ MENU MNU_RECORD
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Edit playlist...",          IDM_PL_DETAILED
   MENUITEM "Open in ~tree view",         IDM_PL_TREEVIEW
+  /* TODO action not completed
+  SUBMENU "Browse ~content",             IDM_PL_CONTENT
+  {}*/
   MENUITEM SEPARATOR
   MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
@@ -942,6 +1024,9 @@ MENU PM_REC_MENU
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Detailed view (edit)",      IDM_PL_DETAILED
   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
+  /* TODO action not completed
+  SUBMENU "Browse ~content",             IDM_PL_CONTENT
+  {}*/
   MENUITEM SEPARATOR
   MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
