@@ -40,7 +40,7 @@
 
 class Playable;
 class PlayableSetBase;
-/** Class to identify a deep location within a playlist or a song.
+/** @brief Class to identify a deep location within a playlist or a song.
  * @details A location can point to anything within the scope of it's root. I.e.
  * - the root,
  * - a song,
@@ -55,8 +55,8 @@ class PlayableSetBase;
  * while the location exists. */
 class Location : public Iref_count
 {public:
-  /// Result of Navigation command
-  /// It can take three logically distinct values:
+  /// @brief Result of Navigation command
+  /// @details It can take three logically distinct values:
   /// - NULL      => Successful.
   /// - ""        => Further information from other objects is required. Retry later.
   /// - "End"     => The end of the list has been reached.
@@ -199,6 +199,13 @@ class Location : public Iref_count
   /// - ...
   /// - UINT_MAX -> pp is not in call stack
   unsigned                    FindInCallstack(const Playable* pp) const;
+  /// Check whether two locations are related, i.e. one is a subset of the other one.
+  /// @return Level where \a r is in the callstack.
+  /// - 0  -> Both locations share the same root.
+  /// - <0 -> This Location's root is at level \a -returnvalue in the call stack of \a r.
+  /// - >0 -> \a r is at level \a returnvalue in the call stack of this Location.
+  /// - INT_MIN -> The two locations are unrelated.
+  int                         RelationCheck(const Location& r) const;
 
   /// Resets the current Location to its initial value at the start of the current root.
   /// @param level reset up to
@@ -237,6 +244,12 @@ class Location : public Iref_count
   /// @return See \c NavigationResult, but NavigateTo will never depend on outstanding information and return "".
   /// @details This method can be used to explicitly build the callstack.
   NavigationResult            NavigateTo(PlayableInstance* pi);
+  /// Navigate explicitly to a given location.
+  /// @param Target location. Note that \a target need not to have the same root than the current Location.
+  /// It is sufficient if the two locations are related. The navigateion will then take place
+  /// in the common subset. If the locations are unrelated, an error is returned.
+  /// @return See \c NavigationResult, but NavigateTo will never depend on outstanding information and return "".
+  NavigationResult            NavigateTo(const Location& target);
   /// Navigate to an occurrence of \a url within the current deepmost playlist.
   /// @param url
   /// - If the url is \c '..' the current playlist is left (see \c NavigateUp).

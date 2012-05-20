@@ -113,7 +113,7 @@
 #define IDM_M_LOAD          551
 #define IDM_M_PLRELOAD      552
 #define IDM_M_RELOAD        553
-#define IDM_M_PLEXPAND      554
+#define IDM_M_PLCONTENT     554
 #define IDM_M_INSPECTOR     559
 #define IDM_M_LOADFILE      560
 #define IDM_M_URL           561
@@ -215,6 +215,8 @@
 #define IDM_PL_SORT_ALBUMALL 838
 #define IDM_PL_SORT_RANDALL 839
 #define IDM_PL_SELECT_ALL   840
+#define IDM_PL_CONTENT      841
+//#define IDM_PL_CONTENT_ALL  842
 #define IDM_PL_APPEND       900
 #define IDM_PL_APPFILE      901
 #define IDM_PL_APPURL       902
@@ -323,9 +325,14 @@
 #define CB_AUTOUSEPL       1310
 #define CB_RECURSEDND      1311
 #define CB_FOLDERSFIRST    1313
-#define CB_AUTOAPPENDDND   1314
-#define CB_AUTOAPPENDCMD   1315
-#define CB_QUEUEMODE       1316
+#define RB_ITEMNAVTO       1315
+#define RB_ITEMLOAD        1316
+#define RB_ITEMQUEUE       1317
+#define RB_DNDLOAD         1318
+#define RB_DNDQUEUE        1319
+#define RB_CMDLOAD         1320
+#define RB_CMDQUEUE        1321
+#define CB_QUEUEMODE       1325
 
 #define CFG_IOSETTINGS     1350
 

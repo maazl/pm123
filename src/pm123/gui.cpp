@@ -66,19 +66,6 @@
 #include <stdio.h>
 
 
-/*static void LoadModuleTest()
-{
-  DEBUGLOG(("LoadModuleTest"));
-  char load_error[_MAX_PATH];
-  *load_error = 0;
-  HMODULE module;
-  APIRET rc = DosLoadModule(load_error, sizeof load_error, "visplug\analyzer.dll", &module);
-  DEBUGLOG(("LoadModuleTest: %i", rc));
-  void* ptr;
-  rc = DosQueryProcAddr(module, 0, "plugin_query", (PFN*)&ptr);
-
-}*/
-
 static void vis_InitAll(HWND owner)
 { PluginList visuals(PLUGIN_VISUAL);
   Plugin::GetPlugins(visuals);
@@ -259,7 +246,7 @@ PostMsgWorker DelayedAltSliderDragWorker;
 
 void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override)
 { DEBUGLOG(("GUI_LoadFileCallback(%p, %s)\n", param, url));
-  ((LoadHelper*)param)->AddItem(Playable::GetByURL(url123(url)));
+  ((LoadHelper*)param)->AddItem(*Playable::GetByURL(url123(url)));
 }
 
 MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -307,6 +294,24 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       bmp_draw_led(hps, !(msg&1));
     }
     return 0;
+
+   case WMP_NAVIGATE:
+    { Location& target = *(Location*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("GUIImp::DlgProc: WMP_NAVIGATE {%s}\n", target.Serialize(false).cdata()));
+      ASSERT(target.GetRoot());
+      if (!target.GetCurrent()) // Do not enter playlists if not necessary.
+        target.NavigateUp();
+      const volatile amp_cfg& cfg = Cfg::Get();
+      if ( cfg.itemaction == CFG_ACTION_NAVTO && CurrentIter
+        && !CurrentIter->NavigateTo(target) ) // Try to navigate to target
+      { GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
+      } else
+      { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
+        lhp->AddItem(*target.GetCurrent());
+        Load(lhp);
+      }
+      return 0;
+    }
 
    case WMP_LOAD:
     { DEBUGLOG(("GUIImp::DlgProc: WMP_LOAD %p\n", mp1));
@@ -642,7 +647,8 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_MENUEND:
     if (HWNDFROMMP(mp2) == ContextMenu)
     { // Detach the current playlist from the menu to avoid strong references.
-      MenuWorker->DetachMenu(IDM_M_PLEXPAND);
+      if (MenuWorker)
+        MenuWorker->DetachMenu(IDM_M_PLCONTENT);
     }
     break;
 
@@ -725,14 +731,13 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
 
       switch( cmd )
-      {
-        case IDM_M_ADDBOOK:
+      {case IDM_M_ADDBOOK:
         { APlayable* cur = CurrentSong();
           if (cur)
             amp_add_bookmark(HPlayer, *cur);
           break;
         }
-        case IDM_M_ADDBOOK_TIME:
+       case IDM_M_ADDBOOK_TIME:
         { APlayable* cur = CurrentSong();
           if (cur)
           { PlayableRef ps(*cur);
@@ -746,226 +751,228 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           }
           break;
         }
-        case IDM_M_ADDPLBOOK:
-          if (CurrentRoot())
-            amp_add_bookmark(HPlayer, *CurrentIter->GetRoot());
-          break;
+       case IDM_M_ADDPLBOOK:
+        if (CurrentRoot())
+          amp_add_bookmark(HPlayer, *CurrentIter->GetRoot());
+        break;
 
-        case IDM_M_ADDPLBOOK_TIME:
-          if (CurrentRoot())
-          { PlayableRef ps(*CurrentIter->GetRoot());
-            AttrInfo attr(*ps.GetInfo().attr);
-            attr.at = CurrentIter->Serialize(true);
-            ps.OverrideAttr(&attr);
-            amp_add_bookmark(HPlayer, ps);
-          }
-          break;
+       case IDM_M_ADDPLBOOK_TIME:
+        if (CurrentRoot())
+        { PlayableRef ps(*CurrentIter->GetRoot());
+          AttrInfo attr(*ps.GetInfo().attr);
+          attr.at = CurrentIter->Serialize(true);
+          ps.OverrideAttr(&attr);
+          amp_add_bookmark(HPlayer, ps);
+        }
+        break;
 
-        case IDM_M_EDITBOOK:
-          PlaylistView::GetByKey(*DefaultBM)->SetVisible(true);
-          break;
+       case IDM_M_EDITBOOK:
+        PlaylistView::GetByKey(*DefaultBM)->SetVisible(true);
+        break;
 
-        case IDM_M_EDITBOOKTREE:
-          PlaylistManager::GetByKey(*DefaultBM)->SetVisible(true);
-          break;
+       case IDM_M_EDITBOOKTREE:
+        PlaylistManager::GetByKey(*DefaultBM)->SetVisible(true);
+        break;
 
-        case IDM_M_INFO:
+       case IDM_M_INFO:
         { APlayable* cur = CurrentSong();
           if (cur)
             ShowDialog(cur->GetPlayable(), DLT_METAINFO);
           break;
         }
-        case IDM_M_PLINFO:
+       case IDM_M_PLINFO:
         { Playable* root = CurrentRoot();
           if (root)
             ShowDialog(*root, root->GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
           break;
         }
-        case IDM_M_TAG:
+       case IDM_M_TAG:
         { APlayable* cur = CurrentSong();
           if (cur)
             ShowDialog(cur->GetPlayable(), DLT_INFOEDIT);
           break;
         }
-        case IDM_M_RELOAD:
+       case IDM_M_RELOAD:
         { APlayable* cur = CurrentSong();
           if (cur)
             cur->RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
           break;
         }
-        case IDM_M_DETAILED:
+       case IDM_M_DETAILED:
         { Playable* root = CurrentRoot();
           if (root && root->IsPlaylist())
             ShowDialog(*root, DLT_PLAYLIST);
           break;
         }
-        case IDM_M_TREEVIEW:
+       case IDM_M_TREEVIEW:
         { Playable* root = CurrentRoot();
           if (root && root->IsPlaylist())
             ShowDialog(*root, DLT_PLAYLISTTREE);
           break;
         }
-        case IDM_M_ADDPMBOOK:
+       case IDM_M_ADDPMBOOK:
         { Playable* root = CurrentRoot();
           if (root)
             DefaultPM->InsertItem(*root);
           break;
         }
-        case IDM_M_PLRELOAD:
+       case IDM_M_PLRELOAD:
         { Playable* root = CurrentRoot();
           if ( root && root->IsPlaylist()
             && (root->IsModified() || amp_query(HPlayer, "The current list is modified. Discard changes?")) )
             root->RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
           break;
         }
-        case IDM_M_PLSAVE:
-        case IDM_M_PLSAVEAS:
+       case IDM_M_PLSAVE:
+       case IDM_M_PLSAVEAS:
         { Playable* root = CurrentRoot();
           if (root && root->IsPlaylist())
             amp_save_playlist(HPlayer, *root, cmd == IDM_M_PLSAVEAS);
           break;
         }
-        case IDM_M_SAVE:
+       case IDM_M_SAVE:
           // TODO: Save stream
           //amp_save_stream(HPlayer, !Ctrl::GetSavename());
           break;
 
-        case IDM_M_PLAYLIST:
-          PlaylistView::GetByKey(*DefaultPL)->SetVisible(true);
-          break;
+       case IDM_M_PLAYLIST:
+        PlaylistView::GetByKey(*DefaultPL)->SetVisible(true);
+        break;
 
-        case IDM_M_MANAGER:
-          PlaylistManager::GetByKey(*DefaultPM)->SetVisible(true);
-          break;
+       case IDM_M_MANAGER:
+        PlaylistManager::GetByKey(*DefaultPM)->SetVisible(true);
+        break;
 
-        case IDM_M_PLOPENDETAIL:
+       case IDM_M_PLOPENDETAIL:
         { url123 URL = amp_playlist_select(HPlayer, "Open Playlist");
           if (URL)
             ShowDialog(*Playable::GetByURL(URL), DLT_PLAYLIST);
           break;
         }
-        case IDM_M_PLOPENTREE:
+       case IDM_M_PLOPENTREE:
         { url123 URL = amp_playlist_select(HPlayer, "Open Playlist Tree");
           if (URL)
             ShowDialog(*Playable::GetByURL(URL), DLT_PLAYLISTTREE);
           break;
         }
 
-        case IDM_M_FLOAT:
+       case IDM_M_FLOAT:
         { Cfg::ChangeAccess cfg;
           cfg.floatontop = !cfg.floatontop;
           break;
         }
-        case IDM_M_FONT1:
-        case IDM_M_FONT2:
+       case IDM_M_FONT1:
+       case IDM_M_FONT2:
         { Cfg::ChangeAccess cfg;
           cfg.font = cmd - IDM_M_FONT1;
           cfg.font_skinned = true;
           break;
         }
-        case IDM_M_NORMAL:
-        case IDM_M_SMALL:
-        case IDM_M_TINY:
-          Cfg::ChangeAccess().mode = (cfg_mode)(cmd - IDM_M_NORMAL);
-          break;
+       case IDM_M_NORMAL:
+       case IDM_M_SMALL:
+       case IDM_M_TINY:
+        Cfg::ChangeAccess().mode = (cfg_mode)(cmd - IDM_M_NORMAL);
+        break;
 
-        case IDM_M_MINIMIZE:
-          WinSetWindowPos(HFrame, HWND_DESKTOP, 0, 0, 0, 0, SWP_HIDE);
-          WinSetActiveWindow(HWND_DESKTOP, WinQueryWindow(HPlayer, QW_NEXTTOP));
-          break;
+       case IDM_M_MINIMIZE:
+        WinSetWindowPos(HFrame, HWND_DESKTOP, 0, 0, 0, 0, SWP_HIDE);
+        WinSetActiveWindow(HWND_DESKTOP, WinQueryWindow(HPlayer, QW_NEXTTOP));
+        break;
 
-        case IDM_M_SKINLOAD:
-          amp_loadskin();
-          break;
+       case IDM_M_SKINLOAD:
+        amp_loadskin();
+        break;
 
-        case IDM_M_CFG:
-          cfg_properties(HPlayer);
-          break;
+       case IDM_M_CFG:
+        cfg_properties(HPlayer);
+        break;
 
-        case IDM_M_VOL_RAISE:
+       case IDM_M_VOL_RAISE:
         { // raise volume by 5%
           Ctrl::PostCommand(Ctrl::MkVolume(.05, true));
           break;
         }
-
-        case IDM_M_VOL_LOWER:
+       case IDM_M_VOL_LOWER:
         { // lower volume by 5%
           Ctrl::PostCommand(Ctrl::MkVolume(-.05, true));
           break;
         }
 
-        case IDM_M_MENU:
-          ShowContextMenu();
-          break;
+       case IDM_M_MENU:
+        ShowContextMenu();
+        break;
 
-        case IDM_M_INSPECTOR:
-          InspectorDialog::GetInstance()->SetVisible(true);
-          break;
+       case IDM_M_INSPECTOR:
+        InspectorDialog::GetInstance()->SetVisible(true);
+        break;
 
-        case BMP_PL:
+       case BMP_PL:
         { Playable* root = CurrentRoot();
           int_ptr<PlaylistView> pv(PlaylistView::GetByKey(root && root->IsPlaylist() ? *root : *DefaultPL));
           pv->SetVisible(!pv->GetVisible());
           break;
         }
 
-        case BMP_REPEAT:
-          Ctrl::PostCommand(Ctrl::MkRepeat(Ctrl::Op_Toggle));
-          WinSendDlgItemMsg(HPlayer, BMP_REPEAT, Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
-          break;
+       case BMP_REPEAT:
+        Ctrl::PostCommand(Ctrl::MkRepeat(Ctrl::Op_Toggle));
+        WinSendDlgItemMsg(HPlayer, BMP_REPEAT, Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
+        break;
 
-        case BMP_SHUFFLE:
-          Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Toggle));
-          WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
-          break;
+       case BMP_SHUFFLE:
+        Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Toggle));
+        WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
+        break;
 
-        case BMP_POWER:
-          Terminate = true;
-          WinPostMsg(HPlayer, WM_QUIT, 0, 0);
-          break;
+       case BMP_POWER:
+        Terminate = true;
+        WinPostMsg(HPlayer, WM_QUIT, 0, 0);
+        break;
 
-        case BMP_PLAY:
-          PostCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Toggle));
-          break;
+       case BMP_PLAY:
+        PostCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Toggle));
+        break;
 
-        case BMP_PAUSE:
-          PostCtrlCommand(Ctrl::MkPause(Ctrl::Op_Toggle));
-          break;
+       case BMP_PAUSE:
+        PostCtrlCommand(Ctrl::MkPause(Ctrl::Op_Toggle));
+        break;
 
-        case BMP_FLOAD:
-          return WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_LOADFILE), mp2);
+       case BMP_FLOAD:
+        return WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_LOADFILE), mp2);
 
-        case BMP_STOP:
-          Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
-          // TODO: probably inclusive when the iterator is destroyed
-          //pl_clean_shuffle();
-          break;
+       case BMP_STOP:
+        Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
+        break;
 
-        case BMP_NEXT:
-          PostCtrlCommand(Ctrl::MkSkip(1, true));
-          break;
+       case BMP_NEXT:
+        PostCtrlCommand(Ctrl::MkSkip(1, true));
+        break;
 
-        case BMP_PREV:
-          PostCtrlCommand(Ctrl::MkSkip(-1, true));
-          break;
+       case BMP_PREV:
+        PostCtrlCommand(Ctrl::MkSkip(-1, true));
+        break;
 
-        case BMP_FWD:
-          PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle));
-          break;
+       case BMP_FWD:
+        PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle));
+        break;
 
-        case BMP_REW:
-          PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle|Ctrl::Op_Rewind));
-          break;
+       case BMP_REW:
+        PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle|Ctrl::Op_Rewind));
+        break;
       }
       return 0;
     }
 
-   case PlaylistMenu::UM_SELECTED:
-    { DEBUGLOG(("GUIImp::DlgProc: UM_SELECTED(%p, %p)\n", mp1, mp2));
-      // bookmark is selected
-      LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay);
-      lhp->AddItem((APlayable*)PVOIDFROMMP(mp1));
-      Load(lhp);
+   case WM_CONTROL:
+    DEBUGLOG(("GUIImp::DlgProc: WM_CONTROL(%p, %p)\n", mp1, mp2));
+    switch (SHORT1FROMMP(mp1))
+    {case IDM_M_BOOKMARKS:
+     case IDM_M_LOAD:
+     case IDM_M_PLCONTENT:
+      { // bookmark is selected
+        PlaylistMenu::MenuCtrlData& cd = *(PlaylistMenu::MenuCtrlData*)PVOIDFROMMP(mp2);
+        NavigateTo(cd.Item);
+        break;
+      }
     }
     return 0;
 
@@ -1182,10 +1189,6 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     ShowHelp(IDH_DRAG_AND_DROP);
     // Continue in default procedure to free ressources.
     break;
-
-    /*case WM_SYSCOMMAND:
-      DEBUGLOG(("amp_dlg_proc: WM_SYSCVOMMAND: %u, %u, %u\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-      break;*/
   }
 
   DEBUGLOG2(("GUIImp::DlgProc: before WinDefWindowProc\n"));
@@ -1219,7 +1222,7 @@ void GUIImp::ForceLocationMsg()
   { IsLocMsg = true;
     // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
     // to avoid threading problems.
-    PostCtrlCommand(Ctrl::MkLocation(IterBuffer + (CurrentIter == IterBuffer), 0));
+    PostCtrlCommand(Ctrl::MkLocation(&IterBuffer[CurrentIter == IterBuffer], false, false));
   }
 }
 
@@ -1308,7 +1311,6 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
 }
 
 
-/* Returns TRUE if the save stream feature has been enabled. */
 void GUIImp::SaveStream(HWND hwnd, BOOL enable)
 {
   if( enable )
@@ -1507,7 +1509,7 @@ void GUIImp::ShowContextMenu()
   mn_check_item(ContextMenu, IDM_M_TINY,   Cfg::Get().mode == CFG_MODE_TINY);
 
   if (ispl)
-    MenuWorker->AttachMenu(ContextMenu, IDM_M_PLEXPAND, *CurrentIter->GetRoot(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
+    MenuWorker->AttachMenu(ContextMenu, IDM_M_PLCONTENT, *CurrentIter->GetRoot(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
 
   WinPopupMenu(HPlayer, HPlayer, ContextMenu, pos.x, pos.y, 0,
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
@@ -1757,7 +1759,7 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
         const url123& url = url123::normalizeURL(fullname);
         DEBUGLOG(("GUIImp::DragDrop: url=%s\n", url ? url.cdata() : "<null>"));
         if (url)
-        { lhp->AddItem(Playable::GetByURL(url));
+        { lhp->AddItem(*Playable::GetByURL(url));
           reply = DMFL_TARGETSUCCESSFUL;
         }
       }
@@ -1785,7 +1787,7 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
         // insert item
         if ((pdtrans->fsReply & DMFL_NATIVERENDER))
         { // TODO: slice!
-          lhp->AddItem(Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
+          lhp->AddItem(*Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
           reply = DMFL_TARGETSUCCESSFUL;
         }
         // cleanup
@@ -1823,7 +1825,7 @@ MRESULT GUIImp::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
     { const url123& url = url123::normalizeURL(fullname);
       DEBUGLOG(("GUIImp::DragRenderDone: url=%s\n", url ? url.cdata() : "<null>"));
       if (url)
-      { pdsource->LH->AddItem(Playable::GetByURL(url));
+      { pdsource->LH->AddItem(*Playable::GetByURL(url));
         reply = DMFL_TARGETSUCCESSFUL;
       }
     }

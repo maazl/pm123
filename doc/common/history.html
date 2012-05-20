@@ -9,13 +9,14 @@
 <h2>PM123's History</h2>
 <h3>PM123 1.41 (alpha 1)</h3>
 <ul>
-  <li>Added <em>Pulseaudio</em> client support, playback and recording.</li>
   <li>Added <em>playlist plug-in</em> support.</li>
+  <li>Added <em>Pulseaudio</em> client support, playback and recording.</li>
   <li>Switched PM123 engine to 32 bits per sample.</li>
   <li>Significant speed up when invoking large playlists with many http
 URLs as long as you use no old decoder plug-ins.</li>
   <li>Implemented new shuffle algorithm that can deal with nested
-playlists.</li>
+playlists. (Fixes bug #1)<br>
+  </li>
   <li>Moved replay gain processing to PM123 core.</li>
   <li>Access to meta data through pipe interface.</li>
   <li>Switched to dynamic string library with shared storage to save
@@ -24,6 +25,8 @@ memory.</li>
 footprint of song and playlist objects in PM123.</li>
   <li>Reset high decoder thread priority after 20 seconds to prevent
 from unresponsive UI.</li>
+  <li>Reasonable resizing of most dialogs.</li>
+  <li>Fixed dealing with playlist slices.</li>
 </ul>
 <blockquote>
   <h4>MPG123</h4>
@@ -52,7 +55,8 @@ from unresponsive UI.</li>
 PM123 will no longer run on i486.</li>
   <li>Unified ini file (except for CDDAPLAY).</li>
   <li>Save window positions per object.</li>
-  <li>Added a bunch of new commands to the remote interface.</li>
+  <li>Added a bunch of new commands to the <a
+ href="../manual/remote/remoteref.html">remote interface</a>.</li>
   <li>Implemented <em>alternate slider navigation</em> by pressing the
 Alt
 key. This allows to seek within whole playlists by using the slider.</li>
@@ -71,7 +75,7 @@ from the default playlist.<br>
 Furthermore you may append dropped or double-clicked items to the
 default playlist instead of loading them immediately.</li>
   <li>Playlists, Playlist manager, Bookmarks are now basically
-the same. This offers <i>plenty much of new features</i>.</li>
+the same thing. This offers <i>plenty much of new features</i>.</li>
   <li>Support for <em>nested playlists</em>. Playlists may be nested
 as
 deep as you like. This allows structured bookmarks too.</li>

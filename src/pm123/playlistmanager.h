@@ -67,8 +67,8 @@ class PlaylistManager
 
  private: // working set
   xstring           Info;          // Keep the window info
-  HWND              MainMenu;
-  HWND              RecMenu;
+  static HWND       MainMenu;
+  static HWND       RecMenu;
   int_ptr<Playable> EmFocus;       // Playable object to display at UM_SETTITLE
   bool              DecChanged2;   // Shadow of PlaylistBase::DecChanged to handle the record menu independantly.
 
@@ -82,7 +82,7 @@ class PlaylistManager
   static int_ptr<PlaylistManager> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistManager::Factory); }
   /// Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
-                    ~PlaylistManager() { RepositoryType::RemoveWithKey(*this, *Content); }
+                    ~PlaylistManager();
   static void       DestroyAll();
 
  private:
@@ -94,7 +94,7 @@ class PlaylistManager
   /// Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   /// Load context menu for a record
-  virtual HWND      InitContextMenu();
+  virtual void      InitContextMenu();
   /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable();
   /// Set Status info
@@ -122,8 +122,6 @@ class PlaylistManager
   virtual void      UpdateRecord(RecordBase* rec);
   /// Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
-  /// Navigate to
-  virtual void      UserNavigate(const RecordBase* rec);
 };
 
 

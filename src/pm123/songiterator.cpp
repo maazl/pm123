@@ -278,7 +278,7 @@ void SongIterator::SetRoot(Playable* root)
   Location::SetRoot(root);
 }
 
-SongIterator& SongIterator::operator=(const SongIterator& r)
+SongIterator& SongIterator::operator=(const Location& r)
 { DEBUGLOG(("SongIterator(%p)::operator=(&%p)\n", this, &r));
   int_ptr<Playable> ptr(r.GetRoot());
   ptr.toCptr();

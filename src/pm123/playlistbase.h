@@ -39,7 +39,6 @@
 #include <cpp/queue.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
-#include <cpp/mutex.h>
 #include <cpp/container/vector.h>
 #include <cpp/container/sorted_vector.h>
 #include <cpp/xstring.h>
@@ -56,6 +55,7 @@
 
 
 class PluginEventArgs;
+class PlaylistMenu;
 
 /****************************************************************************
 *
@@ -117,7 +117,6 @@ class PlaylistBase
     PlaylistBase::RecordBase* Parent;
     PlaylistBase::RecordBase* Before;
     vector_int<PlayableRef> Content;
-    //sco_ptr<Mutex::Lock> Lock;
     UserAddCallbackParams(PlaylistBase* gui, PlaylistBase::RecordBase* parent, PlaylistBase::RecordBase* before)
     : GUI(gui),
       Parent(parent),
@@ -219,29 +218,33 @@ class PlaylistBase
 
  protected: // content
   int_ptr<Playable> Content;
-  HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
+  HACCEL            AccelTable;    ///< Accelerator table - TODO: use shared accelerator table
   #if DEBUG_LOG
   xstring           DebugName() const;
   #endif
  protected: // working set
-  HWND              HwndContainer; // content window handle
-  DECODER_WIZARD_FUNC LoadWizards[16];// Current load wizards
-  bool              NoRefresh;     // Avoid update events to ourself
-  xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
-  CommonState       EvntState;     // Event State
-  vector<RecordBase> Source;       // Array of records used for source emphasis
-  HWND              HwndMenu;      // Window handle of last context menu
-  bool              DragAfter;     // Recent drag operation was ORDERED
-  Playable::ItemComparer SortComparer; // Current comparer for next sort operation
-  bool              DecChanged;    // Flag whether the decoder table has changed since the last invokation of the context menu.
+  HWND              HwndContainer; ///< content window handle
+  DECODER_WIZARD_FUNC LoadWizards[16];///< Current load wizards
+  bool              NoRefresh;     ///< Avoid update events to ourself
+  xstring           DirectEdit;    ///< String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
+  CommonState       EvntState;     ///< Event State
+  vector<RecordBase> Source;       ///< Array of records used for source emphasis
+  HWND              HwndMenu;      ///< Window handle of last context menu
+  bool              DragAfter;     ///< Recent drag operation was ORDERED
+  Playable::ItemComparer SortComparer; ///< Current comparer for next sort operation
+  bool              DecChanged;    ///< Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
-  int_ptr<PlaylistBase> Self;      // We hold a reference to ourself as long as the current window is open.
+  int_ptr<PlaylistBase> Self;      ///< We hold a reference to ourself as long as the current window is open.
+  PlaylistMenu*     MenuWorker;    ///< Worker for playlist content in menu. Implicitely deleted by WM_DESTROY.
   class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const PluginEventArgs> PluginDelegate;
 
+ private:
+
+  static void       MsgJumpCompleted(Ctrl::ControlCommand* cmd);
  protected:
-  // Create a playlist manager window for an object, but don't open it.
+  /// Create a playlist window for an object, but don't open it.
   PlaylistBase(Playable& content, ULONG rid);
 
   CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
@@ -288,8 +291,10 @@ class PlaylistBase
   HPOINTER          CalcIcon(RecordBase* rec);
   /// Set the window title
   void              SetTitle();
-  /// Load context menu for a record
-  virtual HWND      InitContextMenu() = 0;
+  /// Load context menu for a record or the entire playlist and assign \c HwndMenu.
+  virtual void      InitContextMenu() = 0;
+  /// Access the menu worker from derived class. Creates a worker if necessary.
+  PlaylistMenu&     GetMenuWorker();
   /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable() = 0;
 
@@ -304,9 +309,9 @@ class PlaylistBase
   RecordBase*       MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after);
   /// Removes entries from the container
   void              RemoveEntry(RecordBase* const rec);
-  /// Find parent record. Returns NULL if rec is at the top level.
+  /// Find parent record. Returns NULL if \a rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const = 0;
-  /// Remove all childrens (recursively) and return the number of deleted objects in the given level.
+  /// Remove all children (recursively) and return the number of deleted objects in the given level.
   /// This function does not remove the record itself.
   /// If root is NULL the entire Collection is cleared.
   int               RemoveChildren(RecordBase* const root);
@@ -316,7 +321,7 @@ class PlaylistBase
 
   /// Populate Source array with records with a given emphasis or an empty list if none.
   void              GetRecords(USHORT emphasis);
-  /// Populate Source array for context menu or drag and drop with anchor rec.
+  /// Populate Source array for context menu or drag and drop with anchor \a rec.
   bool              GetSource(RecordBase* rec);
   /// Apply a function to all objects in the Source array.
   void              Apply2Source(void (PlaylistBase::*op)(Playable&));
@@ -327,8 +332,8 @@ class PlaylistBase
   void              SetEmphasis(USHORT emphasis, bool set) const;
   /// Analyze the records in the Source array for it's types.
   RecordType        AnalyzeRecordTypes() const;
-  /// Return true if and only if rec is a subitem of the currently loaded root.
-  /// This will not return true if rec points directly to the current root.
+  /// Return true if and only if \a rec is a sub item of the currently loaded root.
+  /// This will not return true if \a rec points directly to the current root.
   bool              IsUnderCurrentRoot(RecordBase* rec) const;
 
  protected: // Update Functions.
@@ -365,7 +370,7 @@ class PlaylistBase
   /// Save list
   void              UserSave(bool saveas);
   /// Navigate to
-  virtual void      UserNavigate(const RecordBase* rec) = 0;
+  void              UserNavigate(const RecordBase* rec);
   /// Open tree view
   void              UserOpenTreeView(Playable& p);
   /// Open detailed view

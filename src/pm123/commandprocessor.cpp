@@ -591,7 +591,7 @@ bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
   while (tok.Next(url))
   { if (!url)
       return false; // Bad URL
-    lh.AddItem(Playable::GetByURL(ParseURL(url)));
+    lh.AddItem(*Playable::GetByURL(ParseURL(url)));
   }
   return true;
 }
@@ -773,23 +773,23 @@ void CommandProcessor::XStatus()
 
 void CommandProcessor::XTime()
 { SongIterator loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, 0));
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.appendf("%f", loc.GetPosition());
   cmd->Destroy();
 }
 
 void CommandProcessor::XLocation()
-{ static const strmap<7,char> map[] =
-  { { "",       0 },
-    { "play",   0 },
-    { "stopat", 1 }
+{ static const strmap<7,bool> map[] =
+  { { "",       false },
+    { "play",   false },
+    { "stopat", true  }
   };
-  const strmap<7, char>* op = mapsearch(map, Request);
+  const strmap<7,bool>* op = mapsearch(map, Request);
   if (!op)
     throw SyntaxException("Expected [play|stopat] but found \"%s\".", Request);
   SongIterator loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val));
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.append(loc.Serialize());
   cmd->Destroy();
@@ -943,7 +943,7 @@ void CommandProcessor::XUse()
 { Playable* root = CurSI.GetRoot();
   if (root)
   { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
-    lh.AddItem(root);
+    lh.AddItem(*root);
     Reply.append(lh.SendCommand());
   } else
     Reply.append(Ctrl::RC_NoList);

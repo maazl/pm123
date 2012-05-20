@@ -145,7 +145,7 @@ class CtrlImp
   /// Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
   static bool  AdjustNext(SongIterator& si);
   /// Jump to the location si. The function will destroy the content of si.
-         void  NavigateCore(SongIterator& si);
+         void  NavigateCore(Location& si);
   // Register events to a new current song and request some information if not yet known.
   //static void  AttachCurrentSong(APlayable& ps);
   /// Clears the prefetch list and keep the first element if keep is true.
@@ -410,16 +410,18 @@ bool CtrlImp::SkipCore(SongIterator& si, int count)
 
 bool CtrlImp::AdjustNext(SongIterator& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
-  APlayable& ps = *si.GetCurrent();
-  ps.RequestInfo(IF_Tech|IF_Child, PRI_Sync);
-  if (ps.GetInfo().tech->attributes & TATTR_SONG)
-    return true;
+  APlayable* pp = si.GetCurrent();
+  if (pp)
+  { pp->RequestInfo(IF_Tech|IF_Child, PRI_Sync);
+    if (pp->GetInfo().tech->attributes & TATTR_SONG)
+      return true;
+  }
   const SongIterator::NavigationResult& rc = si.NavigateCount(SyncJob, 1, TATTR_SONG);
   DEBUGLOG(("Ctrl::AdjustNext: %s\n", rc.cdata()));
   return !rc;  
 }
 
-void CtrlImp::NavigateCore(SongIterator& si)
+void CtrlImp::NavigateCore(Location& si)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Loc);
@@ -630,7 +632,7 @@ void CtrlImp::CurrentRootEventHandler(void*, const CollectionChangeArgs& args)
 
 
 void CtrlImp::MsgNop()
-{ Flags = RC_OK;
+{ Reply(RC_OK);
 }
 
 /* Suspends or resumes playback of the currently played file. */
@@ -837,11 +839,21 @@ void CtrlImp::MsgJump()
 { DEBUGLOG(("Ctrl::MsgJump() {%p}\n", PtrArg));
   APlayable* ps = GetRoot();
   if (!ps)
-    Reply(RC_NoSong);
-  else if (&ps->GetPlayable() != ((SongIterator*)PtrArg)->GetRoot())
-    Reply(RC_InvalidItem);
-  else
-    NavigateCore(*(SongIterator*)PtrArg);
+  { Reply(RC_NoSong);
+    return;
+  }
+  Location& loc = *(Location*)PtrArg;
+  if (&ps->GetPlayable() != loc.GetRoot())
+  { // try partial navigation
+    Location loc2(Current()->Loc);
+    StrArg = loc2.NavigateTo(loc);
+    if (StrArg)
+    { Flags = RC_InvalidItem;
+      return;
+    }
+    loc.Swap(loc2);
+  }
+  NavigateCore(loc);
 }
 
 void CtrlImp::MsgSkip()
@@ -899,7 +911,7 @@ void CtrlImp::MsgSkip()
 void CtrlImp::MsgLoad()
 { DEBUGLOG(("Ctrl::MsgLoad() {%s, %x}\n", StrArg.cdata(), Flags));
   xstring url = StrArg;
-  int flags = Flags;
+  //int flags = Flags;
 
   // always stop
   // TODO: continue flag
@@ -1011,12 +1023,14 @@ void CtrlImp::MsgLocation()
     // TODO: not yet implemented
   } else
   { // Fetch time first because that may change Current().
-    SongIterator*& sip = (SongIterator*&)PtrArg;
-    *sip = Current()->Loc; // copy
-    sip->NavigateUp(0);
-    PM123_TIME pos = FetchCurrentSongTime();
-    if (pos >= 0)
-      sip->NavigateTime(SyncJob, pos);
+    PM123_TIME pos;
+    if ((Flags & 2) == 0)
+      pos = FetchCurrentSongTime();
+    Location& loc = *(Location*)PtrArg;
+    loc = Current()->Loc; // copy
+    loc.NavigateUp(0);
+    if ((Flags & 2) == 0 && pos >= 0)
+      loc.NavigateTime(SyncJob, pos);
   }
   Reply(RC_OK);
 }
@@ -1217,7 +1231,7 @@ void Ctrl::Uninit()
   state.was_playing = IsPlaying();
   SongIterator last; // last playing location
   { Queue.Purge();
-    PostCommand(MkLocation(&last, 0));
+    PostCommand(MkLocation(&last, false, false));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     CtrlImp::DecEventDelegate.detach();

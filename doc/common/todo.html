@@ -105,8 +105,8 @@ gets information on a playlist.</td>
 Can cause SIQ locks. Maybe the Worker should not lock the entire
 playlist while calculation of tech infos.</td>
     </tr>
-    <tr class="open">
-      <td width="15%"><em>11 medium bug, open</em></td>
+    <tr class="fixed">
+      <td width="15%"><em>11 medium bug, fixed (1.41a)</em></td>
       <td>NavigateTo does not work if we see a slice of the
 current root.</td>
       <td>If the currently visible windows root is below the
@@ -237,6 +237,12 @@ broken. </td>
       <td valign="top">RealEQ sadly fails on mono files. </td>
       <td valign="top">The RealEQ output is highly distorted if the
 playback stream has only one channel. </td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><em>29 medium bug, open</em></td>
+      <td valign="top">Drag &amp; drop looses playlist item properties.</td>
+      <td valign="top">Drag &amp; drop currently only passes the URL of
+the dragged item. Properties like slices and alias names are lost.</td>
     </tr>
   </tbody>
 </table>

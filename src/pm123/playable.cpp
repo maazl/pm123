@@ -141,10 +141,12 @@ const INFO_BUNDLE_CV& Playable::GetInfo() const
 void Playable::SetInUse(unsigned used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Mutex::Lock lock(Mtx);
-  bool changed = InUse != used;
-  InUse = used;
   // TODO: keep origin in case of cascaded execution
-  CollectionChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
+  CollectionChangeArgs args(*this, this, IF_Usage, IF_None, IF_None);
+  if (InUse != used)
+  { InUse = used;
+    args.Changed |= IF_Usage;
+  }
   RaiseInfoChange(args);
 }
 
@@ -230,7 +232,7 @@ int_ptr<PlayableInstance> Playable::GetNext(const PlayableInstance* cur) const
   return Playlist->Items.next((Entry*)cur);
 }
 
-xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptions opt) const
+/*xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptions opt) const
 { DEBUGLOG(("PlayableCollection(%p{%s})::SerializeItem(%p, %u)\n", this, URL.getShortName().cdata(), item, opt));
   // check whether we are unique
   size_t count = 1;
@@ -252,7 +254,7 @@ xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptio
     ret = item->GetPlayable().URL;
   // append count?
   return xstring().sprintf(count > 1 ? "\"%s\"[%u]" : "\"%s\"", ret.cdata(), count);
-}
+}*/
 
 
 /*void Playable::InvalidateInfo(InfoFlags what)

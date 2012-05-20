@@ -160,7 +160,7 @@ class SongIterator : public Location
   virtual                     ~SongIterator();
 
   virtual void                SetRoot(Playable* root);
-  virtual SongIterator&       operator=(const SongIterator& r);
+  virtual SongIterator&       operator=(const Location& r);
 
   virtual void                Swap(Location& r);
 

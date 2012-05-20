@@ -44,9 +44,9 @@
 #include <os2.h>
 
 
-// read xstring
+/// read xstring
 const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstring& dst);
-// write xstring
+/// write xstring
 inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const xstring& str)
 { return PrfWriteProfileData(hini, app, key, (PVOID)str.cdata(), str ? str.length() : 0);
 }
@@ -58,39 +58,45 @@ inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const
   ini_write_xstring((hini), INI_SECTION, #var, var)
 
 
-/* Possible sizes of the player window. */
+/// Possible sizes of the player window.
 enum cfg_mode
 { CFG_MODE_REGULAR,
   CFG_MODE_SMALL,
   CFG_MODE_TINY
 };
 
-/* Possible scroll modes. */
+/// Possible scroll modes.
 enum cfg_scroll
 { CFG_SCROLL_INFINITE,
   CFG_SCROLL_ONCE,
   CFG_SCROLL_NONE
 };
 
-/* Possible display modes. */
+/// Possible display modes.
 enum cfg_disp
 { CFG_DISP_FILENAME,
   CFG_DISP_ID3TAG,
   CFG_DISP_FILEINFO
 };
 
-// Alternate navigation methods
+/// Alternate navigation methods
 enum cfg_anav
 { CFG_ANAV_SONG,
   CFG_ANAV_SONGTIME,
   CFG_ANAV_TIME
 };
 
-// Alternate navigation button
+/// Alternate navigation button
 enum cfg_abutton
 { CFG_ABUT_ALT,
   CFG_ABUT_CTRL,
   CFG_ABUT_SHIFT
+};
+
+enum cfg_action
+{ CFG_ACTION_NAVTO,
+  CFG_ACTION_LOAD,
+  CFG_ACTION_QUEUE
 };
 
 enum cfg_rgtype
@@ -114,6 +120,7 @@ struct amp_cfg
   bool    autoturnaround;     // Turn around at prev/next when at the end of a playlist
   bool    recurse_dnd;        // Drag and drop of folders recursive
   bool    folders_first;      // Place subfolders before content
+  cfg_action itemaction;      // Action when playlist item is selected
   bool    append_dnd;         // Drag and drop appends to default playlist
   bool    append_cmd;         // Commandline appends to default playlist
   bool    queue_mode;         // Delete played items from the default playlist

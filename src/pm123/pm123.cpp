@@ -285,7 +285,7 @@ int main(int argc, char** argv)
       if (!url)
         EventHandler::PostFormat(MSG_ERROR, "Invalid file or URL: '%s'", *spp);
       else
-        lhp->AddItem(Playable::GetByURL(url));
+        lhp->AddItem(*Playable::GetByURL(url));
     } while (++spp != epp);
     GUI::Load(lhp);
   }

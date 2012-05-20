@@ -33,6 +33,7 @@
 #define INCL_BASE
 
 #include "playable.h"
+#include "location.h"
 
 #include <vdelegate.h>
 #include <cpp/smartptr.h>
@@ -53,7 +54,7 @@
 *  However, you might delete it earlier. But be careful if the owner window
 *  handle is subclassed after the creation of this class.
 *
-*  Instances of this class are not thread-safe. Furthermore it is strongly
+*  Instances of this class are not thread-safe. Iit is strongly
 *  recommended to call all functions including the constructor from the
 *  window procedure's thread.
 *
@@ -76,47 +77,51 @@ class PlaylistMenu
     /// Prefetch list content of next menu level.
     Prefetch        = 0x40
   };
+  /// mp2 of WM_CONTROL
+  struct MenuCtrlData
+  { /// Call stack of selected item
+    Location        Item;
+    /// User parameter passed to AttachMenu
+    MPARAM          User;
+    MenuCtrlData(Playable& p, MPARAM up) : Item(&p), User(up) {}
+  };
+ private:
   /// Window messages related to the PlaylistMenu.
   /// @remarks The ID's here must be distinct from the user messages of any other window.
   enum
-  { /// This message is send to the owner of the menu when a generated subitem of the menu is selected.
-    /// mp1 is set to a pointer to APlayable. The pointer is only valid while the message is sent.
-    /// mp2 is the user parameter passed to AttachMenu.
-    UM_SELECTED = WM_USER+0x201,
-    /// This message is internally used by this class to notify changes of the selected items.
-    /// mp1 id of the sub item
+  { /// @brief This message is internally used by this class to notify changes of the selected items.
+    /// @details mp1 id of the sub item
     /// mp2 MapEntry* for the ID. This is used for validation.
-    UM_UPDATELIST,
-    /// Status or text of the underlying Playable object of a menu item arrived.
-    /// mp1 id of the sub item
+    UM_UPDATELIST = WM_USER+0x201,
+    /// @brief Status or text of the underlying Playable object of a menu item arrived.
+    /// @details mp1 id of the sub item
     /// mp2 MapEntry* for the ID. This is used for validation.
     UM_UPDATEITEM,
-    /// This message is posted to ourself to delay the destruction of the menu items
+    /// @brief This message is posted to ourself to delay the destruction of the menu items
     /// until WM_COMMAND arrives.
-    /// mp1 id of the sub item
+    /// @details mp1 id of the sub item
     /// mp2 MapEntry* for the ID. This is used for validation.
     UM_MENUEND
   };
-
- private:
+  /// Status of a MapEntry.
   enum EntryStatus
-  { StatusRequest   = 0x01,     // A status update has been placed for this item.
-    UpdateRequest   = 0x02,     // An update has been requested for this item.
-    InUse           = 0x10,     // Entry is currently instantiated (WM_INITMENU).
-    InUpdate        = 0x20,     // Entry is currently updated (UM_LATEUPDATE).
-    InDestroy       = 0x40      // Entry is currently destroyed (UM_MENUEND).
+  { StatusRequest   = 0x01,     //!< A status update has been placed for this item.
+    UpdateRequest   = 0x02,     //!< An update has been requested for this item.
+    InUse           = 0x10,     //!< Entry is currently instantiated (WM_INITMENU).
+    InUpdate        = 0x20,     //!< Entry is currently updated (UM_LATEUPDATE).
+    InDestroy       = 0x40      //!< Entry is currently destroyed (UM_MENUEND).
   };
   CLASSFLAGSATTRIBUTE(PlaylistMenu::EntryStatus);
   struct MapEntry
-  { const USHORT    IDMenu;     // Menu item ID, primary key
-    EntryFlags      Flags;      // See EntryFlags
-    MapEntry*       Parent;     // Parent menu item or NULL in case of root.
-    HWND            HwndSub;    // Sub menu window handle.
-    int_ptr<APlayable> Data;    // Backend data
-    AtomicUnsigned  Status;     // See EntryStatus
-    const MPARAM    User;       // User param from AttachMenu. Inherited to submenus.
-    USHORT          ID1;        // First generated item ID or MID_NONE (if none)
-    USHORT          Pos;        // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
+  { const USHORT    IDMenu;     //!< Menu item ID, primary key
+    EntryFlags      Flags;      //!< See EntryFlags
+    MapEntry*       Parent;     //!< Parent menu item or NULL in case of root.
+    HWND            HwndSub;    //!< Sub menu window handle.
+    int_ptr<APlayable> Data;    //!< Backend data
+    AtomicUnsigned  Status;     //!< See EntryStatus
+    const MPARAM    User;       //!< User param from AttachMenu. Inherited to submenus.
+    USHORT          ID1;        //!< First generated item ID or MID_NONE (if none)
+    USHORT          Pos;        //!< ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
     class_delegate2<PlaylistMenu, const PlayableChangeArgs, MapEntry> InfoDelegate;
 
     MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*));
@@ -138,6 +143,9 @@ class PlaylistMenu
   /// Dialog procedure, called by DlgProcStub
   MRESULT           DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   friend MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2);
+
+  /// Called when e menu entry is selected.
+  void              SelectEntry(const MapEntry* mapp) const;
 
   /// @brief Fetch and reserve free menu ID
   USHORT            AllocateID();
@@ -178,8 +186,10 @@ class PlaylistMenu
   /// @brief Attach a submenu to a playlist.
   /// @details This replaces all items in the menu with IDs in the range [mid1st,midlast)
   /// by the content of the playlist. Nested playlists will show as submenus.
+  /// If a menu item is selected a \c WM_CONTROL message is sent to the owner with mp1 = \a menuid
+  /// and mp2 points to a MenuCtrlData structire.
   /// If the IDs are not sufficient the content is truncated. But the IDs to nested items
-  /// are only assigned if a submenu is opened.
+  /// are only assigned if a submenu is open.
   bool              AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
   /// Detach a menu from a submenu item.
   bool              DetachMenu(USHORT menuid);

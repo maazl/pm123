@@ -39,6 +39,7 @@
 #include "playlistbase.h"
 #include "playlistmanager.h"
 #include "playlistview.h"
+#include "playlistmenu.h"
 #include "infodialog.h"
 #include "inspector.h"
 #include "playable.h"
@@ -151,15 +152,16 @@ void PlaylistBase::InitIcons()
 }
 
 PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
-: ManagedDialog<DialogBase>(rid, NULLHANDLE),
-  Content(&content),
-  HwndContainer(NULLHANDLE),
-  NoRefresh(false),
-  Source(8),
-  DecChanged(false),
-  RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
-  RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
-  PluginDelegate(Plugin::GetChangeEvent(), *this, &PlaylistBase::PluginEvent)
+: ManagedDialog<DialogBase>(rid, NULLHANDLE)
+, Content(&content)
+, HwndContainer(NULLHANDLE)
+, NoRefresh(false)
+, HwndMenu(NULLHANDLE)
+, DecChanged(false)
+, MenuWorker(NULL)
+, RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL)
+, RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent)
+, PluginDelegate(Plugin::GetChangeEvent(), *this, &PlaylistBase::PluginEvent)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(&%p{%s}, %u)\n", this, &content, content.URL.cdata(), rid));
   static bool first = true;
   if (first)
@@ -174,6 +176,11 @@ PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
 PlaylistBase::~PlaylistBase()
 { DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
   WinDestroyAccelTable(AccelTable);
+}
+
+void PlaylistBase::MsgJumpCompleted(Ctrl::ControlCommand* cmd)
+{ delete (Location*)cmd->PtrArg;
+  delete cmd;
 }
 
 void PlaylistBase::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
@@ -311,6 +318,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { //GetRecords(CRA_SOURCE); //Should normally be unchanged...
       DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
       SetEmphasis(CRA_SOURCE, false);
+      if (MenuWorker)
+        MenuWorker->DetachMenu(IDM_PL_CONTENT);
       HwndMenu = NULLHANDLE;
     }
     break;
@@ -331,94 +340,113 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case WM_CONTROL:
-    switch (SHORT2FROMMP(mp1))
-    {
-     case CN_CONTEXTMENU:
-      { RecordBase* rec = (RecordBase*)mp2;
-        if (!GetSource(rec))
-          break;
-        HwndMenu = InitContextMenu();
-        if (HwndMenu != NULLHANDLE)
-        { SetEmphasis(CRA_SOURCE, true);
-          // Show popup menu
-          POINTL ptlMouse;
-          PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
+    switch (SHORT1FROMMP(mp1))
+    {case FID_CLIENT:
+      switch (SHORT2FROMMP(mp1))
+      {
+       case CN_CONTEXTMENU:
+        { RecordBase* rec = (RecordBase*)mp2;
+          if (!GetSource(rec))
+            break;
+          InitContextMenu();
+          if (HwndMenu != NULLHANDLE)
+          { SetEmphasis(CRA_SOURCE, true);
+            // Show popup menu
+            POINTL ptlMouse;
+            PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
 
-          PMRASSERT(WinPopupMenu(HWND_DESKTOP, GetHwnd(), HwndMenu, ptlMouse.x, ptlMouse.y, 0,
-                                 PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
+            PMRASSERT(WinPopupMenu(HWND_DESKTOP, GetHwnd(), HwndMenu, ptlMouse.x, ptlMouse.y, 0,
+                                   PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
+          }
         }
-      }
-      break;
+        break;
 
-     case CN_ENTER:
-      { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2;
-        APlayable& pp = APlayableFromRec((RecordBase*)nre->pRecord);
-        // Bei Song -> Navigate to
-        if (pp.GetInfo().tech->attributes & TATTR_PLAYLIST)
-          UserOpenDetailedView(pp.GetPlayable());
-        else
-          UserNavigate((RecordBase*)nre->pRecord);
-      }
-      break;
+       case CN_ENTER:
+        { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2;
+          APlayable& pp = APlayableFromRec((RecordBase*)nre->pRecord);
+          // Playlist => open, song => see config
+          if (pp.GetInfo().tech->attributes & TATTR_PLAYLIST)
+            UserOpenDetailedView(pp.GetPlayable());
+          else
+          { volatile const amp_cfg& cfg = Cfg::Get();
+            if (cfg.itemaction == CFG_ACTION_NAVTO)
+              UserNavigate((RecordBase*)nre->pRecord);
+            else
+            { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend | LoadHelper::LoadRecall);
+              lhp->AddItem(pp);
+              GUI::Load(lhp);
+            }
+          }
+        }
+        break;
 
-     // Direct editing
-     case CN_BEGINEDIT:
-      DEBUGLOG(("PlaylistBase::DlgProc CN_BEGINEDIT\n"));
-      PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(GetHwnd()), NULLHANDLE, GetHwnd()));
-      // TODO: normally we have to lock some functions here...
-      return 0;
+       // Direct editing
+       case CN_BEGINEDIT:
+        DEBUGLOG(("PlaylistBase::DlgProc CN_BEGINEDIT\n"));
+        PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(GetHwnd()), NULLHANDLE, GetHwnd()));
+        // TODO: normally we have to lock some functions here...
+        return 0;
 
-     case CN_REALLOCPSZ:
-      { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
-        DEBUGLOG(("PlaylistBase::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,}\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText));
-        *ed->ppszText = DirectEdit.allocate(ed->cbText-1); // because of the string sharing we always have to initialize the instance
-        return MRFROMLONG(TRUE);
-      }
+       case CN_REALLOCPSZ:
+        { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
+          DEBUGLOG(("PlaylistBase::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,}\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText));
+          *ed->ppszText = DirectEdit.allocate(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+          return MRFROMLONG(TRUE);
+        }
 
-     case CN_ENDEDIT:
-      DEBUGLOG(("PlaylistBase::DlgProc CN_ENDEDIT\n"));
-      DirectEdit.reset(); // Free string
-      PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(GetHwnd()), AccelTable, GetHwnd()));
-      return 0;
+       case CN_ENDEDIT:
+        DEBUGLOG(("PlaylistBase::DlgProc CN_ENDEDIT\n"));
+        DirectEdit.reset(); // Free string
+        PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(GetHwnd()), AccelTable, GetHwnd()));
+        return 0;
 
-     // D'n'D Source
-     case CN_INITDRAG:
-      { CNRDRAGINIT* cdi = (CNRDRAGINIT*)mp2;
-        if (!GetSource((RecordBase*)cdi->pRecord))
+       // D'n'D Source
+       case CN_INITDRAG:
+        { CNRDRAGINIT* cdi = (CNRDRAGINIT*)mp2;
+          if (!GetSource((RecordBase*)cdi->pRecord))
+            return 0;
+          DragInit();
           return 0;
-        DragInit();
-        return 0;
-      }
+        }
 
-     // D'n'D Target
-     case CN_DRAGOVER:
-     case CN_DRAGAFTER:
-      { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
-        if (!DrgAccessDraginfo(pcdi->pDragInfo))
-        { // Most likely an error of the source application. So do not blow out.
-          DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
-          return MRFROM2SHORT(DOR_NEVERDROP, 0);
+       // D'n'D Target
+       case CN_DRAGOVER:
+       case CN_DRAGAFTER:
+        { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
+          if (!DrgAccessDraginfo(pcdi->pDragInfo))
+          { // Most likely an error of the source application. So do not blow out.
+            DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
+            return MRFROM2SHORT(DOR_NEVERDROP, 0);
+          }
+          DragAfter = SHORT2FROMMP(mp1) == CN_DRAGAFTER;
+          MRESULT mr = DragOver(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
+          DrgFreeDraginfo(pcdi->pDragInfo);
+          return mr;
         }
-        DragAfter = SHORT2FROMMP(mp1) == CN_DRAGAFTER;
-        MRESULT mr = DragOver(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
-        DrgFreeDraginfo(pcdi->pDragInfo);
-        return mr;
-      }
-     case CN_DROP:
-      { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
-        if (!DrgAccessDraginfo(pcdi->pDragInfo))
-        { // Most likely an error of the source application. So do not blow out.
-          DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
-          return MRFROM2SHORT(DOR_NEVERDROP, 0);
+       case CN_DROP:
+        { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
+          if (!DrgAccessDraginfo(pcdi->pDragInfo))
+          { // Most likely an error of the source application. So do not blow out.
+            DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
+            return MRFROM2SHORT(DOR_NEVERDROP, 0);
+          }
+          DragDrop(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
+          DrgFreeDraginfo(pcdi->pDragInfo);
+          return 0;
         }
-        DragDrop(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
-        DrgFreeDraginfo(pcdi->pDragInfo);
+       case CN_DROPHELP:
+        GUI::ShowHelp(IDH_DRAG_AND_DROP);
         return 0;
+      } // switch (SHORT2FROMMP(mp1))
+      break;
+
+     case IDM_PL_CONTENT:
+      { // bookmark is selected
+        PlaylistMenu::MenuCtrlData& cd = *(PlaylistMenu::MenuCtrlData*)PVOIDFROMMP(mp2);
+        GUI::NavigateTo(cd.Item);
+        break;
       }
-     case CN_DROPHELP:
-      GUI::ShowHelp(IDH_DRAG_AND_DROP);
-      return 0;
-    }
+    } // switch (SHORT1FROMMP(mp1))
     break;
 
    case DM_RENDERCOMPLETE:
@@ -467,7 +495,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         { RecordBase* rec = (RecordBase*)mp2;
           if (!GetSource(rec))
             break;
-          HwndMenu = InitContextMenu();
+          InitContextMenu();
           if (HwndMenu != NULLHANDLE)
           { SetEmphasis(CRA_SOURCE, true);
             // Show popup menu
@@ -483,14 +511,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
        case IDM_PL_USEALL:
         { LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
-          lhp->AddItem(Content);
+          lhp->AddItem(*Content);
           GUI::Load(lhp);
           break;
         }
        case IDM_PL_USE:
         { LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
           for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            lhp->AddItem((*rpp)->Data->Content);
+            lhp->AddItem(*(*rpp)->Data->Content);
           GUI::Load(lhp);
           break;
         }
@@ -649,8 +677,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_M_INSPECTOR:
-         InspectorDialog::GetInstance()->SetVisible(true);
-         break;
+        InspectorDialog::GetInstance()->SetVisible(true);
+        break;
 
       } // switch (cmd)
       return 0;
@@ -752,6 +780,12 @@ void PlaylistBase::SetTitle()
     append = " [used]";
   DialogBase::SetTitle(xstring().sprintf("PM123: %s%s%s", Content->GetDisplayName().cdata(),
     (tattr & TATTR_PLAYLIST) && Content->IsModified() ? " (*)" : "", append));
+}
+
+PlaylistMenu& PlaylistBase::GetMenuWorker()
+{ if (MenuWorker == NULL)
+    MenuWorker = new PlaylistMenu(GetHwnd(), IDM_M_LAST, IDM_M_LAST_E);
+  return *MenuWorker;
 }
 
 
@@ -1015,21 +1049,20 @@ PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
 
 bool PlaylistBase::IsUnderCurrentRoot(RecordBase* rec) const
 { DEBUGLOG(("PlaylistBase::IsUnderCurrentRoot(%p)\n", rec));
-  ASSERT(rec != NULL);
-  const Playable* pp;
-  // Fetch current root
-  { const int_ptr<APlayable>& ps = Ctrl::GetRoot();
-    if (ps == NULL)
-      return false;
-    pp = &ps->GetPlayable();
-  }
+  unsigned usage = 0;
   // check stack
-  do
-  { rec = GetParent(rec);
-    if (APlayableFromRec(rec).GetPlayable() == *pp)
+  for(;;)
+  { unsigned recusage = APlayableFromRec(rec).GetInUse();
+    if (!usage)
+      usage = recusage;
+    else if (recusage != --usage)
+      return false; // Only a shadow
+    else if (!usage)
       return true;
-  } while (rec);
-  return false;
+    if (!rec)
+      return !!usage;
+    rec = GetParent(rec);
+  }
 }
 
 
@@ -1248,6 +1281,36 @@ void PlaylistBase::UserSave(bool saveas)
 { DEBUGLOG(("PlaylistBase(%p)::UserSave(%u)\n", this, saveas));
   amp_save_playlist(GetHwnd(), *Content, saveas);
   // TODO change window root in case of success.
+}
+
+void PlaylistBase::UserNavigate(const RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p)::UserNavigate(%p)\n", this, rec));
+  // Build call stack from record
+  vector<PlayableInstance> callstack;
+  // find root and collect call stack
+  do
+  { callstack.append() = rec->Data->Content;
+    rec = GetParent(rec);
+  } while (rec);
+  // Now callstack contains all sub items within this root.
+
+  // Create location object
+  JobSet noblockjob(PRI_None);
+  sco_ptr<Location> loc(new Location(Content));
+  for (size_t i = callstack.size(); i--; )
+  { if (loc->NavigateInto(noblockjob))
+    { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateInto failed."));
+      return;
+    }
+    if (loc->NavigateTo(callstack[i]))
+    { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateTo failed."));
+      return;
+    }
+  }
+  callstack.clear();
+
+  DEBUGLOG(("PlaylistBase::UserNavigate - %s\n", loc->Serialize().cdata()));
+  Ctrl::PostCommand(Ctrl::MkJump(loc.detach()), &PlaylistBase::MsgJumpCompleted);
 }
 
 void PlaylistBase::UserOpenTreeView(Playable& p)
@@ -1694,7 +1757,7 @@ BOOL PlaylistBase::DropRender(DRAGTRANSFER* pdtrans)
     amp_string_from_drghstr(pdtrans->pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pdtrans->pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pdtrans->pditem->hstrTargetName).cdata(),
     pdtrans->pditem->cxOffset, pdtrans->pditem->cyOffset, pdtrans->pditem->fsControl, pdtrans->pditem->fsSupportedOps));
 
-  // Remove record reference from the DRAGITEM structure unless opeartion is move.
+  // Remove record reference from the DRAGITEM structure unless operation is move.
   // This turns the DropEnd into a NOP.
   if (pdtrans->usOperation != DO_MOVE)
   { RecordBase* rec = (RecordBase*)pdtrans->pditem->ulItemID;

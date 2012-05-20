@@ -210,6 +210,7 @@ HELPSUBTABLE HLP_MAIN_TABLE
   HELPSUBITEM IDM_M_CURRENT_PL,   IDH_MAIN_MENU
   HELPSUBITEM IDM_M_DETAILED,     IDH_MAIN_MENU
   HELPSUBITEM IDM_M_TREEVIEW,     IDH_MAIN_MENU
+  HELPSUBITEM IDM_M_PLCONTENT,    IDH_MAIN_MENU
   HELPSUBITEM IDM_M_ADDPLBOOK,    IDH_MAIN_MENU
   HELPSUBITEM IDM_M_ADDPLBOOK_TIME,IDH_MAIN_MENU
   HELPSUBITEM IDM_M_ADDPMBOOK,    IDH_MAIN_MENU
@@ -316,23 +317,42 @@ DLGTEMPLATE CFG_SETTINGS2
   DIALOG         "",                                    CFG_SETTINGS2,      0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Playlists ",                         GB_GENERIC,         4,  4, 248, 84, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Playlists ",                         GB_GENERIC,         4, 66, 248, 48, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 68, 232, 12, WS_GROUP
+    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 94, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",
-                                                        CB_RECURSEDND,     12, 56, 232, 12, WS_GROUP
+                                                        CB_RECURSEDND,     12, 82, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,   12, 44, 232, 12
+    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,   12, 70, 232, 12
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    LTEXT        "Append to the default playlist:",     ST_GENERIC,        12, 32, 232, 12, DT_BOTTOM
+
+    GROUPBOX     " Actions on load item ",              GB_GENERIC,         4,  4, 248, 60, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    LTEXT        "At item ~selection:",                 ST_GENERIC,        12, 44,  52, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "at ~drag & drop to the main window",  CB_AUTOAPPENDDND,  12, 20, 112, 12, WS_GROUP
+    AUTORADIOBUTTON "~navigate to",                     RB_ITEMNAVTO,      72, 44,  52, 12, WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
+    AUTORADIOBUTTON "~load new",                        RB_ITEMLOAD,      132, 44,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
+    AUTORADIOBUTTON "~append",                          RB_ITEMQUEUE,     192, 44,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
+    LTEXT        "At ~drag & drop to main window:",     ST_GENERIC,        12, 32, 112, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
-    AUTOCHECKBOX "at ~command line invokation",         CB_AUTOAPPENDCMD, 132, 20, 112, 12
-      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 2,4,0,1)
-    AUTOCHECKBOX "Remove played objects in the default playlist (~queue mode)",
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTORADIOBUTTON "~load new",                        RB_DNDLOAD,       132, 32,  52, 12, WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
+    AUTORADIOBUTTON "~append",                          RB_DNDQUEUE,      192, 32,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
+    LTEXT        "At ~command line invocation:",        ST_GENERIC,        12, 20, 112, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTORADIOBUTTON "~load new",                        RB_CMDLOAD,       132, 20,  52, 12, WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
+    AUTORADIOBUTTON "~append",                          RB_CMDQUEUE,      192, 20,  52, 12
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
+    AUTOCHECKBOX "Remove played objects from the default playlist (~queue mode)",
                                                         CB_QUEUEMODE,      12,  8, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
   }
@@ -941,6 +961,8 @@ MENU MNU_PLAYLIST
   MENUITEM "Show ~detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show ~tree view",            IDM_PL_TREEVIEWALL
   MENUITEM "Show content ~info",         IDM_PL_INFOALL
+  SUBMENU "Browse ~content",             IDM_PL_CONTENT
+  {}
   MENUITEM SEPARATOR
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
@@ -971,9 +993,8 @@ MENU MNU_RECORD
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Edit playlist...",          IDM_PL_DETAILED
   MENUITEM "Open in ~tree view",         IDM_PL_TREEVIEW
-  /* TODO action not completed
   SUBMENU "Browse ~content",             IDM_PL_CONTENT
-  {}*/
+  {}
   MENUITEM SEPARATOR
   MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
@@ -994,6 +1015,8 @@ MENU PM_MAIN_MENU
   MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL
   MENUITEM "Show ~Tree view",            IDM_PL_TREEVIEWALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show Content ~info",         IDM_PL_INFOALL
+  SUBMENU "Browse ~content",             IDM_PL_CONTENT
+  {}
   MENUITEM SEPARATOR
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
@@ -1024,9 +1047,8 @@ MENU PM_REC_MENU
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Detailed view (edit)",      IDM_PL_DETAILED
   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
-  /* TODO action not completed
   SUBMENU "Browse ~content",             IDM_PL_CONTENT
-  {}*/
+  {}
   MENUITEM SEPARATOR
   MENUITEM "~Properties",                IDM_PL_PROPERTIES
   MENUITEM "Show Item ~info",            IDM_PL_INFO
@@ -1056,7 +1078,7 @@ MENU PM_REC_MENU
   }
 }
 
-/* Bookmark */
+/* Bookmarks (generated) */
 MENU MNU_SUBFOLDER
 {
 }

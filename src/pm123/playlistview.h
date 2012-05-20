@@ -42,6 +42,8 @@
 #include <os2.h>
 
 
+class PlaylistMenu;
+
 /****************************************************************************
 *
 *  This class represents an Instance of a playlist window.
@@ -99,9 +101,8 @@ class PlaylistView
   //static const Column ConstColumns[];
   static FIELDINFO* MutableFieldinfo;
   //static FIELDINFO* ConstFieldinfo;
- private: // working set
-  HWND              MainMenu;
-  HWND              RecMenu;
+  static HWND       MainMenu;
+  static HWND       RecMenu;
 
  private:
  private:
@@ -114,7 +115,7 @@ class PlaylistView
   static int_ptr<PlaylistView> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistView::Factory); }
   // Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
-                    ~PlaylistView() { RepositoryType::RemoveWithKey(*this, *Content); }
+                    ~PlaylistView();
   static void       DestroyAll();
 
  private:
@@ -128,7 +129,7 @@ class PlaylistView
   /// Dialog procedure, called by \c DlgProcStub.
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   /// Load context menu for a record.
-  virtual HWND      InitContextMenu();
+  virtual void      InitContextMenu();
   /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable();
 
@@ -154,8 +155,6 @@ class PlaylistView
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
   /// Update a record
   virtual void      UpdateRecord(RecordBase* rec);
-  /// Navigate to
-  virtual void      UserNavigate(const RecordBase* rec);
   /// Select all
   void              UserSelectAll();
 };

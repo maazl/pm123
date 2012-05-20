@@ -67,6 +67,7 @@ const amp_cfg Cfg::Default =
 , true
 , true // recurse_dnd
 , true
+, CFG_ACTION_NAVTO
 , false
 , false
 , false
@@ -184,6 +185,7 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.autoturnaround);
   load_ini_int(HIni, cfg.recurse_dnd);
   load_ini_int(HIni, cfg.folders_first);
+  load_ini_int(HIni, cfg.itemaction);
   load_ini_int(HIni, cfg.append_dnd);
   load_ini_int(HIni, cfg.append_cmd);
   load_ini_int(HIni, cfg.queue_mode);
@@ -252,6 +254,7 @@ void Cfg::SaveIni()
     save_ini_bool (HIni, cfg.autoturnaround);
     save_ini_bool (HIni, cfg.recurse_dnd);
     save_ini_bool (HIni, cfg.folders_first);
+    save_ini_bool (HIni, cfg.itemaction);
     save_ini_bool (HIni, cfg.append_dnd);
     save_ini_bool (HIni, cfg.append_cmd);
     save_ini_bool (HIni, cfg.queue_mode);

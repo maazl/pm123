@@ -202,7 +202,6 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       CheckBox(+GetCtrl(CB_TURNAROUND    )).SetCheckState(cfg.autoturnaround);
       CheckBox(+GetCtrl(RB_SONGONLY+cfg.altnavig)).SetCheckState(true);
       CheckBox(+GetCtrl(RB_ALTKEY+cfg.altbutton)).SetCheckState(true);
-
       return 0;
     }
 
@@ -229,20 +228,22 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       CheckBox(+GetCtrl(CB_AUTOUSEPL    )).SetCheckState(cfg.autouse);
       CheckBox(+GetCtrl(CB_RECURSEDND   )).SetCheckState(cfg.recurse_dnd);
       CheckBox(+GetCtrl(CB_FOLDERSFIRST )).SetCheckState(cfg.folders_first);
-      CheckBox(+GetCtrl(CB_AUTOAPPENDDND)).SetCheckState(cfg.append_dnd);
-      CheckBox(+GetCtrl(CB_AUTOAPPENDCMD)).SetCheckState(cfg.append_cmd);
+      CheckBox(+GetCtrl(RB_ITEMNAVTO + cfg.itemaction)).SetCheckState(true);
+      CheckBox(+GetCtrl(RB_DNDLOAD   + cfg.append_dnd)).SetCheckState(true);
+      CheckBox(+GetCtrl(RB_CMDLOAD   + cfg.append_cmd)).SetCheckState(true);
       CheckBox(+GetCtrl(CB_QUEUEMODE    )).SetCheckState(cfg.queue_mode);
       return 0;
     }
 
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.autouse      = CheckBox(GetCtrl(CB_AUTOUSEPL    )).QueryCheckState();
-      cfg.recurse_dnd  = CheckBox(GetCtrl(CB_RECURSEDND   )).QueryCheckState();
-      cfg.folders_first= CheckBox(GetCtrl(CB_FOLDERSFIRST )).QueryCheckState();
-      cfg.append_dnd   = CheckBox(GetCtrl(CB_AUTOAPPENDDND)).QueryCheckState();
-      cfg.append_cmd   = CheckBox(GetCtrl(CB_AUTOAPPENDCMD)).QueryCheckState();
-      cfg.queue_mode   = CheckBox(GetCtrl(CB_QUEUEMODE    )).QueryCheckState();
+      cfg.autouse      = CheckBox(GetCtrl(CB_AUTOUSEPL   )).QueryCheckState();
+      cfg.recurse_dnd  = CheckBox(GetCtrl(CB_RECURSEDND  )).QueryCheckState();
+      cfg.folders_first= CheckBox(GetCtrl(CB_FOLDERSFIRST)).QueryCheckState();
+      cfg.itemaction   = (cfg_action)RadioButton(GetCtrl(RB_ITEMNAVTO)).QueryCheckIndex();
+      cfg.append_dnd   = CheckBox(GetCtrl(RB_DNDQUEUE    )).QueryCheckState();
+      cfg.append_cmd   = CheckBox(GetCtrl(RB_CMDQUEUE    )).QueryCheckState();
+      cfg.queue_mode   = CheckBox(GetCtrl(CB_QUEUEMODE   )).QueryCheckState();
       return 0;
     }
   }

@@ -45,7 +45,7 @@ class LoadHelper// : public Iref_count
     LoadPlay         = 0x01, // Start Playing when completed
     LoadRecall       = 0x02, // Add item to the MRU-List if it is only one
     LoadAppend       = 0x04, // Always append to the default playlist
-    LoadKeepPlaylist = 0x08, // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
+    //LoadKeepPlaylist = 0x08, // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
     //AutoPost         = 0x20, // Auto post command if the class instance is destroyed.
     //PostGUI          = 0x40  // Do the job by the main message queue. This implies that errors are shown to the user.
   };
@@ -60,7 +60,7 @@ class LoadHelper// : public Iref_count
                         LoadHelper(Options opt)    : Opt(opt), Items(20) {}
   //                      ~LoadHelper();
   // Add a item to play to the list of items.
-  void                  AddItem(APlayable* ps) { Items.append() = ps; }
+  void                  AddItem(APlayable& ps) { Items.append() = &ps; }
   // Create a sequence of controller commands from the current list.
   virtual Ctrl::ControlCommand* ToCommand();
   // Send command to the controller and wait for reply.

@@ -113,7 +113,7 @@ Playable* Location::GetPlaylist() const
   }
 }
 
-size_t Location::FindInCallstack(const Playable* pp) const
+unsigned Location::FindInCallstack(const Playable* pp) const
 { if (pp)
   { if (Root == pp)
       return 0;
@@ -122,6 +122,16 @@ size_t Location::FindInCallstack(const Playable* pp) const
         return pipp - Callstack.begin() + 1;
   }
   return UINT_MAX;
+}
+
+int Location::RelationCheck(const Location& r) const
+{ unsigned level = FindInCallstack(r.GetRoot());
+  if (level != UINT_MAX)
+    return level;
+  level = r.FindInCallstack(GetRoot());
+  if (level != UINT_MAX)
+    return -level;
+  return INT_MIN;
 }
 
 void Location::Enter()
@@ -249,7 +259,7 @@ Location::NavigationResult Location::NavigateInto(JobSet& job)
 }
 
 Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
-{ DEBUGLOG(("Location(%p)::NavigateTo(&%p)\n", this, &pi));
+{ DEBUGLOG(("Location(%p)::NavigateTo(%p)\n", this, &pi));
   Playable* list = GetPlaylist();
   if (!list)
     return "Must enter a playlist before using NavigateTo.";
@@ -258,6 +268,26 @@ Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
   Position = -2;
   Callstack[Callstack.size()-1] = pi;
   return xstring(); // NULL
+}
+
+Location::NavigationResult Location::NavigateTo(const Location& target)
+{ DEBUGLOG(("Location(%p)::NavigateTo({%s})\n", this, target.Serialize().cdata()));
+  int rel = RelationCheck(target);
+  if (rel == INT_MIN)
+    return "Cannot navigate to unrelated location.";
+  // Move up to least common root
+  while (Callstack.size() && (int)Callstack.size() > rel)
+    Leave();
+  PlayableInstance*const* pipp = target.GetCallstack().begin();
+  PlayableInstance*const* pipe = target.GetCallstack().end();
+  if (rel < 0)
+    pipp -= rel;
+  for (;pipp != pipe; ++pipp)
+  { Enter();
+    Callstack[Callstack.size()-1] = *pipp;
+  }
+  Position = target.Position;
+  return xstring();
 }
 
 Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, bool flat)

@@ -1,34 +1,63 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1051" sublinks="*"><head><meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  
+<html resid="1051" sublinks="*">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
   <title>Playlist Behavior Settings</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-  <meta content="Marcel M&uuml;ller" name="author"></head>
+  <meta content="Marcel Müller" name="author">
+</head>
 <body>
 <h2>PM123's Playlist Behavior Settings</h2>
-
-<blockquote>
-<img src="images/prop1a.png"><br>
-</blockquote><h3>Playlists</h3>
-<dl><dt><b>Auto 'play' on 'use playlist'</b>
-  </dt><dd>Automatically starts playing when a playlist is loaded ("Use playlist").
-  </dd><dt><b>Auto 'use playlist' on add</b>
-  </dt><dd>Automatically loads a playlist if items are appended to it.
-  </dd><dt><b>Recurse into subdirectories at drag &amp; drop by default</b>
-  </dt><dd>When you drop a folder to PM123 it will be added as a virtual playlist
-    that also contains the sub folders as virtual playlists.
-  </dd><dt><b>Sort folder content by name</b>
-  </dt><dd>When a file system folder is opened by PM123 the files are always sorted by their name.
-  </dd><dt><b>Sub folders first</b>
-  </dt><dd>Additionally the sub folders are placed before any file items.
-    Otherwise sub folders will show up between the files according to their name.
-  </dd><dt><b>Append to default playlist</b>
-  </dt><dd>When you drop items to PM123 or call PM123 with a filename in the command line
-    (most likely by a association of the PMSHELL) you may append these items to the default
-    playlist instead of immediately replacing the currently playing file with the new song.
-    This may be used to enqueue songs.
-  </dd><dt><b>Queue mode</b>
-  </dt><dd>In queue mode PM123 removes completely played items from the default playlist.
-    Together with "Append to default playlist" this offers an option to use the default
-    playlist as queue of items to play. This is similar to a printer queue.
-</dd></dl></body></html>
+<blockquote> <img src="images/prop1a.png">
+</blockquote>
+<h3>Playlists</h3>
+<dl>
+  <dt><b>Auto 'use playlist' on add</b> </dt>
+  <dd>Automatically loads a playlist if items are appended to it. </dd>
+  <dt><b>Recurse into subdirectories at drag &amp; drop by default</b> </dt>
+  <dd>When you drop a folder to PM123 it will be added as a virtual
+playlist that also contains the sub folders as virtual playlists. </dd>
+  <dt><b>Sub folders first</b> </dt>
+  <dd>When a file system folder is opened by PM123 the sub folders are
+placed before any file items. Otherwise sub folders will show up
+between the files according to their name.</dd>
+</dl>
+<h3>Actions on load item</h3>
+<dl>
+  <dt><b>At item selection</b></dt>
+  <dd>Action to be taken when a song is double clicked in the <a
+ href="playlist.html">playlist view</a> or <a href="manager.html">playlist
+manager</a>.</dd>
+  <dt><b>At drag &amp; drop to main window</b></dt>
+  <dd>Default action to be taken when a file or URL is dropped to the
+players <a href="mainwin.html">main window</a>.</dd>
+  <dt><b>At command line invocation</b></dt>
+  <dd>Action to be taken when another PM123 instance (with the same
+pipe name) is invoked with a file or URL as command line argument.</dd>
+</dl>
+<dl>
+  <dt><b>navigate to</b></dt>
+  <dd>If the selected item is part of the current playlist or one of
+the nested playlists, then the playback position is moved to the
+appropriate location. Otherwise the same action as 'load new' is taken.</dd>
+  <dt><b>load new</b></dt>
+  <dd>The current playback is immediately stopped (if any) and the
+selected item(s) are loaded into the player. This discards any playlist
+in the call stack, i.e. if you double-click an item in the current
+playlist the playlist is left and only the selected item is played.</dd>
+  <dt><b>append</b> </dt>
+  <dd>When you drop items to PM123 or call PM123 with a filename in the
+command line (most likely by a association of the PMSHELL) you may
+append these items to the default playlist instead of immediately
+replacing the currently playing file with the new song. This may be
+used to enqueue songs.</dd>
+</dl>
+<dl>
+  <dt><b>Queue mode</b> </dt>
+  <dd>In queue mode PM123 removes completely played items from the
+default playlist. Together with "Append to default playlist" this
+offers an option to use the default playlist as queue of items to play.
+This is similar to a printer queue. </dd>
+</dl>
+</body>
+</html>

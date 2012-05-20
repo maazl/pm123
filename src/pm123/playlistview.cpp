@@ -40,6 +40,7 @@
 #include <process.h>
 
 #include "playlistview.h"
+#include "playlistmenu.h"
 #include "gui.h"
 #include "dialog.h"
 #include "properties.h"
@@ -56,12 +57,18 @@
 #include <debuglog.h>
 
 
+HWND PlaylistView::MainMenu = NULLHANDLE;
+HWND PlaylistView::RecMenu  = NULLHANDLE;
+
+
 PlaylistView::PlaylistView(Playable& obj)
 : PlaylistBase(obj, DLG_PLAYLIST)
-, MainMenu(NULLHANDLE)
-, RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(&%p)\n", &obj));
   StartDialog();
+}
+
+PlaylistView::~PlaylistView()
+{ RepositoryType::RemoveWithKey(*this, *Content);
 }
 
 PlaylistView* PlaylistView::Factory(Playable& key)
@@ -253,95 +260,87 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistView(%p{%s})::DlgProc(%x, %x, %x)\n", this, DebugName().cdata(), msg, mp1, mp2));
 
   switch (msg)
-  {/*case WM_WINDOWPOSCHANGED:
-    // TODO: Bl�dsinn
-    { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
-      if( pswp[0].fl & SWP_SHOW )
-        cfg.show_playlist = TRUE;
-      if( pswp[0].fl & SWP_HIDE )
-        cfg.show_playlist = FALSE;
-      break;
-    }*/
+  {case WM_CONTROL:
+    if (SHORT1FROMMP(mp1) == FID_CLIENT)
+    { switch (SHORT2FROMMP(mp1))
+      {
+       case CN_HELP:
+        GUI::ShowHelp(IDH_PL);
+        return 0;
 
-   case WM_CONTROL:
-    switch (SHORT2FROMMP(mp1))
-    {
-     case CN_HELP:
-      GUI::ShowHelp(IDH_PL);
-      return 0;
-
-     case CN_ENDEDIT:
-      if (DirectEdit) // ignore undo's
-      { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
-        Record* rec = (Record*)ed->pRecord;
-        DEBUGLOG(("PlaylistView::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p %s\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec, DirectEdit.cdata()));
-        ASSERT(rec != NULL);
-        switch ((ColumnID)(ULONG)ed->pFieldInfo->pUserData)
-        {case CID_Alias:
-          { PlayableInstance& pi = *rec->Data()->Content;
-            Mutex::Lock lock(pi.GetPlayable().Mtx);
-            ItemInfo info = *pi.GetInfo().item;
-            if (DirectEdit.length())
-              info.alias = DirectEdit;
-            else
-            { info.alias.reset();
-              PostRecordUpdate(rec, IF_Display);
+       case CN_ENDEDIT:
+        if (DirectEdit) // ignore undo's
+        { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
+          Record* rec = (Record*)ed->pRecord;
+          DEBUGLOG(("PlaylistView::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p %s\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec, DirectEdit.cdata()));
+          ASSERT(rec != NULL);
+          switch ((ColumnID)(ULONG)ed->pFieldInfo->pUserData)
+          {case CID_Alias:
+            { PlayableInstance& pi = *rec->Data()->Content;
+              Mutex::Lock lock(pi.GetPlayable().Mtx);
+              ItemInfo info = *pi.GetInfo().item;
+              if (DirectEdit.length())
+                info.alias = DirectEdit;
+              else
+              { info.alias.reset();
+                PostRecordUpdate(rec, IF_Display);
+              }
+              pi.OverrideItem(info.IsInitial() ? NULL : &info);
             }
-            pi.OverrideItem(info.IsInitial() ? NULL : &info);
-          }
-          break;
-         case CID_Start:
-          { PlayableInstance& pi = *rec->Data()->Content;
-            Mutex::Lock lock(pi.GetPlayable().Mtx);
-            ItemInfo info = *pi.GetInfo().item;
-            if (DirectEdit.length())
-              info.start = DirectEdit;
-            else
-              info.start.reset();
-            pi.OverrideItem(info.IsInitial() ? NULL : &info);
-            // TODO: Error message
-          }
-          break;
-         case CID_Stop:
-          { PlayableInstance& pi = *rec->Data()->Content;
-            Mutex::Lock lock(pi.GetPlayable().Mtx);
-            ItemInfo info = *pi.GetInfo().item;
-            if (DirectEdit.length())
-              info.stop = DirectEdit;
-            else
-              info.stop.reset();
-            pi.OverrideItem(info.IsInitial() ? NULL : &info);
-            // TODO: Error message
-          }
-          break;
-         case CID_At:
-          { PlayableInstance& pi = *rec->Data()->Content;
-            Mutex::Lock lock(pi.GetPlayable().Mtx);
-            AttrInfo info = *pi.GetInfo().attr;
-            if (DirectEdit.length())
-              info.at = DirectEdit;
-            else
-              info.at.reset();
-            pi.OverrideAttr(info.IsInitial() ? NULL : &info);
-            // TODO: Error message
-          }
-          break;
-         case CID_URL:
-          { rec->URL    = xstring::empty; // intermediate string that is not invalidated
-            // Convert to insert/delete pair.
-            InsertInfo* pii = new InsertInfo();
-            pii->Parent = &APlayableFromRec(GetParent(rec)).GetPlayable();
-            PlayableInstance& pi = *rec->Data()->Content;
-            pii->Before = &pi;
-            pii->Item   = new PlayableRef(*Playable::GetByURL(Content->URL.makeAbsolute(DirectEdit)));
-            if (pi.IsItemOverridden())
-            { ItemInfo info = *pi.GetInfo().item;
-              pii->Item->OverrideItem(&info);
+            break;
+           case CID_Start:
+            { PlayableInstance& pi = *rec->Data()->Content;
+              Mutex::Lock lock(pi.GetPlayable().Mtx);
+              ItemInfo info = *pi.GetInfo().item;
+              if (DirectEdit.length())
+                info.start = DirectEdit;
+              else
+                info.start.reset();
+              pi.OverrideItem(info.IsInitial() ? NULL : &info);
+              // TODO: Error message
             }
-            // Send GUI commands
-            BlockRecord(rec);
-            WinPostMsg(GetHwnd(), UM_INSERTITEM, MPFROMP(pii), 0);
-            WinPostMsg(GetHwnd(), UM_REMOVERECORD, MPFROMP(rec), 0);
+            break;
+           case CID_Stop:
+            { PlayableInstance& pi = *rec->Data()->Content;
+              Mutex::Lock lock(pi.GetPlayable().Mtx);
+              ItemInfo info = *pi.GetInfo().item;
+              if (DirectEdit.length())
+                info.stop = DirectEdit;
+              else
+                info.stop.reset();
+              pi.OverrideItem(info.IsInitial() ? NULL : &info);
+              // TODO: Error message
+            }
+            break;
+           case CID_At:
+            { PlayableInstance& pi = *rec->Data()->Content;
+              Mutex::Lock lock(pi.GetPlayable().Mtx);
+              AttrInfo info = *pi.GetInfo().attr;
+              if (DirectEdit.length())
+                info.at = DirectEdit;
+              else
+                info.at.reset();
+              pi.OverrideAttr(info.IsInitial() ? NULL : &info);
+              // TODO: Error message
+            }
+            break;
+           case CID_URL:
+            { rec->URL    = xstring::empty; // intermediate string that is not invalidated
+              // Convert to insert/delete pair.
+              InsertInfo* pii = new InsertInfo();
+              pii->Parent = &APlayableFromRec(GetParent(rec)).GetPlayable();
+              PlayableInstance& pi = *rec->Data()->Content;
+              pii->Before = &pi;
+              pii->Item   = new PlayableRef(*Playable::GetByURL(Content->URL.makeAbsolute(DirectEdit)));
+              if (pi.IsItemOverridden())
+              { ItemInfo info = *pi.GetInfo().item;
+                pii->Item->OverrideItem(&info);
+              }
+              // Send GUI commands
+              BlockRecord(rec);
+              WinPostMsg(GetHwnd(), UM_INSERTITEM, MPFROMP(pii), 0);
+              WinPostMsg(GetHwnd(), UM_REMOVERECORD, MPFROMP(rec), 0);
+            }
           }
         }
       }
@@ -360,9 +359,9 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
-HWND PlaylistView::InitContextMenu()
+void PlaylistView::InitContextMenu()
 { DEBUGLOG(("PlaylistView(%p)::InitContextMenu() - %p{%u}\n", this, &Source, Source.size()));
-  HWND hwndMenu;
+
   if (Source.size() == 0)
   { // no items selected => main context menu
     bool new_menu;
@@ -371,17 +370,18 @@ HWND PlaylistView::InitContextMenu()
       PMASSERT(MainMenu != NULLHANDLE);
       PMRASSERT(mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL));
     }
-    hwndMenu = MainMenu;
+    HwndMenu = MainMenu;
     // Update accelerators?
     if (DecChanged || new_menu)
     { DecChanged = false;
       // Populate context menu with plug-in specific stuff.
       MENUITEM item;
-      PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
+      PMRASSERT(WinSendMsg(HwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
       memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards ); // You never know...
       Decoder::AppendLoadMenu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
-      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? HwndMenu : item.hwndSubMenu);
     }
+    GetMenuWorker().AttachMenu(HwndMenu, IDM_PL_CONTENT, *Content, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
   } else
   { // at least one item selected
     if (RecMenu == NULLHANDLE)
@@ -390,20 +390,23 @@ HWND PlaylistView::InitContextMenu()
       PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_FLATTEN, IDM_PL_FLATTEN_1));
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(RecMenu);
     }
-    hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
-      return NULLHANDLE;
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetInUse());
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
-    mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
+      return;
+    HwndMenu = RecMenu;
+
+    mn_enable_item(HwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && IsUnderCurrentRoot(Source[0]));
+    mn_enable_item(HwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
+    mn_enable_item(HwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
     //mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
-    mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
-    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
+    bool is_pl = Source.size() == 1 && (rt & (RT_Enum|RT_List));
+    mn_enable_item(HwndMenu, IDM_PL_DETAILED, is_pl);
+    mn_enable_item(HwndMenu, IDM_PL_TREEVIEW, is_pl);
+    mn_enable_item(HwndMenu, IDM_PL_CONTENT,  is_pl);
+    if (is_pl)
+      GetMenuWorker().AttachMenu(HwndMenu, IDM_PL_CONTENT, *Source[0]->Data->Content, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
   }
-  // emphasize record
   DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
-  return hwndMenu;
 }
 
 void PlaylistView::UpdateAccelTable()
@@ -618,15 +621,6 @@ void PlaylistView::UpdateRecord(RecordBase* rec)
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
 
-void PlaylistView::UserNavigate(const RecordBase* rec)
-{ DEBUGLOG(("PlaylistView(%p)::UserNavigate(%p)\n", this, rec));
-  // make navigation string
-  // TODO: Configuration options
-  xstring nav = "..;" + Content->SerializeItem(rec->Data->Content, Playable::SO_RelativePath);
-  DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
-  Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
-}
-
 void PlaylistView::UserSelectAll()
 { Source.clear();
   RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(NULL), MPFROM2SHORT(CMA_FIRST, CMA_ITEMORDER));
@@ -637,4 +631,3 @@ void PlaylistView::UserSelectAll()
   }
   SetEmphasis(CRA_SELECTED, true);
 }
-

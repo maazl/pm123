@@ -46,83 +46,7 @@ class SongIterator;
 /** PM123 controller class.
  * All playback activities are controlled by this class.
  * This class is static (singleton).
-
- * PM123 control commands
-
-Command    StrArg              NumArg/PtrArg       Flags               Meaning
-===============================================================================================================
-Nop                                                                    No operation (used to raise events)
----------------------------------------------------------------------------------------------------------------
-Load       URL                                     0x01  continue      Load an URL
-                                                         playing       The URL must be well formed.
----------------------------------------------------------------------------------------------------------------
-Skip                           Number of songs     0x01  relative      Move to song number or some songs forward
-                                                         navigation    or backward. This makes only sense if the
-                                                                       currently loaded object is enumerable.
-                                                                       Absolute positioning is not recommended.
-                                                                       Use Navigate instead.
----------------------------------------------------------------------------------------------------------------
-Navigate   Serialized iterator Location in         0x01  relative      Jump to location
-           optional            seconds                   location      This will change the Song and/or the
-                                                   0x02  playlist      playing position.
-                                                         scope
-                                                   0x04  ignore
-                                                         syntax error
----------------------------------------------------------------------------------------------------------------
-Jump                           in/out:                                 Jump to location
-                               SongIterator*                           This will change the Song and/or the
-                                                                       playing position.
-                                                                       The old position is returned in place.
----------------------------------------------------------------------------------------------------------------
-StopAt     Serialized iterator Location in         0x02  playlist      Stop at location
-           optional            seconds                   scope         This will stop the playback at the
-                                                                       specified location.
----------------------------------------------------------------------------------------------------------------
-PlayStop                                           0x01  play          Start or stop playing.
-                                                   0x02  stop
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Pause                                              0x01  pause         Set or unset pause.
-                                                   0x02  resume        Pause is reset on stop.
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Scan                                               0x01  scan on       Set/reset forward/rewind.
-                                                   0x02  scan off      If flag 0x04 is not set fast forward is
-                                                   0x03  toggle        controlled. Setting fast forward
-                                                   0x04  rewind        automatically stops rewinding and vice
-                                                                       versa.
----------------------------------------------------------------------------------------------------------------
-Volume                         Volume [0..+-1]     0x01 relative      Set volume to level.
-                               out: Volume [0..1]
----------------------------------------------------------------------------------------------------------------
-Shuffle                                            0x01  enable        Enable/disable random play.
-                                                   0x02  disable
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Repeat                                             0x01  on            Set/reset auto repeat.
-                                                   0x02  off
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Save       Filename                                                    Save stream of current decoder.
----------------------------------------------------------------------------------------------------------------
-Location                       out: SongIterator*  0x01  stopat        Set the iterator to the current location.
----------------------------------------------------------------------------------------------------------------
-DecStop                                                                The current decoder finished it's work.
----------------------------------------------------------------------------------------------------------------
-OutStop                                                                The output finished playback.
----------------------------------------------------------------------------------------------------------------
-
-All commands return a success code in Flags.
-If a command failed StrArg may point to a descriptive error text.
-
-Commands can have an optional callback function which is called when the command is executed completely.
-The callback function must at least delete the ControlCommand instance.
-The callback function should not block.
-If a ControlCommand has no callback function, it is deleted by the Queue processor.
-
-Commands can be linked by the Link field. Linked commands are executed without interruption by other command sources.
-If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too.
-*/
+ */
 class Ctrl
 {public:
   enum Command // Control commands, see above.
@@ -160,52 +84,64 @@ class Ctrl
 
   /// return codes in Flags
   enum RC
-  { RC_OK,                  /// Everything OK.
-    RC_SubseqError,         /// The command is not processed because an earlier command in the current set of linked commands has failed.
-    RC_BadArg,              /// Invalid command.
-    RC_NoSong,              /// The command requires a current song.
-    RC_NoList,              /// The command is only valid for enumerable objects like playlists.
-    RC_EndOfList,           /// The navigation tried to move beyond the limits of the current playlist.
-    RC_NotPlaying,          /// The command is only allowed while playing.
-    RC_OutPlugErr,          /// The output plug-in returned an error.
-    RC_DecPlugErr,          /// The decoder plug-in returned an error.
-    RC_InvalidItem,         /// Cannot load or play invalid object.
-    RC_BadIterator          /// Bad location string.
+  { RC_OK,                  ///< Everything OK.
+    RC_SubseqError,         ///< The command is not processed because an earlier command in the current set of linked commands has failed.
+    RC_BadArg,              ///< Invalid command.
+    RC_NoSong,              ///< The command requires a current song.
+    RC_NoList,              ///< The command is only valid for enumerable objects like playlists.
+    RC_EndOfList,           ///< The navigation tried to move beyond the limits of the current playlist.
+    RC_NotPlaying,          ///< The command is only allowed while playing.
+    RC_OutPlugErr,          ///< The output plug-in returned an error.
+    RC_DecPlugErr,          ///< The decoder plug-in returned an error.
+    RC_InvalidItem,         ///< Cannot load or play invalid object.
+    RC_BadIterator          ///< Bad location string.
   };
 
   struct ControlCommand;
   typedef void (*CbComplete)(ControlCommand* cmd);
+  /// @brief Command to the controller.
+  /// @details See Mk... functions for the description of the individual command arguments.
+  /// All commands return a success code in Flags.
+  /// If a command failed StrArg may point to a descriptive error text.
+  ///
+  /// Commands can have an optional callback function which is called when the command is executed completely.
+  /// The callback function must at least delete the \c ControlCommand instance.
+  /// The callback function should not block.
+  /// If a \c ControlCommand has no callback function, it is deleted by the queue processor.
+  ///
+  /// Commands can be linked by the Link field. Linked commands are executed without interruption by other command sources.
+  /// If one of the commands fails, all further linked commands fail immediately with \c PM123RC_SubseqError too.
   struct ControlCommand
-  { Command         Cmd;    /// Basic command. See PM123Command for details.
-    xstring         StrArg; /// String argument (command dependent)
+  { Command         Cmd;    ///< Basic command. See PM123Command for details.
+    xstring         StrArg; ///< String argument (command dependent)
     union
-    { double        NumArg; /// Integer argument (command dependent)
-      void*         PtrArg; /// Pointer argument (command dependent)
+    { double        NumArg; ///< Integer argument (command dependent)
+      void*         PtrArg; ///< Pointer argument (command dependent)
     };
-    int             Flags;  /// Flags argument (command dependent)
-    CbComplete      Callback;/// Notification on completion, this function must ensure that the control command is deleted.
-    void*           User;   /// Unused, for user purposes only
-    ControlCommand* Link;   /// Linked commands. They are executed atomically.
+    int             Flags;  ///< Flags argument (command dependent)
+    CbComplete      Callback;///< Notification on completion, this function must ensure that the control command is deleted.
+    void*           User;   ///< Unused, for user purposes only
+    ControlCommand* Link;   ///< Linked commands. They are executed atomically.
     ControlCommand(Command cmd, const xstring& str, double num, int flags, CbComplete cb = NULL, void* user = NULL)
                     : Cmd(cmd), StrArg(str), NumArg(num), Flags(flags), Callback(cb), User(user), Link(NULL) {}
     ControlCommand(Command cmd, const xstring& str, void* ptr, int flags, CbComplete cb = NULL, void* user = NULL)
                     : Cmd(cmd), StrArg(str), PtrArg(ptr), Flags(flags), Callback(cb), User(user), Link(NULL) {}
-    void            Destroy();/// Deletes the entire command queue including this.
+    void            Destroy();///< Deletes the entire command queue including this.
   };
 
   enum EventFlags
-  { EV_None     = 0x00000000, // nothing
-    EV_PlayStop = 0x00000001, // The play/stop status has changed.
-    EV_Pause    = 0x00000002, // The pause status has changed.
-    EV_Forward  = 0x00000004, // The fast forward status has changed.
-    EV_Rewind   = 0x00000008, // The rewind status has changed.
-    EV_Shuffle  = 0x00000010, // The shuffle flag has changed.
-    EV_Repeat   = 0x00000020, // The repeat flag has changed.
-    EV_Volume   = 0x00000040, // The volume has changed.
-    EV_Savename = 0x00000080, // The savename has changed.
-    EV_Offset   = 0x00000100, // The current playing offset has changed
-    EV_Root     = 0x00001000, // The currently loaded root object has changed. This Always implies EV_Song.
-    EV_Song     = 0x00100000, // The current song has changed.
+  { EV_None     = 0x00000000, ///< nothing
+    EV_PlayStop = 0x00000001, ///< The play/stop status has changed.
+    EV_Pause    = 0x00000002, ///< The pause status has changed.
+    EV_Forward  = 0x00000004, ///< The fast forward status has changed.
+    EV_Rewind   = 0x00000008, ///< The rewind status has changed.
+    EV_Shuffle  = 0x00000010, ///< The shuffle flag has changed.
+    EV_Repeat   = 0x00000020, ///< The repeat flag has changed.
+    EV_Volume   = 0x00000040, ///< The volume has changed.
+    EV_Savename = 0x00000080, ///< The savename has changed.
+    EV_Offset   = 0x00000100, ///< The current playing offset has changed
+    EV_Root     = 0x00001000, ///< The currently loaded root object has changed. This Always implies EV_Song.
+    EV_Song     = 0x00100000, ///< The current song has changed.
   };
 
  protected:
@@ -215,15 +151,15 @@ class Ctrl
   };
 
  protected: // working set
-  static bool          Playing;               // True if a song is currently playing (not decoding)
-  static bool          Paused;                // True if the current song is paused
-  static DECFASTMODE   Scan;                  // Current scan mode
-  static double        Volume;                // Current volume setting
-  static xstring       Savename;              // Current save file name (for the decoder)
-  static bool          Shuffle;               // Shuffle flag
-  static bool          Repeat;                // Repeat flag
+  static bool          Playing;               ///< True if a song is currently playing (not decoding)
+  static bool          Paused;                ///< True if the current song is paused
+  static DECFASTMODE   Scan;                  ///< Current scan mode
+  static double        Volume;                ///< Current volume setting
+  static xstring       Savename;              ///< Current save file name (for the decoder)
+  static bool          Shuffle;               ///< Shuffle flag
+  static bool          Repeat;                ///< Repeat flag
 
-  static queue<QEntry> Queue;                 // Command queue of the controller (all messages pass this queue)
+  static queue<QEntry> Queue;                 ///< Command queue of the controller (all messages pass this queue)
 
   static event<const EventFlags> ChangeEvent;
 
@@ -283,37 +219,89 @@ class Ctrl
 
   // Short cuts for message creation, side-effect free.
   // This is recommended over calling the ControllCommand constructor directly.
+  /// No operation (used to raise events)
   static ControlCommand* MkNop()
   { return new ControlCommand(Cmd_Nop, xstring(), (void*)NULL, 0); }
+  /// Load an URL
+  /// @param url Load this URL. The URL must be well formed.
+  /// @param keepplaying true: Start playback immediately if currently playing.
   static ControlCommand* MkLoad(const xstring& url, bool keepplaying)
   { return new ControlCommand(Cmd_Load, url, 0., keepplaying); }
+  /// @brief Move to song number or some songs forward or backward.
+  /// @details This makes only sense if the currently loaded object is enumerable.
+  /// Absolute positioning is not recommended. Use \c MkNavigate instead.
+  /// @param count Number of songs to move. If less than zero backward navigation is used.
   static ControlCommand* MkSkip(int count, bool relative)
   { return new ControlCommand(Cmd_Skip, xstring(), count, relative); }
-  static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, bool relative, bool global)
-  { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1)); }
-  static ControlCommand* MkJump(SongIterator* iter)
+  /// @brief Jump to location.
+  /// @details This will change the Song and/or the playing position.
+  /// @param iter Serialized iterator (optional)
+  /// @param start Location in seconds
+  /// @param relative Location is relative from the current location.
+  /// @param global Navigate in global playlist scope.
+  /// @param ignoreerror Ignore syntax errors. Parse as far as possible.
+  static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, bool relative, bool global, bool ignoreerror = false)
+  { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1) | (ignoreerror<<2)); }
+  /// @brief Jump to location
+  /// @details This will change the Song and/or the playing position.
+  /// The old position is returned in place.
+  /// @param iter [in] New location. The new location need not to have
+  /// the same root than the current location. It is sufficient if they are related,
+  /// i.e. the root of one location should be in the call stack of the other one.
+  /// [out after completion] new location, not necessarily the same than on input.
+  static ControlCommand* MkJump(Location* iter)
   { return new ControlCommand(Cmd_Jump, xstring(), iter, 0); }
+  /// @brief Stop at location
+  /// @details This will stop the playback at the specified location.
+  /// @param iter Serialized iterator (optional)
+  /// @param start Location in seconds
+  /// @param global Navigate in global playlist scope.
   static ControlCommand* MkStopAt(const xstring& iter, PM123_TIME start, bool global)
   { return new ControlCommand(Cmd_StopAt, iter, start, global<<1); }
+  /// Start or stop playing.
+  /// @param op Flag operator. See \c Op. (Op_Rewind is not valid)
   static ControlCommand* MkPlayStop(Op op)
   { return new ControlCommand(Cmd_PlayStop, xstring(), 0., op); }
+  /// Set or unset pause. Pause is reset on stop.
+  /// @param op Flag operator. See \c Op.
   static ControlCommand* MkPause(Op op)
   { return new ControlCommand(Cmd_Pause, xstring(), 0., op); }
+  /// Set/reset forward/rewind.
+  /// @param op Flag operator. See \c Op.
+  /// If Op_Rewind is not set fast forward is controlled.
+  /// Setting fast forward automatically stops rewinding and vice versa.
   static ControlCommand* MkScan(int op)
   { return new ControlCommand(Cmd_Scan, xstring(), 0., op); }
+  /// Set volume.
+  /// @param volume [in] Volume in the range (0..+/-1)
+  /// [out after completion] new volume
+  /// @param relative Set value relative to the current value.
+  /// Otherwise absolute (0..1)
   static ControlCommand* MkVolume(double volume, bool relative)
   { return new ControlCommand(Cmd_Volume, xstring(), volume, relative); }
+  /// Set/reset shuffle.
+  /// @param op Flag operator. See \c Op. (Op_Rewind is not valid)
   static ControlCommand* MkShuffle(Op op)
   { return new ControlCommand(Cmd_Shuffle, xstring(), 0., op); }
+  /// Set/reset repeat mode.
+  /// @param op Flag operator. See \c Op. (Op_Rewind is not valid)
   static ControlCommand* MkRepeat(Op op)
   { return new ControlCommand(Cmd_Repeat, xstring(), 0., op); }
+  /// Save raw stream of current decoder.
+  /// @param filename Target filename. NULL disables stream save.
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
-  static ControlCommand* MkLocation(SongIterator* sip, char what)
-  { return new ControlCommand(Cmd_Location, xstring(), sip, what); }
+  /// Query the current location.
+  /// @param loc [out after completion] Location object where to store the current location.
+  /// @param stopat Return stop-at location rather than the current playing position.
+  /// @param notime Return only the current song without the time offset (faster).
+  static ControlCommand* MkLocation(Location* loc, bool stopat, bool notime)
+  { return new ControlCommand(Cmd_Location, xstring(), loc, stopat | (notime<<1)); }
  protected: // internal messages
+  /// The current decoder finished it's work.
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
+  /// The output finished playback.
   static ControlCommand* MkOutStop()
   { return new ControlCommand(Cmd_OutStop, xstring(), (void*)NULL, 0); }
 

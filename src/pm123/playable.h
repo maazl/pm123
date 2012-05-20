@@ -275,8 +275,8 @@ class Playable
   /// Get next item of this collection. Passing NULL will return the first item.
   /// @return The function returns NULL if there are no more items.
   int_ptr<PlayableInstance> GetNext(const PlayableInstance* cur) const;
-  /// Returns a string that represents a serialized version of a sub item.
-  xstring                   SerializeItem(const PlayableInstance* item, SerializationOptions opt) const;
+  /*// Returns a string that represents a serialized version of a sub item.
+  xstring                   SerializeItem(const PlayableInstance* item, SerializationOptions opt) const;*/
 
  public: // Editor functions
   /// Change meta information of an object.

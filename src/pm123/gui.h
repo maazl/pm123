@@ -63,6 +63,7 @@ class GUI
   { WMP_REFRESH_CONTROLS = WM_USER + 1000 // 0                 0
   , WMP_PAINT                             // mask              0
   , WMP_LOAD                              // LoadHelper*
+  , WMP_NAVIGATE                          // Location*
   , WMP_RELOADSKIN                        // 0                 0
   , WMP_LOAD_VISUAL                       // int_ptr<Visual>   TRUE
   , WMP_DISPLAY_MESSAGE                   // message           TRUE (info) or FALSE (error)
@@ -117,9 +118,15 @@ class GUI
   static void      Show(bool visible = true);
   static void      Quit()                 { WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(BMP_POWER), 0); }
 
-  // Load objects into the player.
-  // Attention!!! Load takes the exclusive ownership of lhp and deletes it afterwards.
-  static void      Load(LoadHelper* lhp)  { WinPostMsg(HFrame, WMP_LOAD, MPFROMP(lhp), 0); }
+  /// Load objects into the player.
+  /// Attention!!! Load takes the exclusive ownership of lhp and deletes it afterwards.
+  static void      Load(LoadHelper* lhp)  { PMRASSERT(WinPostMsg(HFrame, WMP_LOAD, MPFROMP(lhp), 0)); }
+  /// Navigate to a selected playlist entry.
+  /// The action taken demands on the configuration and whether \a target
+  /// is related to the current location.
+  /// @param target Navigate to \c target.GetCurrent() using the call stack of \a target
+  /// as context. \a target is destroyed when the function returns.
+  static void      NavigateTo(Location& target) { WinSendMsg(HFrame, WMP_NAVIGATE, MPFROMP(&target), 0); }
 
  public: // Initialization interface
   static void      Init();

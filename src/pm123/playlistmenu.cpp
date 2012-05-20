@@ -34,6 +34,8 @@
 #include "pm123.h" // HAB
 #include "pm123.rc.h"
 #include "playlistmenu.h"
+#include "dependencyinfo.h"
+#include "location.h"
 #include <cpp/cppvdelegate.h>
 #include <utilfct.h>
 
@@ -85,18 +87,6 @@ PlaylistMenu::~PlaylistMenu()
   while (MenuMap.size())
     RemoveMapEntry(MenuMap.erase(MenuMap.size()-1));
 }
-
-/*// TODO: remove
-static void menutest(HWND menu)
-{
-  HWND owner = WinQueryWindow(menu, QW_OWNER);
-  HWND parent = WinQueryWindow(menu, QW_PARENT);
-  SWP pos;
-  WinQueryWindowPos(menu, &pos);
-  LONG count = LONGFROMMR(WinSendMsg(menu, MM_QUERYITEMCOUNT, 0, 0));
-  DEBUGLOG(("menutest: menu = %x, owner = %x, parent = %x, pos = {%x, %i,%i, %i,%i, %x ...}, count = %li\n",
-    menu, owner, parent, pos.fl, pos.x, pos.y, pos.cx, pos.cy, pos.hwndInsertBehind, count));
-}*/
 
 /* Sub menu state engine (u = in use, D = in destroy, U = in update)
  *
@@ -182,7 +172,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
       DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_COMMAND(%u) - %p\n", this, SHORT1FROMMP(mp1), mapp));
       if (mapp) // ID unknown?
-      { WinSendMsg(HwndOwner, UM_SELECTED, MPFROMP(mapp->Data.get()), mapp->User);
+      { SelectEntry(mapp);
         return 0; // no further processing
     } }
     break;
@@ -219,6 +209,39 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   }
   // Call chained dialog procedure
   return (*Old_DlgProc)(HwndOwner, msg, mp1, mp2);
+}
+
+void PlaylistMenu::SelectEntry(const MapEntry* mapp) const
+{
+  //MPARAM user = mapp->User;
+  vector<PlayableInstance> callstack;
+  // find root and collect call stack
+  for (;;)
+  { const MapEntry* parent = mapp->Parent;
+    if (parent == NULL)
+      break;
+    callstack.append() = (PlayableInstance*)mapp->Data.get();
+    mapp = parent;
+  }
+  // Now mapp points to the attached root and callstack
+  // contains all sub items within this root.
+
+  // Create location object
+  JobSet noblockjob(PRI_None);
+  MenuCtrlData loc(mapp->Data->GetPlayable(), mapp->User);
+  for (size_t i = callstack.size(); i--; )
+  { if (loc.Item.NavigateInto(noblockjob))
+    { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateInto failed."));
+      return;
+    }
+    if (loc.Item.NavigateTo(callstack[i]))
+    { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateTo failed."));
+      return;
+    }
+  }
+  callstack.clear();
+  DEBUGLOG(("PlaylistMenu(%p)::SelectEntry: {%s, %p}\n", this, loc.Item.Serialize().cdata(), loc.User));
+  WinSendMsg(HwndOwner, WM_CONTROL, MPFROMSHORT(mapp->IDMenu), MPFROMP(&loc));
 }
 
 USHORT PlaylistMenu::AllocateID()
@@ -668,7 +691,8 @@ bool PlaylistMenu::AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFl
 }
 
 bool PlaylistMenu::DetachMenu(USHORT menuid)
-{ MapEntry* mapp = MenuMap.find(menuid);
+{ DEBUGLOG(("PlaylistMenu(%p)::DetachMenu(%u)\n", this, menuid));
+  MapEntry* mapp = MenuMap.find(menuid);
   if (!mapp) // registered map entry?
     return false;
   // delete old stuff later
