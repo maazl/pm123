@@ -1402,7 +1402,8 @@ bmp_draw_plind( HPS hps, int index, int total )
       if( index > 0 )
       { for( i = digits; --i >= 0; )
         { div_t d = div( index, 10 );
-          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y, index ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
+          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y,
+            index ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
           index = d.quot;
         }
       }
@@ -1415,10 +1416,11 @@ bmp_draw_plind( HPS hps, int index, int total )
       bmp_draw_part_bg( hps, p.x, p.y, p.x + bmp_cx( DIG_PL_INDEX ) * digits,
                                        p.y + bmp_cy( DIG_PL_INDEX ));
 
-      if( total > 0 )
+      if( total >= 0 )
       { for( i = digits; --i >= 0; )
         { div_t d = div( total, 10 );
-          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y, total ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
+          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y,
+            total || i == digits ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
           total = d.quot;
         }
       }

@@ -105,7 +105,8 @@ class GUIImp : private GUI
   , UPD_VOLUME           = 0x0040         // Volume slider
   , UPD_TEXT             = 0x0080         // Text in scroller
   , UPD_ALL              = 0x00ff         // All the above
-  , UPD_WINDOW           = 0x0100         // Whole window redraw
+  , UPD_BACKGROUND       = 0x0100         // Draw player background
+  , UPD_LED              = 0x0200         // Draw player activity LED
   };
   CLASSFLAGSATTRIBUTE(UpdateFlags);
 
@@ -144,7 +145,7 @@ class GUIImp : private GUI
   friend MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   static MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 
-  static void      Invalidate(UpdateFlags what, bool immediate);
+  static void      Invalidate(UpdateFlags what);
   static void      SetAltSlider(bool alt);
 
   /// Ensure that a MsgLocation message is processed by the controller
@@ -165,12 +166,14 @@ class GUIImp : private GUI
   static void      SaveStream(HWND hwnd, BOOL enable);
   friend BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition);
 
-  static void      LoadAccel();           // (Re-)Loads the accelerator table and modifies it by the plug-ins.
-  /// Refresh plug-in menu in the main pop-up menu.
-  static void      LoadPluginMenu(HWND hmenu);
-  static void      ShowContextMenu();     // View to context menu
-  static void      RefreshTimers(HPS hps);// Refresh current playing time, remaining time and slider.
-  static void      PrepareText();         // Constructs a information text for currently loaded file and selects it for displaying.
+  static void      LoadAccel();           ///< (Re-)Loads the accelerator table and modifies it by the plug-ins.
+  static void      LoadPluginMenu(HWND hmenu); ///< Refresh plug-in menu in the main pop-up menu.
+  static void      ShowContextMenu();     ///< View to context menu
+  /// Refresh current playing time, remaining time and slider.
+  static void      RefreshTimers(HPS hps, SongIterator::OffsetInfo oi);
+  static void      PrepareText();         ///< Constructs a information text for currently loaded file and selects it for displaying.
+  /// Execute screen updates from \c WMP_PAINT.
+  static void      Paint(HPS hps, UpdateFlags mask);
 
   friend void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override);
 
@@ -390,7 +393,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
    case WMP_RELOADSKIN:
     { bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer);
-      Invalidate(UPD_WINDOW, true);
+      WinInvalidateRect(HPlayer, NULL, 1);
       return 0;
     }
 
@@ -433,7 +436,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
         break;
        case Ctrl::Cmd_Volume:
-        Invalidate(UPD_VOLUME, true);
+        Invalidate(UPD_VOLUME);
         break;
        case Ctrl::Cmd_Jump:
         IsSeeking = FALSE;
@@ -456,7 +459,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           UpdAtLocMsg = UPD_NONE;
           if (Cfg::Get().mode == CFG_MODE_REGULAR)
               upd |= UPD_TIMERS;
-          Invalidate(upd, true);
+          Invalidate(upd);
           break;
         }
        default:; // suppress warnings
@@ -481,7 +484,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           WinSendDlgItemMsg(HPlayer, BMP_PLAY, WM_SETHELP, MPFROMP("Starts playback"), 0);
           WinSetWindowText (HFrame,  AMP_FULLNAME);
           ForceLocationMsg();
-          inval |= UPD_WINDOW;
+          inval |= UPD_ALL;
         }
       }
       if (flags & Ctrl::EV_Pause)
@@ -530,7 +533,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         inval |= UPD_VOLUME;
 
       if (inval)
-        Invalidate(inval, true);
+        Invalidate(inval);
     }
     return 0;
     
@@ -582,7 +585,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         upd &= UPD_TEXT; // reduced update in small mode
        default:;
       }
-      Invalidate(upd, true);
+      Invalidate(upd);
     }
     return 0;
     
@@ -596,35 +599,14 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WMP_PAINT:
     if (!Terminate)
-    { UpdateFlags mask = (UpdateFlags)LONGFROMMP(mp1) & UpdFlags;
-      UpdFlags &= ~mask;
-      DEBUGLOG(("GUIImp::DlgProc: WMP_PAINT %x\n", mask));
-      // is there anything to draw with HPS?
-      if (mask & ~UPD_WINDOW)
-      { // TODO: optimize redundant redraws?
+    { // is there anything to draw with HPS?
+      UpdateFlags mask = (UpdateFlags)LONGFROMMP(mp1) & UpdFlags;
+      if (mask)
+      { // Acknowledge bits
+        UpdFlags &= ~mask;
         PresentationSpace hps(HPlayer);
-        Playable* root = CurrentRoot();
-        if (mask & UPD_TIMERS)
-          RefreshTimers(hps);
-        if (mask & (UPD_TOTALS|UPD_PLINDEX))
-        { int index = 0; // TODO: is_playlist ? index+1 : 0;
-          bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
-        }
-        if (mask & UPD_PLMODE)
-          bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
-        if (mask & UPD_RATE)
-          bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
-        if (mask & UPD_CHANNELS)
-          bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
-        if (mask & UPD_VOLUME)
-          bmp_draw_volume(hps, Ctrl::GetVolume());
-        if (mask & UPD_TEXT)
-        { PrepareText();
-          bmp_draw_text(hps);
-        }
+        Paint(hps, mask);
       }
-      if (mask & UPD_WINDOW)
-        WinInvalidateRect(HPlayer, NULL, 1);
     }
     return 0;
 
@@ -691,23 +673,9 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_PAINT:
-    {
-      HPS hps = WinBeginPaint(HPlayer, NULLHANDLE, NULL);
-      bmp_draw_background(hps, HPlayer);
-      if (!Terminate)
-      {
-        Playable* root = CurrentRoot();
-        RefreshTimers(hps);
-        int index = 0; // TODO: is_playlist ? index+1 : 0;
-        bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
-        bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
-        bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
-        bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
-        bmp_draw_volume(hps, Ctrl::GetVolume());
-        bmp_draw_text(hps);
-      }
-      bmp_draw_led(hps, IsHaveFocus);
-      WinEndPaint( hps );
+    { HPS hps = WinBeginPaint(HPlayer, NULLHANDLE, NULL);
+      Paint(hps, Terminate ? UPD_BACKGROUND|UPD_LED : UPD_ALL|UPD_BACKGROUND|UPD_LED);
+      WinEndPaint(hps);
       return 0;
     }
 
@@ -1168,7 +1136,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         IsSliderDrag = false;
       } else
         // Show new position
-        Invalidate(UPD_TIMERS|(UPD_TEXT|UPD_RATE|UPD_CHANNELS|UPD_PLINDEX)*IsAltSlider, true);
+        Invalidate(UPD_TIMERS|(UPD_TEXT|UPD_RATE|UPD_CHANNELS|UPD_PLINDEX)*IsAltSlider);
     }
     return 0;
 
@@ -1195,17 +1163,12 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return WinDefWindowProc(HPlayer, msg, mp1, mp2);
 }
 
-void GUIImp::Invalidate(UpdateFlags what, bool immediate)
-{ DEBUGLOG(("GUIImp::Invalidate(%x, %u)\n", what, immediate));
-  if (immediate && (what & UPD_WINDOW))
-  { WinInvalidateRect(HPlayer, NULL, 1);
-    what &= ~UPD_WINDOW;
-  }
+void GUIImp::Invalidate(UpdateFlags what)
+{ DEBUGLOG(("GUIImp::Invalidate(%x) - %x\n", what, UpdFlags));
   if ((~UpdFlags & what) == 0)
     return; // Nothing to set
   UpdFlags |= what;
-  if (immediate)
-    WinPostMsg(HPlayer, WMP_PAINT, MPFROMLONG(what), 0);
+  WinPostMsg(HPlayer, WMP_PAINT, MPFROMLONG(what), 0);
 }
 
 /* set alternate navigation status to 'alt'. */
@@ -1213,7 +1176,7 @@ void GUIImp::SetAltSlider(bool alt)
 { DEBUGLOG(("GUIImp::SetAltSlider(%u) - %u\n", alt, IsAltSlider));
   if (IsAltSlider != alt)
   { IsAltSlider = alt;
-    Invalidate(UPD_TIMERS, true);
+    Invalidate(UPD_TIMERS);
   }
 }
 
@@ -1294,7 +1257,7 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
 
   if (args.New.mode != args.Old.mode)
   { bmp_reflow_and_resize(HFrame);
-    Invalidate(UPD_ALL, true);
+    Invalidate(UPD_ALL);
   } else if ( args.New.scroll != args.Old.scroll
     || args.New.scroll_around != args.Old.scroll_around
     || args.New.viewmode != args.Old.viewmode
@@ -1303,7 +1266,7 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
       && args.New.font != args.Old.font )
     || ( !args.New.font_skinned
       && (args.New.font_size != args.Old.font_size || memcmp(&args.New.font_attrs, &args.Old.font_attrs, sizeof args.New.font_attrs) != 0) ))
-    Invalidate(UPD_TEXT, true);
+    Invalidate(UPD_TEXT);
 
   if ( args.New.dock_windows != args.Old.dock_windows
     || args.New.dock_margin != args.Old.dock_margin )
@@ -1515,8 +1478,8 @@ void GUIImp::ShowContextMenu()
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 
-void GUIImp::RefreshTimers(HPS hps)
-{ DEBUGLOG(("GUI::RefreshTimers(%p) - %i %i\n", hps, Cfg::Get().mode, IsSeeking));
+void GUIImp::RefreshTimers(HPS hps, SongIterator::OffsetInfo oi)
+{ DEBUGLOG(("GUI::RefreshTimers(%p, {%i,%f}) - %i %i\n", hps, oi.Index, oi.Time, Cfg::Get().mode, IsSeeking));
 
   Playable* root = CurrentIter->GetRoot();
   if (root == NULL)
@@ -1530,10 +1493,6 @@ void GUIImp::RefreshTimers(HPS hps)
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
   PM123_TIME total_song = CurrentIter->GetCurrent()->GetInfo().obj->songlength;
   PM123_TIME total_time = is_playlist ? root->GetInfo().obj->songlength : -1;
-  // TODO: calculate offset from call stack.
-  PM123_TIME offset = -1;
-  int index = -1;
-  //const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
 
   PM123_TIME list_left = -1;
   PM123_TIME play_left = total_song;
@@ -1543,7 +1502,7 @@ void GUIImp::RefreshTimers(HPS hps)
   if (play_left > 0)
     play_left -= position;
   if (total_time > 0)
-    list_left = total_time - offset - position;
+    list_left = total_time - oi.Time - position;
 
   double pos = -1.;
   if (!IsAltSlider)
@@ -1556,12 +1515,12 @@ void GUIImp::RefreshTimers(HPS hps)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = index / (double)(total_items-1);
+        pos = oi.Index / (double)(total_items-1);
     }
     break;
    case CFG_ANAV_TIME:
     if (root->GetInfo().obj->songlength > 0)
-    { pos = (offset + position) / root->GetInfo().obj->songlength;
+    { pos = (oi.Time + position) / root->GetInfo().obj->songlength;
       break;
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
@@ -1570,7 +1529,7 @@ void GUIImp::RefreshTimers(HPS hps)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = index;
+        pos = oi.Index;
       else break;
       // Add current song time
       if (total_song > 0)
@@ -1619,6 +1578,38 @@ void GUIImp::PrepareText()
       break;
   }
   bmp_set_text(!text ? "" : text);
+}
+
+void GUIImp::Paint(HPS hps, UpdateFlags mask)
+{ DEBUGLOG(("GuiImp::Paint(,%x) - %x\n", mask, UpdFlags));
+  if (mask & UPD_BACKGROUND)
+    bmp_draw_background(hps, HPlayer);
+  Playable* root = CurrentRoot();
+  if (mask & (UPD_TIMERS|UPD_TOTALS|UPD_PLINDEX))
+  { JobSet job(PRI_Normal); // The job is discarded, because the update notification will call this function again anyways.
+    SongIterator::OffsetInfo oi = root
+      ? CurrentIter->CalcOffsetInfo(job)
+      : SongIterator::OffsetInfo::Invalid;
+    ++oi.Index; // The GUI counts from 1 rather than 0.
+    if (mask & UPD_TIMERS)
+      RefreshTimers(hps, oi);
+    if (mask & (UPD_TOTALS|UPD_PLINDEX))
+      bmp_draw_plind(hps, oi.Index, root ? root->GetInfo().rpl->songs : -1);
+  }
+  if (mask & UPD_PLMODE)
+    bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
+  if (mask & UPD_RATE)
+    bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
+  if (mask & UPD_CHANNELS)
+    bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
+  if (mask & UPD_VOLUME)
+    bmp_draw_volume(hps, Ctrl::GetVolume());
+  if (mask & UPD_TEXT)
+  { PrepareText();
+    bmp_draw_text(hps);
+  }
+  if (mask & UPD_LED)
+    bmp_draw_led(hps, IsHaveFocus);
 }
 
 void GUIImp::AutoSave(Playable& list)

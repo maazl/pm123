@@ -165,9 +165,9 @@ class PlayableSlice : public APlayable
 };
 
 
-/** Reference to a Playable object. While the Playable objects are unique per URL
- * the PlayableRef is not. PlayableRef can override the properties Item, Meta and Attr
- * of the underlying APlayable.
+/** Reference to a Playable object.
+ * While the Playable objects are unique per URL the PlayableRef is not.
+ * PlayableRef can override the properties Item, Meta and Attr of the underlying APlayable.
  *
  * Calling non-constant methods unsynchronized will not cause the application
  * to have undefined behavior. But it will only cause the PlayableRef to have a

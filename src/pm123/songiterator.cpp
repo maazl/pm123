@@ -181,6 +181,8 @@ int_ptr<PlayableInstance> ShuffleWorker::Prev(PlayableInstance* pi)
 *
 */
 
+SongIterator::OffsetInfo SongIterator::OffsetInfo::Invalid(-1,-1);
+
 SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo& r)
 { if (Index >= 0)
   { if (r.Index >= 0)
@@ -222,16 +224,24 @@ SongIterator::~SongIterator()
 { int_ptr<Playable>().fromCptr(GetRoot());
 }
 
-int SongIterator::ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem)
-{ return (int)&key - (int)elem.Playlist.get();
-}
-
 void SongIterator::ShuffleWorkerCacheCleanup()
-{ size_t pos = ShuffleWorkerCache.size();
-  DEBUGLOG(("SongIterator(%p)::ShuffleWorkerCacheCleanup() - %u\n", this, pos));
-  while (pos--)
-    if (!FindInCallstack(ShuffleWorkerCache[pos]->Playlist))
-      ShuffleWorkerCache.erase(pos);
+{ DEBUGLOG(("SongIterator(%p)::ShuffleWorkerCacheCleanup() - %u, %u\n", this, Callstack.size(), ShuffleWorkerCache.size()));
+  size_t maxvalid = 0;
+  Playable* list = GetRoot();
+  size_t level = 0;
+  while (list && level < ShuffleWorkerCache.size())
+  { ShuffleWorker* sw = ShuffleWorkerCache[level];
+    if (sw)
+    { if (sw->Playlist != list)
+        break;
+      maxvalid = level; // cache is valid
+    }
+    if (level >= Callstack.size())
+      break;
+    list = &Callstack[level]->GetPlayable();
+    ++level;
+  }
+  ShuffleWorkerCache.set_size(maxvalid);
 }
 
 void SongIterator::Enter()
@@ -243,10 +253,9 @@ void SongIterator::Enter()
 }
 
 void SongIterator::Leave()
-{ APlayable* cur = GetCurrent();
-  if (cur)
-  ShuffleWorkerCache.erase(cur->GetPlayable());
-  IsShuffleCache = PLO_NONE;
+{ IsShuffleCache = PLO_NONE;
+  if (ShuffleWorkerCache.size() > Callstack.size())
+    ShuffleWorkerCache.set_size(Callstack.size());
   Location::Leave();
 }
 
@@ -257,13 +266,16 @@ void SongIterator::PrevNextCore(bool direction)
   }
   // Prev/next in shuffle mode
   DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
-  const size_t depth = Callstack.size() -1;
-  Playable& list = depth ? Callstack[depth-1]->GetPlayable() : *Root;
   // Shuffle cache lookup
-  int_ptr<ShuffleWorker>& sw = ShuffleWorkerCache.get(list);
+  size_t depth = Callstack.size();
+  ShuffleWorkerCache.set_size(depth);
+  ShuffleWorker* sw = ShuffleWorkerCache[--depth];
   if (!sw)
-    // Cache miss
-    sw = new ShuffleWorker(list, ShuffleSeed);
+  { // Cache miss
+    Playable& list = depth ? Callstack[depth-1]->GetPlayable() : *Root;
+    ShuffleWorkerCache[depth] = sw = new ShuffleWorker(list, ShuffleSeed);
+  } else
+    ASSERT(sw->Playlist == (depth ? &Callstack[depth-1]->GetPlayable() : Root));
   // Navigate
   int_ptr<PlayableInstance>& pi = Callstack[depth];
   pi = direction ? sw->Next(pi) : sw->Prev(pi);
@@ -313,19 +325,22 @@ void SongIterator::SetOptions(PL_OPTIONS options)
     return;
   }
   IsShuffleCache = PLO_NONE;
-  if (!(options & PLO_SHUFFLE))
+  if (!(options & PLO_SHUFFLE) && ShuffleWorkerCache.size())
   { // Clear cache up to the first entry that overrides PLO_*SHUFFLE.
     Playable* root = GetRoot();
     if (root)
-    { ShuffleWorkerCache.erase(*root);
-      foreach (PlayableInstance*const*, ppi, GetCallstack())
-      { PlayableInstance* pi = *ppi;
+    { ShuffleWorkerCache[0].reset();
+      size_t i = 0;
+      while (i < Callstack.size())
+      { if (i >= ShuffleWorkerCache.size())
+          break;
+        PlayableInstance* pi = Callstack[i];
         if (!pi)
           break;
         PL_OPTIONS plo = (PL_OPTIONS)pi->GetInfo().attr->ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE);
         if (!plo)
           break;
-        ShuffleWorkerCache.erase(pi->GetPlayable());
+        ShuffleWorkerCache[++i].reset();
       }
     }
   }
@@ -348,12 +363,31 @@ bool SongIterator::IsShuffle() const
   return !(IsShuffleCache & PLO_NO_SHUFFLE);
 }
 
-SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(unsigned level)
-{ DEBUGLOG(("SongIterator(%p)::GetOffsetInfo(%u)\n", this, level));
-  ASSERT(level <= GetLevel());
+SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(JobSet& job)
+{ DEBUGLOG(("SongIterator(%p)::GetOffsetInfo()\n", this));
+  //ASSERT(level <= GetLevel());
+  if (!Root)
+    return OffsetInfo::Invalid;
+  OffsetInfo ret;
+  /* @todo
+   * PlayableSet exclude;
+  Playable* parent = Root;
+  for (size_t level = 0; level < Callstack.size(); ++level)
+  { PlayableInstance* item = Callstack[level];
+    // Add Offset
+    while (item)
+    {
+
+    }
+  }
+  if (level < Callstack.size())
   if (level >= Callstack.size())
-    return OffsetInfo(0, Position >= 0 ? Position : 0);
+  { OffsetInfo ret;
+    if (level == Callstack.size() && Position > 0)
+      ret.Time = Position;
+    return ret;
+  }
   OffsetInfo off = CalcOffsetInfo(level+1);
-  // TODO: Playlist offset!
-  return off;
+  Playable**/
+  return ret;
 }

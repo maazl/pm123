@@ -335,7 +335,6 @@ class Location : public Iref_count
   /// @remarks The added aggregate is always equal to the Aggregate of Root minus AddBackAggregate
   /// (with the same exclusions).
   InfoFlags                   AddBackAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);*/
-
 };
 
 // for convenience

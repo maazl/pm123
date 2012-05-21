@@ -224,11 +224,9 @@ struct AggregateInfo
 { RplInfo                Rpl;
   DrplInfo               Drpl;
   const PlayableSetBase& Exclude; // Virtual base class supplied from creator or derived class.
- protected:
-  unsigned               Revision;
  public:
                          //AggregateInfo() : Revision(0) {}
-                         AggregateInfo(const PlayableSetBase& exclude) : Exclude(exclude), Revision(0) {}
+                         AggregateInfo(const PlayableSetBase& exclude) : Exclude(exclude) {}
                          //AggregateInfo(const AggregateInfo& r);
   void                   Reset()                  { Rpl.Reset(); Drpl.Reset(); }
   AggregateInfo&         operator=(const AggregateInfo& r);
@@ -238,8 +236,6 @@ struct AggregateInfo
   AggregateInfo&         operator+=(const volatile AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
   AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
   AggregateInfo&         operator-=(const volatile AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
-  unsigned               GetRevision() const      { return Revision; }
-  unsigned               NextRevision()           { return Revision++; }
 };
 
 // TODO: remove this class

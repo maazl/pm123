@@ -390,14 +390,12 @@ void DecoderInfo::Reset()
 AggregateInfo& AggregateInfo::operator=(const AggregateInfo& r)
 { Rpl  = r.Rpl;
   Drpl = r.Drpl;
-  Revision = r.Revision;
   return *this;
 }
 
 AggregateInfo& AggregateInfo::operator=(const volatile AggregateInfo& r)
 { Rpl  = r.Rpl;
   Drpl = r.Drpl;
-  Revision = r.Revision;
   return *this;
 }
 

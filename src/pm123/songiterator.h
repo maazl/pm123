@@ -130,11 +130,18 @@ class SongIterator : public Location
     /// some information is missing and requested asynchronously or
     /// at least one object has indefinite length.
     PM123_TIME                Time;
+    static OffsetInfo         Invalid;
     OffsetInfo()              : Index(0), Time(0) {}
     OffsetInfo(int index, PM123_TIME time) : Index(index), Time(time) {}
     /// Add another offset. Note that the singular value -1 always wins.
     OffsetInfo& operator+=(const OffsetInfo& r);
   };
+ /*private:
+  struct OffsetEntry
+  { PlayableSet               Exclude;
+    AggregateInfo             Offset;
+    AtomicUnsigned            Valid;
+  };*/
 
  private:
   static int                  ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem);
@@ -148,6 +155,8 @@ class SongIterator : public Location
   /// - PLO_SHUFFLE := true
   /// - PLO_NO_SHUFFLE|x := false
   mutable PL_OPTIONS          IsShuffleCache;
+  // Cached front offsets for each callstack entry.
+  //vector_own<OffsetEntry>     OffsetCache;
 
  protected:
   virtual void                Enter();
@@ -181,12 +190,12 @@ class SongIterator : public Location
   void                        Reshuffle() { ShuffleSeed = rand() ^ (rand() << 16); ShuffleWorkerCache.clear(); }
 
   /// @brief Return the song and time offset of this location within root.
-  /// @param level Offset from the level<sup>th</sup> call stack entry.
+  /*// @param level Offset from the level<sup>th</sup> call stack entry.
   /// The default level 0 calculates the offsets from the root.
-  /// \a level must be in the range [0,GetLevel()].
+  /// \a level must be in the range [0,GetLevel()].*/
   /// @remarks Note that GetOffsetInfo may return different results
-  /// for the same Playable object depending on the call stack entries < \a level.
-  OffsetInfo                  CalcOffsetInfo(unsigned level = 0);
+  /// for the same Playable object depending on the call stack entries &lt; \a level.
+  OffsetInfo                  CalcOffsetInfo(JobSet& job/*, unsigned level = 0*/);
 };
 
 #endif

@@ -772,7 +772,7 @@ void CommandProcessor::XStatus()
 }
 
 void CommandProcessor::XTime()
-{ SongIterator loc;
+{ Location loc;
   Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.appendf("%f", loc.GetPosition());
@@ -788,7 +788,7 @@ void CommandProcessor::XLocation()
   const strmap<7,bool>* op = mapsearch(map, Request);
   if (!op)
     throw SyntaxException("Expected [play|stopat] but found \"%s\".", Request);
-  SongIterator loc;
+  Location loc;
   Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.append(loc.Serialize());
@@ -926,7 +926,7 @@ void CommandProcessor::XPlCallstack()
 
 void CommandProcessor::XPlIndex()
 { if (CurSI.GetRoot())
-  { const SongIterator::OffsetInfo& off = CurSI.CalcOffsetInfo();
+  { const SongIterator::OffsetInfo& off = CurSI.CalcOffsetInfo(SyncJob);
     Reply.append(off.Index+1);
   }
 }
