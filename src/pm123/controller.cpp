@@ -59,15 +59,9 @@ struct ctrl_state
 };
 
 
-/****************************************************************************
-*
-*  class Ctrl
-*
-****************************************************************************/
-
 /// Private implementation of class \c Ctrl.
 class CtrlImp
-: public Ctrl::ControlCommand // Derive to access command arguments directly
+: private Ctrl::ControlCommand // Derive to access command arguments directly
 , public Ctrl                 // Derive to access protected members only
 { friend class Ctrl;
  private:
@@ -431,7 +425,7 @@ void CtrlImp::NavigateCore(Location& si)
     return;
   }
   ASSERT(level != INT_MIN);
-  if (abs(level) > max(si.GetLevel(), Current()->Loc.GetLevel()))
+  if (abs(level) > max(si.GetCallstack().size(), Current()->Loc.GetCallstack().size()))
   { DEBUGLOG(("Ctrl::NavigateCore - seek to %f\n", Current()->Loc.GetPosition()));
     // only location is different => seek only
     if (Playing)
@@ -537,7 +531,7 @@ void CtrlImp::CheckPrefetch(double pos)
       n = ped.size();
       do
       { PrefetchEntry& pe = *ped[--n]; 
-        if (plp && pe.Loc.GetLevel() >= 1)
+        if (plp && pe.Loc.GetCallstack().size() >= 1)
         { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
           if (pe.Loc.NavigateCount(SyncJob, 1, TATTR_SONG, 1))// we played the last item of a top level entry
             plp->RemoveItem(pip);

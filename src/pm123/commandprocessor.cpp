@@ -932,8 +932,9 @@ void CommandProcessor::XPlIndex()
 }
 
 void CommandProcessor::XPlItemIndex()
-{ if (CurSI.GetLevel())
-  { PlayableInstance* pi = CurSI.GetCallstack()[CurSI.GetLevel()-1];
+{ const vector<PlayableInstance>& cs = CurSI.GetCallstack();
+  if (cs.size())
+  { PlayableInstance* pi = cs[cs.size()-1];
     if (pi)
       Reply.append(pi->GetIndex());
   }
@@ -971,7 +972,7 @@ Playable* CommandProcessor::PrepareEditPlaylist()
 }
 
 inline PlayableInstance* CommandProcessor::CurrentPlaylistItem()
-{ return CurSI.GetLevel() ? CurSI.GetCallstack()[0] : NULL;
+{ return CurSI.GetCallstack().size() ? CurSI.GetCallstack()[0] : NULL;
 }
 
 void CommandProcessor::XPlClear()

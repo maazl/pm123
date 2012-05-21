@@ -89,7 +89,7 @@ class Location : public Iref_count
   void                        RootChange(const CollectionChangeArgs& args);
 #endif
  protected:
-  /// Enter the current item.
+  /// Enter the current playlist.
   /// @pre \c *GetCurrent() is a valid playlist.
   virtual void                Enter();
   /// Leave the current innermost playlist.
@@ -119,6 +119,7 @@ class Location : public Iref_count
 
   /// Helper for double dispatch at \c Swap.
   virtual void                Swap2(Location& l);
+  /// Helper for calling Swap2 on different objects.
   static void                 CallSwap2(Location& r, Location& l) { r.Swap2(l); }
 
  private:
@@ -180,15 +181,17 @@ class Location : public Iref_count
   /// @details The offset is only valid if \c GetCurrent() is a song.
   /// @return The offset in seconds from the beginning of the current song.
   /// A value of \c <0 indicates that the position has not yet been set.
-  /// In case the current item is a playlist the function always return \c -1.
+  /// In case the current item is a playlist the function always return \c -2.
   /// @remarks This is not the same as the time offset within the current root.
   PM123_TIME                  GetPosition() const          { return Position; }
-  /// Depth of the current location. (= size of the callstack)
+  /// Depth of the current location.
   /// @details
   /// - 0 = At the root.
   /// - 1 = Root is a playlist and we are at an immediate sub item of this list.
   /// - 2 = We are in a nested playlist item.
   /// - ...
+  /// @remarks Note that \c GetLevel could return more than \c GetCallstack().size()
+  /// if a song is currently entered.
   unsigned                    GetLevel() const             { return Callstack.size() + (Position >= -1); }
 
   /// Check whether a Playable object is already in the call stack.
@@ -200,10 +203,10 @@ class Location : public Iref_count
   /// - UINT_MAX -> pp is not in call stack
   unsigned                    FindInCallstack(const Playable* pp) const;
   /// Check whether two locations are related, i.e. one is a subset of the other one.
-  /// @return Level where \a r is in the callstack.
+  /// @return Level where \a r is in the call stack.
   /// - 0  -> Both locations share the same root.
-  /// - <0 -> This Location's root is at level \a -returnvalue in the call stack of \a r.
-  /// - >0 -> \a r is at level \a returnvalue in the call stack of this Location.
+  /// - <0 -> This Location's root is at level \a -return value in the call stack of \a r.
+  /// - >0 -> \a r is at level \a return value in the call stack of this Location.
   /// - INT_MIN -> The two locations are unrelated.
   int                         RelationCheck(const Location& r) const;
 
@@ -312,7 +315,7 @@ class Location : public Iref_count
   /// and undefined song locations (i.e. \c GetPosition() is \c -1) as before the start rather than after the end.
   int                         CompareTo(const Location& r, unsigned level = 0, bool withpos = true) const;
 
-  /// @brief Return the aggregate from the front of root to this location within root.
+  /*// @brief Return the aggregate from the front of root to this location within root.
   /// @param dest Destination aggregate. All items in the exclude list of the destination
   /// will be excluded from the calculation. The result is \e added to the destination
   /// rather than assigned.
@@ -331,7 +334,7 @@ class Location : public Iref_count
   /// \a level must be in the range [0,GetLevel()].
   /// @remarks The added aggregate is always equal to the Aggregate of Root minus AddBackAggregate
   /// (with the same exclusions).
-  InfoFlags                   AddBackAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);
+  InfoFlags                   AddBackAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);*/
 
 };
 

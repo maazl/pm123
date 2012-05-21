@@ -694,7 +694,7 @@ const volatile AggregateInfo& AggregateHelper::FetchAI(APlayable& p)
   return ai;
 }
 
-InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level)
+/*InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level)
 { DEBUGLOG(("Location(%p)::AddFrontAggregate(&%p{%s,}, %x, %u, %u)\n", this, &dest, dest.Exclude.size(), what, pri, level));
   ASSERT(level <= GetLevel());
   ASSERT((what & ~IF_Aggreg) == 0);
@@ -737,5 +737,5 @@ InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Prior
     agg.Exclude.add(*list);
   }
   return agg.GetIncomplete();
-}
+}*/
 

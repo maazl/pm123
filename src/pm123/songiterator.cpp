@@ -351,7 +351,7 @@ bool SongIterator::IsShuffle() const
 SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(unsigned level)
 { DEBUGLOG(("SongIterator(%p)::GetOffsetInfo(%u)\n", this, level));
   ASSERT(level <= GetLevel());
-  if (level == GetLevel())
+  if (level >= Callstack.size())
     return OffsetInfo(0, Position >= 0 ? Position : 0);
   OffsetInfo off = CalcOffsetInfo(level+1);
   // TODO: Playlist offset!

@@ -361,9 +361,10 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
   int_ptr<PlayableInstance> psp; // start element
   PM123_TIME ss = -1; // start position
   if (start)
-  { if (start->GetLevel() > level)
+  { size_t size = start->GetCallstack().size();
+    if (size > level)
       psp = start->GetCallstack()[level];
-    else if (start->GetLevel() == level)
+    else if (size == level)
     { if (job.RequestInfo(cur, IF_Tech))
         whatok = IF_None;
       else if (cur.GetInfo().tech->attributes & TATTR_SONG)
@@ -373,9 +374,10 @@ InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPla
   int_ptr<PlayableInstance> pep; // stop element
   PM123_TIME es = -1; // stop position
   if (stop)
-  { if (stop->GetLevel() > level)
+  { size_t size = stop->GetCallstack().size();
+    if (size > level)
       pep = stop->GetCallstack()[level];
-    else if (stop->GetLevel() == level)
+    else if (size == level)
     { if (job.RequestInfo(cur, IF_Tech))
         whatok = IF_None;
       else if (cur.GetInfo().tech->attributes & TATTR_SONG)
