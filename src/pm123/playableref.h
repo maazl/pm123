@@ -88,12 +88,6 @@ class PlayableSlice : public APlayable
  private:
           void              EnsureCIC()              { if (!CIC) CIC = new CICache(RefTo->GetPlayable()); }
           CalcResult        CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, JobSet& job);
-  /// (Re)calculate the the information what in \a cie.
-  /// @return Returns the successfully obtained information. If less than \a what then
-  /// some information depends on other objects. The dependencies in \a job have been adjusted.
-          InfoFlags         CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, size_t level);
-  /// Adds the slice [start,stop) of song to \a ai. If either of them is < 0 the beginning respectively the end of the song is used.
-          //bool              AddSong(AggregateInfo& ai, APlayable& song, InfoFlags what, Priority pri, PM123_TIME start, PM123_TIME stop);
  protected:
   /// Compare two slice borders taking NULL iterators by default as
   /// at the start, if type is SB_Start, or at the end if type is SB_Stop.

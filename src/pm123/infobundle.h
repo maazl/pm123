@@ -216,7 +216,7 @@ struct DecoderInfo
   ObjInfo                Obj;
   MetaInfo               Meta;
   AttrInfo               Attr;
-  // reset all fields to their initial state
+  /// reset all fields to their initial state.
   void                   Reset();
 };
 
@@ -228,13 +228,13 @@ struct AggregateInfo
                          //AggregateInfo() : Revision(0) {}
                          AggregateInfo(const PlayableSetBase& exclude) : Exclude(exclude) {}
                          //AggregateInfo(const AggregateInfo& r);
+  /// Reset all fields to their initial state.
   void                   Reset()                  { Rpl.Reset(); Drpl.Reset(); }
   AggregateInfo&         operator=(const AggregateInfo& r);
   AggregateInfo&         operator=(const volatile AggregateInfo& r);
-  // reset all fields to their initial state
-  AggregateInfo&         operator+=(const AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
+  //AggregateInfo&         operator+=(const AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
   AggregateInfo&         operator+=(const volatile AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
-  AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
+  //AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
   AggregateInfo&         operator-=(const volatile AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
 };
 

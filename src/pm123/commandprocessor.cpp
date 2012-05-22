@@ -926,8 +926,9 @@ void CommandProcessor::XPlCallstack()
 
 void CommandProcessor::XPlIndex()
 { if (CurSI.GetRoot())
-  { const SongIterator::OffsetInfo& off = CurSI.CalcOffsetInfo(SyncJob);
-    Reply.append(off.Index+1);
+  { AggregateInfo ai(PlayableSetBase::Empty);
+    CurSI.AddFrontAggregate(ai, IF_Rpl, SyncJob);
+    Reply.append(ai.Rpl.songs + 1);
   }
 }
 

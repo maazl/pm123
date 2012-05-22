@@ -32,6 +32,7 @@
 #include "playableset.h"
 #include "waitinfo.h"
 #include "dependencyinfo.h"
+#include "location.h"
 #include "pm123.h"
 #include "configuration.h"
 #include <utilfct.h>
@@ -160,6 +161,110 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   what = rq;
   return ai;
 }
+
+InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
+{ DEBUGLOG(("APlayable(%p)::ClacRplCore(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this,
+    exclude.size(), what, job.Pri, start, stop, level));
+  InfoFlags whatnotok = IF_None;
+
+ recurse:
+  int_ptr<PlayableInstance> psp; // start element
+  PM123_TIME ss = -1; // start position
+  if (start)
+  { size_t size = start->GetCallstack().size();
+    if (size > level)
+      psp = start->GetCallstack()[level];
+    else if (size == level)
+    { if (job.RequestInfo(*this, IF_Tech))
+        whatnotok = what;
+      else if (GetInfo().tech->attributes & TATTR_SONG)
+        ss = start->GetPosition();
+    }
+  }
+  int_ptr<PlayableInstance> pep; // stop element
+  PM123_TIME es = -1; // stop position
+  if (stop)
+  { size_t size = stop->GetCallstack().size();
+    if (size > level)
+      pep = stop->GetCallstack()[level];
+    else if (size == level)
+    { if (job.RequestInfo(*this, IF_Tech))
+        whatnotok = what;
+      else if (GetInfo().tech->attributes & TATTR_SONG)
+        es = stop->GetPosition();
+    }
+  }
+
+  if (psp == pep)
+  { if (psp)
+    { if (exclude.add(psp->GetPlayable()))
+      { ++level;
+        goto recurse;
+      } else
+        return whatnotok;
+    } else
+    { // both are NULL
+      // Either because start and stop is NULL
+      // or because both locations point to the same object
+      // or because one location points to a song while the other one is NULL.
+      InfoFlags what2 = what;
+      volatile const AggregateInfo& sai = job.RequestAggregateInfo(*this, exclude, what2);
+      whatnotok |= what2;
+
+      if (what & IF_Rpl)
+        ai.Rpl += sai.Rpl;
+      if (what & IF_Drpl)
+      { if (ss > 0 || es >= 0)
+        { PM123_TIME len = sai.Drpl.totallength;
+          // time slice
+          if (ss < 0)
+            ss = 0;
+          if (es < 0)
+            es = len;
+          if (es > ss) // empty slice?
+          { ai.Drpl.totallength += es - ss;
+            // approximate size
+            ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
+          }
+          ai.Drpl.unk_length += sai.Drpl.unk_length;
+          ai.Drpl.unk_size += sai.Drpl.unk_size;
+        } else
+          ai.Drpl += sai.Drpl;
+      }
+    }
+  }
+
+  if (psp)
+  { if (exclude.add(psp->GetPlayable()))
+    { whatnotok |= psp->AddSliceAggregate(ai, exclude, what, job, start, NULL, level+1);
+      // Restore previous state.
+      exclude.erase(psp->GetPlayable());
+    } // else: item in the call stack => ignore entire sub tree.
+  }
+  if (pep)
+  { if (exclude.add(pep->GetPlayable()))
+    { whatnotok |= pep->AddSliceAggregate(ai, exclude, what, job, NULL, stop, level+1);
+      // Restore previous state.
+      exclude.erase(pep->GetPlayable());
+    } // else: item in the call stack => ignore entire sub tree.
+  }
+
+  // Add the range (psp, pep). Exclusive interval!
+  if (job.RequestInfo(*this, IF_Child))
+    return IF_None;
+  Playable& pc = GetPlayable();
+  while ((psp = pc.GetNext(psp)) != NULL)
+  { InfoFlags what2 = what;
+    const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
+    whatnotok |= what2;
+    if (what & IF_Rpl)
+      ai.Rpl += lai.Rpl;
+    if (what & IF_Drpl)
+      ai.Drpl += lai.Drpl;
+  }
+  return whatnotok;
+}
+
 
 /**
  * Worker classes that keeps track of requested informations that are not

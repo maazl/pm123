@@ -32,6 +32,7 @@
 
 #include "location.h"
 #include "playable.h"
+#include <cpp/event.h>
 
 
 /** Helper class to provide a deterministic shuffle algorithm for a playlist.
@@ -120,43 +121,51 @@ class ShuffleWorker : public Iref_count
  */
 class SongIterator : public Location
 {private:
- public:
-  struct OffsetInfo
-  { /// Song index within the current root counting from 0. The value is -1
-    /// if the information is not yet available because of an asynchronous requests.
-    int                       Index;
-    /// Time offset of this location within root.
-    /// The value is -1 if the time offset is undefined because either
-    /// some information is missing and requested asynchronously or
-    /// at least one object has indefinite length.
-    PM123_TIME                Time;
-    static OffsetInfo         Invalid;
-    OffsetInfo()              : Index(0), Time(0) {}
-    OffsetInfo(int index, PM123_TIME time) : Index(index), Time(time) {}
-    /// Add another offset. Note that the singular value -1 always wins.
-    OffsetInfo& operator+=(const OffsetInfo& r);
-  };
- /*private:
-  struct OffsetEntry
-  { PlayableSet               Exclude;
+  struct OffsetCacheEntry
+  { /// Exclusion list
+    PlayableSet               Exclude;
+    /// Cached aggregate information.
     AggregateInfo             Offset;
+    /// Valid components of \c Offset. \c IF_Rpl|IF_Drpl.
     AtomicUnsigned            Valid;
-  };*/
+    class_delegate<OffsetCacheEntry,const PlayableChangeArgs> ListChangeDeleg;
+   private:
+    void                      ListChangeHandler(const PlayableChangeArgs& args);
+   public:
+    OffsetCacheEntry();
+  };
 
  private:
-  static int                  ShuffleWorkerComparer(const Playable& key, const ShuffleWorker& elem);
-  typedef sorted_vector_int<ShuffleWorker, Playable, &SongIterator::ShuffleWorkerComparer> ShuffleWorkerCacheType;
-  void                        ShuffleWorkerCacheCleanup();
- private:
+  /// Use Shuffle mode?
+  /// - \c PLO_NO_SHUFFLE means that shuffle is disabled, even if a playlist item sets \c PLO_SHUFFLE.
+  /// - \c PLO_SHUFFLE means that shuffle is enabled at the top level. But this might be overridden
+  ///   by a nested playlist item.
+  /// - \c PLO_NONE means that shuffle is disabled at the top level. This might be overridden
+  ///   by a nested playlist item.
   PL_OPTIONS                  Options;
+  /// Seed currently used for the pseudo random sort order of all \c ShuffleWorker
+  /// instances.
   long                        ShuffleSeed;
-  ShuffleWorkerCacheType      ShuffleWorkerCache;
+  /// @brief Cache for \c ShuffleWorker instances.
+  /// @details The items in the cache are correlated to the content of the call stack,
+  /// But the index is off by one. The first entry belongs to the root.
+  /// The second entry to the first playlist in the call stack and so on.
+  vector_int<ShuffleWorker>   ShuffleWorkerCache;
   /// - PLO_NONE := undefined
   /// - PLO_SHUFFLE := true
   /// - PLO_NO_SHUFFLE|x := false
   mutable PL_OPTIONS          IsShuffleCache;
-  // Cached front offsets for each callstack entry.
-  //vector_own<OffsetEntry>     OffsetCache;
+  /// Cached front offsets for each call stack entry.
+  /// @details The items in the cache are correlated to the content of the call stack,
+  /// But the index is off by one. The first entry belongs to the root.
+  /// The second entry to the first playlist in the call stack and so on.
+  /// There is no entry for the last item in the call stack. So
+  /// \c OffsetCache() is never greater than \c Callstack.size().
+  vector_own<OffsetCacheEntry> OffsetCache;
+ private:
+  /// Remove invalid items from \c ShuffleWorkerCache.
+  /// This is called after \c Swap.
+  void                        ShuffleWorkerCacheCleanup();
 
  protected:
   virtual void                Enter();
@@ -189,13 +198,16 @@ class SongIterator : public Location
   /// Set new Shuffle seed
   void                        Reshuffle() { ShuffleSeed = rand() ^ (rand() << 16); ShuffleWorkerCache.clear(); }
 
-  /// @brief Return the song and time offset of this location within root.
-  /*// @param level Offset from the level<sup>th</sup> call stack entry.
-  /// The default level 0 calculates the offsets from the root.
-  /// \a level must be in the range [0,GetLevel()].*/
-  /// @remarks Note that GetOffsetInfo may return different results
-  /// for the same Playable object depending on the call stack entries &lt; \a level.
-  OffsetInfo                  CalcOffsetInfo(JobSet& job/*, unsigned level = 0*/);
+  /// Calculate the Aggregate from the start of root to the current location.
+  /// @param target Store the result here.
+  /// The exclusion list in \a target is currently not supported and must be empty.
+  /// @param what Kind of information to request. Only \c IF_Rpl or \c IF_Drpl is allowed.
+  /// @param job Priority and \c DependencySet of asynchronous requests if the action could not be completed
+  /// because of missing informations on sub items.
+  /// @return The bits of what that could not be completed because of missing information.
+  /// Note that the function always returns something in \a target,
+  /// but the information is not reliable if the return value is not \c IF_None.
+  InfoFlags                   AddFrontAggregate(AggregateInfo& target, InfoFlags what, JobSet& job);
 };
 
 #endif

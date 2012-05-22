@@ -79,6 +79,7 @@ struct PlayableChangeArgs
 class Playable;
 class Location;
 class PlayableSetBase;
+class OwnedPlayableSet;
 class DependencyInfoSet;
 class JobSet;
 //class DependencyInfoWorker;
@@ -173,7 +174,7 @@ class APlayable
   /// But the information is only reliable if the corresponding bits in what are set on return.
   /// The returned storage is valid until the current Playable object dies,
   /// but subsequent calls with the same parameters may return a different storage.
-  /// @note Calling RequestAggregateInfo with an empty set is equivalent to retrieving GetInfo().rpl/.drpl;
+  /// @note Calling \c RequestAggregateInfo with an empty set is equivalent to retrieving GetInfo().rpl/.drpl;
   volatile const AggregateInfo& RequestAggregateInfo(const PlayableSetBase& excluding,
                               InfoFlags& what, Priority pri, Reliability rel = REL_Cached);
 
@@ -193,6 +194,20 @@ class APlayable
 
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void                PeekRequest(RequestState& req) const = 0;
+
+  /// Helper function to calculate aggregate information of a slice of the current item.
+  /// @param ai Add the the information to \a ai.
+  /// @param exclude Exclude the items in this list from the calculation.
+  /// The list is modified during the calculation, but restored before completion.
+  /// @param what Which information should be updated? Only \c IF_Rpl|IF_Drpl is valid.
+  /// @param job Remember asynchronous dependencies in this job. The Job also defines the Priority.
+  /// @param start Start location in \c *this. If \c NULL then the start of \c *this is taken.
+  /// @param stop Stop location in \c *this. If \c NULL then the end of \c *this is taken.
+  /// @param level Take the start and stop locations from depth \a level.
+  /// I.e. \a cur is not the root of start/stop but at level in the call stack of start/stop.
+  /// @return Returns the kind of information that is not successfully obtained.
+  /// If nonzero then some information depends on other objects. The dependencies in \a job have been adjusted.
+          InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level = 0);
 
  private:
   /// @brief Place a request for the kind informations identified by the bit vector \a what

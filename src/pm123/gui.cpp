@@ -170,7 +170,9 @@ class GUIImp : private GUI
   static void      LoadPluginMenu(HWND hmenu); ///< Refresh plug-in menu in the main pop-up menu.
   static void      ShowContextMenu();     ///< View to context menu
   /// Refresh current playing time, remaining time and slider.
-  static void      RefreshTimers(HPS hps, SongIterator::OffsetInfo oi);
+  /// @param index Song index in the current flattened root, counting from 0.
+  /// @param offset Time offset in the current flattened root.
+  static void      RefreshTimers(HPS hps, int index, PM123_TIME offset);
   static void      PrepareText();         ///< Constructs a information text for currently loaded file and selects it for displaying.
   /// Execute screen updates from \c WMP_PAINT.
   static void      Paint(HPS hps, UpdateFlags mask);
@@ -1478,8 +1480,8 @@ void GUIImp::ShowContextMenu()
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 
-void GUIImp::RefreshTimers(HPS hps, SongIterator::OffsetInfo oi)
-{ DEBUGLOG(("GUI::RefreshTimers(%p, {%i,%f}) - %i %i\n", hps, oi.Index, oi.Time, Cfg::Get().mode, IsSeeking));
+void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
+{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i %i\n", hps, index, offset, Cfg::Get().mode, IsSeeking));
 
   Playable* root = CurrentIter->GetRoot();
   if (root == NULL)
@@ -1502,7 +1504,7 @@ void GUIImp::RefreshTimers(HPS hps, SongIterator::OffsetInfo oi)
   if (play_left > 0)
     play_left -= position;
   if (total_time > 0)
-    list_left = total_time - oi.Time - position;
+    list_left = total_time - offset - position;
 
   double pos = -1.;
   if (!IsAltSlider)
@@ -1515,12 +1517,12 @@ void GUIImp::RefreshTimers(HPS hps, SongIterator::OffsetInfo oi)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = oi.Index / (double)(total_items-1);
+        pos = index / (double)(total_items-1);
     }
     break;
    case CFG_ANAV_TIME:
     if (root->GetInfo().obj->songlength > 0)
-    { pos = (oi.Time + position) / root->GetInfo().obj->songlength;
+    { pos = (offset + position) / root->GetInfo().obj->songlength;
       break;
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
@@ -1529,7 +1531,7 @@ void GUIImp::RefreshTimers(HPS hps, SongIterator::OffsetInfo oi)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = oi.Index;
+        pos = index;
       else break;
       // Add current song time
       if (total_song > 0)
@@ -1586,15 +1588,23 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
     bmp_draw_background(hps, HPlayer);
   Playable* root = CurrentRoot();
   if (mask & (UPD_TIMERS|UPD_TOTALS|UPD_PLINDEX))
-  { JobSet job(PRI_Normal); // The job is discarded, because the update notification will call this function again anyways.
-    SongIterator::OffsetInfo oi = root
-      ? CurrentIter->CalcOffsetInfo(job)
-      : SongIterator::OffsetInfo::Invalid;
-    ++oi.Index; // The GUI counts from 1 rather than 0.
+  { int index = -1;
+    PM123_TIME offset = -1;
+    if (root)
+    { AggregateInfo ai(PlayableSetBase::Empty);
+      JobSet job(PRI_Normal); // The job is discarded, because the update notification will call this function again anyways.
+      InfoFlags what = mask & UPD_TIMERS ? IF_Aggreg : IF_Rpl;
+      what &= ~CurrentIter->AddFrontAggregate(ai, what, job);
+      if (what & IF_Rpl)
+        index = ai.Rpl.songs;
+      if (what & IF_Drpl)
+        offset = ai.Drpl.totallength;
+    }
     if (mask & UPD_TIMERS)
-      RefreshTimers(hps, oi);
+      RefreshTimers(hps, index, offset);
     if (mask & (UPD_TOTALS|UPD_PLINDEX))
-      bmp_draw_plind(hps, oi.Index, root ? root->GetInfo().rpl->songs : -1);
+      bmp_draw_plind(hps, index+1,
+        root && (root->GetInfo().tech->attributes & TATTR_SONG) ? root->GetInfo().rpl->songs : -1);
   }
   if (mask & UPD_PLMODE)
     bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());

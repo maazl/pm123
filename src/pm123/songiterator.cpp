@@ -181,23 +181,20 @@ int_ptr<PlayableInstance> ShuffleWorker::Prev(PlayableInstance* pi)
 *
 */
 
-SongIterator::OffsetInfo SongIterator::OffsetInfo::Invalid(-1,-1);
+SongIterator::OffsetCacheEntry::OffsetCacheEntry()
+: Offset(Exclude)
+, ListChangeDeleg(*this, &OffsetCacheEntry::ListChangeHandler)
+{}
 
-SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo& r)
-{ if (Index >= 0)
-  { if (r.Index >= 0)
-      Index += r.Index;
-    else
-      Index = -1;
-  }
-  if (Time >= 0)
-  { if (r.Time >= 0)
-      Time += r.Time;
-    else
-      Time = -1;
-  }
-  return *this;
+void SongIterator::OffsetCacheEntry::ListChangeHandler(const PlayableChangeArgs& args)
+{ DEBUGLOG(("SongIterator::OffsetCacheEntry(%p)::ListChangeHandler({, %x, %x, %x}) - %x\n", this,
+    args.Loaded, args.Changed, args.Invalidated, Valid.get()));
+  InfoFlags what = args.Changed | args.Invalidated;
+  if (what & IF_Child)
+    what |= IF_Aggreg;
+  Valid &= ~what;
 }
+
 
 SongIterator::SongIterator(Playable* root)
 : Location(root)
@@ -257,6 +254,8 @@ void SongIterator::Leave()
   if (ShuffleWorkerCache.size() > Callstack.size())
     ShuffleWorkerCache.set_size(Callstack.size());
   Location::Leave();
+  if (OffsetCache.size() > Callstack.size())
+    OffsetCache.set_size(Callstack.size());
 }
 
 void SongIterator::PrevNextCore(bool direction)
@@ -363,31 +362,51 @@ bool SongIterator::IsShuffle() const
   return !(IsShuffleCache & PLO_NO_SHUFFLE);
 }
 
-SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(JobSet& job)
-{ DEBUGLOG(("SongIterator(%p)::GetOffsetInfo()\n", this));
-  //ASSERT(level <= GetLevel());
-  if (!Root)
-    return OffsetInfo::Invalid;
-  OffsetInfo ret;
-  /* @todo
-   * PlayableSet exclude;
-  Playable* parent = Root;
-  for (size_t level = 0; level < Callstack.size(); ++level)
-  { PlayableInstance* item = Callstack[level];
-    // Add Offset
-    while (item)
-    {
+InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& target, InfoFlags what, JobSet& job)
+{ DEBUGLOG(("SongIterator(%p)::CalcFrontAggregate(&%p, %x, )\n", this, &job, &target, what));
+  ASSERT(target.Exclude.size() == 0);
 
+  if (!Root || !what)
+    return what;
+  InfoFlags whatnotok = IF_None;
+
+  // Aggregate offsets of the call stack
+  OffsetCache.set_size(Callstack.size());
+  OwnedPlayableSet exclude;
+  exclude.reserve(Callstack.size());
+
+  for (size_t i = 0; i < Callstack.size(); ++i)
+  { APlayable* parent = i ? (APlayable*)Callstack[i-1] : Root;
+    OffsetCacheEntry* oce = OffsetCache[i];
+    if (oce == NULL)
+    { // Create cache entry
+      OffsetCache[i] = oce = new OffsetCacheEntry();
+      oce->Exclude = exclude;
+      parent->GetInfoChange() += oce->ListChangeDeleg;
     }
+    // check Cache item status
+    InfoFlags todo = what & (InfoFlags)~oce->Valid;
+    if (todo)
+    { // Set bits first, so when an concurrent invalidation arrives
+      // the Information is recalculated the next time.
+      oce->Valid |= what;
+      // start over
+      if (todo & IF_Rpl)
+        oce->Offset.Rpl.Reset();
+      if (todo & IF_Drpl)
+        oce->Offset.Drpl.Reset();
+      whatnotok |= parent->AddSliceAggregate(oce->Offset, exclude, todo, job, NULL, this, i);
+    }
+    // do the aggregation
+    target += oce->Offset;
+    // Prepare exclusion list
+    exclude.add(parent->GetPlayable());
   }
-  if (level < Callstack.size())
-  if (level >= Callstack.size())
-  { OffsetInfo ret;
-    if (level == Callstack.size() && Position > 0)
-      ret.Time = Position;
-    return ret;
-  }
-  OffsetInfo off = CalcOffsetInfo(level+1);
-  Playable**/
-  return ret;
+
+  // Aggregate Offset in the current song.
+  APlayable* cur = GetCurrent();
+  if (cur && Position > 0)
+    whatnotok |= cur->AddSliceAggregate(target, exclude, what, job, NULL, this, Callstack.size());
+
+  return whatnotok;
 }

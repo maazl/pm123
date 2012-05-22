@@ -352,110 +352,6 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
   }
 }
 
-InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, size_t level)
-{ DEBUGLOG(("PlayableSlice::ClacRplCore(, &%p, {%u,}, %x, {%u,}, %p, %p, %i)\n",
-    &cur, exclude.size(), what, job.Pri, start, stop, level));
-  InfoFlags whatok = what;
-
- recurse:
-  int_ptr<PlayableInstance> psp; // start element
-  PM123_TIME ss = -1; // start position
-  if (start)
-  { size_t size = start->GetCallstack().size();
-    if (size > level)
-      psp = start->GetCallstack()[level];
-    else if (size == level)
-    { if (job.RequestInfo(cur, IF_Tech))
-        whatok = IF_None;
-      else if (cur.GetInfo().tech->attributes & TATTR_SONG)
-        ss = start->GetPosition();
-    }
-  }
-  int_ptr<PlayableInstance> pep; // stop element
-  PM123_TIME es = -1; // stop position
-  if (stop)
-  { size_t size = stop->GetCallstack().size();
-    if (size > level)
-      pep = stop->GetCallstack()[level];
-    else if (size == level)
-    { if (job.RequestInfo(cur, IF_Tech))
-        whatok = IF_None;
-      else if (cur.GetInfo().tech->attributes & TATTR_SONG)
-        es = stop->GetPosition();
-    }
-  }
-
-  if (psp == pep)
-  { if (psp)
-    { if (exclude.add(psp->GetPlayable()))
-      { ++level;
-        goto recurse;
-      } else
-        return whatok;
-    } else
-    { // both are NULL
-      // Either because start and stop is NULL
-      // or because both locations point to the same object
-      // or because one location points to a song while the other one is NULL.
-      InfoFlags what2 = what;
-      volatile const AggregateInfo& sai = job.RequestAggregateInfo(cur, exclude, what2);
-      what2 = ~what2;
-      whatok &= what2;
-
-      if (what2 & IF_Rpl)
-        ai.Rpl += sai.Rpl;
-      if (what2 & IF_Drpl)
-      { if (ss > 0 || es >= 0)
-        { PM123_TIME len = sai.Drpl.totallength;
-          // time slice
-          if (ss < 0)
-            ss = 0;
-          if (es < 0)
-            es = len;
-          if (es > ss) // empty slice?
-          { ai.Drpl.totallength += es - ss;
-            // approximate size
-            ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
-          }
-          ai.Drpl.unk_length += sai.Drpl.unk_length;
-          ai.Drpl.unk_size += sai.Drpl.unk_size;
-        } else
-          ai.Drpl += sai.Drpl;
-      }
-    }
-  }
-
-  if (psp)
-  { if (exclude.add(psp->GetPlayable()))
-    { whatok &= CalcRplCore(ai, *psp, exclude, what, job, start, NULL, level+1);
-      // Restore previous state.
-      exclude.erase(psp->GetPlayable());
-    } // else: item in the call stack => ignore entire sub tree. 
-  }
-  if (pep)
-  { if (exclude.add(pep->GetPlayable()))
-    { whatok &= CalcRplCore(ai, *pep, exclude, what, job, NULL, stop, level+1);
-      // Restore previous state.
-      exclude.erase(pep->GetPlayable());
-    } // else: item in the call stack => ignore entire sub tree. 
-  }
-
-  // Add the range (psp, pep). Exclusive interval!
-  if (job.RequestInfo(cur, IF_Child))
-    return IF_None;
-  Playable& pc = cur.GetPlayable();
-  while ((psp = pc.GetNext(psp)) != NULL)
-  { InfoFlags what2 = what;
-    const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
-    whatok &= ~what2;
-    if (what2 & IF_Rpl)
-      ai.Rpl += lai.Rpl;
-    if (what2 & IF_Drpl)
-      ai.Drpl += lai.Drpl;
-  }
-  return whatok;
-}
-
 void PlayableSlice::DoLoadInfo(JobSet& job)
 { DEBUGLOG(("PlayableSlice(%p{%s})::DoLoadInfo({%u,})\n", this, GetPlayable().URL.getShortName().cdata(), job.Pri));
   // Load base info first.
@@ -498,10 +394,11 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     // We can be pretty sure that ITEM_INFO is overridden.
     int_ptr<Location> start = StartCache;
     int_ptr<Location> stop  = StopCache;
-    InfoFlags whatok = CalcRplCore(ai, *RefTo, exclude, upd, job, start, stop, 0);
+    InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
     job.Commit();
-    upd.Rollback(~whatok & IF_Aggreg);
+    upd.Rollback(whatnotok);
 
+    InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
     if (whatok)
     { // At least one info completed
       Mutex::Lock lock(RefTo->GetPlayable().Mtx);
@@ -509,7 +406,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
         args.Changed |= IF_Rpl;
       if ((whatok & IF_Drpl) && CIC->DefaultInfo.Drpl.CmpAssign(ai.Drpl))
         args.Changed |= IF_Drpl;
-      args.Loaded |= upd.Commit(whatok);
+      args.Loaded |= upd.Commit(IF_Aggreg);
 
       // Store RPL info pointers
       Info.rpl  = &CIC->DefaultInfo.Rpl;
@@ -524,10 +421,11 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     // We can be pretty sure that ITEM_INFO is overridden.
     int_ptr<Location> start = StartCache;
     int_ptr<Location> stop  = StopCache;
-    InfoFlags whatok = CalcRplCore(ai, *RefTo, exclude, upd, job, start, stop, 0);
+    InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
     job.Commit();
-    upd.Rollback(~whatok & IF_Aggreg);
+    upd.Rollback(whatnotok);
 
+    InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
     if (whatok)
     { // At least one info completed
       Mutex::Lock lock(RefTo->GetPlayable().Mtx);
