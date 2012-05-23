@@ -1,3 +1,7 @@
 body, table, div, p, dl {
 	font-size: 12pt;
 }
+
+.memname {
+	font-family: monospace, fixed;
+}

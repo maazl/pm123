@@ -1,0 +1,9 @@
+#
+# Playlist created with PM123 Playlist Plug-in 1.0
+# Do not modify!
+#
+#START list1.lst;test.ogg;4
+list2.lst
+#STOP list1.lst[-2];list1.lst
+list2.lst
+

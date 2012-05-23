@@ -1,0 +1,59 @@
+Structure of test data:
+
+test.ogg [0:17.77675737]
+test2.ogg [approx. 0:08.8]
+test3.ogg [approx. 0:04.4]
+
+list.lst
+ +- test.ogg
+ +- test2.ogg
+ +- test3.ogg
+ +- not_exist.ogg
+
+list1.lst
+ +- test.ogg
+ +- list2.lst
+ |   +- test2.ogg
+ |   +- list1.lst (*)
+ |   +- test3.ogg
+ |   +- not_exist.ogg
+ |   +- list1.lst (*)
+ +- list1.lst (*)
+
+list2.lst
+ +- test2.ogg
+ +- list1.lst
+ |   +- test.ogg
+ |   +- list2.lst (*)
+ |   +- list1.lst (*)
+ +- test3.ogg
+ +- not_exist.ogg
+ +- list1.lst (*)
+     +- test.ogg
+     +- list2.lst (*)
+     +- list1.lst (*)
+
+listslice.lst
+ +- test.ogg [0:05 ...]
+ +- test.ogg [... -0:07]
+ +- test.ogg [0:05.878 ... 0:10]
+ +- test.ogg [0:10 ... -0:10] (empty)
+
+listslice2.lst
+ +- list2.lst [list1.lst;test.ogg;0:04 ...]
+ |   +- test2.ogg (x)
+ |   +- list1.lst [@test.ogg;0:04 ...]
+ |   |   +- test.ogg [@0:04 ...]
+ |   |   +- list2.lst (*)
+ |   |   +- list1.lst (*)
+ |   +- test3.ogg
+ |   +- not_exist.ogg
+ |   +- list1.lst (*)
+ |       +- test.ogg
+ |       +- list2.lst (*)
+ |       +- list1.lst (*)
+ +- list2.lst [... list1.lst[-2];list1.lst]
+
+
+(*) recursive
+(x) excluded by slice

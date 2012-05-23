@@ -163,7 +163,7 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
 }
 
 InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
-{ DEBUGLOG(("APlayable(%p)::ClacRplCore(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this,
+{ DEBUGLOG(("APlayable(%p)::AddSliceAggregate(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this,
     exclude.size(), what, job.Pri, start, stop, level));
   InfoFlags whatnotok = IF_None;
 
@@ -197,11 +197,11 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
 
   if (psp == pep)
   { if (psp)
-    { if (exclude.add(psp->GetPlayable()))
-      { ++level;
-        goto recurse;
-      } else
-        return whatnotok;
+    { // Even if the pointers are equal, the list itself counts.
+      ++ai.Rpl.lists;
+      exclude.add(GetPlayable());
+      ++level;
+      goto recurse;
     } else
     { // both are NULL
       // Either because start and stop is NULL
@@ -221,7 +221,7 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
             ss = 0;
           if (es < 0)
             es = len;
-          if (es > ss) // empty slice?
+          if (es > ss) // non empty slice?
           { ai.Drpl.totallength += es - ss;
             // approximate size
             ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
@@ -232,35 +232,41 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
           ai.Drpl += sai.Drpl;
       }
     }
-  }
+  } else
+  { exclude.add(GetPlayable());
+    if (psp)
+    { // Check for negative slice
+      if (pep && psp->GetIndex() > pep->GetIndex())
+        return whatnotok;
+      if (!exclude.contains(psp->GetPlayable()))
+        whatnotok |= psp->AddSliceAggregate(ai, exclude, what, job, start, NULL, level+1);
+      // else: item in the call stack => ignore entire sub tree.
+    }
+    if (pep)
+    { if (!exclude.contains(pep->GetPlayable()))
+        whatnotok |= pep->AddSliceAggregate(ai, exclude, what, job, NULL, stop, level+1);
+      // else: item in the call stack => ignore entire sub tree.
+    }
 
-  if (psp)
-  { if (exclude.add(psp->GetPlayable()))
-    { whatnotok |= psp->AddSliceAggregate(ai, exclude, what, job, start, NULL, level+1);
-      // Restore previous state.
-      exclude.erase(psp->GetPlayable());
-    } // else: item in the call stack => ignore entire sub tree.
-  }
-  if (pep)
-  { if (exclude.add(pep->GetPlayable()))
-    { whatnotok |= pep->AddSliceAggregate(ai, exclude, what, job, NULL, stop, level+1);
-      // Restore previous state.
-      exclude.erase(pep->GetPlayable());
-    } // else: item in the call stack => ignore entire sub tree.
-  }
-
-  // Add the range (psp, pep). Exclusive interval!
-  if (job.RequestInfo(*this, IF_Child))
-    return IF_None;
-  Playable& pc = GetPlayable();
-  while ((psp = pc.GetNext(psp)) != NULL)
-  { InfoFlags what2 = what;
-    const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
-    whatnotok |= what2;
-    if (what & IF_Rpl)
-      ai.Rpl += lai.Rpl;
-    if (what & IF_Drpl)
-      ai.Drpl += lai.Drpl;
+    // Add the range (psp, pep). Exclusive interval!
+    if (job.RequestInfo(*this, IF_Child))
+      return what;
+    Playable& pc = GetPlayable();
+    while ((psp = pc.GetNext(psp)) != pep)
+    { if (exclude.contains(psp->GetPlayable()))
+        continue;
+      InfoFlags what2 = what;
+      const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
+      whatnotok |= what2;
+      if (what & IF_Rpl)
+        ai.Rpl += lai.Rpl;
+      if (what & IF_Drpl)
+        ai.Drpl += lai.Drpl;
+    }
+    // Restore previous state.
+    exclude.erase(GetPlayable());
+    // We just processed a list
+    ++ai.Rpl.lists;
   }
   return whatnotok;
 }
