@@ -597,6 +597,7 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
   switch (msg)
   { case WM_INITDLG:
       SpinButton(+GetCtrl(SB_DOCK)).SetLimits(0, 30, 2);
+      SpinButton(+GetCtrl(SB_RESTRICT_META)).SetLimits(10, 500, 3);
       break;
 
     case CFG_CHANGE:
@@ -604,14 +605,21 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       if (mp1)
       { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
         CheckBox(+GetCtrl(CB_DOCK)).SetCheckState(cfg.dock_windows);
-        EnableCtrl(SB_DOCK, cfg.dock_windows );
-        SpinButton(+GetCtrl(SB_DOCK)).SetValue(cfg.dock_margin);
+        { SpinButton sb(+GetCtrl(SB_DOCK));
+          sb.Enable(cfg.dock_windows);
+          sb.SetValue(cfg.dock_margin);
+        }
         CheckBox(+GetCtrl(CB_SAVEWNDPOSBYOBJ)).SetCheckState(cfg.win_pos_by_obj);
 
         // load GUI
         CheckBox(+GetCtrl(RB_DISP_FILENAME+cfg.viewmode)).SetCheckState(true);
         CheckBox(+GetCtrl(RB_SCROLL_INFINITE+cfg.scroll)).SetCheckState(true);
         CheckBox(+GetCtrl(CB_SCROLL_AROUND)).SetCheckState(cfg.scroll_around);
+        CheckBox(+GetCtrl(CB_RESTRICT_META)).SetCheckState(cfg.restrict_meta);
+        { SpinButton sb(+GetCtrl(SB_RESTRICT_META));
+          sb.Enable(cfg.restrict_meta);
+          sb.SetValue(cfg.restrict_length);
+        }
         CheckBox(+GetCtrl(CB_USE_SKIN_FONT)).SetCheckState(cfg.font_skinned);
         EnableCtrl(PB_FONT_SELECT, !cfg.font_skinned);
         EnableCtrl(ST_FONT_SAMPLE, !cfg.font_skinned);
@@ -664,6 +672,11 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
        case CB_DOCK:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
           EnableCtrl(SB_DOCK, !!CheckBox(GetCtrl(CB_DOCK)).QueryCheckState());
+        break;
+
+       case CB_RESTRICT_META:
+        if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
+          EnableCtrl(SB_RESTRICT_META, !!CheckBox(GetCtrl(CB_RESTRICT_META)).QueryCheckState());
       }
       return 0;
 
@@ -673,9 +686,11 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       cfg.dock_margin   = SpinButton(GetCtrl(SB_DOCK)).QueryValue();
       cfg.win_pos_by_obj= !!CheckBox(GetCtrl(CB_SAVEWNDPOSBYOBJ)).QueryCheckState();
 
+      cfg.viewmode      = (cfg_disp)RadioButton(GetCtrl(RB_DISP_FILENAME)).QueryCheckIndex();
+      cfg.restrict_meta = !!CheckBox(GetCtrl(CB_RESTRICT_META)).QueryCheckState();
+      cfg.restrict_length=SpinButton(GetCtrl(SB_RESTRICT_META)).QueryValue();
       cfg.scroll        = (cfg_scroll)RadioButton(GetCtrl(RB_SCROLL_INFINITE)).QueryCheckIndex();
       cfg.scroll_around = !!CheckBox(GetCtrl(CB_SCROLL_AROUND)).QueryCheckState();
-      cfg.viewmode      = (cfg_disp)RadioButton(GetCtrl(RB_DISP_FILENAME)).QueryCheckIndex();
 
       cfg.font_skinned  = !!CheckBox(GetCtrl(CB_USE_SKIN_FONT)).QueryCheckState();
       cfg.font_size     = font_size;

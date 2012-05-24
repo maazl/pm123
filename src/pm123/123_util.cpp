@@ -111,37 +111,6 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
  return(0);
 }*/
 
-/* Constructs a string of the displayable text from the file information. */
-const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info )
-{
-  xstringbuilder result;
-
-  xstring tmp1(info->meta->artist);
-  xstring tmp2(info->meta->title);
-  if (tmp1)
-  { result += tmp1;
-    if (tmp2)
-      result += ": ";
-  }
-  if (tmp2)
-    result += tmp2;
-
-  tmp1 = info->meta->album;
-  tmp2 = info->meta->year; 
-  if (tmp1 && tmp2)
-    result.appendf(" (%s, %s)", tmp1.cdata(), tmp2.cdata());
-  else if (tmp1)
-    result.appendf(" (%s)", tmp1.cdata());
-  else if (tmp2)
-    result.appendf(" (%s)", tmp2.cdata());
-
-  tmp1 = info->meta->comment;
-  if (tmp1)
-    result.appendf(" -- %s", tmp1.cdata());
-
-  return result;
-}
-
 /* Get current working directory */
 const url123 amp_get_cwd()
 { char cdir[_MAX_PATH+1];

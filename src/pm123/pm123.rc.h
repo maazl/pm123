@@ -362,6 +362,8 @@
 #define RB_DISP_FILENAME   1425
 #define RB_DISP_ID3TAG     1426
 #define RB_DISP_FILEINFO   1427
+#define CB_RESTRICT_META   1428
+#define SB_RESTRICT_META   1429
 #define GB_FONT            1430
 #define CB_USE_SKIN_FONT   1431
 #define ST_FONT_SAMPLE     1432

@@ -184,6 +184,7 @@ class CommandProcessor : public ACommandProcessor
   const volatile amp_cfg& ReadCfg() { return Request == Cmd_QueryDefault ? Cfg::Default : Cfg::Get(); }
   void DoOption(bool amp_cfg::* option);
   void DoOption(int amp_cfg::* option);
+  void DoOption(unsigned amp_cfg::* option);
   void DoOption(xstring amp_cfg::* option);
   void DoOption(cfg_anav amp_cfg::* option);
   void DoOption(cfg_abutton amp_cfg::* option);

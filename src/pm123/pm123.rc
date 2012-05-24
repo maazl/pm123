@@ -485,30 +485,38 @@ DLGTEMPLATE CFG_DISPLAY1
   DIALOG         "",                                    CFG_DISPLAY1,       0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " User interface ",                    GB_GENERIC,         4, 96, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " User interface ",                    GB_GENERIC,         4,106, 248, 36, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12,112,  60, 12, WS_GROUP
+    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12,122,  60, 12, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_DOCK,           76,114,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "pixels",                              ST_GENERIC,       104,112,  30, 12, DT_VCENTER|NOT WS_GROUP
+    SPINBUTTON                                          SB_DOCK,           76,124,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "pixels",                              ST_GENERIC,       104,122,  30, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "Save window ~positions per object",   CB_SAVEWNDPOSBYOBJ,12,100, 232, 12, WS_GROUP
+    AUTOCHECKBOX "Save window ~positions per object",   CB_SAVEWNDPOSBYOBJ,12,110, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
-    GROUPBOX     " Title ",                             GB_GENERIC,         4, 46, 248, 48, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Title ",                             GB_GENERIC,         4, 46, 248, 58, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    LTEXT        "~Display text:",                      ST_GENERIC,        12, 74,  52, 10, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "~Display text:",                      ST_GENERIC,        12, 86,  52, 10, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Filename",                         RB_DISP_FILENAME,  68, 74,  56, 10, WS_GROUP|WS_TABSTOP
+    AUTORADIOBUTTON "Filename",                         RB_DISP_FILENAME,  68, 86,  56, 10, WS_GROUP|WS_TABSTOP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Song title",                       RB_DISP_ID3TAG,   128, 74,  56, 10
+    AUTORADIOBUTTON "Song title",                       RB_DISP_ID3TAG,   128, 86,  56, 10
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Technical info",                   RB_DISP_FILEINFO, 188, 74,  56, 10
+    AUTORADIOBUTTON "Technical info",                   RB_DISP_FILEINFO, 188, 86,  56, 10
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTOCHECKBOX "Restrict field ~length",              CB_RESTRICT_META,  68, 74,  64, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 0,4,0,1)
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_RESTRICT_META, 136, 76,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT|SPBS_FASTSPIN
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 0,4,0,1)
+    LTEXT        "characters",                          ST_GENERIC,       164, 74,  56, 12, DT_VCENTER|NOT WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,4,0,1, 0,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     LTEXT        "~Scrolls title:",                     ST_GENERIC,        12, 62,  52, 10, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 1,4,0,1)

@@ -31,8 +31,8 @@
 #include "eventhandler.h"
 #include "copyright.h"
 #include "skin.h" // for bmp_get_text
-#include "123_util.h" // for amp_construct_tag_string
 #include "pm123.h" // for amp_player_hab
+#include "gui.h" // for ConstructTagString
 #include "controller.h"
 #include "playable.h"
 
@@ -240,7 +240,7 @@ PROXYFUNCIMP(int DLLENTRY, ProxyHelper) PluginGetString(int index, int subindex,
    case STR_DISPLAY_TAG:
     { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
       if (song)
-      { const xstring& text = amp_construct_tag_string( &song->GetInfo() );
+      { const xstring& text = GUI::ConstructTagString(&song->GetInfo());
         strlcpy(buf, text, bufsize);
       }
       break;

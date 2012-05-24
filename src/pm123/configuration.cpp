@@ -92,6 +92,8 @@ const amp_cfg Cfg::Default =
 , CFG_SCROLL_INFINITE
 , true
 , CFG_DISP_ID3TAG
+, true
+, 60
 , 9
 , "" // Proxy
 , ""
@@ -203,6 +205,8 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.floatontop);
   load_ini_int(HIni, cfg.scroll);
   load_ini_int(HIni, cfg.viewmode);
+  load_ini_int(HIni, cfg.restrict_meta);
+  load_ini_int(HIni, cfg.restrict_length);
   load_ini_int(HIni, cfg.max_recall);
   load_ini_int(HIni, cfg.buff_wait);
   load_ini_int(HIni, cfg.buff_size);
@@ -272,6 +276,8 @@ void Cfg::SaveIni()
     save_ini_bool (HIni, cfg.floatontop);
     save_ini_value(HIni, cfg.scroll);
     save_ini_value(HIni, cfg.viewmode);
+    save_ini_bool (HIni, cfg.restrict_meta);
+    save_ini_value(HIni, cfg.restrict_length);
     save_ini_value(HIni, cfg.max_recall);
     save_ini_value(HIni, cfg.buff_wait);
     save_ini_value(HIni, cfg.buff_size);

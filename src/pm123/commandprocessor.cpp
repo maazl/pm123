@@ -450,6 +450,17 @@ void CommandProcessor::DoOption(int amp_cfg::* option)
   else if (Request)
     Cfg::ChangeAccess().*option = ParseInt(Request);
 }
+void CommandProcessor::DoOption(unsigned amp_cfg::* option)
+{ Reply.appendf("%u", ReadCfg().*option);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (Request)
+  { int i = ParseInt(Request);
+    if (i < 0)
+      throw SyntaxException("Argument \"%s\" must not be negative.", i);
+    Cfg::ChangeAccess().*option = i;
+  }
+}
 void CommandProcessor::DoOption(xstring amp_cfg::* option)
 { Reply.append(xstring(ReadCfg().*option));
   if (Request == Cmd_SetDefault)
@@ -756,7 +767,7 @@ void CommandProcessor::XStatus()
   if (song)
   { switch (ParseDisp(Request))
     {case CFG_DISP_ID3TAG:
-      Reply.append(amp_construct_tag_string(&song->GetInfo()));
+      Reply.append(GUI::ConstructTagString(&song->GetInfo()));
       if (Reply.length())
         break;
       // if tag is empty - use filename instead of it.
@@ -1476,6 +1487,8 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "queueatcommand",  &amp_cfg::append_cmd     }
 , { "queueatdnd",      &amp_cfg::append_dnd     }
 , { "queuedelplayed",  &amp_cfg::queue_mode     }
+, { "restrictlength",  &amp_cfg::restrict_length}
+, { "restrictmeta",    &amp_cfg::restrict_meta  }
 , { "resumeatstartup", &amp_cfg::restartonstart }
 , { "retainposonexit", &amp_cfg::retainonexit   }
 , { "retainposonstop", &amp_cfg::retainonstop   }

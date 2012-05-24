@@ -37,9 +37,6 @@
 #include <cpp/url123.h>
 
 
-/// Constructs a string of the displayable text from the file information.
-const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info );
-
 /// Get current working directory
 const url123 amp_get_cwd();
 

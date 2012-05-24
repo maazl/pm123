@@ -86,6 +86,15 @@ static void vis_UninitAll()
   }
 }
 
+static void append_restricted(xstringbuilder& target, const xstring& str, unsigned maxlen)
+{
+  if (maxlen && str.length() > maxlen)
+  { target.append(str, maxlen);
+    target.append("...");
+  } else
+    target += str;
+}
+
 
 /****************************************************************************
 *
@@ -1260,14 +1269,7 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
   if (args.New.mode != args.Old.mode)
   { bmp_reflow_and_resize(HFrame);
     Invalidate(UPD_ALL);
-  } else if ( args.New.scroll != args.Old.scroll
-    || args.New.scroll_around != args.Old.scroll_around
-    || args.New.viewmode != args.Old.viewmode
-    || args.New.font_skinned != args.Old.font_skinned
-    || ( args.New.font_skinned
-      && args.New.font != args.Old.font )
-    || ( !args.New.font_skinned
-      && (args.New.font_size != args.Old.font_size || memcmp(&args.New.font_attrs, &args.Old.font_attrs, sizeof args.New.font_attrs) != 0) ))
+  } else
     Invalidate(UPD_TEXT);
 
   if ( args.New.dock_windows != args.Old.dock_windows
@@ -1557,27 +1559,33 @@ void GUIImp::PrepareText()
   }
   DEBUGLOG(("GUI::PrepareText() %p %u\n", CurrentSong(), Cfg::Get().viewmode));
 
+  const volatile amp_cfg& cfg = Cfg::Get();
   xstring text;
   const INFO_BUNDLE_CV& info = CurrentSong()->GetInfo();
-  switch (Cfg::Get().viewmode)
-  { case CFG_DISP_ID3TAG:
-      text = amp_construct_tag_string(&info);
-      if (text.length())
-        break;
-      // if tag is empty - use filename instead of it.
-    case CFG_DISP_FILENAME:
-      // Give Priority to an alias name if any
+  switch (cfg.viewmode)
+  {case CFG_DISP_ID3TAG:
+    text = ConstructTagString(&info);
+    if (text.length())
+      break;
+    // if tag is empty - use filename instead of it.
+   case CFG_DISP_FILENAME:
+    { // Give Priority to an alias name if any
       text = info.item->alias;
       if (!text)
-        text = CurrentSong()->GetPlayable().URL.getShortName();
+      { text = CurrentSong()->GetPlayable().URL.getShortName();
+        if (cfg.restrict_meta && text.length() > cfg.restrict_length)
+          text = xstring(text, 0, cfg.restrict_length) + "...";
+      }
       // In case of an invalid item display an error message.
       if (info.tech->attributes & TATTR_INVALID)
         text = text + " - " + xstring(info.tech->info);
       break;
-
-    case CFG_DISP_FILEINFO:
-      text = info.tech->info;
-      break;
+    }
+   case CFG_DISP_FILEINFO:
+    text = info.tech->info;
+    if (cfg.restrict_meta && text.length() > cfg.restrict_length)
+      text = xstring(text, 0, cfg.restrict_length) + "...";
+    break;
   }
   bmp_set_text(!text ? "" : text);
 }
@@ -1996,6 +2004,48 @@ HWND              GUI::HHelp   = NULLHANDLE;
 SongIterator      GUI::IterBuffer[2];
 SongIterator*     GUI::CurrentIter = GUI::IterBuffer;
 
+
+/* Constructs a string of the displayable text from the file information. */
+const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
+{
+  unsigned maxlen = 0;
+  { const volatile amp_cfg& cfg = Cfg::Get();
+    if (cfg.restrict_meta)
+      maxlen = cfg.restrict_length;
+  }
+
+  xstringbuilder result;
+
+  xstring tmp1(info->meta->artist);
+  xstring tmp2(info->meta->title);
+  if (tmp1 && *tmp1)
+  { append_restricted(result, tmp1, maxlen);
+    if (tmp2 && *tmp2)
+      result += ": ";
+  }
+  if (tmp2 && *tmp2)
+    append_restricted(result, tmp2, maxlen);
+
+  tmp1 = info->meta->album;
+  tmp2 = info->meta->year;
+  if (tmp1 && *tmp1)
+  { result += " (";
+    append_restricted(result, tmp1, maxlen);
+    if (tmp2 && *tmp2)
+      result.appendf(", %s)", tmp2.cdata());
+    else
+      result += ')';
+  } else if (tmp2 && *tmp2)
+    result.appendf(" (%s)", tmp2.cdata());
+
+  tmp1 = info->meta->comment;
+  if (tmp1)
+  { result += " -- ";
+    append_restricted(result, tmp1, maxlen);
+  }
+
+  return result;
+}
 
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
 { DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.DebugName().cdata(), max, ps.GetPlayable().URL.cdata()));

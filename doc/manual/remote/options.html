@@ -32,14 +32,14 @@ slider button.</a></td>
       <td>Auto use playlist on add.</td>
     </tr>
     <tr>
-      <td valign="top"><tt>bufferlevel</tt>[<tt>=</tt><var><tt>percent</tt></var>]<tt>
+      <td valign="top"><tt>bufferlevel</tt>[<tt>=</tt><var>percent</var>]<tt>
       </tt></td>
       <td valign="top">Fill the read ahead buffer up to this level in %
 before playing. <br>
 (see also <tt>bufferwait</tt>) </td>
     </tr>
     <tr>
-      <td valign="top"><tt>buffersize</tt>[<tt>=</tt><var><tt>size_kb</tt></var>]
+      <td valign="top"><tt>buffersize</tt>[<tt>=</tt><var>size_kb</var>]
       </td>
       <td valign="top">Size of read ahead buffer for playback in kiB. </td>
     </tr>
@@ -49,7 +49,7 @@ before playing. <br>
       <td valign="top">Fill the read ahead buffer before playing. </td>
     </tr>
     <tr>
-      <td valign="top"><tt>conntimeout</tt>[<tt>=</tt><var><tt>seconds</tt></var>]<tt>
+      <td valign="top"><tt>conntimeout</tt>[<tt>=</tt><var>seconds</var>]<tt>
       </tt></td>
       <td valign="top">Timeout for http connection in seconds. </td>
     </tr>
@@ -59,7 +59,7 @@ before playing. <br>
       <td valign="top">Recurse into directory at drag and drop.</td>
     </tr>
     <tr>
-      <td valign="top"><tt>dockmargin</tt>[<tt>=</tt><var><tt>pixels</tt></var>]<tt>
+      <td valign="top"><tt>dockmargin</tt>[<tt>=</tt><var>pixels</var>]<tt>
       </tt></td>
       <td valign="top">Maximum number of pixels when windows dock. (see
 also <tt>dockwindows</tt>) </td>
@@ -81,11 +81,11 @@ also <tt>dockwindows</tt>) </td>
 mode.</td>
     </tr>
     <tr>
-      <td><tt>font</tt>[<tt>=</tt>{<tt>1</tt>|<tt>2</tt>|<var><tt>&lt;size.font&gt;</tt></var>}]</td>
+      <td><tt>font</tt>[<tt>=</tt>{<tt>1</tt>|<tt>2</tt>|<var>size<tt>.</tt>font</var>}]</td>
       <td>Previous setting or empty string on error.</td>
     </tr>
     <tr>
-      <td valign="top"><tt>pipe</tt>[<tt>=</tt><var><tt>pipe_name</tt></var>]</td>
+      <td valign="top"><tt>pipe</tt>[<tt>=</tt><var>pipe_name</var>]</td>
       <td valign="top">Name of the remote pipe, must start with <tt>\PIPE\</tt>.
       <small><sup><a href="#note3">(3.)</a></sup></small></td>
     </tr>
@@ -126,6 +126,16 @@ playlist. <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td valign="top">Remove played items from the default playlist. </td>
     </tr>
     <tr>
+      <td valign="top"><tt>restrictlength</tt>[<tt>=</tt><var>chars</var>]</td>
+      <td valign="top">Restrict length of meta data in PM123 display to
+at most <var><tt>chars</tt></var> characters.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt>restrictmeta</tt>[<tt>=</tt>{<tt>on</tt>|<tt>off</tt>}]
+      <small><sup><a href="options.html#note1">(1.)</a></sup></small></td>
+      <td valign="top">Restrict length of meta data in PM123 display.</td>
+    </tr>
+    <tr>
       <td valign="top"><tt>resumeatstartup</tt>[<tt>=</tt>{<tt>on</tt>|<tt>off</tt>}]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td valign="top">Continue playing at player start-up.</td>
@@ -146,7 +156,7 @@ playlist. <small><sup><a href="#note2">(2.)</a></sup></small></td>
       <td>The player size.</td>
     </tr>
     <tr>
-      <td><tt>skin</tt>[<tt>=</tt><tt><var>&lt;file&gt;</var></tt>]</td>
+      <td><tt>skin</tt>[<tt>=</tt><var>file</var>]</td>
       <td> Current skin file. </td>
     </tr>
     <tr>
@@ -172,11 +182,11 @@ window. </td>
       <td>Save window positions per playlist object.</td>
     </tr>
     <tr>
-      <td> <tt> workersdlg</tt>[<tt>=</tt><var><tt>count</tt></var>] </td>
+      <td> <tt> workersdlg</tt>[<tt>=</tt><var>count</var>] </td>
       <td>Dialog worker threads. (high priority queue)</td>
     </tr>
     <tr>
-      <td valign="top"><tt>workersnorm</tt>[<tt>=</tt><var><tt>count</tt></var>]
+      <td valign="top"><tt>workersnorm</tt>[<tt>=</tt><var>count</var>]
       </td>
       <td valign="top">Background worker threads. (low priority queue) </td>
     </tr>
