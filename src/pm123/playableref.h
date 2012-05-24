@@ -152,7 +152,6 @@ class PlayableSlice : public APlayable
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);
   virtual const Playable&   DoGetPlayable() const;
- protected:
   #ifdef DEBUG_LOG
   virtual xstring           DoDebugName() const;
   #endif

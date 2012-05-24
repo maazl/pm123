@@ -117,6 +117,9 @@ class APlayable
   /// Keep in mind that this may not return the expected value unless \c RequestInfo(IF_Display,...) has been called.
   virtual xstring             GetDisplayName() const = 0;
   #ifdef DEBUG_LOG
+  /// Create some human readable output for debug logging.
+  /// @note This function is aware of being invoked on a \c NULL pointer.
+  /// Strictly speaking this is u.b. but in practice it works.
           xstring             DebugName() const   { return this ? DoDebugName() : "<null>"; } // Hack: allow this == NULL
   #endif
 

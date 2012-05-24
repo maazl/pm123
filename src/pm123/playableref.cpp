@@ -104,6 +104,12 @@ xstring PlayableSlice::GetDisplayName() const
 { return IsItemOverridden() && Item.alias ? Item.alias : RefTo->GetDisplayName();
 }
 
+#ifdef DEBUG_LOG
+xstring PlayableSlice::DoDebugName() const
+{ return "@" + RefTo.get()->DebugName();
+}
+#endif
+
 int_ptr<Location> PlayableSlice::GetStartLoc() const
 { if (IsItemOverridden())
     return StartCache;
@@ -191,12 +197,6 @@ void PlayableSlice::PeekRequest(RequestState& req) const
   RefTo->PeekRequest(req);
   DEBUGLOG(("PlayableSlice::PeekRequest: {%x,%x, %x}\n", req.ReqLow, req.ReqHigh, req.InService));
 }
-
-#ifdef DEBUG_LOG
-xstring PlayableSlice::DoDebugName() const
-{ return "@" + RefTo->DebugName();
-}
-#endif
 
 void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableSlice(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,

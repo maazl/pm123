@@ -49,7 +49,7 @@ PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
 
 #ifdef DEBUG_LOG
 xstring PlayableInstance::DoDebugName() const
-{ return xstring().sprintf("%s:%i", PlayableRef::DoDebugName().cdata(), Index);
+{ return xstring().sprintf("@%i:%s", Index, RefTo.get()->DebugName().cdata());
 }
 #endif
 

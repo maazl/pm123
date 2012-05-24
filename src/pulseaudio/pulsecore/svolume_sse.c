@@ -26,6 +26,7 @@
 
 #include <pulse/rtclock.h>
 
+#include <pulsecore/log.h>
 #include <pulsecore/random.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/endianmacros.h>

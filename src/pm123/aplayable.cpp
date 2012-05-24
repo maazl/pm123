@@ -80,7 +80,7 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
   #endif
   ASSERT((async & rq) == async);
   // what  - requested information
-  // rq    - missing information, might be more than what
+  // rq    - missing information, might e more than what
   // async - asynchronously requested information, subset of rq
   //         because the information may be on the way by another thread.
   
@@ -233,7 +233,8 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
       }
     }
   } else
-  { exclude.add(GetPlayable());
+  { Playable& pc = GetPlayable();
+    exclude.add(pc);
     if (psp)
     { // Check for negative slice
       if (pep && psp->GetIndex() > pep->GetIndex())
@@ -251,7 +252,6 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
     // Add the range (psp, pep). Exclusive interval!
     if (job.RequestInfo(*this, IF_Child))
       return what;
-    Playable& pc = GetPlayable();
     while ((psp = pc.GetNext(psp)) != pep)
     { if (exclude.contains(psp->GetPlayable()))
         continue;

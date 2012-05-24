@@ -40,8 +40,8 @@ CALL Parse result
 CALL Assert 'data.songs', '= "2"'
 CALL Assert 'data.lists', '= "2"'
 CALL Assert 'data.invalid', '= "0"'
-CALL Assert 'SafeFormat(data.totallength,3)', '= 35.998', reply
-CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 65.7', reply
+CALL Assert 'SafeFormat(data.totallength,3)', '= 26.656', reply
+CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 48.9', reply
 
 
 EXIT
