@@ -24,6 +24,26 @@ CALL Assert 'data.invalid', '= "1"'
 CALL Assert 'SafeFormat(data.totallength,3)', '= 35.998', reply
 CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 65.7', reply
 
+/* Test end */
+CALL CallPipe 'pl nextitem'
+CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/LIST2.LST"'
+/* Check the slice */
+CALL CallPipe 'pl info item'
+reply = result
+CALL Parse result
+CALL Assert 'data.start', '= "DATA.START"', reply
+CALL Assert 'data.stop', '= """list1.lst"";""list1.lst"""', reply
+/* check if the rpl info takes care of the slice */
+CALL CallPipe 'pl info playlist'
+reply = result
+CALL Parse result
+CALL Assert 'data.songs', '= "2"'
+CALL Assert 'data.lists', '= "2"'
+CALL Assert 'data.invalid', '= "0"'
+CALL Assert 'SafeFormat(data.totallength,3)', '= 35.998', reply
+CALL Assert 'SafeFormat(data.totalsize/1000,1)', '= 65.7', reply
+
+
 EXIT
 
 CallPipe: PROCEDURE EXPOSE lastcmd
