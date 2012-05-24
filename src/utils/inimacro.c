@@ -69,8 +69,8 @@ BOOL close_ini( HINI hini ) {
 void load_ini_int_core( HINI hini, const char* section, const char* key, void* dst, size_t size )
 { ASSERT(size <= sizeof(int));
   ULONG datasize = 0;
-  PrfQueryProfileSize( hini, section, key, &datasize );
-  if (datasize <= sizeof(int))
+  if ( PrfQueryProfileSize( hini, section, key, &datasize )
+    && datasize <= sizeof(int) )
   { if (datasize > size)
       datasize = size;
     else
