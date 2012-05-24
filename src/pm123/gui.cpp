@@ -1998,13 +1998,13 @@ SongIterator*     GUI::CurrentIter = GUI::IterBuffer;
 
 
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
-{ DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.URL.cdata(), max, ps.GetPlayable().URL.cdata()));
+{ DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.DebugName().cdata(), max, ps.GetPlayable().URL.cdata()));
   list.RequestInfo(IF_Child, PRI_Sync);
   Mutex::Lock lock(list.Mtx);
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size
   while ((pi = list.GetNext(pi)) != NULL)
-  { DEBUGLOG(("GUI::Add2MRU - %p{%s}\n", pi.get(), pi->GetPlayable().URL.cdata()));
+  { DEBUGLOG(("GUI::Add2MRU - %p{%s}\n", pi.get(), pi->DebugName().cdata()));
     if (max == 0 || pi->GetPlayable() == ps.GetPlayable()) // Instance equality of Playable is sufficient
       list.RemoveItem(pi);
      else

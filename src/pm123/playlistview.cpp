@@ -562,7 +562,7 @@ bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
 
 PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance& obj, RecordBase* parent)
 { DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(&%p{%s}, %p)\n", this, DebugName().cdata(),
-    &obj, obj.GetPlayable().URL.getShortName().cdata(), parent));
+    &obj, obj.DebugName().cdata(), parent));
   // No nested records in this view
   ASSERT(parent == NULL);
   // Allocate a record in the HwndContainer

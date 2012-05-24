@@ -104,6 +104,10 @@ class PlayableInstance : public PlayableRef
   // INT_MIN = unordered (The PlayableInstances do not belong to the same collection.)
   // Note that the result is not reliable unless you hold the mutex of the parent.
   //int                      CompareTo(const PlayableInstance& r) const;
+ private:
+  #ifdef DEBUG_LOG
+  virtual xstring           DoDebugName() const;
+  #endif
 };
 
 

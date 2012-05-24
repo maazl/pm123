@@ -82,7 +82,7 @@ void DependencyInfoPath::DumpSet(xstringbuilder& dest, const SetType& set)
   { if (epp != set.begin())
       dest.append(", ");
     const Entry& entry = **epp;
-    dest.appendf("%p{%s} : %x", &entry.Inst, entry.Inst->GetPlayable().URL.getShortName().cdata(), entry.What);
+    dest.appendf("%p{%s} : %x", &entry.Inst, entry.Inst->DebugName().cdata(), entry.What);
   }
 }
 
@@ -270,7 +270,7 @@ void DependencyInfoWorker::Start()
       while (i < Data.OptionalSet.size())
       { DependencyInfoSet::Entry* ep2 = Data.OptionalSet[i];
         DEBUGLOG(("DependencyInfoWorker::Start checking optional entry %p{%s} : %x\n",
-          &ep2->Inst, ep2->Inst->GetPlayable().URL.getShortName().cdata(), ep2->What));
+          &ep2->Inst, ep2->Inst->DebugName().cdata(), ep2->What));
         DelegList.append() = new DelegType(ep2->Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
         if (ep2->Check() == IF_None)
         { DelegList.clear();
@@ -282,7 +282,7 @@ void DependencyInfoWorker::Start()
     }
     ep = Data.MandatorySet.erase(Data.MandatorySet.size()-1); // Start from back to avoid unnecessary moving.
     DEBUGLOG(("DependencyInfoWorker::Start checking mandatory dependency %p{%s} : %x\n",
-      &ep->Inst, ep->Inst->GetPlayable().URL.getShortName().cdata(), ep->What));
+      &ep->Inst, ep->Inst->DebugName().cdata(), ep->What));
     if (ep->Check())
     { DEBUGLOG(("DependencyInfoWorker::Start still waiting for %x\n", ep->What));
       NowWaitingFor = ep->What;

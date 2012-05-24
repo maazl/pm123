@@ -350,7 +350,7 @@ PlaylistBase::ICP PlaylistManager::GetPlaylistType(const RecordBase* rec) const
 }
 
 bool PlaylistManager::RecursionCheck(const Playable& pp, const RecordBase* parent) const
-{ DEBUGLOG(("PlaylistManager(%p)::RecursionCheck(&%p{%s}, %s)\n", this, &pp, pp.URL.getShortName().cdata(), Record::DebugName(parent).cdata()));
+{ DEBUGLOG(("PlaylistManager(%p)::RecursionCheck(&%p{%s}, %s)\n", this, &pp, pp.DebugName().cdata(), Record::DebugName(parent).cdata()));
   if (pp != *Content)
   { for(;;)
     { if (parent == NULL)
@@ -386,7 +386,7 @@ bool PlaylistManager::RecursionCheck(const RecordBase* rp) const
 
 PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance& obj, RecordBase* parent)
 { DEBUGLOG(("PlaylistManager(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(),
-    &obj, obj.GetPlayable().URL.getShortName().cdata(), parent));
+    &obj, obj.DebugName().cdata(), parent));
 
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));

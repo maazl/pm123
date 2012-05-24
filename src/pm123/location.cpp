@@ -150,9 +150,9 @@ void Location::PrevNextCore(bool direction)
   int_ptr<PlayableInstance>& pi = Callstack[cssize-1];
   Playable& list = cssize > 1 ? Callstack[cssize-2]->GetPlayable() : *Root;
   DEBUGLOG(("Location(%p)::PrevNextCore(%u) %p{%s} -> %p{%s}\n", this,
-    direction, &list, list.URL.getDisplayName().cdata(), pi.get(), PlayableInstance::DebugName(pi)));
+    direction, &list, list.DebugName().cdata(), pi.get(), pi.get()->DebugName().cdata()));
   pi = direction ? list.GetNext(pi) : list.GetPrev(pi);
-  DEBUGLOG(("Location::PrevNextCore -> %p{%s}\n", pi.get(), PlayableInstance::DebugName(pi)));
+  DEBUGLOG(("Location::PrevNextCore -> %p{%s}\n", pi.get(), pi.get()->DebugName().cdata()));
 }
 
 Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
@@ -259,7 +259,7 @@ Location::NavigationResult Location::NavigateInto(JobSet& job)
 }
 
 Location::NavigationResult Location::NavigateTo(PlayableInstance* pi)
-{ DEBUGLOG(("Location(%p)::NavigateTo(%p)\n", this, &pi));
+{ DEBUGLOG(("Location(%p)::NavigateTo(%p{%s})\n", this, pi, pi->DebugName().cdata()));
   Playable* list = GetPlaylist();
   if (!list)
     return "Must enter a playlist before using NavigateTo.";

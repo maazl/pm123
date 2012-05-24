@@ -73,7 +73,7 @@
 
 #ifdef DEBUG_LOG
 xstring PlaylistBase::RecordBase::DebugName() const
-{ return xstring().sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable().URL.getShortName().cdata());
+{ return xstring().sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->DebugName().cdata());
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
@@ -790,7 +790,7 @@ PlaylistMenu& PlaylistBase::GetMenuWorker()
 
 
 PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance& obj, RecordBase* parent, RecordBase* after)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(&%p{%s}, %p, %p)\n", this, DebugName().cdata(), &obj, obj.GetPlayable().URL.getShortName().cdata(), parent, after));
+{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(&%p{%s}, %p, %p)\n", this, DebugName().cdata(), &obj, obj.DebugName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
   RecordBase* rec = CreateNewRecord(obj, parent);
   if (rec)
@@ -916,7 +916,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
       for (;;)
       { if (orpp == old.end())
         { // not found! => add
-          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->DebugName().cdata()));
           crp = AddEntry(*pi, rp, crp);
           if (crp && (crp->flRecordAttr & CRA_EXPANDED))// (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
             PostRecordUpdate(crp, RequestRecordInfo(crp, IF_Child));
@@ -924,7 +924,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
         }
         if ((*orpp)->Data->Content == pi)
         { // found!
-          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata(), orpp - old.begin()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", pi.get(), pi->DebugName().cdata(), orpp - old.begin()));
           if (orpp == old.begin())
             // already in right order
             crp = *orpp;
@@ -1082,22 +1082,6 @@ void PlaylistBase::UpdateIcon(RecordBase* rec)
   }
 }
 
-/*void PlaylistBase::UpdateRecord(RecordBase* rec, InfoFlags iflags)
-{ DEBUGLOG(("PlaylistBase(%p)::UpdateRecord(%p, %x)\n", this, rec, iflags));
-  if (rec == NULL)
-  { // Root node => update title
-    SetTitle();
-  } else
-  { // Record node
-    if (iflags & IF_Alias)
-    { xstring text = rec->Data->Content->GetDisplayName();
-      rec->pszIcon = (PSZ)text.cdata();
-      PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
-      rec->Data->Text = text; // now free the old text
-    }
-  }
-}*/
-
 void PlaylistBase::UpdatePlayStatus()
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus()\n", this));
   RecordBase* rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, 0, MPFROM2SHORT(CMA_FIRST, CMA_ITEMORDER));
@@ -1118,7 +1102,7 @@ void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 
 void PlaylistBase::InfoChangeEvent(const PlayableChangeArgs& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s},, %x, %x,}, %s)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
+    &args.Instance, args.Instance.DebugName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
   // Filter events
   InfoFlags req = args.Changed;
   FilterRecordRequest(rec, req);
@@ -1188,9 +1172,9 @@ void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, Recor
 
 void PlaylistBase::UserInsert(const InsertInfo* pii)
 { DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %p{%s}, %p{%s}})\n", this,
-    pii, pii->Parent->URL.getShortName().cdata(),
-    pii->Before.get(), pii->Before ? pii->Before->GetPlayable().URL.cdata() : "",
-    pii->Item.get(), pii->Item->GetPlayable().URL.cdata()));
+    pii, pii->Parent->DebugName().cdata(),
+    pii->Before.get(), pii->Before->DebugName().cdata(),
+    pii->Item.get(), pii->Item->DebugName().cdata()));
   pii->Parent->InsertItem(*pii->Item, pii->Before);
 }
 
@@ -1360,7 +1344,7 @@ void PlaylistBase::UserEditMeta()
 }
 
 void PlaylistBase::UserSort(Playable& p)
-{ DEBUGLOG(("PlaylistBase(%p)::UserSort(&%p{%s})\n", this, &p, p.URL.cdata()));
+{ DEBUGLOG(("PlaylistBase(%p)::UserSort(&%p{%s})\n", this, &p, p.DebugName().cdata()));
   if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
     p.Sort(SortComparer);
 }

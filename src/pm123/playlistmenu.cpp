@@ -299,7 +299,7 @@ USHORT PlaylistMenu::InsertDummy(HWND menu, SHORT where, const char* text)
 }
 
 PlaylistMenu::MapEntry* PlaylistMenu::InsertEntry(MapEntry* parent, SHORT where, APlayable& data, size_t index)
-{ DEBUGLOG(("PlaylistMenu::InsertEntry(%p{%u, %x}, %i, &%p{%s}, %i)\n", parent, parent->IDMenu, parent->HwndSub, where, &data, data.GetDisplayName().cdata(), index));
+{ DEBUGLOG(("PlaylistMenu::InsertEntry(%p{%u, %x}, %i, &%p{%s}, %i)\n", parent, parent->IDMenu, parent->HwndSub, where, &data, data.DebugName().cdata(), index));
   MENUITEM mi = {0};
   mi.id          = AllocateID();
   mi.iPosition   = where;
@@ -338,7 +338,7 @@ PlaylistMenu::MapEntry* PlaylistMenu::InsertEntry(MapEntry* parent, SHORT where,
 
 void PlaylistMenu::UpdateItem(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu::UpdateItem(%p{%u, %x, %p{%s}})\n",
-    mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get(), mapp->Data->GetPlayable().URL.getDisplayName().cdata()));
+    mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get(), mapp->Data->DebugName().cdata()));
   MapEntry* parp = mapp->Parent;
   ASSERT(parp);
 
@@ -393,7 +393,7 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
 
 void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::UpdateSubItems(%p{%u,%x,%p{%s},%x, %i,%i})\n", this,
-    mapp, mapp->IDMenu, mapp->Flags, &mapp->Data->GetPlayable(), mapp->Data->GetPlayable().URL.cdata(),
+    mapp, mapp->IDMenu, mapp->Flags, &mapp->Data->GetPlayable(), mapp->Data->DebugName().cdata(),
     mapp->Status.get(), (SHORT)mapp->ID1, (SHORT)mapp->Pos));
   // is enumerable?
   if (!(mapp->Data->GetInfo().tech->attributes & TATTR_PLAYLIST))
@@ -662,7 +662,7 @@ bool PlaylistMenu::CheckInUse(const MapEntry* mapp) const
 
 void PlaylistMenu::InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p{%s},%x,%x}, %p) {%u, %x, %p}\n", this,
-    &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
+    &args.Instance, args.Instance.DebugName().cdata(), args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
   if ((args.Changed & (IF_Phys|IF_Tech|IF_Display|IF_Usage)) && !mapp->Status.bitset(0))
     PMASSERT(WinPostMsg(HwndOwner, UM_UPDATEITEM, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
   if ((args.Changed & IF_Child) && !mapp->Status.bitset(1))
@@ -671,7 +671,7 @@ void PlaylistMenu::InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* m
 
 bool PlaylistMenu::AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos)
 { DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%x, %u, &%p{%s}, %x, %p, %u)\n", this,
-    menu, menuid, &data, data.GetPlayable().URL.getShortName().cdata(), flags, user, pos));
+    menu, menuid, &data, data.DebugName().cdata(), flags, user, pos));
 
   MapEntry*& mapp = MenuMap.get(menuid);
   if (mapp)

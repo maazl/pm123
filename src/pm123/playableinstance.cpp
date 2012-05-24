@@ -44,8 +44,14 @@ PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
   Parent(&parent),
   Index(0)
 { DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(&%p{%s}, &%p{%s})\n", this,
-    &parent, parent.URL.cdata(), &refto, refto.GetPlayable().URL.cdata()));
+    &parent, parent.DebugName().cdata(), &refto, refto.DebugName().cdata()));
 }
+
+#ifdef DEBUG_LOG
+xstring PlayableInstance::DoDebugName() const
+{ return xstring().sprintf("%s:%i", PlayableRef::DoDebugName().cdata(), Index);
+}
+#endif
 
 /*void PlayableInstance::Swap(PlayableRef& r)
 { DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));

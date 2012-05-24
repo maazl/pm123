@@ -143,10 +143,6 @@ class PlayableSlice : public APlayable
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void              PeekRequest(RequestState& req) const;
 
-  #ifdef DEBUG_LOG
-  static  const char*       DebugName(const PlayableSlice* r);
-  #endif
-
  protected: // Event handler
   virtual void              InfoChangeHandler(const PlayableChangeArgs& args);
 
@@ -156,6 +152,10 @@ class PlayableSlice : public APlayable
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);
   virtual const Playable&   DoGetPlayable() const;
+ protected:
+  #ifdef DEBUG_LOG
+  virtual xstring           DoDebugName() const;
+  #endif
 };
 
 

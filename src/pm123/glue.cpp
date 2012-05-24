@@ -278,8 +278,7 @@ ULONG GlueImp::DecCommand(DECMSGTYPE msg)
 /* invoke decoder to play an URL */
 ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
 {
-  const xstring& url = song.GetPlayable().URL;
-  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%g)\n", &song, url.cdata(), offset, start, stop));
+  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%g)\n", &song, song.DebugName().cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
   // set active DecPlug
   try
@@ -295,7 +294,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
   GlueImp::MinPos       = 1E99;
   GlueImp::MaxPos       = 0;
 
-  GlueImp::DParams.URL              = url;
+  GlueImp::DParams.URL              = song.GetPlayable().URL;
   GlueImp::DParams.JumpTo           = start;
   GlueImp::DParams.OutRequestBuffer = &PROXYFUNCREF(GlueImp)GlueRequestBuffer;
   GlueImp::DParams.OutCommitBuffer  = &PROXYFUNCREF(GlueImp)GlueCommitBuffer;
@@ -376,7 +375,7 @@ ULONG Glue::DecSave(const char* file)
 ULONG Glue::OutSetup(const APlayable& song)
 { const INFO_BUNDLE_CV& info = song.GetInfo();
   DEBUGLOG(("Glue::OutSetup(&%p{%s,{%i,%i,%x...}})\n",
-    &song, song.GetPlayable().URL.cdata(), info.tech->samplerate, info.tech->channels, info.tech->attributes));
+    &song, song.DebugName().cdata(), info.tech->samplerate, info.tech->channels, info.tech->attributes));
   GlueImp::OParams.URL        = song.GetPlayable().URL;
   GlueImp::OParams.Info       = &info;
   // TODO: is this position correct?

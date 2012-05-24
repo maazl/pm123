@@ -589,21 +589,9 @@ void CtrlImp::OutEventHandler(void*, const OUTEVENTTYPE& event)
   }
 }
 
-/*void Ctrl::CurrentSongEventHandler(void*, const PlayableChangeArgs& args)
-{ DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x, %x})\n",
-    &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded));
-  if (GetCurrentSong() != &args.Instance)
-    return; // too late...
-  EventFlags events = (EventFlags)((unsigned)args.Changed / Playable::IF_Tech * (unsigned)EV_SongTech) & EV_SongAll & ~EV_Song; // Dirty hack to shift the bits to match EV_Song*
-  if (events)
-  { InterlockedOr(&Pending, events);
-    PostCommand(MkNop());
-  }
-}*/
-
 void CtrlImp::CurrentRootEventHandler(void*, const CollectionChangeArgs& args)
 { DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x, %x})\n",
-    &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded));
+    &args.Instance, args.Instance.DebugName().cdata(), args.Changed, args.Loaded));
   { const int_ptr<APlayable>& ps = GetRoot();
     if (!ps || ps != &args.Instance)
       return; // too late...
@@ -614,15 +602,6 @@ void CtrlImp::CurrentRootEventHandler(void*, const CollectionChangeArgs& args)
     PostCommand(MkNop());
   }*/  
 }
-
-/*void Ctrl::SongIteratorEventHandler(void*, const SongIterator::CallstackEntry& ce)
-{ DEBUGLOG(("Ctrl::SongIteratorEventHandler(,&%p)\n", &ce));
-  // Currently there is no other event dispatched by the SongIterator.
-  if (!(Pending & EV_Offset)) // Effectively a double-check
-  { InterlockedOr(&Pending, EV_Offset);
-    PostCommand(MkNop());
-  }
-}*/
 
 
 void CtrlImp::MsgNop()
@@ -1072,7 +1051,7 @@ void CtrlImp::MsgDecStop()
   PrefetchList.append() = pep;
 
   // start decoder for the prefetched item
-  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", ps.GetPlayable().URL.cdata(), pep->Offset));
+  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", ps.DebugName().cdata(), pep->Offset));
   ULONG rc = DecoderStart(ps, pep->Offset);
   if (rc)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.

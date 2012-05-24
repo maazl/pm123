@@ -46,7 +46,7 @@
 PlayableSlice::PlayableSlice(APlayable& pp)
 : RefTo(&pp),
   InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
-{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(APlayable&%p{%s})\n", this, &pp, pp.GetPlayable().URL.cdata()));
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(APlayable&%p{%s})\n", this, &pp, pp.DebugName().cdata()));
   Info.rpl = NULL;
   Info.drpl = NULL;
   Info.item = &Item;
@@ -58,7 +58,7 @@ PlayableSlice::PlayableSlice(const PlayableSlice& r)
   StartCache(r.StartCache),
   StopCache(r.StopCache),
   InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
-{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(PlayableSlice&%p{%p})\n", this, &r, r.GetPlayable().URL.cdata()));
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(PlayableSlice&%p{%p})\n", this, &r, r.DebugName().cdata()));
   Info.rpl  = NULL;
   Info.drpl = NULL;
   Info.item = &Item;
@@ -103,32 +103,6 @@ int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, Slic
 xstring PlayableSlice::GetDisplayName() const
 { return IsItemOverridden() && Item.alias ? Item.alias : RefTo->GetDisplayName();
 }
-
-/*int_ptr<Location> PlayableSlice::GetLocCore(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, Priority pri) const
-{ xstring localstr = strloc;
-  DEBUGLOG(("PlayableSlice(%p)::GetLocCore(&%s, &%p, %d)\n", this, localstr.cdata(), cache.debug(), type));
-  int_ptr<Location> localcache = cache;
-  if (localstr && !localcache)
-  { // Two threads may run into the same code. We accept this redundancy because the impact is small.
-    ASSERT(!RefTo->RequestInfo(IF_Child, PRI_None, REL_Invalid));
-    Location* si = new Location(RefTo->GetPlayable());
-    const char* cp = localstr;
-    const xstring& err = si->Deserialize(cp, pri);
-    if (err)
-      // TODO: Errors
-      DEBUGLOG(("PlayableSlice::GetLocCore: %s at %s\n", err.cdata(), cp));
-    // Intersection with RefTo->GetStartLoc()
-    localcache = RefTo->GetStartLoc();
-    if (CompareSliceBorder(si, localcache, type) < 0)
-      delete si;
-    else
-      localcache = si;
-    Mutex::Lock(RefTo->GetPlayable().Mtx);
-    if (localstr.instEquals((const xstring&)strloc)) // Double check
-      cache = localcache;
-  }
-  return localcache;
-}*/
 
 int_ptr<Location> PlayableSlice::GetStartLoc() const
 { if (IsItemOverridden())
@@ -219,12 +193,8 @@ void PlayableSlice::PeekRequest(RequestState& req) const
 }
 
 #ifdef DEBUG_LOG
-const char* PlayableSlice::DebugName(const PlayableSlice* r)
-{ if (!r)
-    return "(null)";
-  if (!r->RefTo)
-    return "[null]";
-  return r->RefTo->GetPlayable().URL;
+xstring PlayableSlice::DoDebugName() const
+{ return "@" + RefTo->DebugName();
 }
 #endif
 
@@ -243,7 +213,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 }
 
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
 
   if (!IsItemOverridden())
     return CallDoRequestInfo(*RefTo, what, pri, rel);
@@ -302,7 +272,7 @@ AggregateInfo& PlayableSlice::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), &ai, what, pri, rel));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n", this, DebugName().cdata(), &ai, what, pri, rel));
 
   // We have to check whether the supplied AggregateInfo is mine or from *RefTo.
   if (!CIC || !CIC->IsMine(ai))
@@ -353,7 +323,7 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
 }
 
 void PlayableSlice::DoLoadInfo(JobSet& job)
-{ DEBUGLOG(("PlayableSlice(%p{%s})::DoLoadInfo({%u,})\n", this, GetPlayable().URL.getShortName().cdata(), job.Pri));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoLoadInfo({%u,})\n", this, DebugName().cdata(), job.Pri));
   // Load base info first.
   CallDoLoadInfo(*RefTo, job);
 

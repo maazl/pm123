@@ -138,8 +138,14 @@ const INFO_BUNDLE_CV& Playable::GetInfo() const
 { return Info;
 }
 
+#ifdef DEBUG_LOG
+xstring Playable::DoDebugName() const
+{ return URL.getShortName();
+}
+#endif
+
 void Playable::SetInUse(unsigned used)
-{ DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
+{ DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, DebugName().cdata(), used));
   Mutex::Lock lock(Mtx);
   // TODO: keep origin in case of cascaded execution
   CollectionChangeArgs args(*this, this, IF_Usage, IF_None, IF_None);
@@ -151,7 +157,7 @@ void Playable::SetInUse(unsigned used)
 }
 
 void Playable::SetModified(bool modified, APlayable* origin)
-{ DEBUGLOG(("Playable(%p{%s})::SetModified(%u)\n", this, URL.cdata(), modified));
+{ DEBUGLOG(("Playable(%p{%s})::SetModified(%u)\n", this, DebugName().cdata(), modified));
   Mutex::Lock lock(Mtx);
   bool changed = Modified != modified;
   Modified = modified;
@@ -232,45 +238,6 @@ int_ptr<PlayableInstance> Playable::GetNext(const PlayableInstance* cur) const
   return Playlist->Items.next((Entry*)cur);
 }
 
-/*xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptions opt) const
-{ DEBUGLOG(("PlayableCollection(%p{%s})::SerializeItem(%p, %u)\n", this, URL.getShortName().cdata(), item, opt));
-  // check whether we are unique
-  size_t count = 1;
-  { int_ptr<PlayableInstance> pi = GetPrev(item);
-    while (pi != NULL)
-    { if (opt & SO_IndexOnly || pi->GetPlayable() == item->GetPlayable())
-        ++count;
-      pi = GetPrev(pi);
-    }
-  }
-  // Index only?
-  if (opt & SO_IndexOnly)
-    return xstring().sprintf("[%u]", count);
-  xstring ret;
-  // fetch relative or absolute URL
-  if (opt & SO_RelativePath)
-    ret = item->GetPlayable().URL.makeRelative(URL, !!(opt & SO_UseUpdir));
-  else
-    ret = item->GetPlayable().URL;
-  // append count?
-  return xstring().sprintf(count > 1 ? "\"%s\"[%u]" : "\"%s\"", ret.cdata(), count);
-}*/
-
-
-/*void Playable::InvalidateInfo(InfoFlags what)
-{ DEBUGLOG(("Playable::InvalidateInfo(%x)\n", what));
-  InfoSvc.EndUpdate(what);
-  what = InfoRel.Invalidate(what);
-  InfoChange(PlayableChangeArgs(*this, IF_None, IF_None, what));
-}
-
-InfoFlags Playable::InvalidateInfoSync(InfoFlags what)
-{ DEBUGLOG(("Playable::InvalidateInfoSync(%x)\n", what));
-  what &= ~InfoSvc.IsInService();
-  what = InfoRel.Invalidate(what);
-  InfoChange(PlayableChangeArgs(*this, IF_None, IF_None, what));
-  return what;
-}*/
 
 static inline void SetDependentInfo(InfoFlags& what)
 { if (what & IF_Meta)
@@ -417,7 +384,7 @@ struct deccbdata
 };
 
 void Playable::DoLoadInfo(JobSet& job)
-{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%u,})\n", this, URL.getShortName().cdata(), job.Pri));
+{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%u,})\n", this, DebugName().cdata(), job.Pri));
   InfoState::Update upd(Info.InfoStat, job.Pri);
   DEBUGLOG(("Playable::DoLoadInfo: update %x\n", upd.GetWhat()));
   // There must not be outstanding requests on informations that cause a no-op.
@@ -546,7 +513,7 @@ void Playable::DoLoadInfo(JobSet& job)
 }
 
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
-{ DEBUGLOG(("Playable(%p{%s})::DecoderFileInfo(%x&, {...}, %p)\n", this, URL.cdata(), what, param));
+{ DEBUGLOG(("Playable(%p{%s})::DecoderFileInfo(%x&, {...}, %p)\n", this, DebugName().cdata(), what, param));
   ASSERT(what);
   PluginList decoders(PLUGIN_DECODER);
   Plugin::GetPlugins(decoders);
@@ -697,8 +664,8 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
 }
 
 void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
-{ DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, URL.getShortName().cdata(),
-    &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
+{ DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, DebugName().cdata(),
+    &args.Instance, args.Instance.DebugName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
   /* TODO: InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
     if (f)
     { // Invalidate dependent info and reload if already known
@@ -749,8 +716,8 @@ Playable::Entry* Playable::CreateEntry(APlayable& refto)
 }
 
 void Playable::InsertEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertEntry(%p{%s}, %p{%s})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata(), before, before ? before->GetPlayable().URL.cdata() : ""));
+{ DEBUGLOG(("Playable(%p{%s})::InsertEntry(%p{%s}, %p{%s})\n", this, DebugName().cdata(),
+    entry, entry->DebugName().cdata(), before, before->DebugName().cdata()));
   // insert new item at the desired location
   entry->Attach();
   Playlist->Items.insert(entry, before);
@@ -758,15 +725,15 @@ void Playable::InsertEntry(Entry* entry, Entry* before)
 }
 
 bool Playable::MoveEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("Playable(%p{%s})::MoveEntry(%p{%s}, %p{%s})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata(), before, (before ? before->GetPlayable().URL : url123::EmptyURL).getShortName().cdata()));
+{ DEBUGLOG(("Playable(%p{%s})::MoveEntry(%p{%s}, %p{%s})\n", this, DebugName().cdata(),
+    entry, entry->DebugName().cdata(), before, before->DebugName().cdata()));
   ASSERT(entry->HasParent(this));
   return Playlist->Items.move(entry, before);
 }
 
 void Playable::RemoveEntry(Entry* entry)
-{ DEBUGLOG(("Playable(%p{%s})::RemoveEntry(%p{%s})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata()));
+{ DEBUGLOG(("Playable(%p{%s})::RemoveEntry(%p{%s})\n", this, DebugName().cdata(),
+    entry, entry->DebugName().cdata()));
   ASSERT(entry->HasParent(this));
   entry->Detach();
   Playlist->Items.remove(entry);
@@ -856,8 +823,8 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
 }
 
 int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertItem(%s, %p{%s})\n", this, URL.getShortName().cdata(),
-    item.GetPlayable().URL.getShortName().cdata(), before, before ? before->GetPlayable().URL.cdata() : ""));
+{ DEBUGLOG(("Playable(%p{%s})::InsertItem(%s, %p{%s})\n", this, DebugName().cdata(),
+    item.DebugName().cdata(), before, before->DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check object type. Can't add to a song.
   if (Info.Tech.attributes & TATTR_SONG)
@@ -903,8 +870,8 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
 }
 
 bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, URL.getShortName().cdata(),
-    item, item->GetPlayable().URL.cdata(), before ? before->GetPlayable().URL.cdata() : ""));
+{ DEBUGLOG(("Playable(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, DebugName().cdata(),
+    item, item->DebugName().cdata(), before->DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the parameter before is still valid
   if (!item->HasParent(this) || (before && !before->HasParent(this)))
@@ -936,8 +903,8 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
 }
 
 bool Playable::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playable(%p{%s})::RemoveItem(%p{%s})\n", this, URL.getShortName().cdata(),
-    item, item->GetPlayable().URL.cdata()));
+{ DEBUGLOG(("Playable(%p{%s})::RemoveItem(%p{%s})\n", this, DebugName().cdata(),
+    item, item->DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
   if (!item || !item->HasParent(this))
@@ -971,7 +938,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
 }
 
 bool Playable::Clear()
-{ DEBUGLOG(("Playable(%p{%s})::Clear()\n", this, URL.getShortName().cdata()));
+{ DEBUGLOG(("Playable(%p{%s})::Clear()\n", this, DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj|IF_Rpl|IF_Drpl);

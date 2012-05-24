@@ -885,7 +885,7 @@ void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg::StatusRe
 void InfoDialog::MetaWriteDlg::Worker()
 { while (!Cancel && CurrentItem < Dest.size())
   { Playable& song = Dest[CurrentItem]->GetPlayable();
-    DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker - %u %s\n", this, CurrentItem, song.URL.cdata()));
+    DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker - %u %s\n", this, CurrentItem, song.DebugName().cdata()));
     // Write info
     StatusReport rep;
     rep.RC = song.SaveMetaInfo(MetaData, MetaFlags);
@@ -982,7 +982,7 @@ SingleInfoDialog::SingleInfoDialog(const KeyType& key)
 : InfoDialog(key),
   DataCacheValid(false),
   ContentChangeDeleg(*this, &SingleInfoDialog::ContentChangeEvent)
-{ DEBUGLOG(("SingleInfoDialog(%p)::SingleInfoDialog({%p{%s}})\n", this, Key[0], Key[0]->GetPlayable().URL.cdata()));
+{ DEBUGLOG(("SingleInfoDialog(%p)::SingleInfoDialog({%p{%s}})\n", this, Key[0], Key[0]->DebugName().cdata()));
 }
 
 MRESULT SingleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)

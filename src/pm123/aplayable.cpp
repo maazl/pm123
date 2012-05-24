@@ -60,7 +60,7 @@ bool   APlayable::WTermRq        = false;
 
 
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
-{ DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
+{ DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
   if (what == IF_None)
     return IF_None;
 
@@ -110,7 +110,7 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 
 volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   const PlayableSetBase& exclude, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("APlayable(%p)::RequestAggregateInfo(%x, %d, %d)\n", this, what, pri, rel));
+{ DEBUGLOG(("APlayable(%p{%s})::RequestAggregateInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
   AggregateInfo& ai = DoAILookup(exclude);
   InfoFlags rq = what;
   InfoFlags async = DoRequestAI(ai, rq, pri, rel);
@@ -163,7 +163,7 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
 }
 
 InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
-{ DEBUGLOG(("APlayable(%p)::AddSliceAggregate(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this,
+{ DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this, DebugName().cdata(),
     exclude.size(), what, job.Pri, start, stop, level));
   InfoFlags whatnotok = IF_None;
 
@@ -342,7 +342,7 @@ void APlayable::ScheduleRequest(Priority pri)
 }
 
 void APlayable::HandleRequest(Priority pri)
-{ DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%u)\n", this, GetPlayable().URL.getShortName().cdata(), pri));
+{ DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%u)\n", this, DebugName().cdata(), pri));
   JobSet job(pri > PRI_Normal ? PRI_Normal : pri); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
   if (pri == PRI_Low)
     AsyncRequest = 0;
