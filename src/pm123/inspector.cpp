@@ -278,7 +278,7 @@ static bool WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
     PlayableFlagsMapper(rqstr, req.ReqHigh, true);
     char isstr[11] = "----------";
     PlayableFlagsMapper(isstr, req.InService, true);
-    sb.appendf("%c[%s -> %s] %s", prefixchar[svc][pri == PRI_Normal], rqstr, isstr, entry->GetPlayable().URL.cdata());
+    sb.appendf("%c[%s -> %s] %s", prefixchar[svc][pri == PRI_Normal], rqstr, isstr, entry->DebugName().cdata());
   }
   result.append() = sb.detach_array();
   return result.size() < MAX_ITEMS;
@@ -294,7 +294,7 @@ static bool WaitQCB(APlayable& entry, Priority pri, const DependencyInfoSet& dep
   { const DependencyInfoPath::Entry& e = depends[i];
     char rqstr[11] = "----------";
     PlayableFlagsMapper(rqstr, e.What, pri == PRI_Normal);
-    sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, entry.GetPlayable().URL.cdata(), e.Inst->GetPlayable().URL.cdata());
+    sb.appendf("%c[%s] %s : %s", i < mandatory ? '!' : '?', rqstr, entry.DebugName().cdata(), e.Inst->DebugName().cdata());
     result.append() = sb.detach_array();
     if (result.size() >= MAX_ITEMS)
       return false;

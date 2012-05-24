@@ -207,9 +207,7 @@ class Playable
   virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);
-  #ifdef DEBUG_LOG
   virtual xstring           DoDebugName() const;
-  #endif
   /// Returns the decoder NAME that can play this file and returns 0
   /// if not returns error 200 = nothing can play that.
   ULONG                     DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param);

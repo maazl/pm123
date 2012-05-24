@@ -104,11 +104,9 @@ xstring PlayableSlice::GetDisplayName() const
 { return IsItemOverridden() && Item.alias ? Item.alias : RefTo->GetDisplayName();
 }
 
-#ifdef DEBUG_LOG
 xstring PlayableSlice::DoDebugName() const
 { return "@" + RefTo.get()->DebugName();
 }
-#endif
 
 int_ptr<Location> PlayableSlice::GetStartLoc() const
 { if (IsItemOverridden())

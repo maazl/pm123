@@ -138,11 +138,9 @@ const INFO_BUNDLE_CV& Playable::GetInfo() const
 { return Info;
 }
 
-#ifdef DEBUG_LOG
 xstring Playable::DoDebugName() const
 { return URL.getShortName();
 }
-#endif
 
 void Playable::SetInUse(unsigned used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, DebugName().cdata(), used));

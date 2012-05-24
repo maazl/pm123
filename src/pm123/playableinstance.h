@@ -105,9 +105,7 @@ class PlayableInstance : public PlayableRef
   // Note that the result is not reliable unless you hold the mutex of the parent.
   //int                      CompareTo(const PlayableInstance& r) const;
  private:
-  #ifdef DEBUG_LOG
   virtual xstring           DoDebugName() const;
-  #endif
 };
 
 

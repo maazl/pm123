@@ -47,11 +47,9 @@ PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
     &parent, parent.DebugName().cdata(), &refto, refto.DebugName().cdata()));
 }
 
-#ifdef DEBUG_LOG
 xstring PlayableInstance::DoDebugName() const
 { return xstring().sprintf("@%i:%s", Index, RefTo.get()->DebugName().cdata());
 }
-#endif
 
 /*void PlayableInstance::Swap(PlayableRef& r)
 { DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));

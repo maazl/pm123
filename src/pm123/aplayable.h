@@ -116,12 +116,10 @@ class APlayable
   /// @return This returns either \c Info.meta.title or the object name of the current URL.
   /// Keep in mind that this may not return the expected value unless \c RequestInfo(IF_Display,...) has been called.
   virtual xstring             GetDisplayName() const = 0;
-  #ifdef DEBUG_LOG
   /// Create some human readable output for debug logging.
   /// @note This function is aware of being invoked on a \c NULL pointer.
   /// Strictly speaking this is u.b. but in practice it works.
           xstring             DebugName() const   { return this ? DoDebugName() : "<null>"; } // Hack: allow this == NULL
-  #endif
 
   /// Get start position
   virtual int_ptr<Location>   GetStartLoc() const = 0;
@@ -257,9 +255,7 @@ class APlayable
   virtual InfoFlags           DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel) = 0;
 
   //virtual InfoFlags           DoGetOutstanding(Priority pri) = 0;
-  #ifdef DEBUG_LOG
   virtual xstring             DoDebugName() const = 0;
-  #endif
 
  protected: // Proxy functions to call the above methods also for other objects that derive from APlayable.
   static  InfoFlags           CallDoRequestInfo(APlayable& that, InfoFlags& what, Priority pri, Reliability rel)
