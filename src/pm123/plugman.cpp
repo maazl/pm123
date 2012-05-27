@@ -175,11 +175,23 @@ class ModuleImp : private Module
   static int     Comparer(const KeyType& key, const Module& module);
  public:
   static Module* Factory(const KeyType& key, const xstring& name);
-  class Repository : public inst_index2<Module, const KeyType, &ModuleImp::Comparer, const xstring>
+  class Repository : public inst_index2<Module,const KeyType,&ModuleImp::Comparer,const xstring>
   {public:
     static Mutex& GetMtx()                  { return Mtx; }
     static const vector<Module>& GetIndex() { return Index; }
   };
+
+ private: // Configuration dialog hook
+  static int     HookComparer(const HWND& key, const ModuleImp& mod);
+  typedef sorted_vector<ModuleImp,HWND,&ModuleImp::HookComparer> HookListType;
+  static HookListType HookList;
+  PROXYFUNCDEF void APIENTRY DestroyWindowHook(HAB hab, HWND hwnd, ULONG reserved);
+ public:
+  void           UpdateHook(HWND newconfig);
+
+ public:
+  static void    Init();
+  static void    Uninit();
 };
 
 
@@ -200,6 +212,9 @@ const XSTRING_API ModuleImp::XstringApi =
   &xstring_sprintf,
   &xstring_vsprintf
 };
+
+ModuleImp::HookListType ModuleImp::HookList;
+
 
 Module* ModuleImp::Factory(const KeyType& key, const xstring& name)
 { ModuleImp* pm = new ModuleImp(&key, name);
@@ -235,6 +250,7 @@ ModuleImp::~ModuleImp()
   }
   DEBUGLOG(("Module::~Module completed\n"));
 }
+
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength)
@@ -343,6 +359,40 @@ void ModuleImp::Load()
 }
 
 
+int ModuleImp::HookComparer(const HWND& key, const ModuleImp& mod)
+{ return (int)key - (int)mod.ConfigWindow;
+}
+
+PROXYFUNCIMP(void APIENTRY, ModuleImp)
+DestroyWindowHook(HAB hab, HWND hwnd, ULONG reserved)
+{ size_t pos;
+  if (HookList.binary_search(hwnd, pos))
+  { ModuleImp* mp = HookList[pos];
+    HookList.erase(pos);
+    mp->ConfigWindow = NULLHANDLE;
+  }
+}
+
+void ModuleImp::UpdateHook(HWND newconfig)
+{ if (ConfigWindow == newconfig)
+    return;
+  if (ConfigWindow != NULLHANDLE && ConfigWindow != (HWND)-1)
+    HookList.erase(ConfigWindow);
+  ConfigWindow = newconfig;
+  if (newconfig)
+    HookList.get(newconfig) = this;
+}
+
+
+void ModuleImp::Init()
+{ PMRASSERT(WinSetHook(amp_player_hab, HMQ_CURRENT, HK_DESTROYWINDOW, (PFN)&PROXYFUNCREF(ModuleImp)DestroyWindowHook, NULLHANDLE));
+}
+
+void ModuleImp::Uninit()
+{ PMRASSERT(WinReleaseHook(amp_player_hab, HMQ_CURRENT, HK_DESTROYWINDOW, (PFN)&PROXYFUNCREF(ModuleImp)DestroyWindowHook, NULLHANDLE));
+}
+
+
 /****************************************************************************
 *
 * Module - object representing a plugin-DLL
@@ -355,6 +405,7 @@ Module::Module(const xstring& key, const xstring& name)
 : Key(key)
 , ModuleName(name)
 , HModule(NULLHANDLE)
+, ConfigWindow(NULLHANDLE)
 , plugin_configure(NULL)
 , plugin_command(NULL)
 { DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
@@ -368,6 +419,20 @@ void Module::LoadMandatoryFunction(void* function, const char* function_name) co
     throw ModuleException("Could not load \"%s\" from %s\n%s", function_name,
       ModuleName.cdata(), os2_strerror(rc, error, sizeof error));
   }
+}
+
+void Module::Config(HWND owner)
+{ DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), owner, ConfigWindow));
+  if (!plugin_configure)
+    return; // Can't configure this plug-in.
+  if (owner && !ConfigWindow)
+    ConfigWindow = (HWND)-1; // Placeholder for modal window
+  HWND ret = NULLHANDLE;
+  if (QueryParam.interface >= 3)
+    ret = (*plugin_configure)(owner, HModule);
+  else if (owner) // old plug-ins do not expect owner = NULLHANDLE
+    (*plugin_configure)(owner, HModule);
+  ((ModuleImp*)this)->UpdateHook(ret);
 }
 
 PROXYFUNCIMP(void DLLENTRY, Module) PluginDisplayMessage(MESSAGE_TYPE type, const char* msg)
@@ -712,6 +777,7 @@ void plugman_init()
 { ProxyHelper::Init();
   Decoder::Init();
   Output::Init();
+  ModuleImp::Init();
   /* TODO!
    * if (Outputs.Current() == NULL && Outputs.size())
     Outputs.SetActive(1);*/
@@ -728,6 +794,7 @@ void plugman_uninit()
   Outputs.clear();*/
   // deinitialize framework
   //Plugin::Uninit();
+  ModuleImp::Uninit();
   Output::Uninit();
   Decoder::Uninit();
   ProxyHelper::Uninit();

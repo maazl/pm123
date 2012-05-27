@@ -37,7 +37,21 @@
 #include <os2.h>
 
 
-void cfg_properties(HWND owner);
+class PropertyDialog;
+
+class APropertyDialog
+{ static PropertyDialog* Instance;
+ public:
+  /// Invoke the PM123 configuration dialog
+  /// This function is modal!
+  static void Do(HWND owner);
+  /// Show an existing instance at the top.
+  static void Show();
+  /// Close the PM123 configuration dialog
+  static void Close();
+  /// Check whether the configuration dialog is currently visible.
+  static bool IsVisible() { return Instance != NULL; }
+};
 
 
 #endif /* PM123_PROPERTIES_H */

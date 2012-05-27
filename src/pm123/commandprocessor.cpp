@@ -110,11 +110,12 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "info pl playlist",   &CommandProcessor::XPlInfoPlaylist}
 , { "info playlist",      &CommandProcessor::XInfoPlaylist  }
 , { "info refresh",       &CommandProcessor::XInfoRefresh   }
+, { "isvisible",          &CommandProcessor::XIsVisible     }
 , { "jump",               &CommandProcessor::XJump          }
 , { "load",               &CommandProcessor::XLoad          }
 , { "location",           &CommandProcessor::XLocation      }
 , { "next",               &CommandProcessor::XNext          }
-, { "open",               &CommandProcessor::XOpen          }
+, { "open",               &CommandProcessor::XShow          }
 , { "option",             &CommandProcessor::XOption        }
 , { "pause",              &CommandProcessor::XPause         }
 , { "pl add",             &CommandProcessor::XPlAdd         }
@@ -1406,51 +1407,66 @@ void CommandProcessor::XWriteMetaRst()
 
 // GUI
 
-void CommandProcessor::XShow()
-{ GUI::Show(true);
-}
+static const strmap<12,int> windowmap[] =
+{ { "",           -2                },
+  { "detailed",   GUI::DLT_PLAYLIST },
+  { "metainfo",   GUI::DLT_METAINFO },
+  { "playlist",   GUI::DLT_PLAYLIST },
+  { "properties", -1                },
+  { "techinfo",   GUI::DLT_TECHINFO },
+  { "tagedit",    GUI::DLT_INFOEDIT },
+  { "tree",       GUI::DLT_PLAYLISTTREE }
+};
 
-void CommandProcessor::XHide()
-{ GUI::Show(false);
-}
-
-void CommandProcessor::XQuit()
-{ GUI::Quit();
-}
-
-void CommandProcessor::XOpen()
+void CommandProcessor::ShowHideCore(DialogBase::DialogAction action)
 { char* arg2 = Request + strcspn(Request, " \t");
   if (*arg2)
   { *arg2++ = 0;
     arg2 += strspn(arg2, " \t");
   }
-  static const strmap<12,int> map[] =
-  { { "detailed",   GUI::DLT_PLAYLIST },
-    { "metainfo",   GUI::DLT_METAINFO },
-    { "playlist",   GUI::DLT_PLAYLIST },
-    { "properties", -1           },
-    { "techinfo",   GUI::DLT_TECHINFO },
-    { "tagedit",    GUI::DLT_INFOEDIT },
-    { "tree",       GUI::DLT_PLAYLISTTREE }
-  };
-  const strmap<12,int>* op = mapsearch(map, Request);
-  if (op)
-  { if (op->Val >= 0)
-    { if (*arg2 == 0)
-        return; // Error
-      int_ptr<Playable> pp = Playable::GetByURL(ParseURL(arg2));
-      GUI::ShowDialog(*pp, (GUI::DialogType)op->Val);
-    } else
-    { // properties
-      if (*arg2)
-      { int_ptr<Module> mod = ParsePlugin(arg2);
-        if (mod)
-          GUI::ShowConfig(*mod);
-      } else
-      { GUI::ShowConfig();
-      }
-    }
+  const strmap<12,int>* op = mapsearch(windowmap, Request);
+  if (!op)
+  { Messages.appendf("E Invalid window type %s.\n", Request);
+    return;
   }
+  bool rc;
+  switch (op->Val)
+  {case -2: // Player window
+    rc = GUI::Show(action);
+    break;
+   case -1: // properties
+    if (*arg2)
+    { int_ptr<Module> mod = ParsePlugin(arg2);
+      if (mod)
+        rc = GUI::ShowConfig(*mod, action);
+    } else
+      rc = GUI::ShowConfig(action);
+    break;
+   default:
+    if (*arg2 == 0)
+    { Messages.append("E missing URL parameter.");
+      return;
+    }
+    int_ptr<Playable> pp = Playable::GetByURL(ParseURL(arg2));
+    rc = GUI::ShowDialog(*pp, (GUI::DialogType)op->Val, action);
+  }
+  Reply.append((char)('0' + rc));
+}
+
+void CommandProcessor::XShow()
+{ ShowHideCore(DialogBase::DLA_SHOW);
+}
+
+void CommandProcessor::XHide()
+{ ShowHideCore(DialogBase::DLA_CLOSE);
+}
+
+void CommandProcessor::XIsVisible()
+{ ShowHideCore(DialogBase::DLA_QUERY);
+}
+
+void CommandProcessor::XQuit()
+{ GUI::Quit();
 }
 
 void CommandProcessor::XSkin()

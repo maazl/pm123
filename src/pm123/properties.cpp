@@ -1126,10 +1126,22 @@ void PropertyDialog::Process()
   Cfg::SaveIni();
 }
 
-/* Creates the properties dialog. */
-void cfg_properties(HWND owner)
-{
-  PropertyDialog dialog(owner);
-  // TODO? WinSetFocus( HWND_DESKTOP, book );
+
+PropertyDialog* APropertyDialog::Instance = NULL;
+
+void APropertyDialog::Do(HWND owner)
+{ PropertyDialog dialog(owner);
+  Instance = &dialog;
   dialog.Process();
+  Instance = NULL;
+}
+
+void APropertyDialog::Show()
+{ if (Instance)
+    Instance->SetVisible(true);
+}
+
+void APropertyDialog::Close()
+{ if (Instance)
+    Instance->Close();
 }

@@ -38,7 +38,7 @@
 #include <cpp/smartptr.h>
 #include <cpp/event.h>
 #include <cpp/cpputil.h>
-
+#include <cpp/windowbase.h>
 
 class Module;
 class LoadHelper;
@@ -69,7 +69,10 @@ class GUI
   , WMP_DISPLAY_MESSAGE                   // message           TRUE (info) or FALSE (error)
   , WMP_DISPLAY_MODE                      // 0                 0
   , WMP_QUERY_STRING                      // buffer            size and type
-  , WMP_SHOW_DIALOG                       // int_ptr<Playable> DialogType
+  , WMP_SHOW_DIALOG                       // int_ptr<Playable> DialogType,DialogAction
+  , WMP_EDIT_META                         // int_ptr<Playable>
+  , WMP_SHOW_CONFIG                       // int_ptr<Module>   DialogAction
+  , WMP_DO_CONFIG                         // int_ptr<Module>
   , WMP_PLAYABLE_EVENT                    // APlayable*        Changed, Loaded
   , WMP_CTRL_EVENT                        // EventFlags        0
   , WMP_CTRL_EVENT_CB                     // ControlCommand*   0
@@ -114,11 +117,11 @@ class GUI
   static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("ShowHelp(%u)\n", resid));
                                             return WinSendMsg(HHelp, HM_DISPLAY_HELP, MPFROMSHORT(resid), MPFROMSHORT(HM_RESOURCEID)) == 0; }
   // Opens dialog for the specified object.
-  static void      ShowDialog(Playable& item, DialogType dlg);
-  static void      ShowConfig()           { PMRASSERT(WinPostMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_CFG), 0)); }
-  static void      ShowConfig(Module& plugin);
+  static bool      ShowDialog(Playable& item, DialogType dlg, DialogBase::DialogAction action = DialogBase::DLA_SHOW);
+  static bool      ShowConfig(Module& plugin, DialogBase::DialogAction action);
+  static bool      ShowConfig(DialogBase::DialogAction action) { return (bool)LONGFROMMR(WinSendMsg(HPlayer, WMP_SHOW_CONFIG, MPFROMP(NULL), MPFROMSHORT(action))); }
   
-  static void      Show(bool visible = true);
+  static bool      Show(DialogBase::DialogAction action);
   static void      Quit()                 { WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(BMP_POWER), 0); }
 
   /// Load objects into the player.
@@ -135,12 +138,6 @@ class GUI
   static void      Init();
   static void      Uninit();  
 };
-
-#include "plugman.h"
-
-inline void GUI::ShowConfig(Module& plugin)
-{ plugin.Config(HFrame);
-} 
 
 
 #endif /* GUI_H */

@@ -80,6 +80,7 @@ class PlaylistManager
   typedef inst_index<PlaylistManager, Playable, &PlaylistManager::Comparer> RepositoryType;
  public:
   static int_ptr<PlaylistManager> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistManager::Factory); }
+  static int_ptr<PlaylistManager> FindByKey(Playable& key) { return RepositoryType::FindByKey(key); }
   /// Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
                     ~PlaylistManager();

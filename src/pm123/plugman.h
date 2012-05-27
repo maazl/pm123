@@ -113,13 +113,14 @@ class Module
 , public OutputInstance
 , public VisualInstance
 {public:
-  const xstring            Key;
-  const xstring            ModuleName;
+  const xstring            Key;              ///< Short name of the module.
+  const xstring            ModuleName;       ///< Long name of the module.
  protected:
-  HMODULE                  HModule;
-  PLUGIN_QUERYPARAM        QueryParam;
+  HMODULE                  HModule;          ///< DLL handle of the module.
+  PLUGIN_QUERYPARAM        QueryParam;       ///< Result of \c plugin_query.
+  HWND                     ConfigWindow;     ///< Handle of the configuration window or -1, while existent.
   /// Entry point of the configure dialog (if any).
-  void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
+  HWND DLLENTRYP(plugin_configure)(HWND owner, HMODULE module);
   /// Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_command)(const char* command, xstring* result);
 
@@ -140,10 +141,11 @@ class Module
   /// @exception ModuleException Something went wrong.
   void    LoadMandatoryFunction(void* function, const char* function_name) const;
   /// Launch the configure dialog.
-  /// @param hwnd Parent window.
+  /// @param owner Parent window. \c NULLHANDLE will close a non-modal dialog.
   /// @remarks This function must be called from thread 1.
-  void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
-                                               if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
+  void    Config(HWND owner);
+  /// Check whether the configuration dialog is currently visible.
+  bool    IsConfig() const                   { return ConfigWindow != NULLHANDLE; }
   /// Handle plug-in specific command if the plug-in exports plugin_command.
   /// Otherwise the function is a no-op, result is unchanged.
   void    Command(const char* command, xstring& result) const

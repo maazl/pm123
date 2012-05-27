@@ -199,11 +199,17 @@ NotebookDialogBase::PageBase::PageBase(NotebookDialogBase& parent, ULONG rid, HM
   Parent(parent)
 {}
 
+NotebookDialogBase::NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags)
+: DialogBase(rid, module, flags)
+, NotebookCtrl(NULLHANDLE)
+{}
+
 void NotebookDialogBase::StartDialog(HWND owner, ULONG nbid, HWND parent)
-{ DEBUGLOG(("NotebookDialogBase(%p)::StartDialog(%p, %i, %p)\n", this, owner, nbid, parent));
+{ DEBUGLOG(("NotebookDialogBase(%p)::StartDialog(%p, %u, %p)\n", this, owner, nbid, parent));
   DialogBase::StartDialog(owner, parent);
+  NotebookCtrl.Hwnd = WinWindowFromID(GetHwnd(), nbid);
+  ASSERT(NotebookCtrl.Hwnd);
   // setup notebook windows
-  HWND book = WinWindowFromID(GetHwnd(), nbid);
   int index = 0;
   int total = 0;
   for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
@@ -223,7 +229,7 @@ void NotebookDialogBase::StartDialog(HWND owner, ULONG nbid, HWND parent)
     }
     if (total)
       ++index;
-    p->PageID = nb_append_tab(book, p->GetHwnd(), p->MajorTitle.cdata(), p->MinorTitle.cdata(), MPFROM2SHORT(index,total));
+    p->PageID = nb_append_tab(NotebookCtrl.Hwnd, p->GetHwnd(), p->MajorTitle.cdata(), p->MinorTitle.cdata(), MPFROM2SHORT(index,total));
     PMASSERT(p->PageID != 0);
   }
 }

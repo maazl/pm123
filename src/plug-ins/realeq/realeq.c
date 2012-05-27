@@ -1196,9 +1196,12 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
       nottheuser = FALSE;
       break;
 
+    case WM_DESTROY:
+      hdialog = NULLHANDLE;
+      break;
+
     case WM_CLOSE:
       save_ini();
-      hdialog = NULLHANDLE;
       WinDestroyWindow( hwnd );
       break;
 
@@ -1466,9 +1469,16 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
+HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
   init_request();
+
+  if (!hwnd)
+  {
+    if (hdialog)
+      WinDestroyWindow(hdialog);
+    return NULLHANDLE;
+  }
 
   if( !hdialog ) {
     hdialog = WinLoadDlg( HWND_DESKTOP, hwnd, ConfigureDlgProc, module, ID_EQ, NULL );
@@ -1477,5 +1487,7 @@ void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 
   WinShowWindow( hdialog, TRUE );
   WinSetFocus  ( HWND_DESKTOP, WinWindowFromID( hdialog, EQ_ENABLED ));
+
+  return hdialog;
 }
 

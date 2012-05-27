@@ -37,6 +37,7 @@
 #include "plugman.h"
 #include "dependencyinfo.h"
 #include <cpp/cppvdelegate.h>
+#include <cpp/windowbase.h>
 
 
 /****************************************************************************
@@ -303,10 +304,11 @@ class CommandProcessor : public ACommandProcessor
   void XWriteMetaRst();
 
   // GUI
+  void ShowHideCore(DialogBase::DialogAction action);
   void XShow();
   void XHide();
+  void XIsVisible();
   void XQuit();
-  void XOpen();
   void XSkin();
 
   // CONFIGURATION

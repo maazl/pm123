@@ -1124,9 +1124,10 @@ static MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 }
 
 /* Configure plug-in. */
-void DLLENTRY plugin_configure( HWND hwnd, HMODULE module )
+HWND DLLENTRY plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+  return NULL;
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

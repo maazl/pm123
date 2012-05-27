@@ -34,6 +34,7 @@
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
 #include <cpp/pmutils.h>
+#include <cpp/dlgcontrols.h>
 #include <cpp/container/vector.h>
 
 #include <os2.h>
@@ -48,23 +49,28 @@
 ****************************************************************************/
 class DialogBase
 {public:
+  enum DialogAction
+  { DLA_QUERY,                     ///< Query the visibility status of a dialog window.
+    DLA_SHOW,                      ///< Show a certain dialog window.
+    DLA_CLOSE                      ///< Close a certain dialog window.
+  };
   enum DlgFlags
   { DF_None           = 0x00,
     DF_AutoResize     = 0x01
   };
  private:
-  // wrap pointer to keep PM happy
+  /// wrap pointer to keep PM happy
   struct init_dlg_struct
   { USHORT      size;
     DialogBase* pm;
   };
 
  protected: // content
-  const ULONG       DlgRID;        // Resource ID of the dialog template
-  const HMODULE     ResModule;     // Module handle for the above resource
+  const ULONG       DlgRID;        ///< Resource ID of the dialog template
+  const HMODULE     ResModule;     ///< Module handle for the above resource
   const DlgFlags    Flags;
  private:
-  HWND              HwndFrame;     // Frame window handle
+  HWND              HwndFrame;     ///< Frame window handle
   bool              InitialVisible;
   int               Initialized;
   //xstring           Title;         // Keep the window title storage
@@ -78,50 +84,51 @@ class DialogBase
   void operator=(const DialogBase&);
 
  protected:
-  // Create a playlist manager window for an object, but don't open it.
+  /// Create a playlist manager window for an object, but don't open it.
   DialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None);
 
-  // load dialog resources and create window
+  /// load dialog resources and create window
   void              StartDialog(HWND owner, HWND parent = HWND_DESKTOP);
-  // Dialog procedure, called by DlgProcStub
+  /// Destroy window
+  void              Destroy()       { WinDestroyWindow(HwndFrame); }
+  /// Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Dialog initialization
+  /// Dialog initialization
   virtual void      OnInit();
-  // Destruction callback
+  /// Destruction callback
   virtual void      OnDestroy();
 
-  // Get the window title
+  /// Get the window title
   xstring           GetTitle() const;
-  // Set the window title
+  /// Set the window title
   void              SetTitle(const char* title);
 
   void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Dialog item functions
+  /// Dialog item functions
   HWND              GetCtrl(ULONG id) { return WinWindowFromID(HwndFrame, id); }
   MRESULT           SendCtrlMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
                     { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
   void              EnableCtrl(ULONG id, bool check) { WinEnableControl(HwndFrame, id, check); }
 
-  // Set Help Manager
+  /// Set Help Manager
   void              SetHelpMgr(HWND hhelp);
 
  public: // public interface
   virtual           ~DialogBase();
-  // Get the window handle
+  /// Get the window handle
   HWND              GetHwnd() const { ASSERT(HwndFrame != NULLHANDLE); return HwndFrame; }
-  // Make the window visible (or not)
+  /// Make the window visible (or not)
   virtual void      SetVisible(bool show);
   bool              GetVisible() const;
   ULONG             Process()       { return WinProcessDlg(HwndFrame); }
-  // Force the window to close
-  void              Destroy()       { WinDestroyWindow(HwndFrame); }
+  void              Close(ULONG result = DID_CANCEL)         { PMRASSERT(WinDismissDlg(HwndFrame, result)); }
 };
 FLAGSATTRIBUTE(DialogBase::DlgFlags);
 
 
 class NotebookDialogBase : public DialogBase
 {protected:
-  // Base class for notebook pages
+  /// Base class for notebook pages
   class PageBase;
   friend class PageBase;
   class PageBase : public DialogBase
@@ -131,7 +138,7 @@ class NotebookDialogBase : public DialogBase
     xstring         MajorTitle;
     xstring         MinorTitle;
    private:
-    ULONG           PageID;  // PM Notebook page ID from.
+    ULONG           PageID;         ///< PM Notebook page ID from.
    protected:
                     PageBase(NotebookDialogBase& parent, ULONG rid, HMODULE module, DlgFlags flags = DF_None);
     virtual void    StartDialog()   { DialogBase::StartDialog(Parent.GetHwnd(), Parent.GetHwnd()); }
@@ -143,10 +150,11 @@ class NotebookDialogBase : public DialogBase
   };
 
  protected:
+  Notebook          NotebookCtrl;
   vector_own<PageBase> Pages;
 
  protected:
-  NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None) : DialogBase(rid, module, flags) {}
+  NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None);
   void              StartDialog(HWND owner, ULONG nbid, HWND parent = HWND_DESKTOP);
   PageBase*         PageFromID(ULONG pageid);
 };
@@ -160,7 +168,7 @@ class ManagedDialog : public BASE, public IVref_count
   int_ptr<IVref_count> Self;
  protected:
   virtual void      OnInit();
-  // If you override OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
+  /// @remarks If you override OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
   ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DialogBase::DF_None) : BASE(rid, module, flags) {}

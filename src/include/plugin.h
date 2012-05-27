@@ -200,7 +200,12 @@ int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx); // Optional
 /** Show configure dialog.
  * @param hwnd parent window.
  * @param module Module handle of the plug-in. Can be used for resource lookups. */
+#if PLUGIN_INTERFACE_LEVEL >= 3
+/** @return window handle of the configuration dialog if still open. */
+HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
+#else
 void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
+#endif
 /** Send remote command to the plug-in.
  * @param command command string.
  * @param result reply.

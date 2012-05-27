@@ -229,9 +229,21 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
+static HWND ConfigHwnd = NULLHANDLE;
+
 // Configure plug-in.
-void DLLENTRY plugin_configure( HWND hwnd, HMODULE module ) {
-  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+HWND DLLENTRY plugin_configure( HWND hwnd, HMODULE module ) {
+  if (!hwnd)
+  { if (ConfigHwnd)
+      WinDismissDlg(ConfigHwnd, DID_CANCEL);
+    ConfigHwnd = NULLHANDLE;
+  } else if (!ConfigHwnd)
+  { ConfigHwnd = WinLoadDlg( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+    WinProcessDlg(ConfigHwnd);
+    ConfigHwnd = NULLHANDLE;
+    WinDestroyWindow(ConfigHwnd);
+  }
+  return ConfigHwnd;
 }
 
 /****************************************************************************

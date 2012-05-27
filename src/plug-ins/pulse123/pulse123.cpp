@@ -65,8 +65,9 @@ static void fillinfo(const RecordWorker::Params& par, const INFO_BUNDLE* info)
 ****************************************************************************/
 
 /* Configure plug-in. */
-void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
+HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 { ConfigDialog(hwnd, module).Process();
+  return NULLHANDLE;
 }
 
 /// Returns information about plug-in.

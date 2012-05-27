@@ -266,6 +266,7 @@ class InfoDialog
  public:
   virtual           ~InfoDialog();
   virtual void      StartDialog() { ManagedDialog<NotebookDialogBase>::StartDialog(HWND_DESKTOP, NB_INFO); }
+  virtual bool      IsVisible(PageNo page) const;
   virtual void      ShowPage(PageNo page);
   virtual const struct Data& GetData() = 0;
 
@@ -274,9 +275,11 @@ class InfoDialog
   static int        Comparer(const KeyType& key, const InfoDialog& inst);
   typedef inst_index<InfoDialog, const KeyType, &InfoDialog::Comparer> Repository;
  public:
-  // Factory method. Returns always the same instance for the same set of objects.
+  /// Factory method. Returns always the same instance for the same set of objects.
   static int_ptr<InfoDialog> GetByKey(const KeyType& obj)
                     { return Repository::GetByKey(obj, &InfoDialog::Factory); }
+  static int_ptr<InfoDialog> FindByKey(const KeyType& obj)
+                    { return Repository::FindByKey(obj); }
 };
 
 void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg::StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
@@ -414,14 +417,12 @@ int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& obj)
   key.append() = &obj;
   return InfoDialog::GetByKey(key).get();
 }
-/*int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& list, PlayableInstance& item)
-{ InfoDialog::KeyType key(2);
-  // TODO!!! breaks sort order!
-  key.append() = &item;
-  key.append() = &list;
-  return InfoDialog::GetByKey(key).get();
-}*/
 
+int_ptr<AInfoDialog> AInfoDialog::FindByKey(Playable& obj)
+{ InfoDialog::KeyType key(1);
+  key.append() = &obj;
+  return InfoDialog::FindByKey(key).get();
+}
 
 InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid, const xstring& title)
 : NotebookDialogBase::PageBase(parent, rid, NULLHANDLE, DF_AutoResize)
@@ -968,12 +969,18 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return AInfoDialog::DlgProc(msg, mp1, mp2);
 }
 
+bool InfoDialog::IsVisible(PageNo page) const
+{ ASSERT((size_t)page < Pages.size());
+  PageBase* pp = (PageBase*)Pages[page];
+  ASSERT(pp);
+  return GetVisible() && NotebookCtrl.GetTopPageID() == pp->GetPageID();
+}
+
 void InfoDialog::ShowPage(PageNo page)
 { ASSERT((size_t)page < Pages.size());
   PageBase* pp = (PageBase*)Pages[page];
   ASSERT(pp);
-  RequestPage(pp);
-  SendCtrlMsg(NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(pp->GetPageID()), 0);
+  NotebookCtrl.TurnToPage(pp->GetPageID());
   SetVisible(true);
 }
 

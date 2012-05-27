@@ -46,6 +46,7 @@
 #include "songiterator.h"
 #include "dependencyinfo.h"
 #include "loadhelper.h"
+#include "plugman.h"
 #include "pm123.h"
 #include "gui.h"
 #include "dialog.h"
@@ -1338,7 +1339,7 @@ void PlaylistBase::UserEditMeta()
     }
     break;
    case 1:
-    GUI::ShowDialog(Source[0]->Data->Content->GetPlayable(), GUI::DLT_INFOEDIT);
+    GUI::ShowDialog(Source[0]->Data->Content->GetPlayable(), GUI::DLT_INFOEDIT, DLA_SHOW);
    case 0:;
   }
 }

@@ -121,15 +121,23 @@ a configuration dialog
 should appear when PM123 calls
 </p>
 <blockquote>
-  <pre>void DLLENTRY <b>plugin_configure</b>(HWND <var>hwnd</var>, HMODULE <var>module</var>);</pre>
+  <pre>HWND DLLENTRY <b>plugin_configure</b>(HWND <var>owner</var>, HMODULE <var>module</var>);</pre>
 </blockquote>
-<p>where <i>hwnd</i> is the notebook or player
+<p>where <i>owner</i> is the notebook or player
 window so that you can "lock" your
 window on it if you want and where <i>module</i> can be
 used to load a resource from your DLL. The functions is called only
 from the application's main thread. It should not block for longer nor
-do I/O operations to keep the GUI responsive.
-</p>
+do I/O operations to keep the GUI responsive.</p>
+<p>The function should return a window handle if and only if the
+configuration dialog in non-modal, i.e. it is still open when <tt>plugin_configure</tt>
+returns. PM123 might then call <tt>plugin_configure</tt> again with <tt><var>owner</var>
+= NULLHANDLE</tt> to close the dialog. If the configuration dialog is
+modal you need not to care about that. <tt>NULLHANDLE</tt> should
+always be returned.</p>
+<p>Note that the return value is new to <a href="#interface_level">interface
+level</a> 3. PM123 uses this value to keep track of open configuration
+windows. Older PM123 versions ignore the return value.</p>
 <p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt>
 is
 optional. If the symbol is exported, the

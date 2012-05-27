@@ -113,6 +113,7 @@ class PlaylistView
   typedef inst_index<PlaylistView, Playable, &PlaylistView::Comparer> RepositoryType;
  public:
   static int_ptr<PlaylistView> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistView::Factory); }
+  static int_ptr<PlaylistView> FindByKey(Playable& key) { return RepositoryType::FindByKey(key); }
   // Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
                     ~PlaylistView();

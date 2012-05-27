@@ -64,6 +64,7 @@
 #include <sys/stat.h>
 #include <math.h>
 #include <stdio.h>
+#include <errno.h>
 
 
 static void vis_InitAll(HWND owner)
@@ -101,7 +102,7 @@ static void append_restricted(xstringbuilder& target, const xstring& str, unsign
 *  Private Implementation of class GUI
 *
 ****************************************************************************/
-class GUIImp : private GUI
+class GUIImp : private GUI, private DialogBase
 {private:
   enum UpdateFlags
   { UPD_NONE             = 0
@@ -150,9 +151,10 @@ class GUIImp : private GUI
   static delegate<const void, const CfgChangeArgs>      ConfigDeleg;
 
  private:
+  GUIImp(); // static class
   // Static members must not use EXPENTRY linkage with IBM VACPP.
   friend MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-  static MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  static MRESULT   GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 
   static void      Invalidate(UpdateFlags what);
   static void      SetAltSlider(bool alt);
@@ -178,6 +180,8 @@ class GUIImp : private GUI
   static void      LoadAccel();           ///< (Re-)Loads the accelerator table and modifies it by the plug-ins.
   static void      LoadPluginMenu(HWND hmenu); ///< Refresh plug-in menu in the main pop-up menu.
   static void      ShowContextMenu();     ///< View to context menu
+  static bool      ShowHideInfoDlg(Playable& p, AInfoDialog::PageNo page, DialogAction action);
+  static bool      ShowHidePlaylist(PlaylistBase* plp, DialogAction action);
   /// Refresh current playing time, remaining time and slider.
   /// @param index Song index in the current flattened root, counting from 0.
   /// @param offset Time offset in the current flattened root.
@@ -267,10 +271,10 @@ MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { // Adjust calling convention
   if (msg == WM_CREATE)
     GUI::HPlayer = hwnd; // we have to assign the window handle early, because WinCreateStdWindow does not have returned now.
-  return GUIImp::DlgProc(msg, mp1, mp2);
+  return GUIImp::GUIDlgProc(msg, mp1, mp2);
 }
 
-MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("GUIImp::DlgProc(%p, %p, %p)\n", msg, mp1, mp2));
   switch (msg)
   { case WM_CREATE:
@@ -338,55 +342,108 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case WMP_SHOW_DIALOG:
-    { //dialog_show* iep = (dialog_show*)PVOIDFROMMP(mp1);
-      int_ptr<Playable> pp;
+    { int_ptr<Playable> pp;
       pp.fromCptr((Playable*)mp1);
       DialogType type = (DialogType)SHORT1FROMMP(mp2);
-      DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG %p, %u\n", pp.get(), type));
+      DialogAction action = (DialogAction)SHORT2FROMMP(mp2);
+      DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG %p, %u, %u\n", pp.get(), type, action));
       switch (type)
-      { case DLT_INFOEDIT:
-        { ULONG rc;
-          try
-          { int_ptr<Decoder> dp = Decoder::GetDecoder(xstring(pp->GetInfo().tech->decoder));
-            rc = dp->EditMeta(HFrame, pp->URL);
-          } catch (const ModuleException& ex)
-          { amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", ex.GetErrorText().cdata());
-            break;
-          }
-          DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG rc = %u\n", rc));
-          switch (rc)
-          { default:
-              amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", pp->URL.cdata());
-              break;
-            case 0:   // tag changed
-              pp->RequestInfo(IF_Meta, PRI_Normal);
-              // Refresh will come automatically
-            case 300: // tag unchanged
-              break;
-            case 400: // decoder does not provide decoder_editmeta => use info dialog instead
-              AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_MetaInfo);
-              break;
-            case 500:
-              amp_messagef(HFrame, MSG_ERROR, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), strerror(errno));
-              break;
-          }
+      {case DLT_INFOEDIT:
+        if (action == DialogBase::DLA_SHOW)
+          PMRASSERT(WinPostMsg(HPlayer, WMP_EDIT_META, MPFROMP(pp.toCptr()), 0));
+        break;
+       case DLT_METAINFO:
+        return MRFROMLONG(ShowHideInfoDlg(*pp, AInfoDialog::Page_MetaInfo, action));
+       case DLT_TECHINFO:
+        return MRFROMLONG(ShowHideInfoDlg(*pp, AInfoDialog::Page_TechInfo, action));
+       case DLT_PLAYLIST:
+        return MRFROMLONG(ShowHidePlaylist(action ? PlaylistView::GetByKey(*pp) : PlaylistView::FindByKey(*pp), action));
+       case DLT_PLAYLISTTREE:
+        return MRFROMLONG(ShowHidePlaylist(action ? PlaylistManager::GetByKey(*pp) : PlaylistManager::FindByKey(*pp), action));
+      }
+      return false;
+    }
+
+   case WMP_EDIT_META:
+    { int_ptr<Playable> pp;
+      pp.fromCptr((Playable*)PVOIDFROMMP(mp1));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_EDIT_META %p\n", pp.get()));
+      ULONG rc;
+      try
+      { int_ptr<Decoder> dp = Decoder::GetDecoder(xstring(pp->GetInfo().tech->decoder));
+        rc = dp->EditMeta(HFrame, pp->URL);
+      } catch (const ModuleException& ex)
+      { amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", ex.GetErrorText().cdata());
+        break;
+      }
+      DEBUGLOG(("GUIImp::DlgProc: WMP_EDIT_META rc = %u\n", rc));
+      switch (rc)
+      { default:
+          amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", pp->URL.cdata());
           break;
-        }
-        case DLT_METAINFO:
+        case 0:   // tag changed
+          pp->RequestInfo(IF_Meta, PRI_Normal);
+          // Refresh will come automatically
+        case 300: // tag unchanged
+          break;
+        case 400: // decoder does not provide decoder_editmeta => use info dialog instead
           AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_MetaInfo);
           break;
-        case DLT_TECHINFO:
-          AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_TechInfo);
-          break;
-        case DLT_PLAYLIST:
-          PlaylistView::GetByKey(*pp)->SetVisible(true);
-          break;
-        case DLT_PLAYLISTTREE:
-          PlaylistManager::GetByKey(*pp)->SetVisible(true);
+        case 500:
+          amp_messagef(HFrame, MSG_ERROR, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), strerror(errno));
           break;
       }
-      return 0;
+      break;
     }
+
+   case WMP_SHOW_CONFIG:
+    { int_ptr<Module> mp;
+      mp.fromCptr((Module*)PVOIDFROMMP(mp1));
+      DialogAction action = (DialogAction)SHORT1FROMMP(mp2);
+      DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_CONFIG %p, %u\n", mp.get(), action));
+      bool rc;
+      if (mp)
+      { // Plug-in configuration
+        rc = mp->IsConfig();
+        switch (action)
+        {case DialogBase::DLA_SHOW:
+          if (!rc)
+            PMRASSERT(WinPostMsg(HPlayer, WMP_DO_CONFIG, MPFROMP(mp.toCptr()), 0));
+          break;
+         case DLA_CLOSE:
+          if (rc)
+            mp->Config(NULLHANDLE);
+         default:; // avoid warning
+        }
+      } else
+      { // PM123 configuration
+        rc = APropertyDialog::IsVisible();
+        switch (action)
+        {case DLA_SHOW:
+          if (rc)
+            APropertyDialog::Show();
+          else
+            PMRASSERT(WinPostMsg(HPlayer, WMP_DO_CONFIG, MPFROMP(NULL), 0));
+          break;
+         case DLA_CLOSE:
+          if (rc)
+            APropertyDialog::Close();
+         default:; // avoid warning
+        }
+      }
+      return MRFROMLONG(rc);
+    }
+
+   case WMP_DO_CONFIG:
+   { int_ptr<Module> mp;
+     mp.fromCptr((Module*)PVOIDFROMMP(mp1));
+     DEBUGLOG(("GUIImp::DlgProc: WMP_DO_CONFIG %p\n", mp.get()));
+     if (mp)
+       mp->Config(HFrame);
+     else
+       APropertyDialog::Do(HFrame);
+     return 0;
+   }
 
    case WMP_DISPLAY_MESSAGE:
     { xstring text;
@@ -863,7 +920,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_M_CFG:
-        cfg_properties(HPlayer);
+        WinSendMsg(HPlayer, WMP_SHOW_CONFIG, MPFROMP(NULL), MPFROMSHORT(DLA_SHOW));
         break;
 
        case IDM_M_VOL_RAISE:
@@ -1482,6 +1539,45 @@ void GUIImp::ShowContextMenu()
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 
+bool GUIImp::ShowHideInfoDlg(Playable& p, AInfoDialog::PageNo page, DialogAction action)
+{ DEBUGLOG(("GUIImp::ShowHideInfoDlg(&%p, %u, %u)\n", &p, page, action));
+  int_ptr<AInfoDialog> ip = action ? AInfoDialog::GetByKey(p) : AInfoDialog::FindByKey(p);
+  if (!ip)
+    return false;
+  bool rc = ip->IsVisible(page);
+  switch (action)
+  {case DLA_SHOW:
+    if (rc)
+      ip->SetVisible(true);
+    else
+      ip->ShowPage(page);
+    break;
+   case DLA_CLOSE:
+    if (rc)
+      ip->Close();
+   default:; // avoid warning
+  }
+  return rc;
+}
+
+bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
+{ DEBUGLOG(("GUIImp::ShowHidePlaylist(%p, %u)\n", plp, action));
+  if (!plp)
+    return false;
+  bool rc = plp->GetVisible();
+  switch (action)
+  {case DLA_SHOW:
+    plp->SetVisible(true);
+    break;
+   case DLA_CLOSE:
+    if (rc)
+      plp->SetVisible(false);
+   default:; // avoid warning
+  }
+  return rc;
+}
+
+
 void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
 { DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i %i\n", hps, index, offset, Cfg::Get().mode, IsSeeking));
 
@@ -1925,7 +2021,7 @@ void GUIImp::Init()
   else
     PMRASSERT(WinAssociateHelpInstance(HHelp, HPlayer));
 
-  WinSetHook(amp_player_hab, HMQ_CURRENT, HK_HELP, (PFN)&GUI_HelpHook, 0);
+  WinSetHook(amp_player_hab, HMQ_CURRENT, HK_HELP, (PFN)&GUI_HelpHook, NULLHANDLE);
 
   // Docking...
   dk_init();
@@ -2074,14 +2170,21 @@ void GUI::PostMessage(MESSAGE_TYPE type, xstring text)
     WinPostMsg(HPlayer, WMP_DISPLAY_MESSAGE, MPFROMP(text.toCstr()), MPFROMLONG(type));
 }
 
-void GUI::Show(bool visible)
-{ if (visible)
-  { Cfg::RestWindowPos(HFrame);
+bool GUI::Show(DialogBase::DialogAction action)
+{ SWP swp;
+  PMRASSERT(WinQueryWindowPos(HFrame, &swp));
+  switch (action)
+  {case DialogBase::DLA_SHOW:
+    Cfg::RestWindowPos(HFrame);
     //WinSetWindowPos(HFrame, HWND_TOP,
     //                cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW);
     WinSetWindowPos(HFrame, HWND_TOP, 0,0, 0,0, SWP_ACTIVATE|SWP_SHOW);
-  } else
+    break;
+   case DialogBase::DLA_CLOSE:
     WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_MINIMIZE), 0);
+   default:; // avoid warning
+  }
+  return !(swp.fl & SWP_HIDE);
 }
 
 /*struct dialog_show;
@@ -2107,12 +2210,17 @@ struct dialog_show
   }
 }*/
 
-void GUI::ShowDialog(Playable& item, DialogType dlg)
-{ DEBUGLOG(("GUI::ShowDialog(&%p, %u)\n", &item, dlg));
+bool GUI::ShowDialog(Playable& item, DialogType dlg, DialogBase::DialogAction action)
+{ DEBUGLOG(("GUI::ShowDialog(&%p, %u, %u)\n", &item, dlg, action));
   int_ptr<Playable> pp(&item);
-  PMRASSERT(WinPostMsg(HFrame, WMP_SHOW_DIALOG, MPFROMP(pp.toCptr()), MPFROMSHORT(dlg)));
+  return (bool)LONGFROMMR(WinSendMsg(HFrame, WMP_SHOW_DIALOG, MPFROMP(pp.toCptr()), MPFROM2SHORT(dlg, action)));
 }
 
+bool GUI::ShowConfig(Module& plugin, DialogBase::DialogAction action)
+{ DEBUGLOG(("GUI::ShowConfig(&%p, %u)\n", &plugin, action));
+  int_ptr<Module> pm(&plugin);
+  return (bool)LONGFROMMR(WinSendMsg(HFrame, WMP_SHOW_CONFIG, MPFROMP(pm.toCptr()), MPFROMSHORT(action)));
+}
 
 void GUI::Init()
 { GUIImp::Init();

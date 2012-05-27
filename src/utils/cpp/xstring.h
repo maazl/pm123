@@ -442,8 +442,8 @@ class xstringbuilder
   void        append(char c);
   /// Append \a count copies of \a c.
   void        append(size_t count, char c);
-  /// Append an integer.
-  void        append(int c);
+  /// Append an integer as decimal.
+  void        appendd(int c);
   /// Append a formatted string.
   void        appendf(const char* fmt, ...);
   /// Append a formatted string.
@@ -575,7 +575,7 @@ inline void xstringbuilder::append(char c)
   Data[Len++] = c;
   Data[Len] = 0;
 }
-inline void xstringbuilder::append(int i)
+inline void xstringbuilder::appendd(int i)
 { appendf("%i", i);
 }
 

@@ -79,7 +79,7 @@ container/list.cpp:	container/list.h ..\debuglog.h
 ..\fileutil.h:	..\..\include\config.h
 windowbase.cpp:	..\utilfct.h windowbase.h smartptr.h mutex.h ..\debuglog.h
 ..\utilfct.h:	..\..\include\config.h ..\errorstr.h ..\minmax.h ..\strutils.h
-windowbase.h:	smartptr.h xstring.h pmutils.h container\vector.h ..\debuglog.h
+windowbase.h:	smartptr.h xstring.h pmutils.h dlgcontrols.h container\vector.h ..\debuglog.h
 xstring_alloc.cpp:	xstring.h ..\debuglog.h
 xstring_alloc_plugin.cpp:	xstring.h ..\..\include\plugin.h ..\debuglog.h
 xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h

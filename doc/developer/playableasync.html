@@ -31,18 +31,17 @@ the callback handler</em>. </li>
 purposes.</li>
 </ol>
 The helper classes <tt>WaitInfo</tt> and <tt>WaitAggregateInfo</tt>
-will assist the above steps.
-<p>Normally
+will assist the above steps. But normally
 you should <em>never wait synchronously</em> for an information to
 become
 available. Dispatch other tasks in this time. At least you must not do
-this in threads that serve GUI windows or you will block the SIQ.</p>
+this in threads that serve GUI windows or you will block the SIQ.
 <p>Furthermore it is recommended that GUI interactions do not work with
 a "local echo". Instead you should apply the change to the playable
 object and wait for the update notification of your own change to
 refresh the GUI. This has the advantage that you are also synchronized
 to changes made by other windows or even by the <a
- href="../manual/remote.html">remote interface</a>.
+ href="../manual/remote.html">remote interface</a> as well.
 </p>
 </body>
 </html>

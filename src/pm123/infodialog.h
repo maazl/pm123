@@ -59,6 +59,7 @@ class AInfoDialog
                     AInfoDialog(ULONG rid, HMODULE module) : ManagedDialog<NotebookDialogBase>(rid, module, DF_AutoResize) {}
  public:
   virtual           ~AInfoDialog() {}
+  virtual bool      IsVisible(PageNo) const = 0;
   virtual void      ShowPage(PageNo page) = 0;
 
   /// Generic Factory method for Info dialogs.
@@ -73,6 +74,10 @@ class AInfoDialog
   /// @param obj Object to edit.
   /// @return Returns always the same instance for the same object.
   static int_ptr<AInfoDialog> GetByKey(Playable& obj);
+  /// Lookup for existing editor.
+  /// @param obj Object to edit.
+  /// @return Returns always the same instance for the same object or \c NULL if no instance exists.
+  static int_ptr<AInfoDialog> FindByKey(Playable& obj);
 };
 
 

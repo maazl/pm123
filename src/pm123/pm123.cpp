@@ -269,7 +269,7 @@ int main(int argc, char** argv)
     WinPostMsg(GUI::GetFrameWindow(), WM_QUIT, 0, 0);
   // Now it is time to show the window
   else if (!nogui)
-    GUI::Show();
+    GUI::Show(DialogBase::DLA_SHOW);
 
   DEBUGLOG(("main: init complete\n"));
 
