@@ -97,11 +97,11 @@ typedef enum
 
 /** return value of plugin_query. */
 typedef struct _PLUGIN_QUERYPARAM
-{ int   type;         /* PLUGIN_*. values can be ORed */
-  char* author;       /* Author of the plug-in        */
-  char* desc;         /* Description of the plug-in   */
-  int   configurable; /* Is the plug-in configurable  */
-  int   interface;    /* Interface revision           */
+{ int   type;         /**< PLUGIN_*. values can be ORed */
+  char* author;       /**< Author of the plug-in        */
+  char* desc;         /**< Description of the plug-in   */
+  int   configurable; /**< Is the plug-in configurable  */
+  int   interface;    /**< Interface revision           */
 } PLUGIN_QUERYPARAM;
 
 /** Common services of the PM123 core for plug-ins. */

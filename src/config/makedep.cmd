@@ -59,6 +59,7 @@ IF ARG(1) = '' THEN DO
    SAY " -R      extended recursive mode"
    SAY "         Same as -r but also deal with include files in -I path"
    SAY " -s      Strip .. from include file paths if possible"
+   SAY " -i      Strict include check with <> and """""
    SAY " -c      Check for recursions"
    SAY " -v      verbose mode"
    SAY " -x      Unix like file expansion, e.g. *.cpp"
@@ -75,6 +76,7 @@ includes       = 0
 opt.recursive  = 0
 opt.Irecursive = 0
 opt.strippar   = 0
+opt.strict     = 0
 opt.checkrec   = 0
 opt.verbose    = 0
 opt.wildcard   = 0
@@ -128,6 +130,8 @@ DO WHILE params \= ''
          END
        WHEN SUBSTR(param, 2) = 's' THEN
          opt.strippar = 1
+       WHEN SUBSTR(param, 2) = '1' THEN
+         opt.strict = 1
        WHEN SUBSTR(param, 2) = 'c' THEN
          opt.checkrec = 1
        WHEN SUBSTR(param, 2) = 'v' THEN
@@ -283,7 +287,11 @@ DoFile: PROCEDURE EXPOSE opt. rule.
       IF file \= '' THEN DO
          /* local include */
          IF STREAM(file, "C", "QUERY EXISTS") = '' THEN DO
-            CALL Warn ARG(1)" line "line": Include "file" does not exist"
+            IF opt.strict THEN
+               CALL Warn ARG(1)" line "line": Include "file" does not exist"
+            ELSE
+               /* try non-local too */
+               CALL NonlocalInclude file, symname, line" of "ARG(1)
             ITERATE
             END
          /* found => add dependency */
@@ -299,34 +307,44 @@ DoFile: PROCEDURE EXPOSE opt. rule.
          ITERATE
          END
       /* nonlocal include */
-      IF opt.include.0 = 0 THEN DO
-         IF opt.verbose THEN
-            CALL Warn "File "file" included at line "line" of "ARG(1)": not found because of missing -I option."
-         ITERATE
-         END
-      /* search include directories */
-      DO i = 1 TO opt.include.0
-         filepath = opt.include.i||file
-         /* include found? */
-         IF STREAM(filepath, "C", "QUERY EXISTS") \= '' THEN DO
-            /* remove ../ */
-            IF opt.strippar THEN
-               filepath = NormPath(filepath)
-            /* found => add dependency */
-            CALL DoInclude symname, filepath
-            /* recursive? */
-            IF opt.Irecursive THEN
-               CALL DoFile filepath
-            LEAVE
-            END
-         filepath = ''
-         END
-      IF opt.verbose & (filepath = '') THEN
-         CALL Warn "File "file" included at line "line" of "ARG(1)": not found."
+      CALL NonlocalInclude file, symname, line" of "ARG(1)
       END
    /* close file */
    CALL STREAM ARG(1), "C", "CLOSE"
    RETURN ''
+
+/* Search for non-local include
+ * ARG(1) include file name
+ * ARG(2) symbol name
+ * ARG(3) context
+ */
+NonlocalInclude: PROCEDURE EXPOSE opt. rule.
+   /* nonlocal include */
+   IF opt.include.0 = 0 THEN DO
+      IF opt.verbose THEN
+         CALL Warn "File "ARG(1)" included at line "ARG(3)": not found because of missing -I option."
+      RETURN
+      END
+   /* search include directories */
+   DO i = 1 TO opt.include.0
+      filepath = opt.include.i||ARG(1)
+      /* include found? */
+      IF STREAM(filepath, "C", "QUERY EXISTS") \= '' THEN DO
+         /* remove ../ */
+         IF opt.strippar THEN
+            filepath = NormPath(filepath)
+         /* found => add dependency */
+         CALL DoInclude ARG(2), filepath
+         /* recursive? */
+         IF opt.Irecursive THEN
+            CALL DoFile filepath
+         LEAVE
+         END
+      filepath = ''
+      END
+   IF opt.verbose & (filepath = '') THEN
+      CALL Warn "File "file" included at line "ARG(3)": not found."
+   RETURN
 
 /* Normalize path
  * ARG(1)  include file path

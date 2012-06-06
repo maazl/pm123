@@ -11,7 +11,7 @@ CFLAGS_USR=-fcheck-new -DPM123_CORE
 !include $(TOPDIR)\config\makerules
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
-OBJECTS = $(OBJECTS) xstring$(CO) url123$(CO) xstringbuilder$(CO)
+OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) url123$(CO) xstringbuilder$(CO)
 OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringmap$(CO)
 OBJECTS = $(OBJECTS) windowbase$(CO) dlgcontrols$(CO)
 
@@ -85,3 +85,4 @@ xstring_alloc_plugin.cpp:	xstring.h ..\..\include\plugin.h ..\debuglog.h
 xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 dlgcontrols.cpp:	dlgcontrols.h ..\debuglog.h
 dlgcontrols.h:	xstring.h pmutils.h ..\debuglog.h
+xstringconst.cpp:	xstring.h ..\interlocked.h ..\debuglog.h

@@ -178,88 +178,88 @@ typedef struct _DECODER_PARAMS
   /* --- DECODER_PLAY, STOP */
   const char*  filename;
   const char*  URL;
-  const char*  drive;       /* for CD ie.: "X:" */
+  const char*  drive;     /**< for CD ie.: "X:" */
   int          track;
-  int          sectors[2];  /* play from sector x to sector y, currently unused by PM123 */
+  int          sectors[2];/**< play from sector x to sector y, currently unused by PM123 */
   const char*  other;
 
   /* --- DECODER_REW, FFWD and JUMPTO */
-  int   jumpto;      /* absolute positioning in milliseconds */
-  int   ffwd;        /* 1 = start ffwd, 0 = end ffwd */
-  int   rew;         /* 1 = start rew,  0 = end rew  */
+  int   jumpto;           /**< absolute positioning in milliseconds */
+  int   ffwd;             /**< 1 = start ffwd, 0 = end ffwd */
+  int   rew;              /**< 1 = start rew,  0 = end rew  */
 
   /* --- DECODER_SETUP */
   /* specify a function which the decoder should use for output */
   int  DLLENTRYP(output_play_samples)(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker);
-  void* a;           /* only to be used with the precedent function */
+  void* a;                /**< only to be used with the precedent function */
   int   audio_buffersize;
 
-  const char* proxyurl;    /* NULL = none */
-  const char* httpauth;    /* NULL = none */
+  const char* proxyurl;   /**< NULL = none */
+  const char* httpauth;   /**< NULL = none */
 
-  /* error message function the decoder should use */
+  /** error message function the decoder should use */
   void DLLENTRYP(error_display)(const char*);
 
-  /* info message function the decoder should use */
-  /* this information is always displayed to the user right away */
+  /** info message function the decoder should use */
+  /** this information is always displayed to the user right away */
   void DLLENTRYP(info_display)(const char*);
 
-  HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
-                        and is posted on stop. No longer used by PM123, always NULLHANDLE. */
+  HEV   playsem;          /**< this semaphore is reseted when DECODER_PLAY is requested
+                               and is posted on stop. No longer used by PM123, always NULLHANDLE. */
 
-  HWND  hwnd;        /* commodity for PM interface, decoder must send a few
-                        messages to this handle */
+  HWND  hwnd;             /**< commodity for PM interface, decoder must send a few
+                               messages to this handle */
 
   /* values used for streaming inputs by the decoder */
-  int   buffersize;  /* read ahead buffer in bytes, 0 = disabled */
-  int   bufferwait;  /* block the first read until the buffer is filled */
+  int   buffersize;       /**< read ahead buffer in bytes, 0 = disabled */
+  int   bufferwait;       /**< block the first read until the buffer is filled */
 
-  char* metadata_buffer; /* the decoder will put streaming metadata in this  */
-  int   metadata_size;   /* buffer before posting WM_METADATA */
-  int   bufferstatus;    /* obsolete, must be 0 */
+  char* metadata_buffer;  /**< the decoder will put streaming metadata in this  */
+  int   metadata_size;    /**< buffer before posting WM_METADATA */
+  int   bufferstatus;     /**< obsolete, must be 0 */
 
   /* --- DECODER_EQ */
   /* usually only useful with MP3 decoder */
-  int          equalizer;  /* TRUE or FALSE */
-  const float* bandgain;   /* point to an array like this bandgain[#channels][10] */
+  int          equalizer; /**< TRUE or FALSE */
+  const float* bandgain;  /**< point to an array like this bandgain[#channels][10] */
 
   /* --- DECODER_SAVEDATA */
   const char*  save_filename;
 
 } DECODER_PARAMS;
 
-#define INFO_SIZE_1  976  /* size of the DECODER_INFO structure prior PM123 1.32 */
-#define INFO_SIZE_2 1264  /* size of the DECODER_INFO structure since PM123 1.32 */
+#define INFO_SIZE_1  976  /**< size of the DECODER_INFO structure prior PM123 1.32 */
+#define INFO_SIZE_2 1264  /**< size of the DECODER_INFO structure since PM123 1.32 */
 
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
 {
-   int   size;            /* see INFO_SIZE definitions */
+   int   size;            /**< see INFO_SIZE definitions */
 
-   FORMAT_INFO format;    /* stream format after decoding */
+   FORMAT_INFO format;    /**< stream format after decoding */
 
-   int   songlength;      /* in milliseconds, smaller than 0 -> unknown */
-   int   junklength;      /* bytes of junk before stream start, if < 0 -> unknown */
+   int   songlength;      /**< in milliseconds, smaller than 0 -> unknown */
+   int   junklength;      /**< bytes of junk before stream start, if < 0 -> unknown */
 
    /* mpeg stuff */
-   int   mpeg;            /* unused since PM123 1.40, 25 = MPEG 2.5, 10 = MPEG 1.0, 20 = MPEG 2.0, 0 = not an MPEG */
-   int   layer;           /* unused since PM123 1.40, 0 = unknown */
-   int   mode;            /* unused since PM123 1.40, use it on modes(i) */
-   int   modext;          /* unused since PM123 1.40, didn't check what this one does */
-   int   bpf;             /* unused since PM123 1.40, bytes in the mpeg frame including header */
-   int   bitrate;         /* in kbit/s */
-   int   extention;       /* unused since PM123 1.40, didn't check what this one does */
+   int   mpeg;            /**< unused since PM123 1.40, 25 = MPEG 2.5, 10 = MPEG 1.0, 20 = MPEG 2.0, 0 = not an MPEG */
+   int   layer;           /**< unused since PM123 1.40, 0 = unknown */
+   int   mode;            /**< unused since PM123 1.40, use it on modes(i) */
+   int   modext;          /**< unused since PM123 1.40, didn't check what this one does */
+   int   bpf;             /**< unused since PM123 1.40, bytes in the mpeg frame including header */
+   int   bitrate;         /**< in kbit/s */
+   int   extention;       /**< unused since PM123 1.40, didn't check what this one does */
 
    /* track stuff */
    int   startsector;
    int   endsector;
 
    /* obsolete stuff */
-   int   unused1;         /* obsolete, must be 0 */
-   int   unused2;         /* obsolete, must be 0 */
-   int   unused3;         /* obsolete, must be 0 */
+   int   unused1;         /**< @deprecated must be 0 */
+   int   unused2;         /**< @deprecated must be 0 */
+   int   unused3;         /**< @deprecated must be 0 */
 
-   /* general technical information string */
+   /** general technical information string */
    char  tech_info[128];
 
    /* meta information */
@@ -273,15 +273,15 @@ typedef struct _DECODER_INFO
    /* added since PM123 1.32 */
    char  track    [128];
    char  copyright[128];
-   int   codepage;        /* Code page of the meta info. Must be 0 if the
-                             code page is unknown. Don't place here any another
-                             value if it is not provided by meta info. */
-   int   haveinfo;        /* This flags define what of fields of the block of the
-                             meta information are supported by the decoder. Can
-                             be 0 if the decoder supports all fields. */
-   int   saveinfo;        /* Must be 1 if the decoder can update meta info of
-                             this file. Otherwise, must be 0. */
-   int   filesize;        /* Size of the file. */
+   int   codepage;        /**< Code page of the meta info. Must be 0 if the
+                               code page is unknown. Don't place here any another
+                               value if it is not provided by meta info. */
+   int   haveinfo;        /**< This flags define what of fields of the block of the
+                               meta information are supported by the decoder. Can
+                               be 0 if the decoder supports all fields. */
+   int   saveinfo;        /**< Must be 1 if the decoder can update meta info of
+                               this file. Otherwise, must be 0. */
+   int   filesize;        /**< Size of the file. */
 
    float track_gain;      /* Defines Replay Gain values as specified at */
    float track_peak;      /* http://www.replaygain.org/ */
@@ -356,10 +356,10 @@ ULONG DLLENTRY decoder_saveinfo (const char* filename, const DECODER_INFO* info)
 #if PLUGIN_INTERFACE_LEVEL >= 3
 
 typedef struct
-{ const char* category;  /* File type category, e.g. "Playlist file" */
-  const char* eatype;    /* File type, e.g. "PM123 playlist file" */
-  const char* extension; /* File extension, e.g. "*.lst;*.m3u" */
-  unsigned    flags;     /* Bit vector of DECODER_TYPE */
+{ const char* category;  /**< File type category, e.g. "Playlist file" */
+  const char* eatype;    /**< File type, e.g. "PM123 playlist file" */
+  const char* extension; /**< File extension, e.g. "*.lst;*.m3u" */
+  unsigned    flags;     /**< Bit vector of DECODER_TYPE */
 } DECODER_FILETYPE;
 
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count);
@@ -372,23 +372,23 @@ typedef enum
 
 typedef struct _DECODER_PARAMS2
 {
-  /* --- DECODER_PLAY, STOP */
-  xstring      URL;
+  /* --- DECODER_SETUP, PLAY */
+  xstring      URL;         /**< URL to play */
 
-  /* --- DECODER_REW, FFWD and JUMPTO */
-  PM123_TIME   JumpTo;      /* absolute positioning in seconds */
-  DECFASTMODE  Fast;        /* fast forward/rewind */
+  /* --- DECODER_PLAY DECODER_REW, FFWD and JUMPTO */
+  PM123_TIME   JumpTo;      /**< absolute positioning in seconds */
+  DECFASTMODE  Fast;        /**< fast forward/rewind */
 
   /* --- DECODER_SETUP */
-  /* specify a function which the decoder should use for output */
+  /** specify a function which the decoder should use for output */
   int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  /* decoder events */
+  /** decoder events */
   void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
-  void* A;                  /* only to be used with the precedent functions */
+  void* A;                  /**< only to be used with the precedent functions */
 
   /* --- DECODER_SAVEDATA */
-  xstring      SaveFilename;
+  xstring      SaveFilename;/**< File where to save the raw stream. */
 
 } DECODER_PARAMS2;
 
@@ -405,7 +405,7 @@ typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
   const INFO_BUNDLE** info, int* cached, int* reliable);
 
 
-/* Request the information 'what' about 'url' from the decoder
+/** Request the information 'what' about 'url' from the decoder
  * 'what' is an input/output parameter. On input it is the requested information,
  * on output the returned information which must not be less than the requested bits.
  * If some type of information is not available, the bits in the return value of what

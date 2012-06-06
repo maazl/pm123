@@ -16,6 +16,10 @@
   #error Unsupported compiler.
 #endif
 
+#define HAVE_DEBUGLOG 1
+
+#define SIZEOF_VOIDP 4
+
 /* Name of package */
 #define PACKAGE_NAME "PM123"
 #define PACKAGE PACKAGE_NAME

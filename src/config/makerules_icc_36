@@ -1,6 +1,6 @@
 # IBM Visualage C++ 3.6
 
-.SUFFIXES: .res .rc .obj .asm .S .c .cpp
+.SUFFIXES: .c .cpp .e .nasm .asm .S .o .obj .rc .res
 
 MFLAGS     = -nologo
 MDUMMY     =
@@ -13,9 +13,9 @@ RES        = .res
 
 CC         = icc
 CFLAGS     = $(CFLAGS_USR) -Ss -Q -Gm -W3 -Wuse+ -DOS2 -Wdcl -Weff -Wenu
-CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG)
+CFLAGS_DBG = $(CFLAGS_DBG_USR) -Ti -Tx -DDEBUG=$(DEBUG)
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
-CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -qalias=ansi
+CFLAGS_OPT = $(CFLAGS_OPT_USR) -Gf -Gi -O -G5 -Gl -qalias=ansi
 
 CL         = ilink
 LFLAGS     = /NOL /NOE
@@ -36,7 +36,7 @@ POSTLINKCMD = lxlite $@ /nbl /t /zs
 !endif
 
 AS         = nasm
-AFLAGS     = -fobj
+AFLAGS     = $(AFLAGS_USR) -fobj
 
 LB         = ilib /nofree /nobackup /quiet /nologo /noi
 LBENDL     = ;
@@ -94,6 +94,9 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 	$(RC) $(RFLAGS) -r $<
 
 .asm.obj:
+	$(AS) $(AFLAGS) $<
+
+.nasm.obj:
 	$(AS) $(AFLAGS) $<
 
 .S.obj:

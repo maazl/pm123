@@ -1,7 +1,7 @@
 # Open Watcom C++
 
 .SUFFIXES:
-.SUFFIXES: .res .rc .obj .asm .S .c .cpp
+.SUFFIXES: .res .rc .obj .nasm .asm .S .c .cpp
 
 MFLAGS     = -h
 MDUMMY     = .SYMBOLIC
@@ -14,8 +14,8 @@ RES        = .res
 
 CC         = wcl386
 CFLAGS     = $(CFLAGS_USR) -zq -zro -zm -bm -ei -dOS2 -wx -wcd=004 -sg
-CFLAGS_DBG = -d2 -dDEBUG=$(DEBUG) -5
-CFLAGS_OPT = -otexan -5r -fp5
+CFLAGS_DBG = $(CFLAGS_DBG_USR) -d2 -dDEBUG=$(DEBUG) -5
+CFLAGS_OPT = $(CFLAGS_OPT_USR) -otexan -5r -fp5
 
 CL         = wlink
 LFLAGS     = option quiet
@@ -34,7 +34,7 @@ POSTLINKCMD = lxlite $@ /nbl /t /zs
 !endif
 
 AS         = nasm
-AFLAGS     = -fobj -DUNDERSCORE
+AFLAGS     = $(AFLAGS_USR) -fobj -DUNDERSCORE
 
 LB         = wlib -b -c -q
 LBENDL     =
@@ -86,6 +86,9 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
    $(RC) $(RFLAGS) -r $<
 
 .asm.obj:
+   $(AS) $(AFLAGS) $<
+
+.nasm.obj:
    $(AS) $(AFLAGS) $<
 
 .S.obj:

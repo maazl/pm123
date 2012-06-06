@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -363,6 +363,42 @@ inline bool operator>=(const xstring& l, const char* r)
 inline bool operator>=(const char* l,    const xstring& r)
 { return r.compareTo(l) <= 0;
 }
+
+/** Helper class to make static const instances of \c xstring
+ * late initialized to fulfill the plug-in API requirements.
+ * @details You should not destroy instances of this class.
+ * They are designed to be constants with static linkage.
+ * @remarks The basic idea behind this class is to avoid to create new copies
+ * of the content over and over when invoking the \c xstring constructor with a constant
+ * string. Instead \c xstringconst initializes <em>one</em> instance of \c xstring
+ * at the first invocation of \c operator \c xstring&. All further calls access the same instance.
+ */
+class xstringconst
+{ /// Data pointer
+  /// @details This pointer is strictly speaking a union.
+  /// If \c operator \c xstring& has not yet been called, it is of type \c const \c char*
+  /// and points to the character sequence passed to the constructor.
+  /// At the first call to \c operator \c xstring& the data type changes to \c xstring.
+  /// This change is final.
+  /// To distinguish the two states the intermediate type \c const \c char*
+  /// is modified by setting the most significant bit in the pointer.
+  /// The OS/2 platform does not use bit in the private arena.
+  const char* Ptr;
+ private: // non-copyable
+  xstringconst(const xstringconst&);
+  void operator=(const xstringconst&);
+  /// Ensure that Ptr is of type xstring.
+  /// The function is thread-safe.
+  void Init();
+ public:
+  /// Create a shared xstring constant.
+  xstringconst(const char* text)            : Ptr((const char*)(0x80000000|(int)text)) { ASSERT(text); };
+  ~xstringconst();
+  /// Access the xstring constant.
+  /// @remarks If you are in plug-in context, you must ensure that
+  /// this function is not called before \c plugin_init.
+  operator const xstring&()                 { if ((int)Ptr < 0) Init(); return *(const xstring*)&Ptr; }
+};
 
 
 /** String builder for xstrings or C strings. */

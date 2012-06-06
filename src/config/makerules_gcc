@@ -1,18 +1,18 @@
 # GCC with EMX
 
-.SUFFIXES: .c .cpp .e .asm .S .o .obj .rc .res
+.SUFFIXES: .c .cpp .e .nasm .asm .S .o .obj .rc .res
 
 MFLAGS     = -nologo
 MDUMMY     =
 
-OBJ        = .obj
+OBJ        = .o
 CO         = .o
 LBI        = .lib
 LBO        = .a
 RES        = .res
 
 AS         = nasm
-AFLAGS     = -fobj -DUNDERSCORE
+AFLAGS     = $(AFLAGS_USR) -f aout -DUNDERSCORE
 
 GAS        = as
 GAFLAGS    =
@@ -21,8 +21,8 @@ CC         = g++
 CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -fmessage-length=132 -DOS2 -DOS2EMX_PLAIN_CHAR
 CFLAGS     = $(CFLAGS) -funsigned-char -march=pentium -mcpu=pentiumpro
 CFLAGS_CPP = -Wno-non-virtual-dtor
-CFLAGS_DBG = -g -DDEBUG=$(DEBUG)
-CFLAGS_OPT = -O2
+CFLAGS_DBG = $(CFLAGS_DBG_USR) -g -DDEBUG=$(DEBUG)
+CFLAGS_OPT = $(CFLAGS_OPT_USR) -O3 -fomit-frame-pointer -funroll-loops -finline-functions
 CFLAGS_MEM = -DDEBUG_ALLOC
 # regparm is buggy with gcc/2
 #CFLAGS_OPT = -O2 -mregparm=3
@@ -103,7 +103,10 @@ CFLAGS = $(CFLAGS) -DDEBUG_LOG=$(DEBUG_LOG)
 MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 !endif
 
-.asm.obj:
+.asm.o:
+   $(AS) $(AFLAGS) $<
+
+.nasm.o:
    $(AS) $(AFLAGS) $<
 
 .S.o:
