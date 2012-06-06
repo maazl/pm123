@@ -37,6 +37,7 @@
 #include "configuration.h"
 #include "eventhandler.h"
 #include <math.h>
+#include <time.h>
 
 //#define DEBUG 1
 #include <debuglog.h>
@@ -317,10 +318,15 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
     GlueImp::DecSetActive(NULL);
   else
   { // TODO: I hate this delay with a spinlock.
-    int cnt = 0;
+    SpinWait wait(30000);
     while (GlueImp::DecPlug->DecoderStatus() == DECODER_STARTING)
-    { DEBUGLOG(("dec_play - waiting for Spinlock\n"));
-      DosSleep(++cnt > 10);
+    { DEBUGLOG(("Glue::DecPlay - waiting for Spinlock\n"));
+      if (!wait.Wait())
+      { EventHandler::Post(MSG_ERROR, "The decoder did not start within 30s.");
+        DecStop();
+        rc = PLUGIN_FAILED;
+        break;
+      }
   } }
   return rc;
 }
@@ -330,6 +336,17 @@ ULONG Glue::DecStop()
 { GlueImp::SongDeleg.detach();
   GlueImp::Song.reset();
   ULONG rc = GlueImp::DecCommand(DECODER_STOP);
+  // TODO: I hate this delay with a spinlock.
+  SpinWait wait(30000); // 30 s
+  while (GlueImp::DecPlug->DecoderStatus() != DECODER_STOPPED)
+  { DEBUGLOG(("Glue::DecStop - waiting for Spinlock\n"));
+    if (!wait.Wait())
+    { EventHandler::Post(MSG_ERROR, "The decoder did not terminate within 30s. Killing thread.");
+      DosKillThread(GlueImp::DecTID);
+      rc = PLUGIN_FAILED;
+      break;
+    }
+  }
   GlueImp::DecTID = 0;
   // Do not deactivate the DecPlug immediately.
   return rc;
@@ -398,6 +415,8 @@ ULONG Glue::OutClose()
   GlueImp::Initialized = false;
   GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   ULONG rc = GlueImp::OutCommand(OUTPUT_CLOSE);
+  // Now wait for the decoder to stop until we discard the output filter chain.
+  DecStop();
   GlueImp::Uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
 }
@@ -602,6 +621,11 @@ DecEventHandler(void* a, DECEVENTTYPE event, void* param)
     // discard if already sent
     if (GlueImp::Flags.bitset(GlueImp::FLG_PlaystopSent))
       return;
+    break;
+
+   case DECEVENT_PLAYERROR:
+    if (param)
+      EventHandler::Post(MSG_ERROR, xstring((const char*)param));
    default: // avoid warnings
     break;
   }

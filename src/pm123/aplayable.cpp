@@ -224,7 +224,8 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
           if (es > ss) // non empty slice?
           { ai.Drpl.totallength += es - ss;
             // approximate size
-            ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
+            if (len > 0) // avoid division by zero
+              ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
           }
           ai.Drpl.unk_length += sai.Drpl.unk_length;
           ai.Drpl.unk_size += sai.Drpl.unk_size;

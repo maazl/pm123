@@ -115,7 +115,7 @@ void Decoder::LoadPlugin()
   Type = (DECODER_TYPE)decoder_support(&FileTypes, &FileTypesCount);
   if ( (Type & DECODER_SONG)
     && ( !decoder_init || !decoder_uninit || !decoder_command
-      || !decoder_status || !decoder_length || !decoder_event ))
+      || !decoder_status || !decoder_length ))
     throw ModuleException("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
       mod.ModuleName.cdata());
 

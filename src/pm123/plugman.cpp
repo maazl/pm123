@@ -317,7 +317,7 @@ void ModuleImp::Load()
   if (rc != NO_ERROR && !(HModule != NULLHANDLE && (rc == ERROR_INVALID_PARAMETER || rc == ERROR_INIT_ROUTINE_FAILED)))
   { char error[1024];
     throw ModuleException("Could not load %s, %s. Error %d at %s",
-      ModuleName.cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
+      ModuleName.cdata(), os2_strerror(rc, error, sizeof error), rc, load_error);
   }
 
   int DLLENTRYP(pquery)(PLUGIN_QUERYPARAM *param);

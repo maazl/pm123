@@ -109,11 +109,12 @@ const amp_cfg Cfg::Default =
 , 500
 , true
 
-, "foldr123.dll?enabled=true&tryothers=false\n"
-  "oggplay.dll?enabled=true&filetypes=OGG&tryothers=0\n"
+, "foldr123.dll?enabled=true\n"
+  "flac123.dll?enabled=true\n"
+  "oggplay.dll?enabled=true\n"
   "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3&tryothers=0\n"
   "wavplay.dll?enabled=true&filetypes=Digital Audio&tryothers=0\n"
-  "plist123.dll?enabled=true&filetypes=Playlist&tryothers=0\n"
+  "plist123.dll?enabled=true&filetypes=Playlist\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n"
   "pulse123.dll?enabled=true\n"

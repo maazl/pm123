@@ -125,6 +125,7 @@ class CtrlImp
   /// The playable object is needed for naming purposes.
   static ULONG OutputStart(APlayable& pp);
   /// Stops playback and clears the prefetch list.
+  /// This also stops the decoder.
   static void  OutputStop();
   /// Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
   /// The status of common parts of the two stacks is not touched.
@@ -313,7 +314,6 @@ void CtrlImp::SetVolume()
 ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
 { DEBUGLOG(("Ctrl::DecoderStart(&%p{%p})\n", &ps, &ps.GetPlayable()));
   SetVolume();
-  Glue::DecSave(Savename);
 
   PM123_TIME start = 0;
   PM123_TIME stop  = 1E99;
@@ -466,7 +466,6 @@ void CtrlImp::NavigateCore(Location& si)
   { ULONG rc = DecoderStart(ps, 0);
     if (rc)
     { OutputStop();
-      Glue::DecClose();
       Playing = false;
       Pending |= EV_PlayStop;
       ReplyDecoderError(rc);
@@ -556,10 +555,10 @@ PM123_TIME CtrlImp::FetchCurrentSongTime()
 void CtrlImp::DecEventHandler(void*, const Glue::DecEventArgs& args)
 { DEBUGLOG(("Ctrl::DecEventHandler(, {%i, %p})\n", args.Type, args.Param));
   switch (args.Type)
-  {case DECEVENT_PLAYSTOP:
-    // Well, same as on play error.
-   case DECEVENT_PLAYERROR:
+  {case DECEVENT_PLAYERROR:
     // Decoder error => next, please (if any)
+   case DECEVENT_PLAYSTOP:
+    // Well, same as on play error.
     PostCommand(MkDecStop());
     break;
    /* currently unused
@@ -731,7 +730,6 @@ void CtrlImp::MsgPlayStop()
     rc = DecoderStart(*Current()->Loc.GetCurrent(), 0);
     if (rc)
     { OutputStop();
-      Glue::DecClose();
       Playing = false;
       ReplyOutputError(rc);
       return;
@@ -741,7 +739,6 @@ void CtrlImp::MsgPlayStop()
   { // stop playback
     Glue::DecStop();
     Glue::OutTrash();
-    Glue::DecClose();
     OutputStop();
 
     Flags = Op_Clear;
@@ -1056,7 +1053,6 @@ void CtrlImp::MsgDecStop()
   if (rc)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
-    Glue::DecClose();
     Playing = false;
     Pending |= EV_PlayStop;
     ReplyDecoderError(rc);

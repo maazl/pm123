@@ -620,7 +620,8 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     tech.attributes = TATTR_INVALID;
     if (tech.info == NULL)
       tech.info.sprintf("Decoder error %i", rc);
-  }
+  } else if (info.obj->bitrate < 0 && info.obj->songlength > 0 && phys.filesize > 0)
+    info.obj->bitrate = phys.filesize*8. / info.obj->songlength;
   DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
     phys.filesize, phys.tstmp, phys.attributes,
     tech.samplerate, tech.channels, tech.attributes,
