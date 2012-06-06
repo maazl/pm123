@@ -187,6 +187,26 @@ class CritSect
 
 /*****************************************************************************
 *
+*  Helper to wait for a spin lock
+*
+*  This class provides
+*  The Function Wait will block until Count returns to zero.
+*  But Count may no longer be zero when Wait returns.
+*
+*****************************************************************************/
+class SpinWait
+{private:
+  unsigned FastCycles;
+  long     Timeout;
+ public:
+  SpinWait(long ms = -1, unsigned fast = 5) : FastCycles(fast+1), Timeout(ms) {}
+  bool Wait();
+  void Reset(long ms = -1, unsigned fast = 5) { FastCycles = fast+1, Timeout = ms; }
+};
+
+
+/*****************************************************************************
+*
 *  spin-lock class
 *
 *  This class retains a counter that counts the calls of Inc minus Dec.

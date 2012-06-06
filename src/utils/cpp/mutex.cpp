@@ -36,6 +36,8 @@
 #include <debuglog.h>
 #include <string.h>
 #include <alloca.h>
+#include <limits.h>
+#include <time.h>
 
 
 bool Mutex::Lock::Request(long ms)
@@ -134,35 +136,52 @@ int Mutex::GetStatus() const
 
 /*****************************************************************************
 *
+*  SpinWait class
+*
+*****************************************************************************/
+
+bool SpinWait::Wait()
+{ if (FastCycles)
+  { if (--FastCycles)
+    { // fast cycles
+      DosSleep(0);
+      return true;
+    }
+    // Turn to slow cycles
+    // Start Timer
+    Timeout = (Timeout < 0 ? LONG_MAX : Timeout * CLOCKS_PER_SEC / 1000)
+            + clock();
+  }
+  DEBUGLOG(("SpinWait::Wait slow cycle\n"));
+  DosSleep(1);
+  return Timeout - (long)clock() >= 0;
+}
+
+
+/*****************************************************************************
+*
 *  SpinLock class
 *
 *****************************************************************************/
 
 void SpinLock::Wait()
 { DEBUGLOG(("SpinLock(%p)::Wait() - %u\n", this, Count));
-  unsigned i = 5; // fast cycles
-  do
-  { if (!Count)
-      return;
-    DosSleep(0);
-  } while (--i);
-  // slow cycles
+  SpinWait wait;
   while (Count)
-  { DEBUGLOG(("SpinLock::Wait loop %u\n", Count));
-    DosSleep(1);
-  }
+    wait.Wait();
 }
 
 
 void RecSpinLock::Inc()
 { SpinLock::Inc();
-  TID tid = getTID();
-  ASSERT(CurrentTID == 0 || CurrentTID == tid);
-  CurrentTID = tid;
+  PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  ASSERT(CurrentTID == 0 || CurrentTID == ptib->tib_ptib2->tib2_ultid);
+  CurrentTID = ptib->tib_ptib2->tib2_ultid;
 }
 
 bool RecSpinLock::Dec()
-{ ASSERT(CurrentTID == getTID());
+{ ASSERT(CurrentTID == (TID)getTID());
   if (Peek() == 1)
     CurrentTID = 0;
   return SpinLock::Dec();
@@ -170,7 +189,9 @@ bool RecSpinLock::Dec()
 
 void RecSpinLock::Wait()
 { DEBUGLOG(("RecSpinLock(%p)::Wait() - %u\n", this));
-  if (CurrentTID == getTID())
+  PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  if (CurrentTID == ptib->tib_ptib2->tib2_ultid)
     DEBUGLOG(("RecSpinLock::Wait recusrsion!\n"));
   else
     SpinLock::Wait();
