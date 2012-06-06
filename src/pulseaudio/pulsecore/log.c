@@ -385,7 +385,7 @@ void pa_log_levelv_meta(
                 if ((local_t = pa_utf8_to_locale(t)))
                     t = local_t;
 
-#ifdef DEBUG_LOG
+#ifdef HAVE_DEBUGLOG
                 if (_flags & PA_LOG_PRINT_LEVEL)
                     DEBUGLOG(("%s%c: %s%s%s%s%s%s\n", timestamp, level_to_char[level], location, prefix, t, grey, pa_strempty(bt), suffix));
                 else

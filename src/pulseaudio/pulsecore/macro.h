@@ -213,6 +213,10 @@ typedef int pa_bool_t;
 
 /* pa_assert_se() is an assert which guarantees side effects of x,
  * i.e. is never optimized away, regardless of NDEBUG or FASTPATH. */
+#ifdef HAVE_DEBUGLOG
+#include <debuglog.h>
+#define pa_assert_se(expr) RASSERT(expr)
+#else
 #define pa_assert_se(expr)                                              \
     do {                                                                \
         if (PA_UNLIKELY(!(expr))) {                                     \
@@ -220,6 +224,7 @@ typedef int pa_bool_t;
             abort();                                                    \
         }                                                               \
     } while (FALSE)
+#endif
 
 /* Does exactly nothing */
 #define pa_nop() do {} while (FALSE)

@@ -29,6 +29,7 @@
 #include <pulsecore/random.h>
 #include <pulsecore/macro.h>
 #include <pulsecore/endianmacros.h>
+#include <pulsecore/log.h>
 
 #include "cpu-x86.h"
 
