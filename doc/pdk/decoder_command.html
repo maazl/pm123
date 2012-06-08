@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <title>Decoder commands</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
+<h1>PM123 Decoder Plug-ins: commands</h1>
+<p>This section is a detailed description of the function <a
+ href="decoder_plug.html#decoder_command"><tt>decoder_command</tt></a>
+of the <a href="decoder_plug.html#level_3">level 3 decoder interface</a>.</p>
+<p>The operation sequence is in general:</p>
+<ol>
+  <li><tt><a href="#DECODER_SETUP">DECODER_SETUP</a></tt></li>
+  <li><tt><a href="decoder_command.html#DECODER_FFWD">DECODER_FFWD</a></tt>
+(optional) </li>
+  <li><tt><a href="decoder_command.html#DECODER_SAVEDATA">DECODER_SAVEDATA</a></tt>
+(optional)</li>
+  <li><tt><a href="#DECODER_PLAY">DECODER_PLAY</a></tt>
+    <ol>
+      <li><tt><a href="DECODER_JUMPTO">DECODER_JUMPTO</a></tt>
+(optional)</li>
+      <li><tt><a href="#DECODER_FFWD">DECODER_FFWD</a></tt> (optional) </li>
+      <li><tt><a href="#DECODER_SAVEDATA">DECODER_SAVEDATA</a></tt>
+(optional)</li>
+    </ol>
+  </li>
+  <li><tt><a href="#DECODER_STOP">DECODER_STOP</a></tt></li>
+</ol>
+The decoder will always be stopped before it is reused. Both, the outer
+and the inner enumeration could be repeated in a loop.<br>
+<h2><tt><a name="DECODER_PARAMS2"></a></tt><tt>DECODER_PARAMS2</tt></h2>
+<p>This structure is used to pass parameters to <tt><a
+ href="decoder_plug.html#decoder_command"><tt>decoder_command</tt></a></tt>.</p>
+<blockquote>
+  <pre>typedef struct _DECODER_PARAMS2<br>{<br>  /* --- DECODER_SETUP, PLAY */<br>  xstring      URL;         /**&lt; URL to play */<br><br>  /* --- DECODER_PLAY DECODER_REW, FFWD and JUMPTO */<br>  PM123_TIME   JumpTo;      /**&lt; absolute positioning in seconds */<br>  DECFASTMODE  Fast;        /**&lt; fast forward/rewind */<br><br>  /* --- DECODER_SETUP */<br>  /** specify a function which the decoder should use for output */<br>  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);<br>  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);<br>  /** decoder events */<br>  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);<br>  void* A;                  /**&lt; only to be used with the precedent functions */<br><br>  /* --- DECODER_SAVEDATA */<br>  xstring      SaveFilename;/**&lt; File where to save the raw stream. */<br><br>} DECODER_PARAMS2;</pre>
+</blockquote>
+<h2><tt><a name="DECODER_SETUP"></a></tt><tt>DECODER_SETUP</tt></h2>
+<p>The <tt><tt>DECODER_SETUP</tt></tt> command is used to pass
+callback pointers to the decoder engine. But the decoder could use it
+to do other initializations as well.</p>
+<h4>Parameters
+</h4>
+<p>The following fields of the <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
+structure are guaranteed to be valid at this call:</p>
+<ul>
+  <li><tt>URL</tt></li>
+  <li><tt>OutRequestBuffer</tt></li>
+  <li><tt>OutCommitBuffer</tt></li>
+  <li><tt>DecEvent</tt></li>
+  <li><tt>A</tt> </li>
+</ul>
+<p>All other fields should not be accessed during the processing of <tt><tt>DECODER_SETUP</tt></tt>
+as their content is undefined.</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine.</dd>
+  <dt><tt>PLUGIN_GO_ALREADY</tt></dt>
+  <dd>The decoder in in an invalid state (already playing). </dd>
+  <dt><tt>PLUGIN_ERROR</tt></dt>
+  <dd>Internal error in the plug-in =&gt; cancel processing.</dd>
+</dl>
+<h2><tt><a name="DECODER_PLAY"></a>DECODER_PLAY</tt></h2>
+<p>This command kicks off the decoder thread to start decoding of an
+URL. The command implicitly implies the <a href="#DECODER_JUMPTO"><tt>DECODER_JUMPTO</tt></a>
+command if the appropriate fields in <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
+is not initial.
+</p>
+<h4>Parameters</h4>
+<p>The following fields of the <tt><a
+ href="decoder_command.html#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
+structure are guaranteed to be valid at this call:</p>
+<ul>
+  <li><tt>URL</tt></li>
+  <li><tt>JumpTo</tt> (see <a href="#DECODER_JUMPTO"><tt>DECODER_JUMPTO</tt></a>)</li>
+</ul>
+<p><tt>DECODER_PLAY</tt> should not wait for data to become available.
+It should also not wait for the desired URL to open, because this could
+lead to time-outs.
+</p>
+<p>When a decoder starts playing it might start at a certain location
+of the target rather than the beginning of the song. In this case <tt>JumpTo</tt>
+is set to the starting position. Otherwise it is <tt>0</tt>.<br>
+If a start position makes no sense e.g. because the source is an
+internet radio stream, the decoder should ignore this and just start
+decoding. This is not an error.
+</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine decoding starts in background. The <a
+ href="decoder_plug.html#OutRequestBuffer"><tt>OutRequestBuffer</tt></a>/<a
+ href="decoder_plug.html#OutCommitBuffer"><tt>OutCommitBuffer</tt></a>
+callbacks are called asynchronously when decoded data is available. </dd>
+  <dt><tt>PLUGIN_GO_ALREADY</tt></dt>
+  <dd>The decoder in in an invalid state (already playing).</dd>
+  <dt><tt>PLUGIN_GO_FAILED</tt></dt>
+  <dd>The decoder could not start decoding of the requested URL.<br>
+In general this error should be used rarely, because it is
+synchronously and you cannot pass a descriptive error text to PM123.
+You should call the <a href="decoder_plug.html#DecEvent"><tt>DecEvent</tt></a>
+and <a href="index.html#message_display"><tt>message_display</tt></a>
+callbacks from the decoder thread instead.</dd>
+</dl>
+<h2><tt><a name="DECODER_STOP"></a>DECODER_STOP</tt></h2>
+<p>The stop command resets the decoder into it's initial state. It
+could take a while for this command to complete, i.e. until no more
+callbacks to <a href="decoder_plug.html#OutRequestBuffer"><tt>OutRequestBuffer</tt></a>/<a
+ href="decoder_plug.html#OutCommitBuffer"><tt>OutCommitBuffer</tt></a>
+are on
+the way. <em><tt>DECODER_STOP</tt> must not wait</em> for that
+condition or deadlocks may occur. PM123 considers <tt>DECODER_STOP</tt>
+to have
+completed as soon as <a href="decoder_plug.html#decoder_status"><tt>decoder_status</tt></a>
+returns <tt>DECODER_STOPPED</tt>.
+</p>
+<h4>Parameters</h4>
+<p><tt>DECODER_STOP</tt> does not have parameters.</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine decoding will stop shortly. </dd>
+  <dt><tt>PLUGIN_GO_ALREADY</tt></dt>
+  <dd>The decoder in in an invalid state (e.g. already stopped).</dd>
+</dl>
+<p>The return value of the <tt>DECODER_STOP</tt> is currently ignored
+by PM123.</p>
+<h2><tt><a name="DECODER_JUMPTO"></a>DECODER_JUMPTO</tt></h2>
+<p>Interrupt decoding immediately and continue at a certain position of
+the source. The command should not wait for the seek operation to
+complete.</p>
+<h4>Parameters</h4>
+<p>The <tt>JumpTo</tt> field points to a location from the start of
+the current object in seconds where the decoding should continue.<br>
+The position should be rounded to the closest sample.</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine decoding will continue at the given location
+shortly. </dd>
+  <dt><tt>PLUGIN_UNSUPPORTED</tt></dt>
+  <dd>The decoder cannot seek within the current URL.</dd>
+</dl>
+<h2><tt><a name="DECODER_FFWD"></a>DECODER_FFWD</tt></h2>
+<p>Change fast forward/rewind mode. This could happen <i>before</i> <a
+ href="#DECODER_PLAY"><tt>DECODER_PLAY</tt></a> if playback should
+immediately start in scan mode. In case decoding should start in rewind
+mode the following <tt>DECODER_PLAY</tt> command will always set the <tt>JumpTo</tt>
+filed to a location at the end of the current URL.</p>
+<p>A DECODER_FFWD command is usually followed by <a
+ href="#DECODER_JUMPTO">DECODER_JUMPTO</a> to reset the decoding
+position to the current playing position.</p>
+<h4>Parameters</h4>
+<p>The field <tt>Fast</tt> will contain the new mode.</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine. </dd>
+  <dt><tt>PLUGIN_UNSUPPORTED</tt></dt>
+  <dd>The decoder cannot fast forward/rewind within the current URL. It
+is valid that <tt>DECODER_FORWARD</tt> is supported for a certain
+stream while <tt>DECODER_REWIND</tt> is not.</dd>
+</dl>
+<h2><tt><a name="DECODER_SAVEDATA"></a></tt><tt>DECODER_SAVEDATA</tt></h2>
+<p>Save the raw stream to a file. The decoder should append an existing
+file.
+</p>
+<h4>Parameters</h4>
+<p><tt>SaveFilename</tt> contains the name/URL of the file where to
+save the stream data. If <tt>SaveFilename</tt> is <tt>NULL</tt> then
+stream saving should be turned off.</p>
+<h4>Return value</h4>
+<dl>
+  <dt><tt>PLUGIN_OK</tt></dt>
+  <dd>Every thing is fine.</dd>
+  <dt><tt>PLUGIN_NO_SAVE</tt></dt>
+  <dd>SaveFilename cannot be used. </dd>
+  <dt><tt>PLUGIN_UNSUPPORTED</tt></dt>
+  <dd>The decoder does not support saving the stream.</dd>
+</dl>
+</body>
+</html>
