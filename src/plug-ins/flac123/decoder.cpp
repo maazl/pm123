@@ -361,7 +361,7 @@ void ThreadDecoder::DecoderThread()
   if (SeekTo == 0)
     SeekTo = -1;
 
-  for(;;)
+  //for(;;)
   { //Play.Wait();
     //Play.Reset();
 
@@ -394,19 +394,25 @@ void ThreadDecoder::DecoderThread()
       }
 
       if (!FLAC__stream_decoder_process_single(Decoder))
-      { switch (FLAC__stream_decoder_get_state(Decoder))
-        {default:
-          { xstring errortext;
-            errortext.sprintf("Unable to decode %s\nState %s", URL.cdata(), FLAC__stream_decoder_get_resolved_state_string(Decoder));
-            (*DecEvent)(A, DECEVENT_PLAYERROR, (void*)errortext.cdata());
-            goto end;
-          }
-         case FLAC__STREAM_DECODER_ABORTED:
-          (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
+        goto fail;
+      // The return value of FLAC__stream_decoder_process_single is not reliable, so check stream state always.
+      switch (FLAC__stream_decoder_get_state(Decoder))
+      {default:
+       fail:
+        { xstring errortext;
+          errortext.sprintf("Unable to decode %s\nState %s", URL.cdata(), FLAC__stream_decoder_get_resolved_state_string(Decoder));
+          (*DecEvent)(A, DECEVENT_PLAYERROR, (void*)errortext.cdata());
           goto end;
-         case FLAC__STREAM_DECODER_END_OF_STREAM:;
         }
-        break;
+       case FLAC__STREAM_DECODER_ABORTED:
+        (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
+        goto end;
+       case FLAC__STREAM_DECODER_END_OF_STREAM:
+        goto eos;
+       case FLAC__STREAM_DECODER_SEARCH_FOR_METADATA:
+       case FLAC__STREAM_DECODER_READ_METADATA:
+       case FLAC__STREAM_DECODER_SEARCH_FOR_FRAME_SYNC:
+       case FLAC__STREAM_DECODER_READ_FRAME:;
       }
 
       /*float* target;
@@ -439,6 +445,7 @@ void ThreadDecoder::DecoderThread()
       if (Terminate)
         goto end;
     }
+   eos:
     if (Terminate)
       goto end;
     DEBUGLOG(("ThreadDecoder::DecoderThread - playstop event - %.3f\n", GetTime()));
@@ -464,8 +471,8 @@ do \
 } while (false)
 
 FLAC__StreamDecoderWriteStatus ThreadDecoder::WriteCB(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
-{ DEBUGLOG(("ThreadDecoder(%p)::WriteCB(%p, {%u, %u, %u,, %u}, %p)\n", client_data,
-    decoder, frame->header.blocksize, frame->header.channels, frame->header.sample_rate, frame->header.bits_per_sample, buffer));
+{ DEBUGLOG(("ThreadDecoder(%p)::WriteCB(%p, {%u, %u, %u,, %Lu, %u}, %p)\n", client_data,
+    decoder, frame->header.blocksize, frame->header.channels, frame->header.sample_rate, frame->header.bits_per_sample, frame->header.number.sample_number, buffer));
   #define this ((ThreadDecoder*)client_data)
 
   this->Format.channels = frame->header.channels;
