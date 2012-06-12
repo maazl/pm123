@@ -590,9 +590,13 @@ Decoder::Decoder()
 {}
 
 Decoder::~Decoder()
-{ Stop();
-  // we need to synchronize the decoder thread, before we discard memory.
-  wait_thread(DecTID, 5000);
+{ ASSERT(DecTID == -1);
+  Close();
+  if (XSave)
+  { xio_fclose(XSave);
+    XSave = NULL;
+    Savename.reset();
+  }
 }
 
 
@@ -745,6 +749,7 @@ PLUGIN_RC Decoder::Play(PM123_TIME start, DECFASTMODE fast)
   JumpTo = start <= 0 ? -1 : start; // After opening a new file we so are in its beginning.
   Fast = fast;
   Status = DECODER_STARTING;
+  Terminate = false;
   DecTID = _beginthread(PROXYFUNCREF(Decoder)ThreadStub, 0, 65535, this);
   if (DecTID == -1)
   { Status = DECODER_STOPPED;
@@ -761,17 +766,9 @@ PLUGIN_RC Decoder::Stop()
     return PLUGIN_GO_ALREADY;
 
   Status = DECODER_STOPPING;
+  Terminate = true;
   DecEvent.Set();
-  //wait_thread(DecTID, 5000);
 
-  Mutex::Lock lock(DecMutex);
-
-  Close();
-  if (XSave)
-  { xio_fclose(XSave);
-    XSave = NULL;
-    Savename.reset();
-  }
   return PLUGIN_OK;
 }
 

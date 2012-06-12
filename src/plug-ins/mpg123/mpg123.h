@@ -197,6 +197,7 @@ class Decoder : public MPG123
   int           DecTID;
 
   DECODERSTATE  Status;
+  bool          Terminate;
 
   /// absolute positioning in seconds
   PM123_TIME    JumpTo;
