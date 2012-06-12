@@ -48,7 +48,7 @@ listslice2.lst
  |   |   +- list1.lst (*)
  |   +- test3.ogg
  |   +- not_exist.ogg
- |   +- list1.lst (*)
+ |   +- list1.lst
  |       +- test.ogg
  |       +- list2.lst (*)
  |       +- list1.lst (*)
