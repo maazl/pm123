@@ -1,5 +1,5 @@
 /*  
- * Copyright 2009-2011 Marcel Mueller
+ * Copyright 2009-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -122,8 +122,16 @@ class APlayable
           xstring             DebugName() const   { return this ? DoDebugName() : "<null>"; } // Hack: allow this == NULL
 
   /// Get start position
+  /// @return Pointer to a start \c Location if the object does not start at the beginning of \c this->GetPlayable(),
+  /// \c NULL otherwise. The returned \c Location stay valid as long as \c *this is valid.
+  /// @remarks The Location is never thread-safe, because all thread-safe instances of \c APLayable
+  /// are of type \c Playable and they will always return \c NULL.
   virtual int_ptr<Location>   GetStartLoc() const = 0;
   /// Get stop position
+  /// @return Pointer to a stop \c Location if the object ends before the end of \c this->GetPlayable(),
+  /// \c NULL otherwise. The returned \c Location stay valid as long as \c *this is valid.
+  /// @remarks The Location is never thread-safe, because all thread-safe instances of \c APLayable
+  /// are of type \c Playable and they will always return \c NULL.
   virtual int_ptr<Location>   GetStopLoc() const = 0;
 
   /// Current object is identified as playlist.

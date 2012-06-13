@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 Marcel Mueller
+ * Copyright 2007-2012 Marcel Mueller
  * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
@@ -412,13 +412,13 @@ int_ptr<AInfoDialog> AInfoDialog::GetByKey(const KeyType& set)
     return (AInfoDialog*)NULL;
   return InfoDialog::GetByKey(set).get();
 }
-int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& obj)
+int_ptr<AInfoDialog> AInfoDialog::GetByKey(APlayable& obj)
 { InfoDialog::KeyType key(1);
   key.append() = &obj;
   return InfoDialog::GetByKey(key).get();
 }
 
-int_ptr<AInfoDialog> AInfoDialog::FindByKey(Playable& obj)
+int_ptr<AInfoDialog> AInfoDialog::FindByKey(APlayable& obj)
 { InfoDialog::KeyType key(1);
   key.append() = &obj;
   return InfoDialog::FindByKey(key).get();

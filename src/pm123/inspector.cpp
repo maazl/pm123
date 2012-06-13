@@ -176,7 +176,8 @@ static bool ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
       break;
 
      case Ctrl::Cmd_Load:
-      sb.appendf("Load %s%s", cmd->Flags&1 ? "[continue] " : "", cmd->StrArg.cdata());
+      sb.appendf("Load %s%s", cmd->Flags&1 ? "[continue] " : "",
+        ((APlayable*)cmd->PtrArg)->DebugName().cdata());
       break;
 
      case Ctrl::Cmd_Skip:
@@ -184,11 +185,9 @@ static bool ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
       break;
 
      case Ctrl::Cmd_Navigate:
-     case Ctrl::Cmd_StopAt:
       { double loc = fabs(cmd->NumArg);
         unsigned long secs = (unsigned long)floor(loc);
-        sb.appendf("%s %s%s;%s%lu:%02lu:%02lu.%0.f",
-          cmd->Cmd == Ctrl::Cmd_StopAt ? "StopAt" : "Navigate",
+        sb.appendf("Navigate %s%s;%s%lu:%02lu:%02lu.%0.f",
           cmd->Flags&1 ? (cmd->Flags&2 ? "[relative, playlist] " : "[relative] ") : (cmd->Flags&2 ? "[playlist] " : ""),
           cmd->StrArg ? cmd->StrArg.cdata() : "",
           cmd->NumArg<0 ? "-" : "", secs/3600, secs/60%60, secs%60, loc-secs);

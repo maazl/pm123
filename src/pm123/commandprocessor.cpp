@@ -316,7 +316,7 @@ void CommandProcessor::Exec()
   } catch (const SyntaxException& ex)
   { Reply.clear();
     if (CommandType)
-      Reply.append(Ctrl::RC_BadArg);
+      Reply.appendd(Ctrl::RC_BadArg);
     Messages.append("E Syntax error: ");
     size_t start = Messages.length();
     Messages.append(ex.Text);
@@ -379,6 +379,22 @@ double CommandProcessor::ParseDouble(const char* arg)
   if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
     return v;
   throw SyntaxException("Argument \"%s\" is not an floating point number.", arg);
+}
+
+PM123_TIME CommandProcessor::ParseTime(const char* arg)
+{ double v[3];
+  size_t n;
+  int count = sscanf(arg, "%lf%n:%lf%n:%lf%n", v+0, &n, v+1, &n, v+2, &n);
+  if (n == strlen(arg))
+    switch (count)
+    {case 3:
+      return 3600*v[0] + 60*v[1] + v[2];
+     case 2:
+      return 60*v[0] + v[1];
+     case 1:
+      return v[0];
+    }
+  throw SyntaxException("Argument \"%s\" is not an time specification.", arg);
 }
 
 static const strmap<5,cfg_disp> dispmap[] =
@@ -527,7 +543,7 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
 }
 void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
 { // old value
-  Reply.append(ReadCfg().*option);
+  Reply.appendd(ReadCfg().*option);
   static const strmap<8,cfg_mode> map[] =
   { { "0",       CFG_MODE_REGULAR }
   , { "1",       CFG_MODE_SMALL }
@@ -552,7 +568,7 @@ void CommandProcessor::DoFontOption(void*)
   { Cfg::Access cfg;
     const amp_cfg& rcfg = Request == Cmd_QueryDefault ? Cfg::Default : *cfg;
     if (rcfg.font_skinned)
-      Reply.append(rcfg.font+1);
+      Reply.appendd(rcfg.font+1);
     else
       Reply.append(amp_font_attrs_to_string(rcfg.font_attrs, rcfg.font_size));
   }
@@ -590,7 +606,7 @@ void CommandProcessor::DoFontOption(void*)
 
 void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
 { cmd = Ctrl::SendCommand(cmd);
-  Reply.append(cmd->Flags);
+  Reply.appendd(cmd->Flags);
   if (cmd->StrArg)
     MessageHandler(this, MSG_ERROR, cmd->StrArg);
   cmd->Destroy();
@@ -629,7 +645,7 @@ void CommandProcessor::XCd()
 }
 
 void CommandProcessor::XReset()
-{ CurSI.SetRoot(&GUI::GetDefaultPL());
+{ CurSI.SetRoot((APlayable*)&GUI::GetDefaultPL());
   CurDir.reset();
   Messages.clear();
 }
@@ -638,13 +654,13 @@ void CommandProcessor::XReset()
 
 void CommandProcessor::XLoad()
 { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
-  Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+  Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XPlay()
 { ExtLoadHelper lh( Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
-  Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+  Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XEnqueue()
@@ -688,7 +704,7 @@ void CommandProcessor::XForward()
 
 void CommandProcessor::XJump()
 { CommandType = true;
-  double pos = ParseDouble(Request);
+  PM123_TIME pos = ParseTime(Request);
   SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
 }
 
@@ -738,7 +754,7 @@ void CommandProcessor::XQuery()
   const strmap<8, bool (*)()>* op = mapsearch(map, Request);
   if (!op)
     throw SyntaxException("Expected {forward|pause|play|repeat|rewind|shuffle} but found \"%s\".", Request);
-  Reply.append((*op->Val)());
+  Reply.appendd((*op->Val)());
 }
 
 void CommandProcessor::XCurrent()
@@ -785,23 +801,15 @@ void CommandProcessor::XStatus()
 
 void CommandProcessor::XTime()
 { Location loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false, false));
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.appendf("%f", loc.GetPosition());
   cmd->Destroy();
 }
 
 void CommandProcessor::XLocation()
-{ static const strmap<7,bool> map[] =
-  { { "",       false },
-    { "play",   false },
-    { "stopat", true  }
-  };
-  const strmap<7,bool>* op = mapsearch(map, Request);
-  if (!op)
-    throw SyntaxException("Expected [play|stopat] but found \"%s\".", Request);
-  Location loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val, false));
+{ Location loc;
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false));
   if (cmd->Flags == Ctrl::RC_OK)
     Reply.append(loc.Serialize());
   cmd->Destroy();
@@ -841,8 +849,7 @@ void CommandProcessor::NavigationResult(Location::NavigationResult result)
 
 void CommandProcessor::XPlaylist()
 { int_ptr<Playable> pp = Playable::GetByURL(ParseURL(Request));
-  //if (pp->GetFlags() & Playable::Enumerable)
-  { CurSI.SetRoot(pp);
+  { CurSI.SetRoot((APlayable*)pp);
     Reply.append(pp->URL);
   }
 };
@@ -902,9 +909,9 @@ void CommandProcessor::XPlReset()
 }
 
 void CommandProcessor::XPlCurrent()
-{ Playable* root = CurSI.GetRoot();
+{ APlayable* root = CurSI.GetRoot();
   if (root)
-    Reply.append(root->URL);
+    Reply.append(root->GetPlayable().URL);
 }
 
 void CommandProcessor::XPlParent()
@@ -929,7 +936,7 @@ void CommandProcessor::XPlItem()
 
 void CommandProcessor::XPlDepth()
 { if (CurSI.GetRoot())
-    Reply.append((int)CurSI.GetCallstack().size());
+    Reply.appendd(CurSI.GetCallstack().size());
 }
 
 void CommandProcessor::XPlCallstack()
@@ -940,7 +947,7 @@ void CommandProcessor::XPlIndex()
 { if (CurSI.GetRoot())
   { AggregateInfo ai(PlayableSetBase::Empty);
     CurSI.AddFrontAggregate(ai, IF_Rpl, SyncJob);
-    Reply.append(ai.Rpl.songs + 1);
+    Reply.appendd(ai.Rpl.songs + 1);
   }
 }
 
@@ -949,18 +956,18 @@ void CommandProcessor::XPlItemIndex()
   if (cs.size())
   { PlayableInstance* pi = cs[cs.size()-1];
     if (pi)
-      Reply.append(pi->GetIndex());
+      Reply.appendd(pi->GetIndex());
   }
 }
 
 void CommandProcessor::XUse()
-{ Playable* root = CurSI.GetRoot();
+{ APlayable* root = CurSI.GetRoot();
   if (root)
   { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
     lh.AddItem(*root);
-    Reply.append(lh.SendCommand());
+    Reply.appendd(lh.SendCommand());
   } else
-    Reply.append(Ctrl::RC_NoList);
+    Reply.appendd(Ctrl::RC_NoList);
 };
 
 
@@ -970,7 +977,7 @@ Playable* CommandProcessor::PrepareEditPlaylist()
 { if (CurSI.GetLevel() > 1)
     Messages.append("E Cannot modify nested playlist.\n");
   else
-  { Playable* root = CurSI.GetRoot();
+  { APlayable* root = CurSI.GetRoot();
     if (!root)
       Messages.append("E No current playlist.\n");
     else
@@ -978,7 +985,7 @@ Playable* CommandProcessor::PrepareEditPlaylist()
       if (root->GetInfo().tech->attributes & TATTR_SONG)
         Messages.append("E Cannot edit a song as playlist.\n");
       else
-        return root;
+        return &root->GetPlayable();
     }
   }
   return NULL; // Error
@@ -992,7 +999,7 @@ void CommandProcessor::XPlClear()
 { Playable* root = PrepareEditPlaylist();
   if (root)
   { CurSI.Reset();
-    Reply.append(root->GetInfo().obj->num_items);
+    Reply.appendd(root->GetInfo().obj->num_items);
     if (!root->Clear())
       Reply.clear();
   }
@@ -1014,7 +1021,7 @@ void CommandProcessor::XPlAdd()
       root->InsertItem(*Playable::GetByURL(ParseURL(url)), cur);
       ++count;
     }
-    Reply.append(count);
+    Reply.appendd(count);
   }
 }
 
@@ -1063,7 +1070,7 @@ void CommandProcessor::PlDir(bool recursive)
       foreach (const int_ptr<APlayable>*, app, list)
         root->InsertItem(**app, cur);
     }
-    Reply.append((int)list.size());
+    Reply.appendd(list.size());
   }
 }
 
@@ -1097,7 +1104,7 @@ void CommandProcessor::XPlSave()
       ? Ctrl::RC_OK : -1;*/
   }
  end:
-  Reply.append(rc);
+  Reply.appendd(rc);
 }
 
 // METADATA
@@ -1253,7 +1260,7 @@ void CommandProcessor::XInfoMeta()
 }
 
 void CommandProcessor::XInfoPlaylist()
-{ int_ptr<Playable> list;
+{ int_ptr<APlayable> list;
   if (*Request == 0)
     list = CurSI.GetRoot();
   else

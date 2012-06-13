@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -85,16 +85,16 @@ PlayableSlice::~PlayableSlice()
   // There is no need to touch the event registrations, since RefTo is the same.
 }*/
 
-int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, SliceBorder type)
-{ DEBUGLOG(("PlayableSlice::CompareSliceBorder(%p, %p, %d)\n", l, r, type));
+int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type)
+{ DEBUGLOG(("PlayableSlice::CompareSliceBorder(%p, %p, %x)\n", l, r, type));
   if (l == NULL)
   { if (r == NULL)
       return 0; // both iterators are zero
     else
-      return -type;
+      return (type & Location::CO_Reverse) ? 1 : -1;
   } else
   { if (r == NULL)
-      return type;
+      return (type & Location::CO_Reverse) ? -1 : 1;
     else
       return l->CompareTo(*r);
   }
@@ -288,35 +288,39 @@ InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priorit
 }
 
 
-PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, JobSet& job)
+PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
 { xstring localstr = strloc;
-  DEBUGLOG(("PlayableSlice(%p)::CalcLoc(&%s, &%p, %d, {%u,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
+  DEBUGLOG(("PlayableSlice(%p)::CalcLoc(&%s, &%p, %x, {%u,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
   if (localstr)
   { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
-    Location* si = new Location(&RefTo->GetPlayable());
+    int_ptr<Location> newvalue = new Location(&RefTo->GetPlayable());
     const char* cp = localstr;
-    const xstring& err = si->Deserialize(job, cp);
+    const xstring& err = newvalue->Deserialize(job, cp);
     if (err)
     { if (err.length() == 0) // delayed
         return CR_Delayed;
       // TODO: Errors
       DEBUGLOG(("PlayableSlice::CalcLoc: %s at %.20s\n", err.cdata(), cp));
     }
-    // Intersection with RefTo->GetStartLoc()
-    int_ptr<Location> newval = type == SB_Start ? RefTo->GetStartLoc() : RefTo->GetStopLoc();
-    if (CompareSliceBorder(si, newval, type) != type)
-      delete si;
-    else
-      newval = si;
+    // Intersection with RefTo->GetStart/StopLoc()
+    if (type & Location::CO_Reverse)
+    { int_ptr<Location> refstart = RefTo->GetStopLoc();
+      if (CompareSliceBorder(newvalue, refstart, type) >= 0)
+        newvalue = refstart;
+    } else
+    { int_ptr<Location> refstop = RefTo->GetStartLoc();
+      if (CompareSliceBorder(newvalue, refstop, type) <= 0)
+        newvalue = refstop;
+    }
     // commit
-    int_ptr<Location> localcache = newval;
-    localcache.swap(cache);
-    return localcache && *localcache == *newval ? CR_Nop : CR_Changed;
+    int_ptr<Location> oldvalue = newvalue;
+    oldvalue.swap(cache);
+    return oldvalue && *oldvalue == *newvalue ? CR_Nop : CR_Changed;
   } else
   { // Default location => NULL
-    int_ptr<Location> localcache;
-    localcache.swap(cache);
-    return localcache ? CR_Changed : CR_Nop;
+    int_ptr<Location> oldvalue;
+    oldvalue.swap(cache);
+    return oldvalue ? CR_Changed : CR_Nop;
   }
 }
 
@@ -333,9 +337,9 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
   DEBUGLOG(("PlayableSlice::DoLoadInfo: update %x\n", upd.GetWhat()));
   // Prepare slice info.
   if (upd & IF_Slice)
-  { int cr = CalcLoc(Item.start, StartCache, SB_Start, job);
+  { int cr = CalcLoc(Item.start, StartCache, Location::CO_Default, job);
     job.Commit();
-    cr |= CalcLoc(Item.stop, StopCache, SB_Stop, job);
+    cr |= CalcLoc(Item.stop, StopCache, Location::CO_Reverse, job);
     job.Commit();
     if (cr & CR_Changed)
       args.Changed |= IF_Slice;

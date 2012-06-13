@@ -428,7 +428,7 @@ PM123_TIME PlaybackWorker::GetPosition() throw()
   { if (!TrashFlag && Stream.GetState() == PA_STREAM_READY)
     { double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
       tmp = Buffer.GetPosByWriteIndex((uint64_t)tmp + WriteIndexOffset);
-      DEBUGLOG2(("PlaybackWorker::GetPosition: %f\n", tmp));
+      DEBUGLOG(("PlaybackWorker::GetPosition: %f\n", tmp));
       return tmp;
     }
   } catch (const PAException& ex)

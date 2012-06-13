@@ -166,6 +166,11 @@ class CommandProcessor : public ACommandProcessor
   /// @return value
   /// @exception SyntaxException The argument is not an number.
   static double ParseDouble(const char* arg);
+  /// Parse argument as double.
+  /// @param arg argument as string
+  /// @return value
+  /// @exception SyntaxException The argument is not an number.
+  static PM123_TIME ParseTime(const char* arg);
   /// Parse argument as display type.
   /// @param arg argument as string
   /// @return CFG_DISP_...

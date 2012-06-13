@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -56,7 +56,6 @@ class Ctrl
     Cmd_Skip,
     Cmd_Navigate,
     Cmd_Jump,
-    Cmd_StopAt,
     // play mode control
     Cmd_PlayStop,
     Cmd_Pause,
@@ -139,7 +138,7 @@ class Ctrl
     EV_Repeat   = 0x00000020, ///< The repeat flag has changed.
     EV_Volume   = 0x00000040, ///< The volume has changed.
     EV_Savename = 0x00000080, ///< The savename has changed.
-    EV_Offset   = 0x00000100, ///< The current playing offset has changed
+    EV_Location = 0x00000100, ///< The current playing offset has changed
     EV_Root     = 0x00001000, ///< The currently loaded root object has changed. This Always implies EV_Song.
     EV_Song     = 0x00100000, ///< The current song has changed.
   };
@@ -223,10 +222,10 @@ class Ctrl
   static ControlCommand* MkNop()
   { return new ControlCommand(Cmd_Nop, xstring(), (void*)NULL, 0); }
   /// Load an URL
-  /// @param url Load this URL. The URL must be well formed.
+  /// @param root new current root
   /// @param keepplaying true: Start playback immediately if currently playing.
-  static ControlCommand* MkLoad(const xstring& url, bool keepplaying)
-  { return new ControlCommand(Cmd_Load, url, 0., keepplaying); }
+  static ControlCommand* MkLoad(APlayable* root, bool keepplaying)
+  { return new ControlCommand(Cmd_Load, xstring(), int_ptr<APlayable>(root).toCptr(), keepplaying); }
   /// @brief Move to song number or some songs forward or backward.
   /// @details This makes only sense if the currently loaded object is enumerable.
   /// Absolute positioning is not recommended. Use \c MkNavigate instead.
@@ -238,6 +237,7 @@ class Ctrl
   /// @param iter Serialized iterator (optional)
   /// @param start Location in seconds
   /// @param relative Location is relative from the current location.
+  /// Otherwise it starts from the outside the current song.
   /// @param global Navigate in global playlist scope.
   /// @param ignoreerror Ignore syntax errors. Parse as far as possible.
   static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, bool relative, bool global, bool ignoreerror = false)
@@ -251,13 +251,6 @@ class Ctrl
   /// [out after completion] new location, not necessarily the same than on input.
   static ControlCommand* MkJump(Location* iter)
   { return new ControlCommand(Cmd_Jump, xstring(), iter, 0); }
-  /// @brief Stop at location
-  /// @details This will stop the playback at the specified location.
-  /// @param iter Serialized iterator (optional)
-  /// @param start Location in seconds
-  /// @param global Navigate in global playlist scope.
-  static ControlCommand* MkStopAt(const xstring& iter, PM123_TIME start, bool global)
-  { return new ControlCommand(Cmd_StopAt, iter, start, global<<1); }
   /// Start or stop playing.
   /// @param op Flag operator. See \c Op. (Op_Rewind is not valid)
   static ControlCommand* MkPlayStop(Op op)
@@ -293,10 +286,9 @@ class Ctrl
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
   /// Query the current location.
   /// @param loc [out after completion] Location object where to store the current location.
-  /// @param stopat Return stop-at location rather than the current playing position.
   /// @param notime Return only the current song without the time offset (faster).
-  static ControlCommand* MkLocation(Location* loc, bool stopat, bool notime)
-  { return new ControlCommand(Cmd_Location, xstring(), loc, stopat | (notime<<1)); }
+  static ControlCommand* MkLocation(Location* loc, bool notime)
+  { return new ControlCommand(Cmd_Location, xstring(), loc, notime); }
  protected: // internal messages
   /// The current decoder finished it's work.
   static ControlCommand* MkDecStop()

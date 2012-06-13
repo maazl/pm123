@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 Marcel Mueller
+ * Copyright 2007-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,6 +32,7 @@
 
 #include "aplayable.h"
 #include "collectioninfocache.h"
+#include "location.h"
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
@@ -49,11 +50,6 @@ struct CollectionChangeArgs;
  */
 class PlayableSlice : public APlayable
 {protected:
-  enum SliceBorder
-  { SB_Start = 1,
-    SB_Stop  = -1
-  };
-
   /// Aggregate info cache of \c PlayableSlice in case Start or Stop is not initial.
   struct CICache : public CollectionInfoCache
   { /// Aggregate info without exclusions
@@ -87,12 +83,12 @@ class PlayableSlice : public APlayable
 
  private:
           void              EnsureCIC()              { if (!CIC) CIC = new CICache(RefTo->GetPlayable()); }
-          CalcResult        CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, JobSet& job);
+          CalcResult        CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job);
  protected:
   /// Compare two slice borders taking NULL iterators by default as
-  /// at the start, if type is SB_Start, or at the end if type is SB_Stop.
-  /// Otherwise the same as SongIterator::CopareTo.
-  static  int               CompareSliceBorder(const Location* l, const Location* r, SliceBorder type);
+  /// at the start or the end, depending on \c Location::CO_Reverse.
+  /// Otherwise the same as \c Location::CopareTo.
+  static  int               CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type);
   /// Read-only access \c Item member of another instance.
   static  const INFO_BUNDLE& AccessInfo(const PlayableSlice& ps) { return (INFO_BUNDLE&)ps.Info; }
                             PlayableSlice();

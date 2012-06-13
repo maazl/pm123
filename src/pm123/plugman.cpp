@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2011 Marcel Mueller
+ * Copyright 2006-2012 Marcel Mueller
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>

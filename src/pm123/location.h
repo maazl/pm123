@@ -32,14 +32,16 @@
 
 #include <format.h>
 #include "aplayable.h"
-#include "playableinstance.h"
 
 #include <limits.h>
 #include <cpp/container/vector.h>
 
 
 class Playable;
+class CollectionChangeArgs;
 class PlayableSetBase;
+class PlayableInstance;
+
 /** @brief Class to identify a deep location within a playlist or a song.
  * @details A location can point to anything within the scope of it's root. I.e.
  * - the root,
@@ -63,8 +65,14 @@ class Location : public Iref_count
   /// - any other => Not successful because of a syntax error or a non-existing
   ///                or out of bounds reference. Error Message as plain text.
   typedef xstring             NavigationResult;
+  /// Options for \c CompareTo.
+  enum CompareOptions
+  { CO_Default        = 0x00, ///< Do default comparions
+    CO_IgnorePosition = 0x01, ///< Do not compare the position within a song. Treat different positions within the same song as equal.
+    CO_Reverse        = 0x02  ///< Take not entered objects as after the end rather than before the start.
+  };
 
- protected:
+ private:
   /// Current Root element
   Playable*                   Root;
   /// @brief Current CallStack
@@ -241,6 +249,8 @@ class Location : public Iref_count
   /// You can't enter sons or invalid items.
   /// @return See \c NavigationResult.
   NavigationResult            NavigateInto(JobSet& job);
+  /// Leave the current song if any.
+  void                        NavigateLeaveSong() { Position = -2; }
   /// Navigate explicitly to a given PlayableInstance.
   /// @param pi The PlayableInstance must be a child of the current item.
   /// \a pi might be \c NULL to explicitly navigate before the start of a playlist without leaving it.
@@ -296,24 +306,23 @@ class Location : public Iref_count
   /// the previous value in case of relative navigation.
   NavigationResult            Deserialize(JobSet& job, const char*& str);
 
-  /// @brief relational comparison
-  /// @return The return value is zero if the iterators are equal.
-  /// The return value is less than zero if the current iterator is less than r.
-  /// The return value is greater than zero if the current iterator is greater than r.
-  /// The absolute value of the returned int is the level where the two iterators are different.
+  /// @brief Relational comparison
+  /// @return - The return value is zero if the locations are equal.
+  /// - The return value is less than zero if the current iterator is less than r.
+  /// - The return value is greater than zero if the current iterator is greater than r.
+  /// - The absolute value is the level where the two iterators are different.
   /// E.g.: a return value of 2 means that r is greater than \c *this in a sublist that is part of the current root.
   /// The returned absolute may exceed the current level of the SongIterator by one
   /// if both SongIterators address the same song and callstack but at a different location.
-  /// A return value of \c INT_MIN means that the two iterators differ in their root node.
+  /// - A return value of \c INT_MIN means that the two iterators differ in their root node.
   /// In this case they are unordered.
+  /// @param options Optional compare options.
   /// @param level The optional level parameter compares r to a slice of \c *this starting at level.
   /// I.e. \c level \c = \c 2 means that the root of r is compared against level 2 of \c *this.
   /// level must be less than the current depth of \c *this.
   /// The absolute return value will not be less than level except for a equal condition.
   /// The current thread must own both Location objects.
-  /// @remarks The comparison takes undefined playlist locations (i.e. \c GetCurrent() is \c NULL)
-  /// and undefined song locations (i.e. \c GetPosition() is \c -1) as before the start rather than after the end.
-  int                         CompareTo(const Location& r, unsigned level = 0, bool withpos = true) const;
+  int                         CompareTo(const Location& r, CompareOptions opt = CO_Default, unsigned level = 0) const;
 
   /*// @brief Return the aggregate from the front of root to this location within root.
   /// @param dest Destination aggregate. All items in the exclude list of the destination
@@ -336,6 +345,8 @@ class Location : public Iref_count
   /// (with the same exclusions).
   InfoFlags                   AddBackAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);*/
 };
+
+FLAGSATTRIBUTE(Location::CompareOptions);
 
 // for convenience
 inline bool operator==(const Location& l, const Location& r)

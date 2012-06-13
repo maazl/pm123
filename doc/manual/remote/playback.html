@@ -61,23 +61,6 @@ may be enclosed in double quotes (<tt>"</tt>).</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
-      <td><tt><a name="stopat"></a>stopat
-song <var>&lt;url&gt;</var></tt>
-[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]<tt> </tt></td>
-      <td colspan="1" rowspan="2">Stops playback
-when reaching the specified location.
-See <a href="#navigate"><tt>navigate</tt></a>
-for the syntax.<br>
-      <tt>stopat</tt> without an argument removes the explicit stop
-location.</td>
-      <td colspan="1" rowspan="2">Result code,
-non-zero = <a href="error.html">error</a>.</td>
-    </tr>
-    <tr>
-      <td><tt>stopat path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub&nbsp;item&gt;</var></tt>[<tt>;</tt>...]]
-[<tt>time&nbsp;<var>&lt;time&gt;</var></tt>[<tt>%</tt>]]</td>
-    </tr>
-    <tr>
       <td><tt><a name="pause"></a>pause </tt>[<tt>on</tt>|<tt>off</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
       <td>Pauses or resumes the playback.</td>
@@ -216,10 +199,8 @@ is active and a resume position has been saved it is returned.</td>
 empty on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="location"></a>location </tt>[<tt>play</tt>|<tt>stopat</tt>]</td>
-      <td>Query the current playing location (default).<br>
-      <tt>location&nbsp;stopat</tt> return the current stop location if
-any.</td>
+      <td><tt><a name="location"></a>location</tt></td>
+      <td>Query the current playing location.</td>
       <td><a href="../location.html">Location string</a> or empty if
 none.</td>
     </tr>

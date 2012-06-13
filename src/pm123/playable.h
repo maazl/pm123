@@ -32,7 +32,6 @@
 
 #include <config.h>
 #include "aplayable.h"
-#include "playableref.h"
 #include "playableinstance.h"
 #include "collectioninfocache.h"
 

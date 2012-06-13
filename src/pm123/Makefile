@@ -80,9 +80,9 @@ controller.h:	aplayable.h ..\utils\cpp\queue.h ..\utils\cpp\xstring.h ..\utils\c
 aplayable.h:	infostate.h ..\utils\cpp\event.h ..\utils\cpp\atomic.h ..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\queue.h ..\utils\cpp\cpputil.h ..\utils\cpp\url123.h
 ..\utils\cpp/atomic.h:	..\include\config.h ..\utils\interlocked.h
 ..\utils\cpp/queue.h:	..\include\config.h ..\utils\cpp/mutex.h ..\utils\cpp/smartptr.h ..\utils\debuglog.h
-location.h:	..\include\format.h aplayable.h playableinstance.h ..\utils\cpp\container\vector.h
+location.h:	..\include\format.h aplayable.h ..\utils\cpp\container\vector.h
 glue.h:		..\include\output_plug.h ..\include\decoder_plug.h playable.h
-playableref.h:	aplayable.h collectioninfocache.h ..\utils\cpp\event.h ..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h
+playableref.h:	aplayable.h collectioninfocache.h location.h ..\utils\cpp\event.h ..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h
 playableset.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\sorted_vector.h
 ..\utils\cpp/container/inst_index.h:	..\utils\cpp/mutex.h ..\utils\cpp/smartptr.h ..\utils\cpp/container/sorted_vector.h
 ..\utils\cpp/container/list.h:	..\utils\cpp/smartptr.h
@@ -133,7 +133,7 @@ properties.cpp:	properties.h configuration.h pm123.rc.h eventhandler.h dialog.h 
 skin.cpp:	skin.h configuration.h glue.h pm123.h eventhandler.h pm123.rc.h button95.h plugman.h visual.h dialog.h ..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h ..\include\visual_plug.h ..\utils\minmax.h ..\utils\strutils.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\utils\cpp\cpputil.h ..\utils\debuglog.h
 windowbase.cpp:	..\utils\utilfct.h windowbase.h ..\utils\cpp\smartptr.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 button95.cpp:	button95.h ..\utils\utilfct.h ..\utils\debuglog.h
-playable.h:	..\include\config.h aplayable.h playableref.h playableinstance.h collectioninfocache.h ..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\cpp\cpputil.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\container\sorted_vector.h ..\utils\cpp\container\list.h ..\utils\cpp\url123.h
+playable.h:	..\include\config.h aplayable.h playableinstance.h collectioninfocache.h ..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\cpp\cpputil.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\container\sorted_vector.h ..\utils\cpp\container\list.h ..\utils\cpp\url123.h
 location.cpp:	location.h playable.h dependencyinfo.h
 ..\utils\cpp\xstring.h:	..\utils\cpp\smartptr.h
 ..\utils\cpp\smartptr.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
@@ -160,7 +160,7 @@ waitinfo.h:	aplayable.h ..\utils\cpp\event.h ..\utils\cpp\mutex.h
 playable.cpp:	playable.h eventhandler.h properties.h decoder.h dependencyinfo.h location.h waitinfo.h ..\utils\strutils.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\eautils.h ..\utils\vdelegate.h ..\xio123\xio.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h
 playableinstance.h:	playableref.h
 playableinstance.cpp:	playableinstance.h playable.h ..\utils\debuglog.h
-songiterator.cpp:	songiterator.h ..\utils\debuglog.h
+songiterator.cpp:	songiterator.h playable.h ..\utils\debuglog.h
 songiterator.h:	location.h playable.h ..\utils\cpp\event.h
 ..\utils\cpp\pmutils.h:	..\utils\debuglog.h ..\utils\cpp\xstring.h ..\include\plugin.h
 commandprocessor.cpp:	commandprocessor.h dialog.h gui.h location.h eventhandler.h 123_util.h pm123.h dependencyinfo.h copyright.h plugman.h ..\utils\fileutil.h ..\utils\cpp\xstring.h ..\utils\cpp\container\stringmap.h ..\utils\debuglog.h

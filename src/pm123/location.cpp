@@ -56,13 +56,6 @@ void Location::AssignRoot(Playable* root)
 }
 #endif
 
-/*void Location::SetRoot(APlayable* p)
-{ DEBUGLOG(("Location(%p)::SetRoot(%p)\n", this, p));
-  //MakeCallstackUnique();
-  Reset();
-  Root = p;
-}*/
-
 void Location::Swap2(Location& l)
 { DEBUGLOG(("Location(%p)::Swap2(&%p)\n", this, &l));
   #ifdef DEBUG
@@ -629,8 +622,8 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
   } // next part
 }
 
-int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
-{ DEBUGLOG(("Location(%p)::CompareTo(%p) - %s - %s\n", this, &r, Serialize().cdata(), r.Serialize().cdata()));
+int Location::CompareTo(const Location& r, CompareOptions options, unsigned level) const
+{ DEBUGLOG(("Location(%p)::CompareTo(%p, %x, %u) - %s - %s\n", this, &r, options, level, Serialize().cdata(), r.Serialize().cdata()));
   ASSERT(Root && r.Root);
   ASSERT(level <= Callstack.size());
   const Playable* lroot = level ? &Callstack[level-1]->GetPlayable() : Root;
@@ -647,22 +640,24 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
     ++level;
     if (lcpp == Callstack.end())
     { if (rcpp != r.Callstack.end())
-        return -level; // current Location is deeper
+       lNULL:
+        return (options & CO_Reverse) ? level : -level; // other Location is deeper
       // Callstack identical => compare location below
-      if (!withpos || Position == r.Position)
+      if ((options & CO_IgnorePosition) || Position == r.Position)
         return 0; // same
       ++level; // Location difference returns level+1
+     rNULL:
       return Position > r.Position ? level : -level;
     }
     if (rcpp == r.Callstack.end())
-      return level; // current Location is deeper
+      return (options & CO_Reverse) ? -level : level; // current Location is deeper
 
     // Check their order
     if (*lcpp != *rcpp) // Instance equality is equivalent to equality.
     { if (!*lcpp)
-        return -level;
+        goto lNULL;
       if (!*rcpp)
-        return level;
+        goto rNULL;
       // Lock the parent collection to make the comparison below reliable.
       Mutex::Lock lock((Mutex&)lroot->Mtx); // Mutex is mutable
       // TODO: unordered because one item has been removed?

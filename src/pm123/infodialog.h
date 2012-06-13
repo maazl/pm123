@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 Marcel Mueller
+ * Copyright 2008-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -73,11 +73,11 @@ class AInfoDialog
   /// Factory method for single Playable objects.
   /// @param obj Object to edit.
   /// @return Returns always the same instance for the same object.
-  static int_ptr<AInfoDialog> GetByKey(Playable& obj);
+  static int_ptr<AInfoDialog> GetByKey(APlayable& obj);
   /// Lookup for existing editor.
   /// @param obj Object to edit.
   /// @return Returns always the same instance for the same object or \c NULL if no instance exists.
-  static int_ptr<AInfoDialog> FindByKey(Playable& obj);
+  static int_ptr<AInfoDialog> FindByKey(APlayable& obj);
 };
 
 

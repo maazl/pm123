@@ -112,12 +112,8 @@ class ShuffleWorker : public Iref_count
   int_ptr<PlayableInstance>   Prev(PlayableInstance* pi);
 };
 
-/** A SongIterator is a Location intended to be used to play a Playable object.
- * In contrast to Location it owns it's root.
- * @note Strictly speaking \c SongIterator should have a class member of type
- * \c int_ptr<Playable> to keep the reference to the root object alive.
- * To save this extra member the functionality is emulated by the
- * C-API interface of \c int_ptr<>.
+/** A \c SongIterator is a \c Location intended to be used to play a \c APlayable object.
+ * In contrast to \c Location it owns it's root and it can be attached to \c APlayable rather than \c Playable only.
  */
 class SongIterator : public Location
 {private:
@@ -136,6 +132,7 @@ class SongIterator : public Location
   };
 
  private:
+  int_ptr<APlayable>          Root;
   /// Use Shuffle mode?
   /// - \c PLO_NO_SHUFFLE means that shuffle is disabled, even if a playlist item sets \c PLO_SHUFFLE.
   /// - \c PLO_SHUFFLE means that shuffle is enabled at the top level. But this might be overridden
@@ -172,13 +169,17 @@ class SongIterator : public Location
   virtual void                Leave();
   virtual void                PrevNextCore(bool direction);
   virtual void                Swap2(Location& l);
+ private:
+  virtual void                SetRoot(Playable* root);
+  virtual SongIterator&       operator=(const Location& r);
  public:
-  explicit                    SongIterator(Playable* root = NULL);
+  explicit                    SongIterator(APlayable* root = NULL);
                               SongIterator(const SongIterator& r);
   virtual                     ~SongIterator();
 
-  virtual void                SetRoot(Playable* root);
-  virtual SongIterator&       operator=(const Location& r);
+          APlayable*          GetRoot() const { return Root; }
+          void                SetRoot(APlayable* root);
+          SongIterator&       operator=(const SongIterator& r);
 
   virtual void                Swap(Location& r);
 

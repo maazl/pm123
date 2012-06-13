@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -117,7 +117,7 @@ class GUI
   static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("ShowHelp(%u)\n", resid));
                                             return WinSendMsg(HHelp, HM_DISPLAY_HELP, MPFROMSHORT(resid), MPFROMSHORT(HM_RESOURCEID)) == 0; }
   // Opens dialog for the specified object.
-  static bool      ShowDialog(Playable& item, DialogType dlg, DialogBase::DialogAction action = DialogBase::DLA_SHOW);
+  static bool      ShowDialog(APlayable& item, DialogType dlg, DialogBase::DialogAction action = DialogBase::DLA_SHOW);
   static bool      ShowConfig(Module& plugin, DialogBase::DialogAction action);
   static bool      ShowConfig(DialogBase::DialogAction action) { return (bool)LONGFROMMR(WinSendMsg(HPlayer, WMP_SHOW_CONFIG, MPFROMP(NULL), MPFROMSHORT(action))); }
   
