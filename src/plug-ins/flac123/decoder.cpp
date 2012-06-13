@@ -284,6 +284,7 @@ PLUGIN_RC ThreadDecoder::Play(const xstring& url, PM123_TIME start)
   { State = DECODER_STOPPED;
     return PLUGIN_ERROR;
   }
+  PlayEv.Set();
 
   return PLUGIN_OK;
 }
@@ -293,12 +294,14 @@ PLUGIN_RC ThreadDecoder::Stop()
   if (State == DECODER_STOPPED)
     return PLUGIN_GO_ALREADY;
   Terminate = true;
+  PlayEv.Set();
   return PLUGIN_OK;
 }
 
 PLUGIN_RC ThreadDecoder::Seek(PM123_TIME location)
 { DEBUGLOG(("ThreadDecoder(%p)::Seek(%f) - %f\n", this, location, SeekTo));
   SeekTo = location;
+  PlayEv.Set();
   return PLUGIN_OK;
 }
 
@@ -333,7 +336,7 @@ PROXYFUNCIMP(void, ThreadDecoder) TFNENTRY DecoderThreadStub(void* arg)
 }
 
 void ThreadDecoder::DecoderThread()
-{
+{ DEBUGLOG(("ThreadDecoder(%p{%s})::DecoderThread()\n", this, URL.cdata()));
   // open source
   File = xio_fopen(URL, "rbXU");
   if (File == NULL)
@@ -357,20 +360,22 @@ void ThreadDecoder::DecoderThread()
     goto end;
   }
 
+  DEBUGLOG(("ThreadDecoder::DecoderThread before main loop - %f\n", SeekTo));
   // After opening a new file we so are in its beginning.
   if (SeekTo == 0)
     SeekTo = -1;
 
-  //for(;;)
-  { //Play.Wait();
-    //Play.Reset();
+  for(;;)
+  { PlayEv.Wait();
+    PlayEv.Reset();
 
     if (Terminate)
       goto end;
 
     State = DECODER_PLAYING;
     for (;;)
-    { PM123_TIME newpos = SeekTo;
+    { DEBUGLOG(("ThreadDecoder(%p)::DecoderThread decode loop - %f\n", this, SeekTo));
+      PM123_TIME newpos = SeekTo;
       PM123_TIME pos = GetTime();
       if (FastMode && pos >= NextSkip)
       { if (newpos < 0)
@@ -383,7 +388,7 @@ void ThreadDecoder::DecoderThread()
       { NextSkip = newpos + seek_window;
         bool rc;
         { //Mutex::Lock lock(Mtx);
-          rc = FLAC__stream_decoder_seek_absolute(Decoder, (FLAC__uint64)newpos * Format.samplerate);
+          rc = FLAC__stream_decoder_seek_absolute(Decoder, (FLAC__uint64)(newpos * Format.samplerate));
           newpos = SeekTo;
           SeekTo = -1;
         }
@@ -399,12 +404,14 @@ void ThreadDecoder::DecoderThread()
       switch (FLAC__stream_decoder_get_state(Decoder))
       {default:
        fail:
+        DEBUGLOG(("ThreadDecoder::DecoderThread fail: %s\n", FLAC__stream_decoder_get_resolved_state_string(Decoder)));
         { xstring errortext;
           errortext.sprintf("Unable to decode %s\nState %s", URL.cdata(), FLAC__stream_decoder_get_resolved_state_string(Decoder));
           (*DecEvent)(A, DECEVENT_PLAYERROR, (void*)errortext.cdata());
           goto end;
         }
        case FLAC__STREAM_DECODER_ABORTED:
+        DEBUGLOG(("ThreadDecoder::DecoderThread abort:\n"));
         (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
         goto end;
        case FLAC__STREAM_DECODER_END_OF_STREAM:
@@ -446,9 +453,9 @@ void ThreadDecoder::DecoderThread()
         goto end;
     }
    eos:
+    DEBUGLOG(("ThreadDecoder(%p)::DecoderThread end of stream - %.3f\n", this, GetTime()));
     if (Terminate)
       goto end;
-    DEBUGLOG(("ThreadDecoder::DecoderThread - playstop event - %.3f\n", GetTime()));
     (*DecEvent)(A, DECEVENT_PLAYSTOP, NULL);
   }
 
@@ -456,6 +463,7 @@ void ThreadDecoder::DecoderThread()
   State = DECODER_STOPPED;
   Terminate = false;
   DecoderTID = -1;
+  DEBUGLOG(("ThreadDecoder(%p)::DecoderThread terminate\n", this));
 }
 
 #define DO_8(p,x) \

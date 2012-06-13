@@ -34,6 +34,7 @@
 #include <decoder_plug.h>
 #include <cpp/xstring.h>
 #include <cpp/atomic.h>
+#include <cpp/mutex.h>
 #include <xio.h>
 
 class DecoderBase
@@ -125,7 +126,7 @@ class ThreadDecoder : public DecoderBase
  private: // Tasks
   bool         Terminate; ///< true to stop the decoder thread
   PM123_TIME   SeekTo;    ///< Location or -1
-  //AtomicPtr<XFILE> NewSaveTo; ///< Save raw stream to...
+  Event        PlayEv;
 
  private:
   void Reset();
