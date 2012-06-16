@@ -48,7 +48,7 @@ void PlaybackWorker::BackupBuffer::Reset()
 }
 
 size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
-{ DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex(%Lu) - [%u,%u[\n", wi, BufferLow, BufferHigh));
+{ DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex(%Lu) - [%u,%u[ %Lu\n", wi, BufferLow, BufferHigh, MaxWriteIndex));
   // Binary search in ring buffer
   size_t l = BufferLow;
   size_t r = BufferHigh;
@@ -67,7 +67,7 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
       l = (m + 1) % countof(BufferQueue);
     }
   }
-  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: no match %u -> %Lu\n", l, BufferQueue[l].WriteIndex));
+  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: no match %u -> %Lu -> %u\n", l, BufferQueue[l].WriteIndex, BufferQueue[l].Data));
   return l;
 }
 
@@ -106,19 +106,19 @@ void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int ch
   MaxWriteIndex = wi;
   size_t lastbufhigh = (BufferHigh + countof(BufferQueue)-1) % countof(BufferQueue);
   Entry* ep = BufferQueue + lastbufhigh;
+  // current write location in the ring buffer
   size_t datahigh = ep->Data;
 
   // Ensure enough space
-  while (BufferLow != BufferHigh)
-  { if ((BufferQueue[BufferLow].Data + countof(DataBuffer) - datahigh) % countof(DataBuffer) > count)
-      break;
-    BufferLow = (BufferLow + 1) % countof(BufferQueue);
-  }
+  if (BufferLow != BufferHigh)
+    while ( BufferLow != lastbufhigh
+      && (BufferQueue[BufferLow].Data + countof(DataBuffer) - datahigh) % countof(DataBuffer) <= count )
+      BufferLow = (BufferLow + 1) % countof(BufferQueue);
   // Join descriptors?
   if (BufferLow == BufferHigh)
     datahigh = 0;
   else if ( ep->Format.channels == channels && ep->Format.samplerate == rate
-         && fabs(ep->Pos + count * channels - pos) < 1E-6 )
+         && fabs(ep->Pos + count - pos) < 1E-6 )
     goto join;
   { // new buffer
     size_t newbufhigh = (BufferHigh + 1) % countof(BufferQueue);
@@ -134,14 +134,14 @@ void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int ch
  join:
   ep->WriteIndex = wi;
   ep->Pos = pos;
-  ep->Data = datahigh + count*channels;
+  ep->Data = datahigh + count;
   if (ep->Data >= countof(DataBuffer))
   { ep->Data -= countof(DataBuffer);
     // memory wrap
     memcpy(DataBuffer + datahigh, data, (countof(DataBuffer) - datahigh) * sizeof(float));
     memcpy(DataBuffer, data + countof(DataBuffer) - datahigh, ep->Data * sizeof(float));
   } else
-    memcpy(DataBuffer + datahigh, data, count);
+    memcpy(DataBuffer + datahigh, data, count * sizeof(float));
   DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData: [%u,%u[ time = %f\n", BufferLow, BufferHigh, ep->Pos));
 }
 
