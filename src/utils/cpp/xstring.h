@@ -383,13 +383,13 @@ class xstringconst
   /// To distinguish the two states the intermediate type \c const \c char*
   /// is modified by setting the most significant bit in the pointer.
   /// The OS/2 platform does not use bit in the private arena.
-  const char* Ptr;
+  mutable const char* Ptr;
  private: // non-copyable
   xstringconst(const xstringconst&);
   void operator=(const xstringconst&);
   /// Ensure that Ptr is of type xstring.
   /// The function is thread-safe.
-  void Init();
+  void Init() const;
  public:
   /// Create a shared xstring constant.
   xstringconst(const char* text)            : Ptr((const char*)(0x80000000|(int)text)) { ASSERT(text); };
@@ -397,7 +397,11 @@ class xstringconst
   /// Access the xstring constant.
   /// @remarks If you are in plug-in context, you must ensure that
   /// this function is not called before \c plugin_init.
-  operator const xstring&()                 { if ((int)Ptr < 0) Init(); return *(const xstring*)&Ptr; }
+  operator const xstring&() const           { if ((int)Ptr < 0) Init(); return *(const xstring*)&Ptr; }
+  /// Implicit conversion to C-style string
+  /// @return String pointer, always null terminated. Maybe \c NULL if constructor was called with NULL.
+  /// @remarks In contrast to the implicit conversion to \c xstring this function does not force the initialization.
+  operator const char*() const              { return (const char*)((int)Ptr & 0x7FFFFFFF); }
 };
 
 

@@ -32,7 +32,7 @@
 #include <debuglog.h>
 
 
-void xstringconst::Init()
+void xstringconst::Init() const
 { // Thread safety!
   const char* ptr = Ptr;
   if ((int)ptr >= 0)
