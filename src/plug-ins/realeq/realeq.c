@@ -174,7 +174,7 @@ static enum
    { const int p = 7; x; } \
 }
 
-typedef struct {
+typedef struct FILTER_STRUCT {
 
    ULONG  DLLENTRYP(output_command)       (void* a, ULONG msg, OUTPUT_PARAMS2* info);
    int    DLLENTRYP(output_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
@@ -939,7 +939,7 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2
 /********** Entry point: Initialize
 */
 ULONG DLLENTRY
-filter_init( void** F, FILTER_PARAMS2* params )
+filter_init( REALEQ_STRUCT** F, FILTER_PARAMS2* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
   DEBUGLOG(("filter_init(%p->%p, {%u, ..., %p, ..., %p})\n", F, f, params->size, params->a, params->w));
@@ -966,9 +966,8 @@ filter_init( void** F, FILTER_PARAMS2* params )
   return 0;
 }
 
-void DLLENTRY filter_update(void *F, const FILTER_PARAMS2 *params)
-{ REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  DosEnterCritSec();
+void DLLENTRY filter_update(REALEQ_STRUCT *f, const FILTER_PARAMS2 *params)
+{ DosEnterCritSec();
   f->output_command        = params->output_command;
   f->output_request_buffer = params->output_request_buffer;
   f->output_commit_buffer  = params->output_commit_buffer;
@@ -976,15 +975,13 @@ void DLLENTRY filter_update(void *F, const FILTER_PARAMS2 *params)
   DosExitCritSec();
 }
 
-BOOL DLLENTRY filter_uninit(void* F)
+BOOL DLLENTRY filter_uninit(REALEQ_STRUCT* f)
 {
-  REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  DEBUGLOG(("filter_uninit(%p)\n", F));
+  DEBUGLOG(("realeq:filter_uninit(%p)\n", f));
 
   if( f != NULL )
-  {
     free( f );
-  }
+
   return TRUE;
 }
 

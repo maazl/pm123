@@ -1,3 +1,9 @@
+/****************************************************************************
+ *
+ * Definitions common to all interface levels.
+ *
+ ***************************************************************************/
+
 #ifndef PM123_DECODER_PLUG_H
 #define PM123_DECODER_PLUG_H
 
@@ -17,20 +23,20 @@ extern "C" {
 
 #pragma pack(4)
 
-/****************************************************************************
- *
- * Definitions common to all interface levels.
- *
- ***************************************************************************/
+
+/** Opaque structure to store the decoders internal state.
+ * Fill it with life or simply cast it to your own type.
+ */
+struct DECODER_STRUCT;
 
 /** Initialize a decoder instance.
  * @param w Return a handle in \a *w.
  * @return Return PLUGIN_OK on success. */
-int  DLLENTRY decoder_init  (void** w);
+int  DLLENTRY decoder_init  (struct DECODER_STRUCT** w);
 /** Destroy initialized decoder instance.
  * @param w Handle received by \c decoder_init.
  * @return TRUE: success */
-BOOL DLLENTRY decoder_uninit(void*  w);
+BOOL DLLENTRY decoder_uninit(struct DECODER_STRUCT*  w);
 
 /** Decoder flags, valued can be ored. */
 typedef enum
@@ -110,7 +116,7 @@ typedef enum
 } DECODERSTATE;
 
 /** Query the current state of a decoder instance */
-ULONG DLLENTRY decoder_status(void* w);
+ULONG DLLENTRY decoder_status(struct DECODER_STRUCT* w);
 
 /** Flags to address individual fields of the meta information.
  * See \c haveinfo field of the \c DECODER_INFO structure. */
@@ -146,16 +152,16 @@ typedef ULONG DLLENTRYP(DECODER_WIZARD_FUNC)(HWND owner, const char* title,
                                              DECODER_INFO_ENUMERATION_CB callback, void* param);
 
 typedef struct _DECODER_WIZARD
-{ /* linked list */
+{ /** linked list */
   struct _DECODER_WIZARD* link;
-  /* String to be displayed in the context menu */
+  /** String to be displayed in the context menu */
   const char*             prompt;
-  /* Procedure to be called when the specified item is selected */
+  /** Procedure to be called when the specified item is selected */
   DECODER_WIZARD_FUNC     wizard;
-  /* Acceleration Table entries for normal invocation */
+  /** Acceleration Table entries for normal invocation */
   USHORT                  accel_key;
   USHORT                  accel_opt;
-  /* Acceleration Table entries for direct playlist manipulation in playlist manager */
+  /** Acceleration Table entries for direct playlist manipulation in playlist manager */
   USHORT                  accel_key2;
   USHORT                  accel_opt2;
 } DECODER_WIZARD;
@@ -306,12 +312,12 @@ ULONG DLLENTRY decoder_support(char* fileext[], int* size);
 /* returns 0 -> ok
            1 -> command unsupported
            1xx -> msg specific */
-ULONG DLLENTRY decoder_command(void* w, ULONG msg, DECODER_PARAMS* params);
+ULONG DLLENTRY decoder_command(struct DECODER_STRUCT* w, ULONG msg, DECODER_PARAMS* params);
 
 /* WARNING!! this _can_ change in time!!! returns stream length in ms */
 /* the decoder should keep in memory a last valid length so the call  */
 /* remains valid even if decoder_status() == DECODER_STOPPED          */
-ULONG DLLENTRY decoder_length(void* w);
+ULONG DLLENTRY decoder_length(struct DECODER_STRUCT* w);
 
 /* These modes are from the MPEG Audio specification and only used for old plug-ins. */
 #define DECODER_MODE_STEREO         0
@@ -392,12 +398,12 @@ typedef struct _DECODER_PARAMS2
 
 } DECODER_PARAMS2;
 
-ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params);
-void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
+ULONG DLLENTRY decoder_command(struct DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* params);
+void  DLLENTRY decoder_event  (struct DECODER_STRUCT* w, OUTEVENTTYPE event);
 /* WARNING!! this _can_ change in time!!! returns stream length in s  */
 /* the decoder should keep in memory a last valid length so the call  */
 /* remains valid even if decoder_status() == DECODER_STOPPED          */
-PM123_TIME DLLENTRY decoder_length(void* w);
+PM123_TIME DLLENTRY decoder_length(struct DECODER_STRUCT* w);
 
 
 /** Callback of \c decoder_savelist. Called once per item. */

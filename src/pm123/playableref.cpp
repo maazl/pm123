@@ -44,27 +44,22 @@
 ****************************************************************************/
 
 PlayableSlice::PlayableSlice(APlayable& pp)
-: RefTo(&pp),
-  InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
+: RefTo(&pp)
+, Overridden(IF_None)
+, InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
 { DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(APlayable&%p{%s})\n", this, &pp, pp.DebugName().cdata()));
-  Info.rpl = NULL;
-  Info.drpl = NULL;
-  Info.item = &Item;
   RefTo->GetInfoChange() += InfoDeleg;
 }
 PlayableSlice::PlayableSlice(const PlayableSlice& r)
-: RefTo(r.RefTo),
-  Item(r.Item),
-  StartCache(r.StartCache),
-  StopCache(r.StopCache),
-  InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
+: RefTo(r.RefTo)
+, Overridden(IF_None)
+, Item(r.Item)
+, StartCache(r.StartCache)
+, StopCache(r.StopCache)
+, InfoDeleg(*this, &PlayableSlice::InfoChangeHandler)
 { DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(PlayableSlice&%p{%p})\n", this, &r, r.DebugName().cdata()));
-  Info.rpl  = NULL;
-  Info.drpl = NULL;
-  Info.item = &Item;
   if (RefTo)
-  { RefTo->GetInfoChange() += InfoDeleg;
-  }
+    RefTo->GetInfoChange() += InfoDeleg;
 }
 
 PlayableSlice::~PlayableSlice()
@@ -101,7 +96,7 @@ int PlayableSlice::CompareSliceBorder(const Location* l, const Location* r, Loca
 }
 
 xstring PlayableSlice::GetDisplayName() const
-{ return IsItemOverridden() && Item.alias ? Item.alias : RefTo->GetDisplayName();
+{ return (Overridden & IF_Item) && Item.alias ? Item.alias : RefTo->GetDisplayName();
 }
 
 xstring PlayableSlice::DoDebugName() const
@@ -109,23 +104,40 @@ xstring PlayableSlice::DoDebugName() const
 }
 
 int_ptr<Location> PlayableSlice::GetStartLoc() const
-{ if (IsItemOverridden())
+{ if (Overridden & IF_Item)
     return StartCache;
   else
     return RefTo->GetStartLoc();
 }
 
 int_ptr<Location> PlayableSlice::GetStopLoc() const
-{ if (IsItemOverridden())
+{ if (Overridden & IF_Item)
     return StopCache;
   else
     return RefTo->GetStopLoc();
 }
 
-InfoFlags PlayableSlice::GetOverridden() const
-{ return RefTo->GetOverridden()
-    | IF_Item * (Info.item == &Item);
+const INFO_BUNDLE_CV& PlayableSlice::GetInfo() const
+{ const INFO_BUNDLE_CV& info = RefTo->GetInfo();
+  if (!(Overridden & IF_Item))
+    return info;
+  // Updated pointers of inherited info
+  INFO_BUNDLE_CV& dst = (INFO_BUNDLE_CV&)Info; // Access mutable field
+  dst.phys = info.phys;
+  dst.tech = info.tech;
+  dst.obj  = info.obj;
+  dst.meta = info.meta;
+  dst.attr = info.attr;
+  if (Overridden & IF_Aggreg)
+  { dst.rpl  = &CIC->DefaultInfo.Rpl;
+    dst.drpl = &CIC->DefaultInfo.Drpl;
+  } else
+  { dst.rpl  = info.rpl;
+    dst.drpl = info.drpl;
+  }
+  return dst;
 }
+
 
 void PlayableSlice::OverrideItem(const ITEM_INFO* item)
 {
@@ -136,11 +148,11 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
   else
     DEBUGLOG(("PlayableSlice(%p)::OverrideSlice(<NULL>)\n", this));
   #endif
-  if (!IsItemOverridden() && item == NULL)
+  if (!item && !(Overridden & IF_Item))
     return; // This is a no-op.
   PlayableChangeArgs args(*this, this, IF_Item, IF_None, IF_None);
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-  const ITEM_INFO& old_item = IsItemOverridden() ? Item : (const ITEM_INFO&)*RefTo->GetInfo().item;
+  const ITEM_INFO& old_item = (Overridden & IF_Item) ? Item : (const ITEM_INFO&)*RefTo->GetInfo().item;
   const ITEM_INFO& new_item = item ? *item : (const ITEM_INFO&)*RefTo->GetInfo().item;
   // Analyze changed flags
   const bool startchanged = new_item.start != old_item.start;
@@ -155,23 +167,25 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
     args.Changed |= IF_Item;
   if (item)  
   { Item = *item;
-    Info.item = &Item;
     if (startchanged)
       StartCache.reset();
     if (stopchanged)
       StopCache.reset();
+    if (!item->start && !item->stop)
+      Overridden &= ~IF_Aggreg;
     if (startchanged|stopchanged)
     { args.Invalidated |= IF_Rpl|IF_Drpl;
       if (CIC)
         CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
     }
+    Overridden |= IF_Item;
   } else
-  { Info.item = (ITEM_INFO*)RefTo->GetInfo().item;
-    StartCache.reset();
+  { StartCache.reset();
     StopCache.reset();
     args.Invalidated |= IF_Rpl|IF_Drpl;
     if (CIC)
       CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
+    Overridden &= ~(IF_Item|IF_Aggreg);
   }
   InfoChange(args);
 }
@@ -204,7 +218,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
   { if (CIC)
       args2.Invalidated |= CIC->Invalidate(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
   }
-  if (IsItemOverridden())
+  if (Overridden & IF_Item)
     args2.Purge(IF_Item);
   if (!args2.IsInitial())
     InfoChange(args2);
@@ -213,7 +227,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
 { DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
 
-  if (!IsItemOverridden())
+  if (!(Overridden & IF_Item))
     return CallDoRequestInfo(*RefTo, what, pri, rel);
 
   if (what & IF_Drpl)
@@ -379,10 +393,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
       if ((whatok & IF_Drpl) && CIC->DefaultInfo.Drpl.CmpAssign(ai.Drpl))
         args.Changed |= IF_Drpl;
       args.Loaded |= upd.Commit(IF_Aggreg);
-
-      // Store RPL info pointers
-      Info.rpl  = &CIC->DefaultInfo.Rpl;
-      Info.drpl = &CIC->DefaultInfo.Drpl;
+      Overridden |= IF_Aggreg;
     }
   }
   for (CollectionInfo* iep = NULL; CIC->GetNextWorkItem(iep, job.Pri, upd);)
@@ -426,24 +437,6 @@ void PlayableSlice::SetInUse(unsigned used)
   RefTo->SetInUse(used);
 }
 
-const INFO_BUNDLE_CV& PlayableSlice::GetInfo() const
-{ const INFO_BUNDLE_CV& info = RefTo->GetInfo();
-  if (IsItemOverridden())
-    return info;
-  // Updated pointers of inherited info
-  INFO_BUNDLE_CV& dst = (INFO_BUNDLE_CV&)Info; // Access mutable field
-  dst.phys = info.phys;
-  dst.tech = info.tech;
-  dst.obj  = info.obj;
-  dst.meta = info.meta;
-  dst.attr = info.attr;
-  if (dst.rpl == NULL || (Item.start == NULL && Item.stop == NULL))
-  { dst.rpl  = info.rpl;
-    dst.drpl = info.drpl;
-  }
-  return dst;
-}
-
 
 /****************************************************************************
 *
@@ -452,9 +445,9 @@ const INFO_BUNDLE_CV& PlayableSlice::GetInfo() const
 ****************************************************************************/
 
 xstring PlayableRef::GetDisplayName() const
-{ if (IsItemOverridden() && Item.alias)
+{ if ((Overridden & IF_Item) && Item.alias)
     return Item.alias;
-  if (IsMetaOverridden())
+  if (Overridden & IF_Meta)
   { xstring ret(Info.meta->title);
     if (ret && ret[0U])
       return ret;
@@ -464,71 +457,73 @@ xstring PlayableRef::GetDisplayName() const
 
 const INFO_BUNDLE_CV& PlayableRef::GetInfo() const
 { const INFO_BUNDLE_CV& info = RefTo->GetInfo();
+  if (!Overridden)
+    return info;
   // Updated pointers of inherited info
   INFO_BUNDLE_CV& dst = (INFO_BUNDLE_CV&)Info; // Access mutable field
   dst.phys = info.phys;
   dst.tech = info.tech;
   dst.obj  = info.obj;
-  // TODO: race condition because we could override fields in unsynchronized context.
-  // This might revoke an OverrideXxx call.
-  if (!IsMetaOverridden())
-    dst.meta = info.meta;
-  if (!IsAttrOverridden())
-    dst.attr = info.attr;
-  if (!IsItemOverridden())
-    dst.item = info.item;
-  else if (dst.rpl != NULL && (Item.start || Item.stop))
-    return dst;
-  dst.rpl  = info.rpl;
-  dst.drpl = info.drpl;
+  dst.meta = Overridden & IF_Meta ? &Meta : info.meta;
+  dst.attr = Overridden & IF_Attr ? &Attr : info.attr;
+  dst.item = Overridden & IF_Item ? &Item : info.item;
+  if (Overridden & IF_Aggreg)
+  { dst.rpl  = &CIC->DefaultInfo.Rpl;
+    dst.drpl = &CIC->DefaultInfo.Drpl;
+  } else
+  { dst.rpl  = info.rpl;
+    dst.drpl = info.drpl;
+  }
   return dst;
 }
 
-InfoFlags PlayableRef::GetOverridden() const
+/*InfoFlags PlayableRef::GetOverridden() const
 { return PlayableSlice::GetOverridden()
     | IF_Meta * (Info.meta == &Meta)
     | IF_Attr * (Info.attr == &Attr);
-}
+}*/
 
 void PlayableRef::OverrideMeta(const META_INFO* meta)
-{ DEBUGLOG(("PlayableRef(%p)::OverrideMeta({...})\n", this));
+{ DEBUGLOG(("PlayableRef(%p)::OverrideMeta(%p) - %x\n", this, meta, Overridden.get()));
+  if (!meta && !(Overridden & IF_Meta))
+    return; // no-op
   PlayableChangeArgs args(*this, this, IF_Meta, IF_None, IF_None);
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-  const MetaInfo& current = IsMetaOverridden() ? Meta : *(const MetaInfo*)RefTo->GetInfo().meta;
+  const MetaInfo& current = Overridden & IF_Meta ? Meta : *(const MetaInfo*)RefTo->GetInfo().meta;
   if (meta == NULL)
   { // revoke overloading
     if (!current.IsInitial())
       args.Changed |= IF_Meta|IF_Display;
-    Info.meta = RefTo->GetInfo().meta;
+    Overridden &= ~IF_Meta;
   } else
   { // Override
     if (!current.Equals(*meta))
-    { args.Changed |= IF_Meta|IF_Display;
-      Meta = *meta;
-    }
-    Info.meta = &Meta;
+      args.Changed |= IF_Meta|IF_Display;
+    Meta = *meta;
+    Overridden |= IF_Meta;
   }
   if (!args.IsInitial())
     InfoChange(args);
 }
 
 void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
-{ DEBUGLOG(("PlayableRef(%p)::OverrideAttr({...})\n", this));
+{ DEBUGLOG(("PlayableRef(%p)::OverrideAttr(%p) - %x\n", this, attr, Overridden.get()));
+  if (!attr && !(Overridden & IF_Attr))
+    return; // no-op
   PlayableChangeArgs args(*this, this, IF_Attr, IF_None, IF_None);
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-  const AttrInfo& current = IsAttrOverridden() ? Attr : *(const AttrInfo*)RefTo->GetInfo().attr;
+  const AttrInfo& current = Overridden & IF_Attr ? Attr : *(const AttrInfo*)RefTo->GetInfo().attr;
   if (attr == NULL)
   { // revoke overloading
     if (!current.IsInitial())
       args.Changed |= IF_Attr;
-    Info.attr = RefTo->GetInfo().attr;
+    Overridden &= ~IF_Attr;
   } else
   { // Override
     if (!current.Equals(*attr))
-    { args.Changed |= IF_Attr;
-      Attr = *attr;
-    }
-    Info.meta = &Meta;
+      args.Changed |= IF_Attr;
+    Attr = *attr;
+    Overridden |= IF_Attr;
   }
   if (!args.IsInitial())
     InfoChange(args);
@@ -544,20 +539,21 @@ void PlayableRef::OverrideInfo(const INFO_BUNDLE& info, InfoFlags override)
 
 void PlayableRef::AssignInstanceProperties(const PlayableRef& src)
 { ASSERT(RefTo == src.RefTo);
-  OverrideAttr(AccessInfo(src).attr);
-  OverrideMeta(AccessInfo(src).meta);
-  OverrideItem(AccessInfo(src).item);
+  InfoFlags override = src.GetOverridden();
+  OverrideAttr(override & IF_Attr ? &src.Attr : NULL);
+  OverrideMeta(override & IF_Meta ? &src.Meta : NULL);
+  OverrideItem(override & IF_Item ? &src.Item : NULL);
 }
 
 void PlayableRef::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableRef(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
   PlayableChangeArgs args2(args);
-  if (IsMetaOverridden())
+  if (Overridden & IF_Meta)
   { args2.Changed     &= ~IF_Meta;
     args2.Invalidated &= ~IF_Meta;
   }
-  if (IsAttrOverridden())
+  if (Overridden & IF_Attr)
   { args2.Changed     &= ~IF_Attr;
     args2.Invalidated &= ~IF_Attr;
   }

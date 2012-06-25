@@ -38,7 +38,7 @@
 //#include <os2.h>
 
 
-class PlaybackWorker
+typedef struct OUTPUT_STRUCT
 {private: // Backup buffer
   class BackupBuffer
   {private:
@@ -112,11 +112,11 @@ class PlaybackWorker
   bool               LowWater;
   BackupBuffer       Buffer;
   PABasicOperation   DrainOp;
-  class_delegate<PlaybackWorker, const int> DrainOpDeleg;
+  class_delegate<OUTPUT_STRUCT, const int> DrainOpDeleg;
 
  public:
-  PlaybackWorker() throw();
-  ~PlaybackWorker();
+  OUTPUT_STRUCT() throw();
+  ~OUTPUT_STRUCT();
   ULONG Init(const xstring& server, const xstring& sink, const xstring& port, int minlatency, int maxlatency) throw();
   ULONG Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
              void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw();
@@ -138,7 +138,8 @@ class PlaybackWorker
   char* ToUTF8(char* dst, size_t len, const char* src)
                                                 { return src ? ch_convert(CH_CP_NONE, src, 1208, dst, len, 0) : NULL; }
   void  Error(const char* fmt, ...) throw();
-};
+
+} PlaybackWorker;
 
 
 #endif // PULSE123_PLAYBACKWORKER_H

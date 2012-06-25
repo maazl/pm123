@@ -185,7 +185,7 @@ class MPG123 : public ID3
 /** Full MPG audio decoder class.
  * This class handles a decoder thread to decode the stream data.
  */
-class Decoder : public MPG123
+typedef struct DECODER_STRUCT : public MPG123
 {private:
   /// File name used to save stream data
   xstring       Savename;
@@ -227,8 +227,8 @@ class Decoder : public MPG123
   void          SetHandle(XFILE* handle);
 
  public:
-  Decoder();
-  ~Decoder();
+  DECODER_STRUCT();
+  ~DECODER_STRUCT();
 
   DECODERSTATE  GetStatus() const { return Status; }
 
@@ -239,7 +239,8 @@ class Decoder : public MPG123
   PLUGIN_RC     Jump(PM123_TIME pos);
 
   PLUGIN_RC     Save(const xstring& savename);
-};
+
+} Decoder;
 
 
 /* Check whether a string entirely contains ASCII characters in the range [32,126]. */

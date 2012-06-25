@@ -160,9 +160,8 @@ plugin_configure( HWND hwnd, HMODULE module ) {
 
 /* Closes a output file. */
 static ULONG
-output_close( void* A )
+output_close( WAVOUT* a )
 {
-  WAVOUT* a = (WAVOUT*)A;
   ULONG resetcount;
 
   if( a->file )
@@ -269,9 +268,8 @@ output_open( WAVOUT* a )
 
 /* Pauses a output file. */
 static ULONG
-output_pause( void* A, BOOL pause )
+output_pause( WAVOUT* a, BOOL pause )
 {
-  WAVOUT* a = (WAVOUT*)A;
   ULONG   resetcount;
 
   if( pause ) {
@@ -283,10 +281,9 @@ output_pause( void* A, BOOL pause )
 
 /* Processing of a command messages. */
 ULONG DLLENTRY
-output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
+output_command( WAVOUT* a, ULONG msg, OUTPUT_PARAMS* info )
 {
-  WAVOUT* a = (WAVOUT*)A;
-  DEBUGLOG(("wavout:output_command(%p, %d, %p)\n", A, msg, info));
+  DEBUGLOG(("wavout:output_command(%p, %d, %p)\n", a, msg, info));
 
   switch( msg ) {
     case OUTPUT_OPEN:
@@ -331,11 +328,10 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 /* This function is called by the decoder or last in chain
    filter plug-in to play samples. */
 int DLLENTRY
-output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
+output_play_samples( WAVOUT* a, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
-  WAVOUT *a = (WAVOUT*)A;
   int done;
-  DEBUGLOG(("wavout:output_play_samples(%p, %p, %p, %d, %d)\n", A, format, buf, len, posmarker));
+  DEBUGLOG(("wavout:output_play_samples(%p, %p, %p, %d, %d)\n", a, format, buf, len, posmarker));
 
   DosWaitEventSem( a->pause, SEM_INDEFINITE_WAIT );
 
@@ -390,10 +386,8 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 /* This function is used by visual plug-ins so the user can
    visualize what is currently being played. */
 ULONG DLLENTRY
-output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
+output_playing_samples( WAVOUT* a, FORMAT_INFO* info, char* buf, int len )
 {
-  WAVOUT* a = (WAVOUT*)A;
-
  *info = a->original_info.formatinfo;
 
   if( len > a->original_info.buffersize ) {
@@ -409,14 +403,14 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
 /* Returns the playing position. */
 ULONG DLLENTRY
-output_playing_pos( void* A )
+output_playing_pos( WAVOUT* a )
 {
-  return ((WAVOUT*)A)->playingpos;
+  return a->playingpos;
 }
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
 BOOL DLLENTRY
-output_playing_data( void* A )
+output_playing_data( WAVOUT* a )
 {
   return FALSE;
 }
@@ -442,7 +436,7 @@ plugin_init( const PLUGIN_CONTEXT* ctx )
 
 /* Initialize the output plug-in. */
 ULONG DLLENTRY
-output_init( void** A )
+output_init( WAVOUT** A )
 {
   WAVOUT* a = (WAVOUT*)malloc( sizeof(*a));
   DEBUGLOG(("wavout:output_init(%p)\n", A));
@@ -459,10 +453,9 @@ output_init( void** A )
 
 /* Uninitialize the output plug-in. */
 ULONG DLLENTRY
-output_uninit( void* A )
+output_uninit( WAVOUT* a )
 {
-  WAVOUT* a = (WAVOUT*)A;
-  DEBUGLOG(("wavout:output_uninit(%p)\n", A));
+  DEBUGLOG(("wavout:output_uninit(%p)\n", a));
 
   DosCloseEventSem( a->pause );
   free( a->buffer );

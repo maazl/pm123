@@ -196,10 +196,8 @@ dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 
 /* Changes the volume of an output device. */
 static ULONG
-output_set_volume( void* A, unsigned char setvolume, float setamplifier )
+output_set_volume( OS2AUDIO* a, unsigned char setvolume, float setamplifier )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
-
   a->volume    = min( setvolume, 100 );
   a->amplifier = setamplifier;
 
@@ -222,9 +220,8 @@ output_set_volume( void* A, unsigned char setvolume, float setamplifier )
 
 /* Pauses or resumes the playback. */
 static ULONG DLLENTRY
-output_pause( void* A, BOOL pause )
+output_pause( OS2AUDIO* a, BOOL pause )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   MCI_GENERIC_PARMS mgp = { 0 };
   ULONG rc = 0;
 
@@ -241,9 +238,8 @@ output_pause( void* A, BOOL pause )
 
 /* Closes the output audio device. */
 ULONG DLLENTRY
-output_close( void* A )
+output_close( OS2AUDIO* a )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   ULONG rc = 0;
 
   MCI_GENERIC_PARMS mgp = { 0 };
@@ -477,9 +473,8 @@ end:
 /* This function is called by the decoder or last in chain filter plug-in
    to play samples. */
 int DLLENTRY
-output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
+output_play_samples( OS2AUDIO* a, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   DEBUGLOG(("output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n",
       format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
@@ -577,8 +572,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 /* Returns the posmarker from the buffer that the user
    currently hears. */
 ULONG DLLENTRY
-output_playing_pos( void* A ) {
-  OS2AUDIO* a = (OS2AUDIO*)A;
+output_playing_pos( OS2AUDIO* a ) {
   ULONG     position, playingpos;
   
   DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
@@ -609,10 +603,8 @@ output_playing_pos( void* A ) {
 /* This function is used by visual plug-ins so the user can visualize
    what is currently being played. */
 ULONG DLLENTRY
-output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
+output_playing_samples( OS2AUDIO* a, FORMAT_INFO* info, char* buf, int len )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
-
   DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
 
   if( a->status != DEVICE_OPENED || a->nomoredata ) {
@@ -691,9 +683,8 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
 /* Trashes all audio data received till this time. */
 void DLLENTRY
-output_trash_buffers( void* A, ULONG temp_playingpos )
+output_trash_buffers( OS2AUDIO* a, ULONG temp_playingpos )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   int i;
 
   DEBUGLOG(( "os2audio: trashing audio buffers.\n" ));
@@ -723,12 +714,10 @@ output_trash_buffers( void* A, ULONG temp_playingpos )
 /* This function is called when the user requests
    the use of output plug-in. */
 ULONG DLLENTRY
-output_init( void** A )
+output_init( OS2AUDIO** A )
 {
-  OS2AUDIO* a;
-
- *A = calloc( sizeof( OS2AUDIO ), 1 );
-  a = (OS2AUDIO*)*A;
+  OS2AUDIO* a = calloc( sizeof( OS2AUDIO ), 1 );
+  *A = a;
 
   a->numbuffers  = 64;
   a->volume      = 100;
@@ -744,9 +733,8 @@ output_init( void** A )
 /* This function is called when another output plug-in
    is request by the user. */
 ULONG DLLENTRY
-output_uninit( void* A )
+output_uninit( OS2AUDIO* a )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   DEBUGLOG(("output_uninit: %p\n", a));
 
   output_close( a );
@@ -760,8 +748,8 @@ output_uninit( void* A )
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
 BOOL DLLENTRY
-output_playing_data( void* A ) {
-  return !((OS2AUDIO*)A)->nomoredata;
+output_playing_data( OS2AUDIO* a ) {
+  return !a->nomoredata;
 }
 
 static ULONG DLLENTRY
@@ -798,9 +786,8 @@ output_get_devices( char* name, int deviceid )
 }
 
 ULONG DLLENTRY
-output_command( void* A, ULONG msg, OUTPUT_PARAMS* params )
+output_command( OS2AUDIO* a, ULONG msg, OUTPUT_PARAMS* params )
 {
-  OS2AUDIO* a = (OS2AUDIO*)A;
   DEBUGLOG(("output_command(%i, %p)\n", msg, params));
 
   switch( msg )

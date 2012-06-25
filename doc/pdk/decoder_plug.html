@@ -5,7 +5,6 @@
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
-<br>
 <h1>PM123 Decoder Plug-ins</h1>
 <p>Decoder plug-ins must implement and export the functions
 defined in <tt>decoder_plug.h</tt>.</p>
@@ -72,13 +71,14 @@ URIs.<br>
     <tt>DECODER_SONG</tt> (0x0100) - Decoder can play songs.<br>
     <tt>DECODER_PLAYLIST</tt> (0x0200) - Decoder can read playlists.<br>
     <tt>DECODER_WRITABLE</tt> (0x1000) - Decoder can save items.<br>
-    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save a meta info.<br>
+    <tt>DECODER_METAINFO</tt> (0x2000) - Decoder can save meta info.<br>
 The values should be ored as required.</li>
 </ul>
 <p>This is used by PM123 to suggest to the user what he can play
 with the
 decoder.
-Furthermore <em>PM123 will not query the decoder about files
+Furthermore, by default <em>PM123 will not query the decoder about
+files
 or
 other objects that are not listed in the above filter list</em> to keep
 performance up.
@@ -109,13 +109,6 @@ Decoders should use this handle unless they have a good reason not to
 do so. <em>Decoders must not close the handle</em>. Only decoders that
 returned <tt>DECODER_OTHER</tt> at <tt>decoder_support</tt> may be
 called with <tt><var>handle</var> == NULL</tt>.</li>
-  <li><tt><var>flags</var></tt> - Info
-about the type of the identified item. <tt>DECODER_FLAGS_SONG</tt>
-indicates that the item can be played. <tt>DECODER_FLAGS_PLAYLIST</tt>
-indicated that the item has children.&nbsp;The two flags should not
-be set
-both, because for now the behavior of PM123 is not well defined in this
-case.</li>
   <li><tt><var>what</var></tt> (in/out) -
 Bit vector of <a href="datatype.html#INFOTYPE"><tt>INFOTYPE</tt></a>.
 The requested fields in <a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a>.<br>
@@ -134,14 +127,19 @@ is used. However, the decoder may return more even in this case.</li>
   <li><tt><var>info</var></tt> (out) - this
 structure must be filled at least with the information required by <tt>*<var>what</var></tt>.&nbsp;See
     <tt><a href="datatype.html#INFO_BUNDLE"><tt>INFO_BUNDLE</tt></a></tt>
-for further details. All entries of INFO_BUNDLE point to the
+for further details. All entries of <tt>INFO_BUNDLE</tt> point to the
 appropriate structures when <tt>decoder_fileinfo</tt> is called.<br>
 If some information is not available, the requested fields in <tt>INFO_BUNDLE</tt>
-should be left unchanged. The initial state is always equivalent to
-'unavailable'. Note, that this is different from unrequested
+should be left unchanged. Normally all fields have their initial value.
+But the <tt>TECH_INFO</tt> sub structure could contain some format
+information from a playlist plug-in or an earlier call. This could be
+used to read raw PCM files.<br>
+If the handle parameter is not NULL, the PHYS_INFO structure is already
+filled with the appropriate values.<br>
+Note, that leaving fields initial is different from unrequested
 informations where the corresponding bits in <tt>*<var>what</var></tt>
 are not set. In the latter case the information <em>might</em>
-become available on request. It is just not yet known.<br>
+become available later on request. It is just not yet known.<br>
 In case of an error (non-zero return value) the decoder should return
 an error text in the <tt>tech-&gt;info</tt> field, if
 available.</li>
@@ -321,10 +319,10 @@ corresponding to fields in <tt>*<var>info</var></tt>.<br>
     <table border="1" cellpadding="3" cellspacing="0">
       <tbody>
         <tr>
-          <td valign="top"><var><tt>cached</tt></var></td>
-          <td valign="top"><var><tt>reliable</tt></var></td>
-          <td valign="top">Corresponding field in <tt>*<var>info</var></tt>
-contains</td>
+          <th><var><tt>cached</tt></var></th>
+          <th><var><tt>reliable</tt></var></th>
+          <th>Corresponding field in <tt>*<var>info</var></tt>
+contains</th>
         </tr>
         <tr>
           <td align="center" valign="top">0</td>
@@ -334,13 +332,15 @@ contains</td>
         <tr>
           <td align="center" valign="top">1</td>
           <td align="center" valign="top">0</td>
-          <td valign="top">The field contain cached information that
+          <td valign="top">The field contain <i>cached</i> information
+that
 might no longer be valid.</td>
         </tr>
         <tr>
           <td align="center" valign="top">0</td>
           <td align="center" valign="top">1</td>
-          <td valign="top">The field contains reliable information that
+          <td valign="top">The field contains <i>reliable</i>
+information that
 just had been verified.</td>
         </tr>
         <tr>
@@ -363,12 +363,14 @@ details.</li>
 interface</h3>
 <h4>decoder_init, decoder_uninit</h4>
 <blockquote>
-  <pre>int DLLENTRY <b>decoder_init</b> (void **<var>w</var>)</pre>
+  <pre>int DLLENTRY <b>decoder_init</b> (struct DECODER_STRUCT **<var>w</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>w</var></tt> - Allocate
 any chunk of memory necessary for the decoder's function. This pointer
-will be passed to the other functions.</li>
+will be passed to the other functions. The type <tt>struct
+DECODER_STRUCT</tt> is incomplete. You may fill it with life or simply
+cast to your own type.</li>
   <li>return value:<br>
     <tt>PLUGIN_OK</tt> (<tt>0</tt>)
 means success.<br>
@@ -381,7 +383,7 @@ to play the stream demanded by the user. So only one decoder plug-in is
 active at any given time. It should initialize the necessary semaphores
 and threads.
 <blockquote>
-  <pre>BOOL DLLENTRY <b>decoder_uninit</b>(void *<var>w</var>)</pre>
+  <pre>BOOL DLLENTRY <b>decoder_uninit</b>(struct DECODER_STRUCT *<var>w</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>w</var></tt> - The pointer received by <tt>decoder_init</tt>.
@@ -397,7 +399,7 @@ The decoder must not execute any callback function like <a
 from another thread when <tt>decoder_uninit</tt> has returned.</p>
 <h4><a name="decoder_command"></a>decoder_command</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_command</b>(void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var>)</pre>
+  <pre>ULONG DLLENTRY <b>decoder_command</b>(struct DECODER_STRUCT *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>msg</var></tt> - one of
@@ -410,7 +412,10 @@ given filename, URL or others.</li>
 (i.e.: play faster or skip forward or backward when playing).</li>
       <li><tt>DECODER_JUMPTO</tt> - jump and start
 decoding at the given time position.</li>
-      <li><tt>DECODER_SETUP</tt> - setup various
+      <li><tt>DECODER_SETUP</tt>The type <tt>struct DECODER_STRUCT</tt>
+is incomplete. You may fill it with life or simply cast to your own
+type.The type <tt>struct DECODER_STRUCT</tt> is incomplete. You may
+fill it with life or simply cast to your own type. - setup various
 parameters such as the output plug-in functions.</li>
       <li><tt>DECODER_SAVEDATA</tt> - tells the
 decoder to start saving the stream to HD.</li>
@@ -450,7 +455,7 @@ interface</h3>
 <p>The status interface has to be <em>thread safe</em>.</p>
 <h4><a name="decoder_status"></a>decoder_status</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_status</b>(void *<var>w</var>)</pre>
+  <pre>ULONG DLLENTRY <b>decoder_status</b>(struct DECODER_STRUCT *<var>w</var>)</pre>
 </blockquote>
 <ul>
   <li><i>return value</i> - One of the following:<br>
@@ -462,7 +467,7 @@ DECODER_STOPPING</tt></li>
 </ul>
 <h4><a name="decoder_length"></a>decoder_length</h4>
 <blockquote>
-  <pre>PM123_TIME DLLENTRY <b>decoder_length</b>(void *w)</pre>
+  <pre>PM123_TIME DLLENTRY <b>decoder_length</b>(struct DECODER_STRUCT *w)</pre>
 </blockquote>
 <ul>
   <li><i>return value</i> - number of seconds the stream lasts (you
@@ -558,8 +563,7 @@ received a <tt>DECODER_STOP</tt> command.</li>
 when a playback error occurred so that PM123 should know to stop
 immediately.<br>
     <var><tt>param</tt></var> could optionally point to an error text
-or should be NULL otherwise.<br>
-  </li>
+or should be NULL otherwise. </li>
   <li><code><b>DECEVENT_SEEKSTOP</b></code>
 when a <code>DECODER_JUMPTO</code> operation is completed
 (i.e. when no buffers from before the seek is sent to the output

@@ -29,48 +29,42 @@
 #ifndef PM123_WAVPLAY_H
 #define PM123_WAVPLAY_H
 
+#define PLUGIN_INTERFACE_LEVEL 3
+
 #define INCL_BASE
+#include <decoder_plug.h>
 #include <sndfile.h>
 #include <format.h>
 #include <xio.h>
+//#include <cpp/mutex.h>
 #include <os2.h>
 
 #include <stdlib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct _DECODER_STRUCT
+struct DECODER_STRUCT
 {
-   XFILE*   file;
-   char     filename[_MAX_PATH];
-   SNDFILE* sndfile;
+  XFILE*       XFile;
+  xstring      URL;
+  SNDFILE*     Sndfile;
 
-   FORMAT_INFO output_format;
-   SF_INFO     sfinfo;
+  SF_INFO      SFInfo;
+  FORMAT_INFO2 Format;
 
-   HEV   play;            // For internal use to sync the decoder thread.
-   HMTX  mutex;           // For internal use to sync the decoder thread.
-   int   decodertid;      // Decoder thread indentifier.
-   BOOL  stop;
-   BOOL  frew;
-   BOOL  ffwd;
-   int   jumptopos;
-   ULONG status;
-   HWND  hwnd;            // PM interface main frame window handle.
+  HEV          play;            // For internal use to sync the decoder thread.
+  HMTX         mutex;           // For internal use to sync the decoder thread.
+  int          decodertid;      // Decoder thread indentifier.
+  bool         Stop;
+  DECFASTMODE  Fast;
+  PM123_TIME   JumpToPos;
+  DECODERSTATE status;
 
-   void  DLLENTRYP(error_display)( const char* );
-   void  DLLENTRYP(info_display )( const char* );
-   int   DLLENTRYP(output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  /** specify a function which the decoder should use for output */
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+  /** decoder events */
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void* A;                  /**< only to be used with the precedent functions */
+};
 
-   void* a;               // Only to be used with the precedent function.
-   int   audio_buffersize;
-
-} DECODER_STRUCT;
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* PM123_WAVPLAY_H */
 

@@ -82,7 +82,7 @@ aplayable.h:	infostate.h ..\utils\cpp\event.h ..\utils\cpp\atomic.h ..\utils\cpp
 ..\utils\cpp/queue.h:	..\include\config.h ..\utils\cpp/mutex.h ..\utils\cpp/smartptr.h ..\utils\debuglog.h
 location.h:	..\include\format.h aplayable.h ..\utils\cpp\container\vector.h
 glue.h:		..\include\output_plug.h ..\include\decoder_plug.h playable.h
-playableref.h:	aplayable.h collectioninfocache.h location.h ..\utils\cpp\event.h ..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h
+playableref.h:	aplayable.h collectioninfocache.h location.h ..\utils\cpp\atomic.h ..\utils\cpp\event.h ..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h
 playableset.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\sorted_vector.h
 ..\utils\cpp/container/inst_index.h:	..\utils\cpp/mutex.h ..\utils\cpp/smartptr.h ..\utils\cpp/container/sorted_vector.h
 ..\utils\cpp/container/list.h:	..\utils\cpp/smartptr.h

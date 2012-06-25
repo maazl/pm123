@@ -162,7 +162,7 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle, unsigned long flag
 ****************************************************************************/
 
 /// Initialize the output plug-in.
-ULONG DLLENTRY output_init(void** A)
+ULONG DLLENTRY output_init(PlaybackWorker** A)
 { PlaybackWorker* w = new PlaybackWorker();
   ULONG ret = w->Init(Configuration.SinkServer, Configuration.Sink, Configuration.SinkPort, Configuration.SinkMinLatency, Configuration.SinkMaxLatency);
   if (ret == 0)
@@ -171,15 +171,14 @@ ULONG DLLENTRY output_init(void** A)
 }
 
 /// Uninitialize the output plug-in.
-ULONG DLLENTRY output_uninit(void* A)
-{ delete (PlaybackWorker*)A;
+ULONG DLLENTRY output_uninit(PlaybackWorker* a)
+{ delete a;
   return PLUGIN_OK;
 }
 
 /// Processing of a command messages.
-ULONG DLLENTRY output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
-{ DEBUGLOG(("pulse123:output_command(%p, %d, %p)\n", A, msg, info));
-  PlaybackWorker* a = (PlaybackWorker*)A;
+ULONG DLLENTRY output_command(PlaybackWorker* a, ULONG msg, OUTPUT_PARAMS2* info)
+{ DEBUGLOG(("pulse123:output_command(%p, %d, %p)\n", a, msg, info));
 
   switch (msg)
   { case OUTPUT_OPEN:
@@ -203,26 +202,26 @@ ULONG DLLENTRY output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
   return PLUGIN_ERROR;
 }
 
-int DLLENTRY output_request_buffer(void* a, const FORMAT_INFO2* format, float** buf)
-{ return ((PlaybackWorker*)a)->RequestBuffer(format, buf);
+int DLLENTRY output_request_buffer(PlaybackWorker* a, const FORMAT_INFO2* format, float** buf)
+{ return a->RequestBuffer(format, buf);
 }
 
-void DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker)
-{ return ((PlaybackWorker*)a)->CommitBuffer(len, posmarker);
+void DLLENTRY output_commit_buffer(PlaybackWorker* a, int len, PM123_TIME posmarker)
+{ return a->CommitBuffer(len, posmarker);
 }
 
-ULONG DLLENTRY output_playing_samples(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
-{ return ((PlaybackWorker*)a)->GetCurrentSamples(offset, cb, param);
+ULONG DLLENTRY output_playing_samples(PlaybackWorker* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+{ return a->GetCurrentSamples(offset, cb, param);
 }
 
 /// Returns the playing position.
-PM123_TIME DLLENTRY output_playing_pos(void* A)
-{ return ((PlaybackWorker*)A)->GetPosition();
+PM123_TIME DLLENTRY output_playing_pos(PlaybackWorker* a)
+{ return a->GetPosition();
 }
 
 /// Returns TRUE if the output plug-in still has some buffers to play.
-BOOL DLLENTRY output_playing_data(void* A)
-{ return ((PlaybackWorker*)A)->IsPlaying();
+BOOL DLLENTRY output_playing_data(PlaybackWorker* a)
+{ return a->IsPlaying();
 }
 
 

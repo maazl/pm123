@@ -583,13 +583,13 @@ xstring MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
  *
  **************************************************************************************/
 
-Decoder::Decoder()
+Decoder::DECODER_STRUCT()
 : DecTID(-1)
 , Status(DECODER_STOPPED)
 , UpdateMeta(false)
 {}
 
-Decoder::~Decoder()
+Decoder::~DECODER_STRUCT()
 { ASSERT(DecTID == -1);
   Close();
   if (XSave)
@@ -838,60 +838,59 @@ PLUGIN_RC Decoder::Save(const xstring& savename)
 
 /// Init function is called when PM123 needs the specified decoder to play
 /// the stream demanded by the user.
-int DLLENTRY decoder_init(void** returnw)
+int DLLENTRY decoder_init(Decoder** returnw)
 { *returnw = new Decoder();
   return PLUGIN_OK;
 }
 
 /// Uninit function is called when another decoder than yours is needed.
-BOOL DLLENTRY decoder_uninit(void* arg)
-{ delete (Decoder*)arg;
+BOOL DLLENTRY decoder_uninit(Decoder* w)
+{ delete w;
   return TRUE;
 }
 
 /// There is a lot of commands to implement for this function. Parameters
 /// needed for each of the are described in the definition of the structure
 /// in the decoder_plug.h file.
-ULONG DLLENTRY decoder_command(void* arg, DECMSGTYPE msg, const DECODER_PARAMS2* info)
-{ Decoder& w = *(Decoder*)arg;
-
+ULONG DLLENTRY decoder_command(Decoder* w, DECMSGTYPE msg, const DECODER_PARAMS2* info)
+{
   switch( msg )
   { case DECODER_SETUP:
-      return w.Setup(*info);
+      return w->Setup(*info);
 
     case DECODER_PLAY:
-      return w.Play(info->JumpTo, info->Fast);
+      return w->Play(info->JumpTo, info->Fast);
 
     case DECODER_STOP:
-      return w.Stop();
+      return w->Stop();
 
     case DECODER_FFWD:
-      return w.SetFast(info->Fast);
+      return w->SetFast(info->Fast);
 
     case DECODER_JUMPTO:
-      return w.Jump(info->JumpTo);
+      return w->Jump(info->JumpTo);
 
     case DECODER_SAVEDATA:
-      return w.Save(info->SaveFilename);
+      return w->Save(info->SaveFilename);
 
     default:
       return PLUGIN_UNSUPPORTED;
   }
 }
 
-void DLLENTRY decoder_event(void* w, OUTEVENTTYPE event)
+void DLLENTRY decoder_event(Decoder* w, OUTEVENTTYPE event)
 {
   // TODO:
 }
 
 /// Returns current status of the decoder.
-ULONG DLLENTRY decoder_status(void* arg)
-{ return ((Decoder*)arg)->GetStatus();
+ULONG DLLENTRY decoder_status(Decoder* w)
+{ return w->GetStatus();
 }
 
 /// Returns number of milliseconds the stream lasts.
-PM123_TIME DLLENTRY decoder_length( void* arg )
-{ return ((Decoder*)arg)->StreamLength();
+PM123_TIME DLLENTRY decoder_length( Decoder* w )
+{ return w->StreamLength();
 }
 
 /// Returns information about specified file.

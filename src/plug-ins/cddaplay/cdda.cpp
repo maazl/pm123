@@ -60,7 +60,7 @@
 
 
 // used for the PM123 decoder functions
-typedef struct _CDDAPLAY
+typedef struct DECODER_STRUCT
 {
    CD_drive::AccessRead* CD; // The lifetime of this object locks the associated drive.
    FORMAT_INFO formatinfo;
@@ -216,13 +216,10 @@ static void TFNENTRY decoder_thread(void *arg)
    }
 }
 
-int DLLENTRY decoder_init(void **C)
+int DLLENTRY decoder_init(CDDAPLAY **C)
 {
-   CDDAPLAY *c;
-
-   *C = malloc(sizeof(CDDAPLAY));
-   c = (CDDAPLAY *)*C;
-   memset(c,0,sizeof(CDDAPLAY));
+   CDDAPLAY* c = (CDDAPLAY*)calloc(sizeof(CDDAPLAY),1);
+   *C = c;
 
    DosCreateEventSem(NULL,&c->play,0,FALSE);
    DosCreateEventSem(NULL,&c->ok,0,FALSE);
@@ -239,9 +236,8 @@ int DLLENTRY decoder_init(void **C)
    }
 }
 
-BOOL DLLENTRY decoder_uninit(void *C)
+BOOL DLLENTRY decoder_uninit(CDDAPLAY *c)
 {
-   CDDAPLAY *c = (CDDAPLAY *) C;
    int decodertid = c->decodertid;
 
    DosCloseEventSem(c->play);
@@ -254,9 +250,8 @@ BOOL DLLENTRY decoder_uninit(void *C)
 }
 
 
-ULONG DLLENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
+ULONG DLLENTRY decoder_command(CDDAPLAY *c, ULONG msg, DECODER_PARAMS *params)
 {
-   CDDAPLAY *c = (CDDAPLAY *) C;
    ULONG resetcount;
 
    switch(msg)
@@ -338,10 +333,8 @@ ULONG DLLENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
    return 0;
 }
 
-ULONG DLLENTRY decoder_length(void *C)
+ULONG DLLENTRY decoder_length(CDDAPLAY *c)
 {
-   CDDAPLAY *c = (CDDAPLAY *) C;
-
    if(c->status == DECODER_PLAYING)
       return (int)((double)(*c->CD)->getTrackInfo(c->track)->size*1000/(c->formatinfo.samplerate*
                    c->formatinfo.channels*c->formatinfo.bits/8));
@@ -349,9 +342,8 @@ ULONG DLLENTRY decoder_length(void *C)
       return c->last_length;
 }
 
-ULONG DLLENTRY decoder_status(void *C)
+ULONG DLLENTRY decoder_status(CDDAPLAY *c)
 {
-   CDDAPLAY *c = (CDDAPLAY *) C;
    return c->status;
 }
 

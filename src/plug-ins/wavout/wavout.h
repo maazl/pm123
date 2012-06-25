@@ -76,7 +76,7 @@ typedef struct WAVE_HEADER
 
 #pragma pack()
 
-typedef struct _WAVOUT
+typedef struct OUTPUT_STRUCT
 {
   HEV   pause;
   int   playingpos;

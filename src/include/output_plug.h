@@ -15,14 +15,19 @@ extern "C" {
 
 #pragma pack(4)
 
+/** Opaque structure to store the decoders internal state.
+ * Fill it with life or simply cast it to your own type.
+ */
+struct OUTPUT_STRUCT;
+
 /****************************************************************************
  *
  * Definitions common to all interface levels.
  *
  ***************************************************************************/
 
-ULONG DLLENTRY output_init  (void** a);
-ULONG DLLENTRY output_uninit(void*  a);
+ULONG DLLENTRY output_init  (struct OUTPUT_STRUCT** a);
+ULONG DLLENTRY output_uninit(struct OUTPUT_STRUCT*  a);
 
 typedef enum
 { OUTPUT_OPEN          = 1,
@@ -97,12 +102,12 @@ typedef struct _OUTPUT_PARAMS
 } OUTPUT_PARAMS;
 
 #if PLUGIN_INTERFACE_LEVEL < 2
-ULONG  DLLENTRY output_command(void* a, ULONG msg, OUTPUT_PARAMS* info);
-int    DLLENTRY output_play_samples(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker);
-ULONG  DLLENTRY output_playing_pos(void* a);
+ULONG  DLLENTRY output_command(struct OUTPUT_STRUCT* a, ULONG msg, OUTPUT_PARAMS* info);
+int    DLLENTRY output_play_samples(struct OUTPUT_STRUCT* a, FORMAT_INFO* format, char* buf, int len, int posmarker);
+ULONG  DLLENTRY output_playing_pos(struct OUTPUT_STRUCT* a);
 
-ULONG  DLLENTRY output_playing_samples(void* a, FORMAT_INFO* info, char* buf, int len);
-BOOL   DLLENTRY output_playing_data(void* a);
+ULONG  DLLENTRY output_playing_samples(struct OUTPUT_STRUCT* a, FORMAT_INFO* info, char* buf, int len);
+BOOL   DLLENTRY output_playing_data(struct OUTPUT_STRUCT* a);
 #endif
 
 #endif /* level 1 interface */
@@ -153,13 +158,13 @@ typedef struct _OUTPUT_PARAMS2
 typedef void DLLENTRYP(OUTPUT_PLAYING_BUFFER_CB)(void* param, const FORMAT_INFO2* format,
   const float* samples, int count, PM123_TIME pos, BOOL* done);
 
-ULONG  DLLENTRY output_command(void* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info);
-int    DLLENTRY output_request_buffer(void* a, const FORMAT_INFO2* format, float** buf);
-void   DLLENTRY output_commit_buffer(void* a, int len, PM123_TIME posmarker);
-PM123_TIME DLLENTRY output_playing_pos(void* a);
+ULONG  DLLENTRY output_command(struct OUTPUT_STRUCT* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info);
+int    DLLENTRY output_request_buffer(struct OUTPUT_STRUCT* a, const FORMAT_INFO2* format, float** buf);
+void   DLLENTRY output_commit_buffer(struct OUTPUT_STRUCT* a, int len, PM123_TIME posmarker);
+PM123_TIME DLLENTRY output_playing_pos(struct OUTPUT_STRUCT* a);
 
-ULONG  DLLENTRY output_playing_samples(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
-BOOL   DLLENTRY output_playing_data(void* a);
+ULONG  DLLENTRY output_playing_samples(struct OUTPUT_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+BOOL   DLLENTRY output_playing_data(struct OUTPUT_STRUCT* a);
 
 #endif /* level 3 interface */
 

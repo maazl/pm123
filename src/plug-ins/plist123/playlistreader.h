@@ -36,45 +36,57 @@
 #include <debuglog.h>
 
 
-class PlaylistReader
-{public: // Source
-  const char* const         URL;
-  XFILE* const              Source;
- protected: // Destination
-  DECODER_INFO_ENUMERATION_CB Cb;
-  void*                     CbParam;
-  int                       Count;
- protected: // State
-  xstring                   Url;
+struct PlaylistReaderInfo
+{ xstring                   Url;
   PHYS_INFO                 Phys;
   TECH_INFO                 Tech;
+  META_INFO                 Meta;
   OBJ_INFO                  Obj;
   ATTR_INFO                 Attr;
   RPL_INFO                  Rpl;
   DRPL_INFO                 Drpl;
   ITEM_INFO                 Item;
-  INFO_BUNDLE               Info;
-  int                       Cached;
-  int                       Override;
+  unsigned                  Cached;
+  unsigned                  Reliable;
+  unsigned                  Override;
+};
+
+class PlaylistReader : protected PlaylistReaderInfo
+{public: // Source
+  const char* const         URL;
+  XFILE* const              Source;
+ protected: // Destination
+  const INFO_BUNDLE*        Info;
+  DECODER_INFO_ENUMERATION_CB Cb;
+  void*                     CbParam;
  protected:
+  /// Reset the current set of meta data.
   void                      Reset();
-  void                      Create();
+  /// Create a playlist item from the current set of meta data.
+  void                      Create(PlaylistReaderInfo& info);
  protected:
                             PlaylistReader(const char* url, XFILE* source);
+  /// Feed the parser with another line.
+  /// @param line Line data without trailing newline.
+  /// @return false on error. (currently discarded)
   virtual bool              ParseLine(char* line) = 0;
   static  void              ParseInt(int& dst, const char* str)
                             { if (str) dst = atoi(str); }
   static  void              ParseFloat(double& dst, const char* str)
                             { if (str) dst = atof(str); }
  public:
-  /** Identify the playlist type and return a reader.
-   * @param source open XIO handle.
-   * @return Reader to handle the playlist or NULL if the file seems not to be supported.
-   */
+  /// Identify the playlist type and return a reader.
+  /// @param source open XIO handle.
+  /// @return Reader to handle the playlist or NULL if the file seems not to be supported.
   static PlaylistReader*    SnifferFactory(const char* url, XFILE* source);
+  /// Identify the format associated with this reader instance.
   virtual const xstring&    GetFormat() const = 0;
-          int               GetCount() const  { return Count; }
-  virtual bool              Parse(DECODER_INFO_ENUMERATION_CB cb, void* param);
+  /// Invoke the parser to read the source until EOF.
+  /// @param info Store the information on the playlist itself here.
+  /// @param cb Callback to be invoked for each playlist item.
+  /// @param param User parameter to be passed to \a cb.
+  /// @return true: succeeded
+  virtual bool              Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param);
   virtual                   ~PlaylistReader() {}
 };
 

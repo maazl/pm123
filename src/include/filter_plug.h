@@ -16,6 +16,10 @@ extern "C" {
 
 #pragma pack(4)
 
+/** Opaque structure to store the decoders internal state.
+ * Fill it with life or simply cast it to your own type.
+ */
+struct FILTER_STRUCT;
 
 /****************************************************************************
  *
@@ -76,15 +80,15 @@ typedef struct _FILTER_PARAMS
 
 #if PLUGIN_INTERFACE_LEVEL < 2
 /* returns 0 -> ok */
-ULONG DLLENTRY filter_init  ( void** f, FILTER_PARAMS* params );
+ULONG DLLENTRY filter_init  ( struct FILTER_STRUCT** f, FILTER_PARAMS* params );
 
 /* Notice it is the same parameters as output_play_samples()  */
 /* this makes it possible to plug a decoder plug-in in either */
 /* a filter plug-in or directly in an output plug-in          */
 /* BUT you will have to pass void *a from above to the next   */
 /* stage which will be either a filter or output              */
-int   DLLENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
-BOOL  DLLENTRY filter_uninit( void*  f );
+int   DLLENTRY filter_play_samples( struct FILTER_STRUCT* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
+BOOL  DLLENTRY filter_uninit( struct FILTER_STRUCT* f );
 #endif
 
 #endif /* level 1 interface */
@@ -119,9 +123,9 @@ typedef struct _FILTER_PARAMS2
 } FILTER_PARAMS2;
 
 /* returns 0 -> ok */
-ULONG DLLENTRY filter_init  (void** f, FILTER_PARAMS2* params);
-void  DLLENTRY filter_update(void* f, const FILTER_PARAMS2* params);
-BOOL  DLLENTRY filter_uninit(void* f);
+ULONG DLLENTRY filter_init  (struct FILTER_STRUCT** f, FILTER_PARAMS2* params);
+void  DLLENTRY filter_update(struct FILTER_STRUCT* f, const FILTER_PARAMS2* params);
+BOOL  DLLENTRY filter_uninit(struct FILTER_STRUCT* f);
 
 #endif /* Level 3 interface */
 

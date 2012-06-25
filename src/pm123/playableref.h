@@ -33,6 +33,7 @@
 #include "aplayable.h"
 #include "collectioninfocache.h"
 #include "location.h"
+#include <cpp/atomic.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
@@ -71,13 +72,14 @@ class PlayableSlice : public APlayable
  public:  // Context
   const   int_ptr<APlayable> RefTo;
  protected:
+          AtomicUnsigned    Overridden;
   mutable INFO_BUNDLE_CV    Info;
           ItemInfo          Item;
+          sco_ptr<CICache>  CIC;
  private: // Working vars
   // StartCache and StopCache MUST have RefTo->GetPlayable() as root.
   volatile mutable int_ptr<Location> StartCache;
   volatile mutable int_ptr<Location> StopCache;
-          sco_ptr<CICache>  CIC;
   class_delegate<PlayableSlice, const PlayableChangeArgs> InfoDeleg;
   //class_delegate<PlayableSlice, const CollectionChangeArgs> CollectionDeleg;
 
@@ -89,18 +91,11 @@ class PlayableSlice : public APlayable
   /// at the start or the end, depending on \c Location::CO_Reverse.
   /// Otherwise the same as \c Location::CopareTo.
   static  int               CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type);
-  /// Read-only access \c Item member of another instance.
-  static  const INFO_BUNDLE& AccessInfo(const PlayableSlice& ps) { return (INFO_BUNDLE&)ps.Info; }
                             PlayableSlice();
  public:
   explicit                  PlayableSlice(APlayable& pp);
                             PlayableSlice(const PlayableSlice& r);
   virtual                   ~PlayableSlice();
-  // Swap instance properties (fast)
-  // You must not swap instances that belong to different APlayables.
-  // You must own both instances for thread-safety.
-  //virtual void              Swap(PlayableSlice& r);
-
   // Faster, non-virtual version.
           Playable&         GetPlayable() const      { return RefTo->GetPlayable(); }
   /// Display name
@@ -112,11 +107,9 @@ class PlayableSlice : public APlayable
   virtual void              SetInUse(unsigned used);
 
   /// Return the overridden information.
-  virtual InfoFlags         GetOverridden() const;
-  /// Return \c true if the current instance overrides SliceInfo.
-          bool              IsItemOverridden() const { return Info.item == &Item; }
+          InfoFlags         GetOverridden() const    { return (InfoFlags)Overridden.get(); }
   /// Return true if the current instance is different from *RefTo.
-          bool              IsSlice() const          { return IsItemOverridden() && (Item.start != NULL || Item.stop != NULL); }
+          bool              IsSlice() const          { return (Overridden & IF_Item) && (Item.start || Item.stop); }
   /// @brief Override the item information.
   /// @detail If the function is called with NULL the overriding is cancelled.
   /// Note that since the start and stop locations may not be verified immediately
@@ -168,22 +161,11 @@ class PlayableRef : public PlayableSlice
  public:
   explicit                  PlayableRef(APlayable& refto) : PlayableSlice(refto) { Info.meta = NULL; Info.attr = NULL; }
 
-  // Swap instance properties (fast)
-  // You must not swap instances that belong to different PlayableCollection objects.
-  // The collection must be locked when calling Swap.
-  // Swap does not swap the current status.
-  //virtual void             Swap(PlayableRef& r);
-
   /// Display name
   virtual xstring           GetDisplayName() const;
 
   virtual const INFO_BUNDLE_CV& GetInfo() const;
 
-  /// Return the overridden information.
-  virtual InfoFlags         GetOverridden() const;
-  // Return true if the current instance overrides ItemInfo.
-          bool              IsMetaOverridden() const { return Info.meta == &Meta; }
-          bool              IsAttrOverridden() const { return Info.attr == &Attr; }
   // Override properties
   // Calling the functions with NULL arguments will revoke the overriding.
           void              OverrideMeta(const META_INFO* info);

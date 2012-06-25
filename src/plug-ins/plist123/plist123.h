@@ -38,6 +38,7 @@
 #define EATYPE_WINAMPU "Unicode Playlist"
 #define EATYPE_WVISION "WarpVision Playlist"
 #define EATYPE_MS      "Microsoft Playlist"
+#define EATYPE_CUESHEET "CUE Sheet"
 
 
 extern PLUGIN_CONTEXT Ctx;

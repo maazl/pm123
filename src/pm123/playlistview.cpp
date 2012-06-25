@@ -332,7 +332,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
               PlayableInstance& pi = *rec->Data()->Content;
               pii->Before = &pi;
               pii->Item   = new PlayableRef(*Playable::GetByURL(Content->URL.makeAbsolute(DirectEdit)));
-              if (pi.IsItemOverridden())
+              if (pi.GetOverridden() & IF_Item)
               { ItemInfo info = *pi.GetInfo().item;
                 pii->Item->OverrideItem(&info);
               }
@@ -489,7 +489,7 @@ bool PlaylistView::UpdateColumnText(xstring& dst, const xstring& value)
 
 bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
 { DEBUGLOG(("PlaylistView::CalcCols(%s, %x)\n", Record::DebugName(rec).cdata(), flags));
-  const INFO_BUNDLE_CV& info = rec->Data()->Content->GetPlayable().GetInfo();
+  const INFO_BUNDLE_CV& info = rec->Data()->Content->GetInfo();
   bool ret = false;
   // Columns that only depend on metadata changes
   if (flags & IF_Meta)
@@ -509,23 +509,12 @@ bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
       tmp = NULL;
     ret |= UpdateColumnText(rec->Song, tmp);
   }
-  // Columns that only depend on phys changes
-  if (flags & IF_Phys)
-    // size
-    ret |= UpdateColumnText(rec->Size, FormatSize(info.phys->filesize));
-  // time (object info in case of song, drpl info in case of playlist)
-  switch (info.tech->attributes & (TATTR_SONG|TATTR_PLAYLIST))
-  {case TATTR_NONE:
-    ret |= UpdateColumnText(rec->Time, xstring::empty);
-    break;
-   case TATTR_PLAYLIST:
-    if (flags & IF_Drpl)
-      ret |= UpdateColumnText(rec->Time, FormatTime(info.drpl->totallength));
-    break;
-   default:
-    if (flags & IF_Obj)
-      ret |= UpdateColumnText(rec->Time, FormatTime(info.obj->songlength));
-  }
+  // size
+  if (flags & (IF_Phys|IF_Tech|IF_Drpl))
+    ret |= UpdateColumnText(rec->Size, FormatSize(info.tech->attributes & TATTR_SONG ? info.drpl->totalsize : info.phys->filesize));
+  // time
+  if (flags & IF_Drpl)
+    ret |= UpdateColumnText(rec->Time, FormatTime(info.drpl->totallength));
   // Columns that only depend on attribute info changes
   if (flags & IF_Attr)
     // location

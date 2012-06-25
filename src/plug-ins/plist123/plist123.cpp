@@ -86,6 +86,7 @@ static const DECODER_FILETYPE filetypes[] =
 , { EACAT_PLAYLIST, EATYPE_WINAMPU, "*.m3u8", DECODER_PLAYLIST|DECODER_WRITABLE }
 , { EACAT_PLAYLIST, EATYPE_WVISION, "*.pls",  DECODER_PLAYLIST }
 //, { EACAT_PLAYLIST, EATYPE_MS,      "*.mpl",  DECODER_PLAYLIST } untested anyway
+, { EACAT_PLAYLIST, EATYPE_CUESHEET,"*.cue",  DECODER_PLAYLIST }
 };
 
 ULONG DLLENTRY
@@ -105,24 +106,16 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
 {
   if (!handle)
     return PLUGIN_NO_PLAY;
-
-  *what |= INFO_META; // always inclusive
  
   ULONG ret = PLUGIN_OK;
-  if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ))
-  { *what |= INFO_CHILD|INFO_TECH|INFO_OBJ;
+  if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ|INFO_META))
+  { *what |= INFO_CHILD|INFO_TECH|INFO_OBJ|INFO_META;
     sco_ptr<PlaylistReader> reader(PlaylistReader::SnifferFactory(url, handle));
     if (reader == NULL)
     { info->tech->info = "Unrecognized playlist type.";
       ret = PLUGIN_NO_PLAY;
-    } else
-    { info->tech->attributes |= TATTR_PLAYLIST;
-      info->tech->format = reader->GetFormat();
-      if (!reader->Parse(cb, param))
-        ret = PLUGIN_GO_FAILED;
-      else
-        info->obj->num_items = reader->GetCount();
-    }
+    } else if (!reader->Parse(info, cb, param))
+      ret = PLUGIN_GO_FAILED;
   }
   
   return ret;

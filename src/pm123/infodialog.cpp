@@ -601,7 +601,6 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
-      int type;
       SetCtrlText(EF_URL, F_URL, data.URL);
       { const PHYS_INFO& phys = data.Info.Phys;
         SetCtrlText(EF_FILESIZE, F_filesize, phys.filesize < 0 ? (const char*)NULL : (sprintf(buffer, "%.3f kiB", phys.filesize/1024.), buffer));
@@ -612,7 +611,7 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SetCtrlText(EF_SAMPLERATE, F_samplerate, FormatInt(buffer, tech.samplerate, " Hz"));
         SetCtrlText(EF_NUMCHANNELS, F_channels, FormatInt(buffer, tech.channels));
         static const char* objtypes[4] = {"unknown", "Song", "Playlist", "Song, indexed"};
-        type = (tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) / TATTR_SONG;
+        int type = (tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) / TATTR_SONG;
         SetCtrlText(EF_OBJTYPE, F_objtype, tech.attributes & TATTR_INVALID ? "invalid" : objtypes[type]);
         SetCtrlCB(CB_SAVEABLE, F_objtype, !!(tech.attributes & TATTR_WRITABLE));
         SetCtrlCB(CB_SAVESTREAM, F_objtype, !!(tech.attributes & TATTR_STORABLE));
@@ -624,8 +623,6 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SetCtrlText(EF_FORMAT, F_format, tech.format);
       }
       { const OBJ_INFO& obj = data.Info.Obj;
-        if (type != 2)
-          SetCtrlText(EF_TOTALTIME, F_songlength, FormatDuration(buffer, obj.songlength));
         SetCtrlText(EF_BITRATE, F_bitrate, obj.bitrate < 0 ? (const char*)NULL : (sprintf(buffer, "%.1f kbps", obj.bitrate/1000.), buffer));
         SetCtrlText(EF_NUMITEMS, F_num_items, FormatInt(buffer, obj.num_items));
       }
@@ -634,8 +631,7 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SetCtrlText(EF_LISTITEMS, F_total_lists, FormatInt(buffer, rpl.lists));
       }
       { const DRPL_INFO& drpl = data.Info.Drpl;
-        if (type == 2)
-          SetCtrlText(EF_TOTALTIME, F_songlength, FormatDuration(buffer, drpl.totallength));
+        SetCtrlText(EF_TOTALTIME, F_songlength, FormatDuration(buffer, drpl.totallength));
         SetCtrlText(EF_TOTALSIZE, F_totalsize, drpl.totalsize < 0 ? (const char*)NULL : (sprintf(buffer, "%.3f MiB", drpl.totalsize/(1024.*1024.)), buffer));
       }
       return 0;

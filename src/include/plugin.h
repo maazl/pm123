@@ -38,20 +38,9 @@ typedef struct
 } xstring;
 static const xstring xstring_NULL = { NULL };
 #elif defined(PM123_CORE)
-/** Hack: when compiling the PM123 core we map xstring to the binary compatible
- * C++ class xstring. You must not use this hack for plug-in development
- * because it may give undefined behavior when the memory is freed in another
- * C runtime instance than where it is allocated. */
-//#include <cpp/xstring.h>
 class xstring; // Keep CDT happy
 #define xstring_NULL xstring()
-//static const xstring xstring_NULL;
 #else
-/** 2nd Hack: In C++ we forward the string API calls to the runtime of the
- * PM123 core.
- * Note that you \e must not call any of these functions in a static initializer,
- * because at this point \c plugin_init has not yet been called.
- */
 class xstring;
 #endif
 

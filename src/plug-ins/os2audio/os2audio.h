@@ -45,7 +45,7 @@
 #define DEVICE_FAILED     5
 
 
-typedef struct OS2AUDIO
+typedef struct OUTPUT_STRUCT
 {
   int   device;       /*                                                      C  */
   int   lockdevice;   /*                                                      C  */

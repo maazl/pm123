@@ -91,7 +91,7 @@ class OggDecoder
   PROXYFUNCDEF void DLLENTRY Observer(XIO_META type, const char* metabuff, long pos, void* arg);
 };
 
-class OggDecoderThread : public OggDecoder
+typedef struct DECODER_STRUCT : public OggDecoder
 {private:
   Event         Play;       // For internal use to sync the decoder thread.
   Mutex         Mtx;        // For internal use to sync the decoder thread.
@@ -113,8 +113,8 @@ class OggDecoderThread : public OggDecoder
   ogg_int64_t     ResumePcms;
 
 public:
-  OggDecoderThread();
-  ~OggDecoderThread();
+  DECODER_STRUCT();
+  ~DECODER_STRUCT();
 
   ULONG DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
   DECODERSTATE GetStatus() const { return Status; }
@@ -126,9 +126,10 @@ public:
   void DecoderThread();
 
  private: // Instance repository
-  static vector<OggDecoderThread> Instances;
+  static vector<DECODER_STRUCT> Instances;
   static Mutex InstMtx;
-};
+
+} OggDecoderThread;
 
 #define MAXRESYNC 15
 

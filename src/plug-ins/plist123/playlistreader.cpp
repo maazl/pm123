@@ -30,10 +30,14 @@
 #include "playlistreader.h"
 #include "plist123.h"
 #include <fileutil.h>
+#include <cpp/container/stringmap.h>
+#include <cpp/xstring.h>
 #include <charset.h>
+#include <strutils.h>
 #include <xio.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <math.h>
 
 
 /****************************************************************************
@@ -42,43 +46,103 @@
 *
 ****************************************************************************/
 
+/** Read PM123 native playlist files */
 class LSTReader : public PlaylistReader
 {public:
+  static const xstringconst Format;
+ private:
   LSTReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+ public:
   static LSTReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
 
+/** Read WarpVision playlist files. */
 class PLSReader : public PlaylistReader
 {public:
+  static const xstringconst Format;
+ private:
   PLSReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+ public:
   static PLSReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
 
+/** Read WinAmp playlist files. */
 class M3UReader : public PlaylistReader
 {public:
+  static const xstringconst Format;
+ protected:
   M3UReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+ public:
   static M3UReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
 
+/** Read WinAmp Unicode playlist files. */
 class M3U8Reader : public M3UReader
-{private:
+{public:
+  static const xstringconst Format;
+ private:
   static const char         Hdr[];
   char                      DecodedLine[4096];
- public:
+ private:
   M3U8Reader(const char* url, XFILE* source)              : M3UReader(url, source) {}
+ public:
   static M3U8Reader*        Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
+};
+
+/** Read CUE sheets. */
+class CUEReader : public PlaylistReader
+{public:
+  static const xstringconst Format;
+ private:
+  enum TokenFlags
+  { TF_None,
+    TF_Sniffer ///< This token is allowed at the start of the file.
+  };
+  struct TokenData
+  { bool       (CUEReader::*Parser)(char* args);
+    TokenFlags              Flags;
+  };
+  typedef strmap<12,TokenData> MapEntry;
+ private:
+  static const MapEntry     TokenMap[];
+  PlaylistReaderInfo*       CurrentTrack;
+  META_INFO*                CurrentMeta;
+  float                     CurrentPos;
+  xstring                   FileFormat;
+  bool                      HaveIndex;
+  PlaylistReaderInfo*       LastTrack;
+  vector_own<PlaylistReaderInfo> Tracks;
+ private:
+  CUEReader(const char* url, XFILE* source);
+  static void               GetString(xstring& dst, char*& src);
+  static void               Transcode(xstring& value);
+  static bool               ParseMSF(float& dst, const char* src);
+  bool                      File(char* args);
+  bool                      Index(char* args);
+  bool                      Performer(char* args);
+  bool                      Postgap(char* args);
+  bool                      Pregap(char* args);
+  bool                      Rem(char* args);
+  bool                      Title(char* args);
+  bool                      Track(char* args);
+ public:
+  static CUEReader*         Sniffer(const char* url, XFILE* source);
+  virtual const xstring&    GetFormat() const;
+ protected:
+  virtual bool              ParseLine(char* line);
+  virtual bool              Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param);
 };
 
 /****************************************************************************
@@ -92,21 +156,17 @@ PlaylistReader::PlaylistReader(const char* url, XFILE* source)
   Source(source),
   Cb(NULL),
   CbParam(NULL)
-{ Info.phys = &Phys;
-  Info.tech = &Tech;
-  Info.obj  = &Obj;
-  Info.attr = &Attr;
-  Info.meta = NULL;
-  Info.rpl  = &Rpl;
-  Info.drpl = &Drpl;
-  Info.item = &Item;
-}
+{}
 
-bool PlaylistReader::Parse(DECODER_INFO_ENUMERATION_CB cb, void* param)
-{ Cb = cb;
+bool PlaylistReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
+{ Info = info;
+  Cb = cb;
   CbParam = param;
-  Count = 0;
   Reset();
+
+  info->tech->attributes |= TATTR_PLAYLIST;
+  info->tech->format = GetFormat();
+  info->obj->num_items = 0;
 
   char line[4096];
   while (*line = 0, xio_fgets(line, sizeof line, Source))
@@ -114,7 +174,7 @@ bool PlaylistReader::Parse(DECODER_INFO_ENUMERATION_CB cb, void* param)
     ParseLine(line);
   }
   // Create last item if any
-  Create();
+  Create(*this);
   if (xio_ferror(Source) != 0)
     return false;
   return true;
@@ -123,6 +183,7 @@ bool PlaylistReader::Parse(DECODER_INFO_ENUMERATION_CB cb, void* param)
 void PlaylistReader::Reset()
 { DEBUGLOG(("plist123:PlaylistReader::Reset()\n"));
   Url.reset();
+
   Phys.filesize = -1;
   Phys.tstmp = -1;
   Phys.attributes = PATTR_NONE;
@@ -135,6 +196,18 @@ void PlaylistReader::Reset()
   Obj.songlength = -1;
   Obj.bitrate = -1;
   Obj.num_items = -1;
+  Meta.title.reset();
+  Meta.artist.reset();
+  Meta.album.reset();
+  Meta.year.reset();
+  Meta.comment.reset();
+  Meta.genre.reset();
+  Meta.track.reset();
+  Meta.copyright.reset();
+  Meta.track_gain = -1000;
+  Meta.track_peak = -1000;
+  Meta.album_gain = -1000;
+  Meta.album_peak = -1000;
   Attr.ploptions = PLO_NONE;
   Attr.at.reset();
   Rpl.songs = -1;
@@ -152,40 +225,41 @@ void PlaylistReader::Reset()
   Item.postgap = -1;
   Item.gain = -1000;
   Cached = INFO_NONE;
+  Reliable = INFO_NONE;
   Override = INFO_NONE;
 }
 
-void PlaylistReader::Create()
-{ DEBUGLOG(("plist123:PlaylistReader::Create() - %s, %x/%x\n", Url.cdata(), Cached, Override));
-  if (Url)
-  { (*Cb)(CbParam, Url, &Info, Cached, Override|Cached);
-    ++Count;
+void PlaylistReader::Create(PlaylistReaderInfo& info)
+{ DEBUGLOG(("plist123:PlaylistReader(%p)::Create(&%p{%s ... %x,%x,%x})\n",
+    this, &info, info.Url.cdata(), info.Cached, info.Reliable, info.Override));
+  INFO_BUNDLE infobundle = { &info.Phys, &info.Tech, &info.Obj, &info.Meta, &info.Attr, &info.Rpl, &info.Drpl, &info.Item };
+  if (info.Url)
+  { (*Cb)(CbParam, info.Url, &infobundle, info.Override|(info.Cached&~info.Reliable), info.Override|info.Reliable);
+    ++Info->obj->num_items;
   }
 }
 
 PlaylistReader* PlaylistReader::SnifferFactory(const char* url, XFILE* source)
-{ PlaylistReader* ret = M3U8Reader::Sniffer(url, source);
-  if (ret)
-    goto ok;
-  // The following instruction uses the implicit property of the XIO library,
+{ // The following implementation uses the implicit property of the XIO library,
   // that you can seek back on transient data streams also as long as
   // it does not exceed the buffer.
+  PlaylistReader* ret = M3U8Reader::Sniffer(url, source);
+  if (ret)
+    goto ok;
   xio_rewind(source);
   ret = M3UReader::Sniffer(url, source);
   if (ret)
     goto ok;
-  // The following instruction uses the implicit property of the XIO library,
-  // that you can seek back on transient data streams also as long as
-  // it does not exceed the buffer.
   xio_rewind(source);
   ret = PLSReader::Sniffer(url, source);
   if (ret)
     goto ok;
-  // The following instruction uses the implicit property of the XIO library,
-  // that you can seek back on transient data streams also as long as
-  // it does not exceed the buffer.
   xio_rewind(source);
   ret = LSTReader::Sniffer(url, source);
+  if (ret)
+    goto ok;
+  xio_rewind(source);
+  ret = CUEReader::Sniffer(url, source);
  ok:
   DEBUGLOG(("PlaylistReader::SnifferFactory: %p\n", ret));
   return ret;
@@ -194,9 +268,10 @@ PlaylistReader* PlaylistReader::SnifferFactory(const char* url, XFILE* source)
 
 /* class LSTReader */
 
+const xstringconst LSTReader::Format(EATYPE_PM123);
+
 const xstring& LSTReader::GetFormat() const
-{ static const xstring format(EATYPE_PM123);
-  return format;
+{ return Format;
 }
 
 LSTReader* LSTReader::Sniffer(const char* url, XFILE* source)
@@ -216,7 +291,7 @@ bool LSTReader::ParseLine(char* line)
   {case '#':
     // comments close URL
     if (Url)
-    { Create();
+    { Create(*this);
       Reset();
     }
     // prefix lines
@@ -255,7 +330,7 @@ bool LSTReader::ParseLine(char* line)
    default:
     // close last URL
     if (Url)
-    { Create();
+    { Create(*this);
       Reset();
     }
     Url = line;
@@ -310,7 +385,7 @@ bool LSTReader::ParseLine(char* line)
 
    case '<':
     // close URL
-    Create();
+    Create(*this);
     Reset();
     break;
   }
@@ -320,9 +395,10 @@ bool LSTReader::ParseLine(char* line)
 
 /* class PLSReader */
 
+const xstringconst PLSReader::Format(EATYPE_WVISION);
+
 const xstring& PLSReader::GetFormat() const
-{ static const xstring format(EATYPE_WVISION);
-  return format;
+{ return Format;
 }
 
 PLSReader* PLSReader::Sniffer(const char* url, XFILE* source)
@@ -347,7 +423,7 @@ bool PLSReader::ParseLine(char* line)
     return false;
 
   if (strnicmp(line, "File", 4) == 0)
-  { Create();
+  { Create(*this);
     Reset();
     Url = cp+1;
   } else if (strnicmp(line, "Title", 5) == 0)
@@ -361,9 +437,10 @@ bool PLSReader::ParseLine(char* line)
 
 /* class M3UReader */
 
+const xstringconst M3UReader::Format(EATYPE_WINAMP);
+
 const xstring& M3UReader::GetFormat() const
-{ static const xstring format(EATYPE_WINAMP);
-  return format;
+{ return Format;
 }
 
 M3UReader* M3UReader::Sniffer(const char* url, XFILE* source)
@@ -398,7 +475,7 @@ bool M3UReader::ParseLine(char* line)
     break;
    default:
     Url = line;
-    Create();
+    Create(*this);
     Reset();
   }
   return true;
@@ -406,9 +483,10 @@ bool M3UReader::ParseLine(char* line)
 
 /* class M3U8Reader */
 
+const xstringconst M3U8Reader::Format(EATYPE_WINAMPU);
+
 const xstring& M3U8Reader::GetFormat() const
-{ static const xstring format(EATYPE_WINAMPU);
-  return format;
+{ return Format;
 }
 
 const char M3U8Reader::Hdr[] = "\xef\xbb\xbf#EXTM3U";
@@ -437,3 +515,308 @@ bool M3U8Reader::ParseLine(char* line)
   return M3UReader::ParseLine(DecodedLine);
 }
 
+
+/* class CUEReader */
+
+const xstringconst CUEReader::Format(EATYPE_CUESHEET);
+
+const xstring& CUEReader::GetFormat() const
+{ return Format;
+}
+
+const CUEReader::MapEntry CUEReader::TokenMap[] =
+{ { "CATALOG"   , { NULL,                   TF_Sniffer } }
+, { "CDTEXTFILE", { NULL,                   TF_Sniffer } }
+, { "FILE",       { &CUEReader::File,       TF_Sniffer } }
+, { "FLAGS",      { NULL,                   TF_None    } }
+, { "INDEX",      { &CUEReader::Index,      TF_None    } }
+, { "ISRC",       { NULL,                   TF_Sniffer } }
+, { "PERFORMER",  { &CUEReader::Performer,  TF_Sniffer } }
+, { "POSTGAP",    { &CUEReader::Postgap,    TF_None    } }
+, { "PREGAP",     { &CUEReader::Pregap,     TF_None    } }
+, { "REM",        { &CUEReader::Rem,        TF_Sniffer } }
+, { "SONGWRITER", { NULL,                   TF_Sniffer } }
+, { "TITLE",      { &CUEReader::Title,      TF_Sniffer } }
+, { "TRACK",      { &CUEReader::Track,      TF_Sniffer } }
+};
+
+CUEReader* CUEReader::Sniffer(const char* url, XFILE* source)
+{ DEBUGLOG(("CUEReader::Sniffer(%s, %p)\n", url, source));
+  char buffer[12];
+  xio_fgets(buffer, sizeof buffer, source);
+  const MapEntry* mp = mapsearcha(TokenMap, buffer);
+  if (mp == NULL || (mp->Val.Flags & TF_Sniffer) == 0 || !isspace(buffer[strlen(mp->Str)]))
+    return NULL;
+  xio_rewind(source);
+  return new CUEReader(url, source);
+}
+
+CUEReader::CUEReader(const char* url, XFILE* source)
+: PlaylistReader(url, source)
+, CurrentTrack(NULL)
+, CurrentMeta(&Meta)
+, Tracks(99)
+{}
+
+bool CUEReader::ParseLine(char* line)
+{ DEBUGLOG(("CUEReader(%p)::ParseLine(\"%s\")\n", this, line));
+  // strip line
+  line = blank_strip(line);
+  // Empty line?
+  if (!*line)
+    return true;
+  // Identify command
+  const MapEntry* mp = mapsearcha(TokenMap, line);
+  if (mp == NULL)
+    return false; // unknown command
+  size_t len = strlen(mp->Str);
+  if (!isspace(line[len]))
+    return false; // unknown command with only valid prefix
+  if (mp->Val.Parser == NULL)
+    return true; // command does not care us
+  return (this->*mp->Val.Parser)(line + len);
+}
+
+bool CUEReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
+{
+  bool ret = PlaylistReader::Parse(info, cb, param);
+  foreach (PlaylistReaderInfo*const*, ipp, Tracks)
+  {
+    PlaylistReaderInfo* ip = *ipp;
+    // Ignore data tracks
+    if (!ip || (ip->Tech.attributes & TATTR_SONG) == 0)
+      continue;
+
+    // Copy artist from ablum?
+    if (!ip->Meta.artist && (ip->Meta.album = Meta.album) != NULL)
+      ip->Override |= INFO_META;
+    // Copy album gain from album
+    if (Meta.album_gain > -1000 || Meta.album_peak > -1000)
+    { ip->Meta.album_gain = Meta.album_gain;
+      ip->Meta.album_peak = Meta.album_peak;
+      ip->Override |= INFO_META;
+    }
+    Create(*ip);
+  }
+  return ret;
+}
+
+void CUEReader::GetString(xstring& dst, char*& src)
+{
+  src += strspn(src, " \r\n");
+  dst.reset();
+  size_t len;
+  switch (*src)
+  {case 0: // end of line
+    return;
+
+   case '"': // quoted string
+    dst = xstring::empty;
+    ++src;
+   cont:
+    len = strcspn(src, "\"");
+    if (src[len])
+    { if (src[len+1] == '"')
+      { dst = dst + xstring(src, len+1);
+        src += len+2;
+        goto cont;
+      }
+      dst = dst + xstring(src, len);
+      ++src;
+    }
+    break;
+
+   default: // unquoted string
+    len = strcspn(src, " \r\n");
+    dst.assign(src, len);
+  }
+  src += len;
+}
+
+void CUEReader::Transcode(xstring& value)
+{ xstring result;
+  char* dst = result.allocate(value.length());
+  if (ch_convert(1004, value, CH_CP_NONE, dst, result.length()+1, 0))
+    value = result;
+  // else ... well, fallback
+}
+
+bool CUEReader::ParseMSF(float& dst, const char* src)
+{ unsigned m;
+  unsigned s;
+  unsigned f;
+  size_t len;
+  if (sscanf(src, "%u:%u:%u%n", &m, &s, &f, &len) != 3 || strlen(src) != len)
+    return false;
+  dst = m * 60 + s + f / 75.;
+  return true;
+}
+
+bool CUEReader::File(char* args)
+{ DEBUGLOG(("CUEReader(%p)::File(%s)\n", this, args));
+  GetString(Url, args);
+  GetString(FileFormat, args);
+  CurrentPos = 0;
+  LastTrack = NULL;
+  return true;
+}
+
+bool CUEReader::Track(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Track(%s)\n", this, args));
+  xstring arg;
+  GetString(arg, args);
+  int track = 0;
+  ParseInt(track, arg);
+  if (track <= 0 || track > 99)
+  { Reset();
+    return false;
+  }
+  LastTrack = CurrentTrack;
+
+  GetString(arg, args);
+  if (arg.compareToI("AUDIO") == 0)
+    Tech.attributes |= TATTR_SONG;
+
+  if (Tracks.size() < (unsigned)track)
+    Tracks.set_size(track);
+  Tracks[track-1] = CurrentTrack = new PlaylistReaderInfo(*this);
+  CurrentMeta = &CurrentTrack->Meta;
+  if (!CurrentTrack->Url && LastTrack)
+    CurrentTrack->Url = LastTrack->Url;
+  HaveIndex = false;
+  Reset();
+  return true;
+}
+
+static const xstringconst InfoLE("16 bit stereo PCM audio, little endian");
+static const xstringconst InfoBE("16 bit stereo PCM audio, big endian");
+
+bool CUEReader::Index(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Index(%s)\n", this, args));
+  if (!CurrentTrack || !FileFormat)
+    return false;
+  if (HaveIndex) // Ignore sub indices
+    return true;
+
+  xstring arg;
+  GetString(arg, args);
+  GetString(arg, args);
+  ParseMSF(CurrentPos, arg);
+  if (CurrentPos < 0)
+    return false;
+  HaveIndex = true;
+
+  if (CurrentPos)
+  { CurrentTrack->Item.start.sprintf("%f", CurrentPos);
+    CurrentTrack->Override |= INFO_ITEM;
+  }
+
+  // store some known infos
+  if (FileFormat.compareToI("BINARY"))
+  { CurrentTrack->Tech.format = "RAW 16 le";
+    CurrentTrack->Tech.info = InfoLE;
+    goto bin2;
+  } else if (FileFormat.compareToI("MOTOROLA"))
+  { CurrentTrack->Tech.format = "RAW 16 be";
+    CurrentTrack->Tech.info = InfoBE;
+   bin2:
+    CurrentTrack->Tech.samplerate = 44100;
+    CurrentTrack->Tech.channels = 2;
+    CurrentTrack->Tech.attributes = TATTR_SONG;
+    CurrentTrack->Tech.decoder = "wavplay";
+    CurrentTrack->Obj.bitrate = 1411200;
+    CurrentTrack->Reliable |= INFO_TECH|INFO_META|INFO_ATTR;
+  }
+
+  // terminate the last track at CurrentPos
+  if (LastTrack)
+  { LastTrack->Item.stop = CurrentTrack->Item.start;
+    LastTrack->Override |= INFO_ITEM;
+    LastTrack = NULL;
+  }
+  return true;
+}
+
+bool CUEReader::Title(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Title(%s)\n", this, args));
+  GetString(CurrentMeta->title, args);
+  Transcode(CurrentMeta->title);
+  if (CurrentTrack)
+    CurrentTrack->Override |= INFO_META;
+  return true;
+}
+
+bool CUEReader::Performer(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Performer(%s)\n", this, args));
+  GetString(CurrentMeta->artist, args);
+  Transcode(CurrentMeta->artist);
+  if (CurrentTrack)
+    CurrentTrack->Override |= INFO_META;
+  return true;
+}
+
+bool CUEReader::Postgap(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Postgap(%s)\n", this, args));
+  if (!CurrentTrack)
+    return false;
+  xstring arg;
+  GetString(arg, args);
+  if (ParseMSF(CurrentTrack->Item.postgap, arg))
+    CurrentTrack->Override |= INFO_ITEM;
+  return true;
+}
+
+bool CUEReader::Pregap(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Pregap(%s)\n", this, args));
+  if (!CurrentTrack)
+    return false;
+  xstring arg;
+  GetString(arg, args);
+  if (ParseMSF(CurrentTrack->Item.pregap, arg))
+    CurrentTrack->Override |= INFO_ITEM;
+  return true;
+}
+
+bool CUEReader::Rem(char* args)
+{ DEBUGLOG(("CUEReader(%p)::Rem(%s)\n", this, args));
+  // Check for replay gain comments
+  xstring arg;
+  GetString(arg, args);
+  if (!arg)
+    return true;
+  static const char map[][22] =
+  { "REPLAYGAIN_ALBUM_GAIN"
+  , "REPLAYGAIN_ALBUM_PEAK"
+  , "REPLAYGAIN_TRACK_GAIN"
+  , "REPLAYGAIN_TRACK_PEAK"
+  };
+  const char (*rp)[22] = (const char (*)[22])bsearch(arg.cdata(), map, countof(map), sizeof *map, (int (TFNENTRY*)(const void*, const void*))&stricmp);
+  if (rp == NULL)
+    return true;
+  double value = -1000;
+  GetString(arg, args);
+  ParseFloat(value, arg);
+  GetString(arg, args);
+  if (!arg || arg.compareToI("dB") != 0)
+    value = log10(value) * 20;
+  switch (rp - map)
+  {case 0: // album gain
+    Meta.album_gain = value;
+    break;
+   case 1: // album peak
+    Meta.album_peak = value;
+    break;
+   case 2: // track gain
+    if (CurrentTrack)
+    { CurrentMeta->track_gain = value;
+      CurrentTrack->Override |= INFO_META;
+    }
+    break;
+   case 3:
+    if (CurrentTrack)
+    { CurrentMeta->track_peak = value;
+      CurrentTrack->Override |= INFO_META;
+    }
+  }
+  return true;
+}

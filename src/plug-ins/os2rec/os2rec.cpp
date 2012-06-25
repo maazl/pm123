@@ -91,7 +91,7 @@ static PARAMETERS defaults =
 };
 
 
-typedef struct
+typedef struct DECODER_STRUCT
 {
   // setup parameters
   PARAMETERS          params;
@@ -228,10 +228,11 @@ static BOOL parseURL(const char* url, PARAMETERS* params)
 }
 
 
-int DLLENTRY decoder_init(void **A)
+int DLLENTRY decoder_init(OS2RECORD **A)
 {
-  OS2RECORD* a = (OS2RECORD*)(*A = malloc(sizeof(OS2RECORD)));
-  DEBUGLOG(("os2rec:decoder_init(%p) - %p\n", A, *A));
+  OS2RECORD* a = (OS2RECORD*)malloc(sizeof(OS2RECORD));
+  *A = a;
+  DEBUGLOG(("os2rec:decoder_init(%p) - %p\n", A, a));
 
   memset(a,0,sizeof(*a));
 
@@ -248,7 +249,7 @@ int DLLENTRY decoder_init(void **A)
   return 0;
 }
 
-ULONG DLLENTRY decoder_uninit(void *a)
+ULONG DLLENTRY decoder_uninit(OS2RECORD *a)
 {
   DEBUGLOG(("os2rec:decoder_uninit(%p)\n", a));
   free(a);
@@ -642,9 +643,8 @@ static ULONG device_open(OS2RECORD *a)
 }
 
 
-ULONG DLLENTRY decoder_command(void *A, DECMSGTYPE msg, const DECODER_PARAMS2 *info)
-{  OS2RECORD *a = (OS2RECORD *)A;
-   DEBUGLOG(("os2rec:decoder_command(%p, %i, %p)\n", a, msg, info));
+ULONG DLLENTRY decoder_command(OS2RECORD *a, DECMSGTYPE msg, const DECODER_PARAMS2 *info)
+{  DEBUGLOG(("os2rec:decoder_command(%p, %i, %p)\n", a, msg, info));
 
    switch(msg)
    {case DECODER_PLAY:
@@ -671,9 +671,8 @@ ULONG DLLENTRY decoder_command(void *A, DECMSGTYPE msg, const DECODER_PARAMS2 *i
 }
 
 // Status interface
-ULONG DLLENTRY decoder_status( void *A )
-{  OS2RECORD *a = (OS2RECORD *)A;
-
+ULONG DLLENTRY decoder_status(OS2RECORD *a)
+{
    if (a->terminate)
       return DECODER_STOPPED;
    if (a->playing)
@@ -683,7 +682,7 @@ ULONG DLLENTRY decoder_status( void *A )
    return DECODER_STOPPED;
 }
 
-PM123_TIME DLLENTRY decoder_length( void *w )
+PM123_TIME DLLENTRY decoder_length(OS2RECORD *a)
 {  return (ULONG)-1;
 }
 

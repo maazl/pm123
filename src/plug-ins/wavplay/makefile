@@ -13,6 +13,7 @@ LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\src\sndfile$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\G72x\g72x$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\GSM610\gsm610$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO)
 DEF      = wavplay$(LDEF_SUFFX)
 
 wavplay.dll: $(OBJECTS) $(DEF) $(LIBS)
@@ -25,7 +26,7 @@ wavplay$(LBI): $(DEF)
 clean:  $(MDUMMY)
 	-@del wavplay$(LBI) wavplay.dll $(OBJECTS) 2> nul
 
-wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h ..\..\utils\debuglog.h
+wavplay.cpp:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h ..\..\utils\debuglog.h
 wavplay.h:	..\..\snd123\src\sndfile.h ..\..\include\format.h ..\..\xio123\xio.h
 ..\..\snd123\src\sndfile.h:	..\..\include\config.h
 ..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h

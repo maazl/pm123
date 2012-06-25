@@ -40,9 +40,47 @@
 #include <cpp/smartptr.h>
 
 
-/* Base implementation in the PM123 core
- * Plug-ins will use a proxy implementation below.
+class xstring;
+/** Helper class to make static const instances of \c xstring
+ * late initialized to fulfill the plug-in API requirements.
+ * @details You should not destroy instances of this class.
+ * They are designed to be constants with static linkage.
+ * @remarks The basic idea behind this class is to avoid to create new copies
+ * of the content over and over when invoking the \c xstring constructor with a constant
+ * string. Instead \c xstringconst initializes <em>one</em> instance of \c xstring
+ * at the first invocation of \c operator \c xstring&. All further calls access the same instance.
  */
+class xstringconst
+{ /// Data pointer
+  /// @details This pointer is strictly speaking a union.
+  /// If \c operator \c xstring& has not yet been called, it is of type \c const \c char*
+  /// and points to the character sequence passed to the constructor.
+  /// At the first call to \c operator \c xstring& the data type changes to \c xstring.
+  /// This change is final.
+  /// To distinguish the two states the intermediate type \c const \c char*
+  /// is modified by setting the most significant bit in the pointer.
+  /// The OS/2 platform does not use bit in the private arena.
+  mutable const char* Ptr;
+ private: // non-copyable
+  xstringconst(const xstringconst&);
+  void operator=(const xstringconst&);
+  /// Ensure that Ptr is of type xstring.
+  /// The function is thread-safe.
+  void Init() const;
+ public:
+  /// Create a shared xstring constant.
+  xstringconst(const char* text)            : Ptr((const char*)(0x80000000|(int)text)) { ASSERT(text); };
+  ~xstringconst();
+  /// Access the xstring constant.
+  /// @remarks If you are in plug-in context, you must ensure that
+  /// this function is not called before \c plugin_init.
+  operator const xstring&() const           { if ((int)Ptr < 0) Init(); return *(const xstring*)&Ptr; }
+  /// Implicit conversion to C-style string
+  /// @return String pointer, always null terminated. Maybe \c NULL if constructor was called with NULL.
+  /// @remarks In contrast to the implicit conversion to \c xstring this function does not force the initialization.
+  operator const char*() const              { return (const char*)((int)Ptr & 0x7FFFFFFF); }
+};
+
 
 /** @brief Java like string class.
  * @details Copying is cheap.
@@ -141,6 +179,8 @@ class xstring
   /// @brief Create a new \c xstring from a C style memory block.
   /// @details The memory may contain 0-bytes. O(n).
               xstring(const char* str, size_t len) { if (str) Data = copycore(str, len); }
+  /// Create from xstring constant.
+              xstring(const xstringconst& str) : Data(((const xstring&)str).Data) {} // Helper to disambiguate calls.
 
   /// Length of the string. The string must not be NULL!
   size_t      length() const                { return Data->length(); }
@@ -246,6 +286,10 @@ class xstring
   void        assign(const char* str, size_t len);
   /// Assign new string from C-style string. Thread-safe with respect to lhs.
   void        assign(const char* str, size_t len) volatile { xstring(str, len).swap(*this); }
+  /// Assign from xstring constant.
+  void        assign(const xstringconst& str) { Data = ((const xstring&)str).Data; } // Helper to disambiguate calls.
+  /// Assign from xstring constant.
+  void        assign(const xstringconst& str) volatile { Data = ((const xstring&)str).Data; } // Helper to disambiguate calls.
   /// @brief Assign and return \c true if changed.
   /// @details \c *this is not assigned if the value is equal.
   bool        cmpassign(const xstring& r)   { return !equals(r) && (Data = r.Data, true); }
@@ -273,6 +317,10 @@ class xstring
   xstring&    operator=(const char* str)    { assign(str); return *this; }
   /// Assign new value by operator from C-style string.
   void        operator=(const char* str) volatile { assign(str); }
+  /// Assign from xstring constant.
+  xstring&    operator=(const xstringconst& str) { assign(str); return *this; } // Helper to disambiguate calls.
+  /// Assign from xstring constant.
+  void        operator=(const xstringconst& str) volatile { assign(str); } // Helper to disambiguate calls.
   /// @brief Concatenate strings.
   /// @details The strings must not be NULL.
   friend const xstring operator+(const xstring& l, const xstring& r);
@@ -363,46 +411,6 @@ inline bool operator>=(const xstring& l, const char* r)
 inline bool operator>=(const char* l,    const xstring& r)
 { return r.compareTo(l) <= 0;
 }
-
-/** Helper class to make static const instances of \c xstring
- * late initialized to fulfill the plug-in API requirements.
- * @details You should not destroy instances of this class.
- * They are designed to be constants with static linkage.
- * @remarks The basic idea behind this class is to avoid to create new copies
- * of the content over and over when invoking the \c xstring constructor with a constant
- * string. Instead \c xstringconst initializes <em>one</em> instance of \c xstring
- * at the first invocation of \c operator \c xstring&. All further calls access the same instance.
- */
-class xstringconst
-{ /// Data pointer
-  /// @details This pointer is strictly speaking a union.
-  /// If \c operator \c xstring& has not yet been called, it is of type \c const \c char*
-  /// and points to the character sequence passed to the constructor.
-  /// At the first call to \c operator \c xstring& the data type changes to \c xstring.
-  /// This change is final.
-  /// To distinguish the two states the intermediate type \c const \c char*
-  /// is modified by setting the most significant bit in the pointer.
-  /// The OS/2 platform does not use bit in the private arena.
-  mutable const char* Ptr;
- private: // non-copyable
-  xstringconst(const xstringconst&);
-  void operator=(const xstringconst&);
-  /// Ensure that Ptr is of type xstring.
-  /// The function is thread-safe.
-  void Init() const;
- public:
-  /// Create a shared xstring constant.
-  xstringconst(const char* text)            : Ptr((const char*)(0x80000000|(int)text)) { ASSERT(text); };
-  ~xstringconst();
-  /// Access the xstring constant.
-  /// @remarks If you are in plug-in context, you must ensure that
-  /// this function is not called before \c plugin_init.
-  operator const xstring&() const           { if ((int)Ptr < 0) Init(); return *(const xstring*)&Ptr; }
-  /// Implicit conversion to C-style string
-  /// @return String pointer, always null terminated. Maybe \c NULL if constructor was called with NULL.
-  /// @remarks In contrast to the implicit conversion to \c xstring this function does not force the initialization.
-  operator const char*() const              { return (const char*)((int)Ptr & 0x7FFFFFFF); }
-};
 
 
 /** String builder for xstrings or C strings. */

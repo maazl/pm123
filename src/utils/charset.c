@@ -313,20 +313,6 @@ ch_detect( ULONG cp_source, const char* source )
   return max_cp;
 }
 
-/*
- * ch_convert: convert a character string from one character set to another.
- *
- *    cp_source source codepage or CH_CP_NONE (0) to use the application's default
- *    source    source string
- *    cp_target target codepage or CH_CP_NONE (0) to use the application's default
- *    target    result buffer
- *    size      size of result buffer
- *    flags     see CH_FLAGS_...
- *
- *    return    != NULL: converted string
- *              == NULL: error
- */
-
 char*
 ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, size_t size, unsigned flags )
 {

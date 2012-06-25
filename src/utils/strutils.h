@@ -73,7 +73,7 @@ char* strnchr( const char* str, char c, size_t size );
 char* strnrchr( const char* str, char c, size_t size );
 
 /** Remove line terminator from the end of the string.
- * Works with \r, \n and \r\n.
+ * Works with \r, \\n and \r\n.
  */
 void strchomp( char* str );
 

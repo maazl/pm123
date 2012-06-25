@@ -59,27 +59,27 @@ class GlueImp : private Glue
 { friend class Glue;
  private:
   enum
-  { FLG_PlaystopSent       // DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
+  { FLG_PlaystopSent       ///< DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
   };
 
   static const DecEventArgs CEVPlayStop;
 
-  static bool              Initialized;       // whether the following vars are valid
+  static bool              Initialized;       ///< whether the following vars are valid
   static AtomicUnsigned    Flags;
-  static volatile int_ptr<APlayable> Song;    // currently decoding song
-  static PM123_TIME        StopTime;          // time index where to stop the current playback
-  static PM123_TIME        PosOffset;         // Offset to posmarker parameter to make the output timeline monotonic
-  static FORMAT_INFO2      LastFormat;        // Format of last request_buffer
-  static float*            LastBuffer;        // Last buffer requested by decoder
-  static float             Gain;              // Replay gain adjust
-  static time_t            LowWaterLimit;     // != 0 => we are at high priority, OUTEVENT_LOW_WATER expires at ...
-  static TID               DecTID;            // Thread ID of the decoder thread
-  static int_ptr<Output>   OutPlug;           // currently initialized output plug-in.
-  static PluginList        FilterPlugs;       // List of initialized visual plug-ins.
-  static int_ptr<Decoder>  DecPlug;           // currently active decoder plug-in.
-  static OutputProcs       Procs;             // entry points of the filter chain
-  static OUTPUT_PARAMS2    OParams;           // parameters for output_command
-  static DECODER_PARAMS2   DParams;           // parameters for decoder_command
+  static volatile int_ptr<APlayable> Song;    ///< currently decoding song
+  static PM123_TIME        StopTime;          ///< time index where to stop the current playback
+  static PM123_TIME        PosOffset;         ///< Offset to posmarker parameter to make the output timeline monotonic
+  static FORMAT_INFO2      LastFormat;        ///< Format of last request_buffer
+  static float*            LastBuffer;        ///< Last buffer requested by decoder
+  static float             Gain;              ///< Replay gain adjust
+  static time_t            LowWaterLimit;     ///< != 0 => we are at high priority, OUTEVENT_LOW_WATER expires at ...
+  static TID               DecTID;            ///< Thread ID of the decoder thread
+  static int_ptr<Output>   OutPlug;           ///< currently initialized output plug-in.
+  static PluginList        FilterPlugs;       ///< List of initialized visual plug-ins.
+  static int_ptr<Decoder>  DecPlug;           ///< currently active decoder plug-in.
+  static OutputProcs       Procs;             ///< entry points of the filter chain
+  static OUTPUT_PARAMS2    OParams;           ///< parameters for output_command
+  static DECODER_PARAMS2   DParams;           ///< parameters for decoder_command
   static delegate<void,const PluginEventArgs> PluginDeleg;
   static delegate<void,const PlayableChangeArgs> SongDeleg;
 
@@ -335,6 +335,8 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
 ULONG Glue::DecStop()
 { GlueImp::SongDeleg.detach();
   GlueImp::Song.reset();
+  if (!GlueImp::DecPlug)
+    return PLUGIN_GO_FAILED;
   ULONG rc = GlueImp::DecCommand(DECODER_STOP);
   // TODO: I hate this delay with a spinlock.
   SpinWait wait(30000); // 30 s

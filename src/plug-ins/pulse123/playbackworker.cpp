@@ -211,7 +211,7 @@ bool PlaybackWorker::BackupBuffer::GetDataByWriteIndex(uint64_t wi, OUTPUT_PLAYI
 }
 
 
-PlaybackWorker::PlaybackWorker() throw()
+PlaybackWorker::OUTPUT_STRUCT() throw()
 : Volume(PA_VOLUME_INVALID)
 , DrainOpDeleg(DrainOp.Completion(), *this, &PlaybackWorker::DrainOpCompletion)
 { DEBUGLOG(("PlaybackWorker(%p)::PlaybackWorker()\n", this));
@@ -237,7 +237,7 @@ ULONG PlaybackWorker::Init(const xstring& server, const xstring& sink, const xst
   }
 }
 
-PlaybackWorker::~PlaybackWorker()
+PlaybackWorker::~OUTPUT_STRUCT()
 { DEBUGLOG(("PlaybackWorker(%p)::~PlaybackWorker()\n", this));
 }
 

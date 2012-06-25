@@ -84,7 +84,7 @@ void ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
        if (ChangeSet.size() == 1 && ChangeSet[0] == NULL)
          break;
        // Limit change set size
-       if ((int)ChangeSet.size() <= args.Instance.GetPlayable().GetInfo().obj->num_items / 7 + 1)
+       if ((int)ChangeSet.size() <= args.Instance.GetInfo().obj->num_items / 7 + 1)
        { PlayableInstance* pi = (PlayableInstance*)args.Origin;
          ChangeSet.get(*pi) = pi;
          break;
@@ -92,8 +92,8 @@ void ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
        // Change set too large => convert to PCT_All mode
      case PCT_All:
        if (ChangeSet.size() != 1 || ChangeSet[0])
-       { ChangeSet.clear();
-         ChangeSet.append();
+       { ChangeSet.set_size(1);
+         ChangeSet[0].reset();
        }
      default:;
     }

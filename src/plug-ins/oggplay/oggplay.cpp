@@ -53,42 +53,42 @@ PLUGIN_CONTEXT Ctx = {0};
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int DLLENTRY decoder_init( void** returnw )
+int DLLENTRY decoder_init(OggDecoderThread** returnw)
 {
   *returnw = new OggDecoderThread;
   return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than this is needed. */
-BOOL DLLENTRY decoder_uninit( void* arg )
+BOOL DLLENTRY decoder_uninit(OggDecoderThread* w)
 {
-  delete (OggDecoderThread*)arg;
+  delete w;
   return TRUE;
 }
 
 /* There is a lot of commands to implement for this function. Parameters
    needed for each of the are described in the definition of the structure
    in the decoder_plug.h file. */
-ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
+ULONG DLLENTRY decoder_command(OggDecoderThread* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
 {
-  return ((OggDecoderThread*)w)->DecoderCommand(msg, params);
+  return w->DecoderCommand(msg, params);
 }
 
-void DLLENTRY decoder_event(void* w, OUTEVENTTYPE event)
+void DLLENTRY decoder_event(OggDecoderThread* w, OUTEVENTTYPE event)
 {
   // TODO!
 }
 
 /* Returns current status of the decoder. */
-ULONG DLLENTRY decoder_status( void* arg )
+ULONG DLLENTRY decoder_status(OggDecoderThread* w)
 {
-  return ((OggDecoderThread*)arg)->GetStatus();
+  return w->GetStatus();
 }
 
 /* Returns number of milliseconds the stream lasts. */
-PM123_TIME DLLENTRY decoder_length( void* arg )
+PM123_TIME DLLENTRY decoder_length(OggDecoderThread* w)
 {
-  return ((OggDecoderThread*)arg)->GetSonglength();
+  return w->GetSonglength();
 }
 
 /* Returns information about specified file. */
