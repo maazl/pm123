@@ -375,7 +375,7 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
       const char** fpe = fp + countof(sf_subformats);
       while (fp != fpe)
       { if (*fp && stricmp(subformat, *fp) == 0)
-        { sfinfo.format = SF_FORMAT_RAW | ((fp - sf_subformats) << 4);
+        { sfinfo.format = SF_FORMAT_RAW | (fp - sf_subformats);
           if (stricmp(endianess, "LE") == 0)
             sfinfo.format |= SF_ENDIAN_LITTLE;
           else if (stricmp(endianess, "BE") == 0)

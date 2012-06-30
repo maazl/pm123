@@ -72,7 +72,7 @@ class PlaylistReader : protected PlaylistReaderInfo
   virtual bool              ParseLine(char* line) = 0;
   static  void              ParseInt(int& dst, const char* str)
                             { if (str) dst = atoi(str); }
-  static  void              ParseFloat(double& dst, const char* str)
+  static  void              ParseDbl(double& dst, const char* str)
                             { if (str) dst = atof(str); }
  public:
   /// Identify the playlist type and return a reader.

@@ -394,12 +394,15 @@ Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset
       }
     } else
     { // Playlist => try to skip entirely
-      size_t i = Callstack.size() -1;
-      PlayableSet exclude(i);
-      while (i--)
-        exclude.add(Callstack[i]->GetPlayable());
-      if (exclude.contains(Callstack[Callstack.size()-1]->GetPlayable()))
-        goto next; // recursive list
+      PlayableSet exclude;
+      size_t i = Callstack.size();
+      if (i)
+      { exclude.reserve(--i);
+        while (i)
+          exclude.add(Callstack[--i]->GetPlayable());
+        if (exclude.contains(cur->GetPlayable()))
+          goto next; // recursive list
+      }
       InfoFlags what = IF_Drpl;
       const volatile AggregateInfo& ai = cur->RequestAggregateInfo(exclude, what, PRI_None);
       if (what)

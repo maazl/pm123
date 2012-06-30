@@ -27,7 +27,7 @@
  * Note that you MUST initialize these strings to NULL.
  * Avoid copying xstring objects binary. Use xstring_copy instead.
  * The difference is that with xstring_copy both instances must be freed.
- * With a binary copy only one instance must be freed. And since any assignment
+ * With a binary copy exactly one instance must be freed. And since any assignment
  * implicitly frees the previous content this is error prone.
  *
  * You must not access the embedded cstr member of volatile instances.
@@ -185,7 +185,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param);
 /** Initialize plug-in, i.e. load it into the player.
  * @param ctx Some services of the PM123 core.
  * @return 0 -> ok. */
-int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx); // Optional
+int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx);
 /** Show configure dialog.
  * @param hwnd parent window.
  * @param module Module handle of the plug-in. Can be used for resource lookups. */

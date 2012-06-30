@@ -543,7 +543,6 @@ bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
   { // Starting position
     const volatile ITEM_INFO& ii = *rec->Data()->Content->GetInfo().item;
     ret |= UpdateColumnText(rec->Start, xstring(ii.start));
-    // Ending position
     ret |= UpdateColumnText(rec->Stop, xstring(ii.stop));
   }
   return ret;

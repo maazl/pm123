@@ -119,7 +119,7 @@ class CUEReader : public PlaylistReader
   static const MapEntry     TokenMap[];
   PlaylistReaderInfo*       CurrentTrack;
   META_INFO*                CurrentMeta;
-  float                     CurrentPos;
+  double                    CurrentPos;
   xstring                   FileFormat;
   bool                      HaveIndex;
   PlaylistReaderInfo*       LastTrack;
@@ -128,7 +128,7 @@ class CUEReader : public PlaylistReader
   CUEReader(const char* url, XFILE* source);
   static void               GetString(xstring& dst, char*& src);
   static void               Transcode(xstring& value);
-  static bool               ParseMSF(float& dst, const char* src);
+  static bool               ParseMSF(double& dst, const char* src);
   bool                      File(char* args);
   bool                      Index(char* args);
   bool                      Performer(char* args);
@@ -355,10 +355,10 @@ bool LSTReader::ParseLine(char* line)
       // Data type conversion
       
       ParseInt(Obj.bitrate, tokens[0]);
-      ParseFloat(Obj.songlength, tokens[4]);
+      ParseDbl(Obj.songlength, tokens[4]);
 
       ParseInt(Rpl.songs, tokens[5]);
-      ParseFloat(Drpl.totalsize, tokens[6]);
+      ParseDbl(Drpl.totalsize, tokens[6]);
 
       /* No phys info so far because we do not have the writable flag 
       if (tokens[3])
@@ -553,8 +553,6 @@ CUEReader* CUEReader::Sniffer(const char* url, XFILE* source)
 
 CUEReader::CUEReader(const char* url, XFILE* source)
 : PlaylistReader(url, source)
-, CurrentTrack(NULL)
-, CurrentMeta(&Meta)
 , Tracks(99)
 {}
 
@@ -579,7 +577,13 @@ bool CUEReader::ParseLine(char* line)
 
 bool CUEReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
 {
+  CurrentTrack = NULL;
+  CurrentMeta = info->meta;
+  CurrentPos = -1;
+  LastTrack = NULL;
+
   bool ret = PlaylistReader::Parse(info, cb, param);
+
   foreach (PlaylistReaderInfo*const*, ipp, Tracks)
   {
     PlaylistReaderInfo* ip = *ipp;
@@ -641,7 +645,7 @@ void CUEReader::Transcode(xstring& value)
   // else ... well, fallback
 }
 
-bool CUEReader::ParseMSF(float& dst, const char* src)
+bool CUEReader::ParseMSF(double& dst, const char* src)
 { unsigned m;
   unsigned s;
   unsigned f;
@@ -673,16 +677,22 @@ bool CUEReader::Track(char* args)
   }
   LastTrack = CurrentTrack;
 
-  GetString(arg, args);
-  if (arg.compareToI("AUDIO") == 0)
-    Tech.attributes |= TATTR_SONG;
-
   if (Tracks.size() < (unsigned)track)
     Tracks.set_size(track);
   Tracks[track-1] = CurrentTrack = new PlaylistReaderInfo(*this);
-  CurrentMeta = &CurrentTrack->Meta;
   if (!CurrentTrack->Url && LastTrack)
     CurrentTrack->Url = LastTrack->Url;
+
+  GetString(arg, args);
+  if (arg.compareToI("AUDIO") == 0)
+  { CurrentTrack->Tech.samplerate = 44100;
+    CurrentTrack->Tech.channels = 2;
+    CurrentTrack->Tech.attributes = TATTR_SONG;
+  }
+  CurrentMeta = &CurrentTrack->Meta;
+  CurrentMeta->track.sprintf("%02i", track);
+  CurrentMeta->artist = Info->meta->artist;
+  CurrentMeta->album = Info->meta->title;
   HaveIndex = false;
   Reset();
   return true;
@@ -706,8 +716,9 @@ bool CUEReader::Index(char* args)
     return false;
   HaveIndex = true;
 
-  if (CurrentPos)
-  { CurrentTrack->Item.start.sprintf("%f", CurrentPos);
+  if (CurrentPos > 0)
+  { unsigned sec10 = (unsigned)floor(CurrentPos) / 10;
+    CurrentTrack->Item.start.sprintf("%u:%u%f", sec10/6, sec10%6, CurrentPos-sec10*10);
     CurrentTrack->Override |= INFO_ITEM;
   }
 
@@ -720,10 +731,7 @@ bool CUEReader::Index(char* args)
   { CurrentTrack->Tech.format = "RAW 16 be";
     CurrentTrack->Tech.info = InfoBE;
    bin2:
-    CurrentTrack->Tech.samplerate = 44100;
-    CurrentTrack->Tech.channels = 2;
-    CurrentTrack->Tech.attributes = TATTR_SONG;
-    CurrentTrack->Tech.decoder = "wavplay";
+    CurrentTrack->Tech.decoder = "wavplay.dll";
     CurrentTrack->Obj.bitrate = 1411200;
     CurrentTrack->Reliable |= INFO_TECH|INFO_META|INFO_ATTR;
   }
@@ -761,8 +769,11 @@ bool CUEReader::Postgap(char* args)
     return false;
   xstring arg;
   GetString(arg, args);
-  if (ParseMSF(CurrentTrack->Item.postgap, arg))
+  double value;
+  if (ParseMSF(value, arg))
+  { CurrentTrack->Item.postgap = value;
     CurrentTrack->Override |= INFO_ITEM;
+  }
   return true;
 }
 
@@ -772,8 +783,11 @@ bool CUEReader::Pregap(char* args)
     return false;
   xstring arg;
   GetString(arg, args);
-  if (ParseMSF(CurrentTrack->Item.pregap, arg))
+  double value;
+  if (ParseMSF(value, arg))
+  { CurrentTrack->Item.pregap = value;
     CurrentTrack->Override |= INFO_ITEM;
+  }
   return true;
 }
 
@@ -795,16 +809,16 @@ bool CUEReader::Rem(char* args)
     return true;
   double value = -1000;
   GetString(arg, args);
-  ParseFloat(value, arg);
+  ParseDbl(value, arg);
   GetString(arg, args);
   if (!arg || arg.compareToI("dB") != 0)
     value = log10(value) * 20;
   switch (rp - map)
   {case 0: // album gain
-    Meta.album_gain = value;
+    Info->meta->album_gain = value;
     break;
    case 1: // album peak
-    Meta.album_peak = value;
+    Info->meta->album_peak = value;
     break;
    case 2: // track gain
     if (CurrentTrack)

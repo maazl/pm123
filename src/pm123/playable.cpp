@@ -393,7 +393,12 @@ void Playable::DoLoadInfo(JobSet& job)
   InfoBundle info;
   InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
   if (what2)
-  { deccbdata children(*this);
+  { // Keep some tech infos
+    info.Tech.samplerate = Info.Tech.samplerate;
+    info.Tech.channels   = Info.Tech.channels;
+    info.Tech.format     = Info.Tech.format;
+    info.Tech.decoder    = Info.Tech.decoder;
+    deccbdata children(*this);
     int rc = DecoderFileInfo(what2, info, &children);
     upd.Extend(what2);
     DEBUGLOG(("Playable::DoLoadInfo - rc = %i, what2 = %x\n", rc, what2));
@@ -544,12 +549,40 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   Decoder* dp = NULL;
   int whatdec;
   size_t i;
-  // First checks decoders supporting the specified type of files.
+
+  // First check the decoder that matched last time.
+  if (info.tech->decoder && *info.tech->decoder)
+  { for (i = 0; i < decoders.size(); i++)
+    { dp = (Decoder*)decoders[i].get();
+      if (dp->GetEnabled() && dp->ModRef->Key.compareToI(info.tech->decoder) == 0)
+      { // Found
+        whatdec = whatrq;
+        rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+        if (rc != PLUGIN_NO_PLAY)
+          goto ok; // This also happens in case of a plug-in independent error
+        if (handle && xio_rewind(handle))
+        { // Try to recover from seek error.
+          xio_fclose(handle);
+          handle = xio_fopen(URL, "rbU");
+          if (handle == NULL)
+          { rc = PLUGIN_NO_READ;
+            info.tech->info = xio_strerror(xio_errno());
+            goto ok;
+          }
+        }
+        info.tech->info.reset();
+        checked[i] = true;
+        break;
+      }
+    }
+  }
+
+  // Next checks decoders supporting the specified type of files.
   for (i = 0; i < decoders.size(); i++)
   { dp = (Decoder*)decoders[i].get();
     DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef->Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
-    if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
+    if (!checked[i] && dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
     { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(URL, st.type))
         continue;
       whatdec = whatrq;
@@ -568,10 +601,10 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
       }
       info.tech->info.reset();
     }
-    checked[i] = TRUE;
+    checked[i] = true;
   }
 
-  // Next checks the rest decoders.
+  // At last checks the rest decoders with TryOthers set.
   for (i = 0; i < decoders.size(); i++)
   { if (checked[i])
       continue;

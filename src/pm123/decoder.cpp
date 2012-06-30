@@ -833,7 +833,7 @@ int_ptr<Decoder> Decoder::GetInstance(Module& module)
 int_ptr<Decoder> Decoder::GetDecoder(const char* name)
 { int_ptr<Module> pm(Module::FindByKey(name));
   if (pm == NULL)
-    throw ModuleException("Tried to invoke the decoder %s that does no longer exist.", name);
+    throw ModuleException("Tried to invoke the decoder %s that does not exist.", name);
   int_ptr<Decoder> pd(Decoder::FindInstance(*pm));
   if (pd == NULL)
     throw ModuleException("Tried to invoke the decoder %s that is no longer loaded.", name);
