@@ -8,6 +8,7 @@ FILE "test2.raw" BINARY
 FILE "test2.wav" WAVE
   TRACK 02 AUDIO
     TITLE "TestTitleC2"
+    INDEX 00 00:00:00
     INDEX 01 00:01:00
     INDEX 02 00:03:00
   TRACK 04 AUDIO

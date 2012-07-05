@@ -2,9 +2,6 @@
 dir = TRANSLATE(DIRECTORY())
 dirurl =  'FILE:///'TRANSLATE(dir,'/','\')
 
-CALL CallPipe 'playlist' dir'\data\test.cue'
-CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/TEST.CUE"'
-
 CALL CallPipe 'info format' dir'\data\test.cue'
 reply = result
 CALL Parse result

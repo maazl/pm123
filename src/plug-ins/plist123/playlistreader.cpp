@@ -591,13 +591,13 @@ bool CUEReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, v
     if (!ip || (ip->Tech.attributes & TATTR_SONG) == 0)
       continue;
 
-    // Copy artist from ablum?
-    if (!ip->Meta.artist && (ip->Meta.album = Meta.album) != NULL)
+    // Copy artist from album?
+    if (!ip->Meta.artist && (ip->Meta.album = Info->meta->album) != NULL)
       ip->Override |= INFO_META;
     // Copy album gain from album
-    if (Meta.album_gain > -1000 || Meta.album_peak > -1000)
-    { ip->Meta.album_gain = Meta.album_gain;
-      ip->Meta.album_peak = Meta.album_peak;
+    if (Info->meta->album_gain > -1000 || Info->meta->album_peak > -1000)
+    { ip->Meta.album_gain = Info->meta->album_gain;
+      ip->Meta.album_peak = Info->meta->album_peak;
       ip->Override |= INFO_META;
     }
     Create(*ip);
@@ -705,7 +705,7 @@ bool CUEReader::Index(char* args)
 { DEBUGLOG(("CUEReader(%p)::Index(%s)\n", this, args));
   if (!CurrentTrack || !FileFormat)
     return false;
-  if (HaveIndex) // Ignore sub indices
+  if (HaveIndex || !(CurrentTrack->Tech.attributes & TATTR_SONG)) // Ignore sub indices and data tracks
     return true;
 
   xstring arg;
@@ -723,11 +723,11 @@ bool CUEReader::Index(char* args)
   }
 
   // store some known infos
-  if (FileFormat.compareToI("BINARY"))
+  if (FileFormat.compareToI("BINARY") == 0)
   { CurrentTrack->Tech.format = "RAW 16 le";
     CurrentTrack->Tech.info = InfoLE;
     goto bin2;
-  } else if (FileFormat.compareToI("MOTOROLA"))
+  } else if (FileFormat.compareToI("MOTOROLA") == 0)
   { CurrentTrack->Tech.format = "RAW 16 be";
     CurrentTrack->Tech.info = InfoBE;
    bin2:
