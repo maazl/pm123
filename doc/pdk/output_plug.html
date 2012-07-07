@@ -91,7 +91,7 @@ are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always
 allowed.</p>
 <h5>Notes</h5>
 <ol>
-  <li>The output plug-in MUST call the event handler <b><code>output_event</code></b>
+  <li>The output plug-in <em>must</em> call the event handler <b><code>output_event</code></b>
 with the parameter <b><code>OUTEVENT_PLAY_ERROR</code></b>
 when a playback error occurs. This will stop the playback, but it is
 not guaranteed that this is done immediately.</li>
@@ -106,7 +106,8 @@ respectively. This is used by PM123 to control the scheduling priority.</li>
   <li>When the output plug-in receives an <b><tt>OUTPUT_CLOSE</tt></b>
 command any thread blocked at <a href="#output_request_buffer"><tt>output_request_buffer</tt></a>
 or <a href="#output_commit_buffer"><tt>output_commit_buffer</tt></a>
-must be released immediately. <tt>output_request_buffer</tt> should
+    <em>must be released</em> immediately. <tt>output_request_buffer</tt>
+should
 return &#8804;&nbsp;0 in this case.<br>
 PM123 will not call <a href="#output_uninit"><tt>output_uninit</tt></a>
 unless the decoder thread really terminated. </li>

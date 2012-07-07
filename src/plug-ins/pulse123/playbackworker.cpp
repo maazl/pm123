@@ -380,6 +380,8 @@ int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw
     DEBUGLOG(("PlaybackWorker::RequestBuffer: %i\n", len));
     return len;
 
+  } catch (const PAStreamEndException& ex)
+  { return 0;
   } catch (const PAException& ex)
   { Error(ex.GetMessage());
     RaiseOutputEvent(OUTEVENT_PLAY_ERROR);
@@ -395,6 +397,8 @@ void PlaybackWorker::CommitBuffer(int len, PM123_TIME pos) throw()
     Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, LastBuffer, len);
     TrashFlag = false;
     LastBuffer = NULL;
+  } catch (const PAStreamEndException& ex)
+  { return;
   } catch (const PAException& ex)
   { Error(ex.GetMessage());
     RaiseOutputEvent(OUTEVENT_PLAY_ERROR);

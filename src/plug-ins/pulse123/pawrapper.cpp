@@ -45,7 +45,7 @@ PAStreamException::PAStreamException(pa_stream* s, const char* msg)
 { pa_context* context = pa_stream_get_context(s);
   if (!context)
     // No context ???
-    SetException(PA_ERR_INTERNAL, xstring().sprintf("%s, no details available (Stream has no context)", msg));
+    SetException(PA_ERR_INTERNAL, xstring().sprintf("%s, (stream has no context)", msg));
   else
   { int err = pa_context_errno(context);
     SetException(err, xstring().sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(err)));
@@ -55,9 +55,13 @@ PAStreamException::PAStreamException(pa_stream* s, const char* msg)
 PAStreamException::PAStreamException(pa_stream* s, int err, const char* msg)
 { pa_context* context = pa_stream_get_context(s);
   if (!context)
-    SetException(err, xstring().sprintf("%s (Stream has no context): %s", msg, pa_strerror(err)));
+    SetException(err, xstring().sprintf("%s (stream has no context): %s", msg, pa_strerror(err)));
   else
     SetException(err, xstring().sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(err)));
+}
+
+PAStreamEndException::PAStreamEndException()
+{ SetException(PA_OK, "Stream has ended");
 }
 
 void PAProplist::reference::operator=(const char* value)
@@ -489,7 +493,7 @@ void PAStream::WaitReady() throw(PAStreamException)
 
   for (;;)
   { if(Terminate)
-      goto term;
+      throw PAStreamEndException();
     DEBUGLOG(("PAStream::WaitReady - %i\n", pa_stream_get_state(Stream)));
     switch (pa_stream_get_state(Stream))
     {case PA_STREAM_READY:
@@ -497,7 +501,6 @@ void PAStream::WaitReady() throw(PAStreamException)
      case PA_STREAM_FAILED:
       throw PAStreamException(Stream, "Failed to connect stream");
      case PA_STREAM_TERMINATED:
-     term:
       throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
      default:
       throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has not been connected");
@@ -601,7 +604,7 @@ throw(PAStreamException)
   { size_t len;
     for (;;)
     { if (Terminate)
-        throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
+        throw PAStreamEndException();
       len = WritableSize();
       DEBUGLOG(("PASinkOutput::Write - %u writable bytes\n", len));
       if (len)
@@ -692,7 +695,7 @@ const void* PASourceInput::Peek(size_t& nbytes) throw (PAStreamException)
     --WaitReadPending;
 
   } while (!Terminate);
-  throw PAStreamException(Stream, PA_ERR_BADSTATE, "Stream has terminated");
+  throw PAStreamEndException();
 }
 
 void PASourceInput::Drop() throw (PAStreamException)

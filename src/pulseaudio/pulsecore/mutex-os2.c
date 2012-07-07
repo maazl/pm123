@@ -102,7 +102,7 @@ void pa_cond_free(pa_cond *c) {
     APIRET rc;
 
     pa_assert(c);
-    DEBUGLOG(("pa_cond_free(%p{%p})\n", c, c->wait_queue));
+    DEBUGLOG(("pa_cond_free(%p{%p,%p})\n", c, c->wait_queue, c->event_sem));
     pa_assert(c->wait_queue == NULL);
     rc = DosCloseEventSem(c->event_sem);
     pa_assert(rc == 0);

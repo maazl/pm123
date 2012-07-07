@@ -338,24 +338,23 @@ ULONG Glue::DecStop()
   if (!GlueImp::DecPlug)
     return PLUGIN_GO_FAILED;
   ULONG rc = GlueImp::DecCommand(DECODER_STOP);
-  // TODO: I hate this delay with a spinlock.
+  return rc;
+}
+
+void Glue::DecClose()
+{ // TODO: I hate this delay with a spinlock.
   SpinWait wait(30000); // 30 s
   while (GlueImp::DecPlug->DecoderStatus() != DECODER_STOPPED)
   { DEBUGLOG(("Glue::DecStop - waiting for Spinlock\n"));
     if (!wait.Wait())
     { EventHandler::Post(MSG_ERROR, "The decoder did not terminate within 30s. Killing thread.");
       DosKillThread(GlueImp::DecTID);
-      rc = PLUGIN_FAILED;
       break;
     }
   }
   GlueImp::DecTID = 0;
   // Do not deactivate the DecPlug immediately.
-  return rc;
-}
-
-void Glue::DecClose()
-{ GlueImp::DecSetActive(NULL);
+  GlueImp::DecSetActive(NULL);
 }
 
 /* set fast forward/rewind mode */
@@ -418,7 +417,7 @@ ULONG Glue::OutClose()
   GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   ULONG rc = GlueImp::OutCommand(OUTPUT_CLOSE);
   // Now wait for the decoder to stop until we discard the output filter chain.
-  DecStop();
+  DecClose();
   GlueImp::Uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
 }

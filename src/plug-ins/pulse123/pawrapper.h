@@ -89,10 +89,27 @@ class PAConnectException : public PAContextException
 };
 
 class PAStreamException : public PAContextException
-{public:
+{protected:
+  PAStreamException()                           {}
+ public:
+  /// Create an exception using the error code \c pa_context_errno(s) with some context information about the stream.
+  /// @param s Stream to use for context retrieval.
+  /// @param msg Error message.
+  /// @pre \a s != \c NULL
+  /// @pre \a msg != \c NULL
   PAStreamException(pa_stream* s, const char* msg);
+  /// Create an exception with some context information about the stream.
+  /// @param s Stream to use for context retrieval.
+  /// @param err Error code.
+  /// @param msg Error message.
+  /// @pre \a s != \c NULL
+  /// @pre \a msg != \c NULL
   PAStreamException(pa_stream* s, int err, const char* msg);
-  //PAStreamException(pa_stream* c, int err)      : PAContextException(err, xstring::sprintf("Failed to connect stream %s: %s", err, pa_strerror(err))) {}
+};
+
+class PAStreamEndException : public PAStreamException
+{public:
+  PAStreamEndException();
 };
 
 /*class PAStreamConnectException : public PAContextException

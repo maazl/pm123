@@ -9,8 +9,6 @@ CALL SysSleep(1)
 CALL CallPipe 'pause'
 CALL Assert 'RESULT', '= 0'
 
-CALL SysSleep(1)
-
 CALL CallPipe 'stop'
 CALL Assert 'RESULT', '= 0'
 
