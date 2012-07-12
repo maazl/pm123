@@ -43,10 +43,9 @@ class XIOasyncbuffer : public XIObuffer
   //              M  all write, only reliable while mtx_access is locked  
   char* tail;           // C  Pointer to beyond of the last byte of the buffer.
   int   prefill;        // C  Start sending data not before this buffer level.
-  int   free_size;      // M  Current size of the free part of the buffer.
-  char* data_head;      // M  Pointer to the first byte of the data.
+  char* data_head;      // X  Pointer to the first byte of the data.
   char* data_tail;      // R  Pointer to beyond of the last byte of the data.
-  char* data_read;      // Xr Current read position in the data pool.
+  char* data_read;      // M  Current read position in the data pool.
   int   data_size;      // M  Current size of the data.
   int   data_rest;      // M  Current size of the data available for read.
   int   data_keep;      // C  Keep old data for fast reverse seek.
@@ -57,12 +56,14 @@ class XIOasyncbuffer : public XIObuffer
   bool  boosted;        // M  The priority of the read-ahead thread is boosted.
 
   Mutex mtx_access;     // Serializes access to the buffer.
-  Event evt_read_data;  // Sends if it is possible to read into the buffer.
-  Event evt_have_data;  // Sends if the buffer have more data.
+  Event evt_read_data;  ///< Set if it is possible to read into the buffer.
+  Event evt_have_data;  ///< Set if the buffer have more data.
 
  private:
   /* Advances a buffer pointer. */
-  char* advance( char* begin, int distance ) const;
+  char* advance( char* begin, unsigned distance ) const;
+  /* Move a buffer pointer. */
+  char* move( char* begin, int distance ) const;
   /* Boosts a priority of the read-ahead thread. */
   void  boost_priority();
   /* Normalizes a priority of the read-ahead thread. */
