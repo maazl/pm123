@@ -90,9 +90,6 @@ class GlueImp : private Glue
   static ULONG             Init();
   /// uninitialize the filter chain
   static void              Uninit();
-  /// Select the currently active decoder
-  /// @exception ModuleException Something went wrong.
-  static void              DecSetActive(const char* name);
   /// Send command to the current decoder using the current content of dparams.
   static ULONG             DecCommand(DECMSGTYPE msg);
   /// Send command to the current output and filter chain using the current content of params.
@@ -252,21 +249,6 @@ void GlueImp::Uninit()
   OutPlug.reset();
 }
 
-void GlueImp::DecSetActive(const char* name)
-{ // Uninit current DecPlug if any
-  if (DecPlug && DecPlug->IsInitialized())
-  { int_ptr<Decoder> dp(DecPlug);
-    DecPlug.reset();
-    dp->UninitPlugin();
-  }
-  if (name == NULL)
-    return;
-  // Find new DecPlug
-  int_ptr<Decoder> pd(Decoder::GetDecoder(name));
-  pd->InitPlugin();
-  DecPlug = pd;
-}
-
 ULONG GlueImp::DecCommand(DECMSGTYPE msg)
 { DEBUGLOG(("DecCommand(%d)\n", msg));
   if (DecPlug == NULL)
@@ -279,11 +261,15 @@ ULONG GlueImp::DecCommand(DECMSGTYPE msg)
 /* invoke decoder to play an URL */
 ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
 {
-  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%g)\n", &song, song.DebugName().cdata(), offset, start, stop));
+  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%f)\n", &song, song.DebugName().cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
-  // set active DecPlug
+  // Uninit current DecPlug if any
+  DecClose();
   try
-  { GlueImp::DecSetActive(xstring(song.GetInfo().tech->decoder));
+  { // Find new DecPlug
+    int_ptr<Decoder> pd(Decoder::GetDecoder(xstring(song.GetInfo().tech->decoder)));
+    pd->InitPlugin();
+    GlueImp::DecPlug = pd;
   } catch (const ModuleException& ex)
   { EventHandler::Post(MSG_ERROR, ex.GetErrorText());
     return (ULONG)-2;
@@ -303,7 +289,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
 
   ULONG rc = GlueImp::DecCommand(DECODER_SETUP);
   if (rc != 0)
-  { GlueImp::DecSetActive(NULL);
+  { DecClose();
     return rc;
   }
   GlueImp::Song = &song;
@@ -315,9 +301,9 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
   GlueImp::DecTID = 0;
   rc = GlueImp::DecCommand(DECODER_PLAY);
   if (rc != 0)
-    GlueImp::DecSetActive(NULL);
+    DecClose();
   else
-  { // TODO: I hate this delay with a spinlock.
+  { // I hate this delay with a spinlock...
     SpinWait wait(30000);
     while (GlueImp::DecPlug->DecoderStatus() == DECODER_STARTING)
     { DEBUGLOG(("Glue::DecPlay - waiting for Spinlock\n"));
@@ -342,19 +328,27 @@ ULONG Glue::DecStop()
 }
 
 void Glue::DecClose()
-{ // TODO: I hate this delay with a spinlock.
-  SpinWait wait(30000); // 30 s
-  while (GlueImp::DecPlug->DecoderStatus() != DECODER_STOPPED)
-  { DEBUGLOG(("Glue::DecStop - waiting for Spinlock\n"));
-    if (!wait.Wait())
-    { EventHandler::Post(MSG_ERROR, "The decoder did not terminate within 30s. Killing thread.");
+{
+  int_ptr<Decoder> dp;
+  dp.swap(GlueImp::DecPlug);
+  if (dp && dp->IsInitialized())
+  { // I hate this delay with a spinlock...
+    SpinWait wait(30000); // 30 s
+   retry:
+    switch (dp->DecoderStatus())
+    {default:
+      DEBUGLOG(("Glue::DecStop - waiting for Spinlock\n"));
+      if (wait.Wait())
+        goto retry;
+      EventHandler::Post(MSG_ERROR, "The decoder did not terminate within 30s. Killing thread.");
       DosKillThread(GlueImp::DecTID);
-      break;
+     case DECODER_STOPPED:
+     case DECODER_ERROR:;
     }
+    // Destroy decoder instance
+    GlueImp::DecTID = 0;
+    dp->UninitPlugin();
   }
-  GlueImp::DecTID = 0;
-  // Do not deactivate the DecPlug immediately.
-  GlueImp::DecSetActive(NULL);
 }
 
 /* set fast forward/rewind mode */
@@ -417,6 +411,7 @@ ULONG Glue::OutClose()
   GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   ULONG rc = GlueImp::OutCommand(OUTPUT_CLOSE);
   // Now wait for the decoder to stop until we discard the output filter chain.
+
   DecClose();
   GlueImp::Uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
@@ -489,7 +484,9 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
   // Check for OUTEVENT_LOW_WATER expire.
   if (GlueImp::LowWaterLimit && time(NULL) > GlueImp::LowWaterLimit)
   { LowWaterLimit = 0;
-    GlueImp::DecPlug->DecoderEvent(OUTEVENT_HIGH_WATER);
+    Decoder* dp = GlueImp::DecPlug;
+    if (dp != NULL)
+      dp->DecoderEvent(OUTEVENT_HIGH_WATER);
   }
   // Decoder Priority
   if (!DecTID)
@@ -663,8 +660,11 @@ OutEventHandler(void* w, OUTEVENTTYPE event)
     GlueImp::LowWaterLimit = 0;
     break;
   }
-  if (DecPlug != NULL)
-    GlueImp::DecPlug->DecoderEvent(event);
+  if (int_ptr<APlayable>(GlueImp::Song)) // Only if the decoder is not stopped
+  { Decoder* dp = GlueImp::DecPlug;
+    if (dp != NULL)
+      dp->DecoderEvent(event);
+  }
 }
 
 

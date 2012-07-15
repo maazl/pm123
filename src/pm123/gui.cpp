@@ -1584,8 +1584,8 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
   }
 
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
-  PM123_TIME total_song = CurrentIter->GetCurrent()->GetInfo().obj->songlength;
-  PM123_TIME total_time = is_playlist ? root->GetInfo().obj->songlength : -1;
+  PM123_TIME total_song = CurrentIter->GetCurrent()->GetInfo().drpl->totallength;
+  PM123_TIME total_time = is_playlist ? root->GetInfo().drpl->totallength : -1;
 
   PM123_TIME list_left = -1;
   PM123_TIME play_left = total_song;

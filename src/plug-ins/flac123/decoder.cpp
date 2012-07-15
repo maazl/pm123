@@ -85,7 +85,7 @@ bool DecoderBase::DecoderInitStream(
 }
 
 FLAC__StreamDecoderReadStatus DecoderBase::ReadCB(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *data)
-{ DEBUGLOG(("DecoderBase(%p)::ReadCB(, %p, *%u)\n", data, buffer, bytes));
+{ DEBUGLOG(("DecoderBase(%p)::ReadCB(, %p, *%u, %p)\n", buffer, *bytes, data));
   if ((*bytes = xio_fread(buffer, 1, *bytes, ((DecoderBase*)data)->File)) != 0)
     return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
   return xio_ferror(((DecoderBase*)data)->File)
@@ -95,7 +95,7 @@ FLAC__StreamDecoderReadStatus DecoderBase::ReadCB(const FLAC__StreamDecoder *dec
 
 FLAC__StreamDecoderSeekStatus DecoderBase::SeekCB(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *data)
 { DEBUGLOG(("DecoderBase(%p)::SeekCB(, %Lu)\n", data, absolute_byte_offset));
-  if (absolute_byte_offset & ~0xFFFFFFFF) // No 64 bit support so far
+  if (absolute_byte_offset & ~(FLAC__uint64)0xFFFFFFFFU) // No 64 bit support so far
     return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
   if (xio_fseek(((DecoderBase*)data)->File, (long)absolute_byte_offset, XIO_SEEK_SET) != -1L)
     return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
@@ -338,7 +338,7 @@ PROXYFUNCIMP(void, ThreadDecoder) TFNENTRY DecoderThreadStub(void* arg)
 void ThreadDecoder::DecoderThread()
 { DEBUGLOG(("ThreadDecoder(%p{%s})::DecoderThread()\n", this, URL.cdata()));
   // open source
-  File = xio_fopen(URL, "rbXU");
+  File = xio_fopen(URL, "rbUX");
   if (File == NULL)
   { xstring errortext;
     errortext.sprintf("Unable to open %s\n%s", URL.cdata(), xio_strerror(xio_errno()));
@@ -361,7 +361,7 @@ void ThreadDecoder::DecoderThread()
   }
 
   DEBUGLOG(("ThreadDecoder::DecoderThread before main loop - %f\n", SeekTo));
-  // After opening a new file we so are in its beginning.
+  // After opening a new file we are at the beginning anyway.
   if (SeekTo == 0)
     SeekTo = -1;
 
@@ -389,6 +389,7 @@ void ThreadDecoder::DecoderThread()
         bool rc;
         { //Mutex::Lock lock(Mtx);
           rc = FLAC__stream_decoder_seek_absolute(Decoder, (FLAC__uint64)(newpos * Format.samplerate));
+          DEBUGLOG(("ThreadDecoder::DecoderThread seek to %f : %u\n", newpos, rc));
           newpos = SeekTo;
           SeekTo = -1;
         }

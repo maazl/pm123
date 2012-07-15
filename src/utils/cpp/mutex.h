@@ -199,9 +199,9 @@ class SpinWait
   unsigned FastCycles;
   long     Timeout;
  public:
-  SpinWait(long ms = -1, unsigned fast = 5) : FastCycles(fast+1), Timeout(ms) {}
+  SpinWait(long ms = -1, unsigned fast = 3) : FastCycles(fast+1), Timeout(ms) {}
   bool Wait();
-  void Reset(long ms = -1, unsigned fast = 5) { FastCycles = fast+1, Timeout = ms; }
+  void Reset(long ms = -1, unsigned fast = 3) { FastCycles = fast+1, Timeout = ms; }
 };
 
 

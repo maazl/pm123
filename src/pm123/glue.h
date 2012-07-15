@@ -68,6 +68,7 @@ class Glue
   /// Stop the current decoder immediately
   static ULONG DecStop();
   /// Close decoder plug-in. This may block until the decoder thread has ended.
+  /// @pre DecStop must have been sent if the decoder has been started.
   static void  DecClose();
   /// Set fast forward/rewind mode
   static ULONG DecFast(DECFASTMODE mode);

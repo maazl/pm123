@@ -314,33 +314,35 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe)
   APlayable& song = *pe.Loc.GetCurrent();
   ASSERT(&song);
 
-  PM123_TIME start = pe.Loc.GetPosition();
-  if (start < 0)
-    start = 0;
-  PM123_TIME stop  = 1E99;
-  { int_ptr<Location> lp = song.GetStopLoc();
-    if (lp)
-    { stop = lp->GetPosition();
-      if (stop < 0)
-        stop = 1E99;
-    }
+  PM123_TIME start = 0;
+  { int_ptr<Location> lp = song.GetStartLoc();
+    if (lp && lp->GetPosition() > 0)
+      start = lp->GetPosition();
   }
+  PM123_TIME stop = 1E99;
+  { int_ptr<Location> lp = song.GetStopLoc();
+    if (lp && lp->GetPosition() >= 0)
+      stop = lp->GetPosition();
+  }
+  PM123_TIME at = start;
+  if (pe.Loc.GetPosition() >= 0)
+    at = pe.Loc.GetPosition();
   
   if (Scan == DECFAST_REWIND)
   { if (stop > 0)
-    { start = stop - 1.; // do not seek to the end, because this will cause problems.
+    { at = stop - 1.; // do not seek to the end, because this will cause problems.
     } else if (song.GetInfo().obj->songlength > 0)
-    { start = song.GetInfo().obj->songlength - 1.;
+    { at = song.GetInfo().obj->songlength - 1.;
     } else
     { // no songlength => error => undo MsgScan
       Scan = DECFAST_NORMAL_PLAY;
       Pending |= EV_Rewind;
     }
-    if (start < 0) // Do not hit negative values for very short songs.
-      start = 0;
+    if (at < start) // Do not hit negative values for very short songs.
+      at = start;
   }
 
-  ULONG rc = Glue::DecPlay(song, pe.Offset, start, stop);
+  ULONG rc = Glue::DecPlay(song, pe.Offset-start, at, stop);
   if (rc != 0)
     return rc;
 

@@ -323,27 +323,6 @@ class Location : public Iref_count
   /// The absolute return value will not be less than level except for a equal condition.
   /// The current thread must own both Location objects.
   int                         CompareTo(const Location& r, CompareOptions opt = CO_Default, unsigned level = 0) const;
-
-  /*// @brief Return the aggregate from the front of root to this location within root.
-  /// @param dest Destination aggregate. All items in the exclude list of the destination
-  /// will be excluded from the calculation. The result is \e added to the destination
-  /// rather than assigned.
-  /// @param level Offset from the levelth callstack entry instead of root.
-  /// The default level 0 calculates the offsets from the root.
-  /// \a level must be in the range [0,GetLevel()].
-  /// @remarks The added aggregate is always equal to the Aggregate of Root minus AddBackAggregate
-  /// (with the same exclusions).
-  InfoFlags                   AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);
-  /// @brief Return the aggregate from this location to the end of root within root.
-  /// @param dest Destination aggregate. All items in the exclude list of the destination
-  /// will be excluded from the calculation. The result is \e added to the destination
-  /// rather than assigned.
-  /// @param level Offset from the levelth callstack entry instead of root.
-  /// The default level 0 calculates the offsets from the root.
-  /// \a level must be in the range [0,GetLevel()].
-  /// @remarks The added aggregate is always equal to the Aggregate of Root minus AddBackAggregate
-  /// (with the same exclusions).
-  InfoFlags                   AddBackAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level = 0);*/
 };
 
 FLAGSATTRIBUTE(Location::CompareOptions);
