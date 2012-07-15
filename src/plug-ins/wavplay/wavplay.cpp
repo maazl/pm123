@@ -192,6 +192,77 @@ end:
   DosReleaseMutexSem( w->mutex );
 }
 
+// libsndfile sub formats have no short name
+static const char* sf_subformats[] =
+{ NULL, "S8", "16", "24"
+, "32", "U8", "float", "double"
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "uLaw", "aLaw", "imaADPCM", "msADPCM"
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "GSM610", "voxADPCM", NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "G721_32", "G723_24", "G723_40", NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "DWVW_12"
+, "DWVW_16"
+, "DWVW_24"
+, "DWVW_N"
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "DPCM_8", "DPCM_16", NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+, NULL, NULL, NULL, NULL
+
+, "Vorbis"
+};
+
+/// Prefill format in case of RAW.
+/// @param tech Technical info of the song.
+/// @param sfinfo Place format info here.
+static void decoder_inject_raw_format(const TECH_INFO& tech, SF_INFO& sfinfo)
+{
+  if (tech.samplerate > 0 && tech.channels > 0 && tech.format && tech.format.startsWithI("RAW "))
+  { char subformat[6];
+    char endianess[4];
+    *endianess = 0;
+    size_t len;
+    if (sscanf(tech.format + 4, "%5s%n%3s%n", subformat, &len, endianess, &len) >= 1)
+    { // search subformat
+      const char** fp = sf_subformats;
+      const char** fpe = fp + countof(sf_subformats);
+      while (fp != fpe)
+      { if (*fp && stricmp(subformat, *fp) == 0)
+        { sfinfo.format = SF_FORMAT_RAW | (fp - sf_subformats);
+          if (stricmp(endianess, "LE") == 0)
+            sfinfo.format |= SF_ENDIAN_LITTLE;
+          else if (stricmp(endianess, "BE") == 0)
+            sfinfo.format |= SF_ENDIAN_BIG;
+          else
+            sfinfo.format |= SF_ENDIAN_CPU;
+          sfinfo.samplerate = tech.samplerate;
+          sfinfo.channels = tech.channels;
+          break;
+        }
+        ++fp;
+      }
+    }
+  }
+}
+
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
 int DLLENTRY decoder_init(DECODER_STRUCT** returnw)
@@ -245,6 +316,15 @@ decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* info)
       }
 
       w->URL = info->URL;
+      TECH_INFO tech;
+      // remove CV qualifiers, copy only required infos.
+      { const volatile TECH_INFO& ti = *info->Info->tech;
+        tech.samplerate = ti.samplerate;
+        tech.channels   = ti.channels;
+        tech.attributes = ti.attributes;
+        tech.format     = ti.format;
+      }
+      decoder_inject_raw_format(tech, w->SFInfo);
 
       w->JumpToPos  = info->JumpTo;
       w->status     = DECODER_STARTING;
@@ -313,44 +393,6 @@ PM123_TIME DLLENTRY decoder_length(DECODER_STRUCT* w)
   return 0;
 }
 
-// libsndfile sub formats have no short name
-static const char* sf_subformats[] =
-{ NULL, "S8", "16", "24"
-, "32", "U8", "float", "double"
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "uLaw", "aLaw", "imaADPCM", "msADPCM"
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "GSM610", "voxADPCM", NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "G721_32", "G723_24", "G723_40", NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "DWVW_12"
-, "DWVW_16"
-, "DWVW_24"
-, "DWVW_N"
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "DPCM_8", "DPCM_16", NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-, NULL, NULL, NULL, NULL
-
-, "Vorbis"
-};
-
 
 ULONG DLLENTRY
 decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* info,
@@ -363,34 +405,7 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
   TECH_INFO& tech = *info->tech;
 
   SF_INFO sfinfo = {0};
-  // Prefill format in case of RAW.
-  if (tech.samplerate > 0 && tech.channels > 0 && tech.format && tech.format.startsWithI("RAW "))
-  { char subformat[6];
-    char endianess[4];
-    *endianess = 0;
-    size_t len;
-    if (sscanf(tech.format + 4, "%5s%n%3s%n", subformat, &len, endianess, &len) >= 1)
-    { // search subformat
-      const char** fp = sf_subformats;
-      const char** fpe = fp + countof(sf_subformats);
-      while (fp != fpe)
-      { if (*fp && stricmp(subformat, *fp) == 0)
-        { sfinfo.format = SF_FORMAT_RAW | (fp - sf_subformats);
-          if (stricmp(endianess, "LE") == 0)
-            sfinfo.format |= SF_ENDIAN_LITTLE;
-          else if (stricmp(endianess, "BE") == 0)
-            sfinfo.format |= SF_ENDIAN_BIG;
-          else
-            sfinfo.format |= SF_ENDIAN_CPU;
-          sfinfo.samplerate = tech.samplerate;
-          sfinfo.channels = tech.channels;
-          break;
-        }
-        ++fp;
-      }
-    }
-  }
-
+  decoder_inject_raw_format(tech, sfinfo);
   SNDFILE* sndfile = sf_open_virtual((SF_VIRTUAL_IO*)&vio_procs, SFM_READ, &sfinfo, handle);
   if (sndfile == NULL)
     return PLUGIN_NO_PLAY;

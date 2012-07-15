@@ -33,7 +33,7 @@ and the inner enumeration could be repeated in a loop.<br>
 <p>This structure is used to pass parameters to <tt><a
  href="decoder_plug.html#decoder_command"><tt>decoder_command</tt></a></tt>.</p>
 <blockquote>
-  <pre>typedef struct _DECODER_PARAMS2<br>{<br>  /* --- DECODER_SETUP, PLAY */<br>  xstring      URL;         /**&lt; URL to play */<br><br>  /* --- DECODER_PLAY DECODER_REW, FFWD and JUMPTO */<br>  PM123_TIME   JumpTo;      /**&lt; absolute positioning in seconds */<br>  DECFASTMODE  Fast;        /**&lt; fast forward/rewind */<br><br>  /* --- DECODER_SETUP */<br>  /** specify a function which the decoder should use for output */<br>  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);<br>  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);<br>  /** decoder events */<br>  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);<br>  void* A;                  /**&lt; only to be used with the precedent functions */<br><br>  /* --- DECODER_SAVEDATA */<br>  xstring      SaveFilename;/**&lt; File where to save the raw stream. */<br><br>} DECODER_PARAMS2;</pre>
+  <pre>typedef struct _DECODER_PARAMS2<br>{<br>  /* --- DECODER_PLAY */<br>  xstring      URL;         /**&lt; URL to play */<br>  const INFO_BUNDLE_CV* Info;/**&lt; Info about the URL to play */<br><br>  /* --- DECODER_PLAY DECODER_REW, FFWD and JUMPTO */<br>  PM123_TIME   JumpTo;      /**&lt; absolute positioning in seconds */<br>  DECFASTMODE  Fast;        /**&lt; fast forward/rewind */<br><br>  /* --- DECODER_SETUP */<br>  /** specify a function which the decoder should use for output */<br>  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);<br>  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);<br>  /** decoder events */<br>  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);<br>  void* A;                  /**&lt; only to be used with the precedent functions */<br><br>  /* --- DECODER_SAVEDATA */<br>  xstring      SaveFilename;/**&lt; File where to save the raw stream. */<br><br>} DECODER_PARAMS2;</pre>
 </blockquote>
 <h2><tt><a name="DECODER_SETUP"></a></tt><tt>DECODER_SETUP</tt></h2>
 <p>The <tt><tt>DECODER_SETUP</tt></tt> command is used to pass
@@ -44,7 +44,6 @@ to do other initializations as well.</p>
 <p>The following fields of the <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
 structure are guaranteed to be valid at this call:</p>
 <ul>
-  <li><tt>URL</tt></li>
   <li><tt>OutRequestBuffer</tt></li>
   <li><tt>OutCommitBuffer</tt></li>
   <li><tt>DecEvent</tt></li>
@@ -73,7 +72,9 @@ is not initial.
 structure are guaranteed to be valid at this call:</p>
 <ul>
   <li><tt>URL</tt></li>
+  <li><tt>Info</tt></li>
   <li><tt>JumpTo</tt> (see <a href="#DECODER_JUMPTO"><tt>DECODER_JUMPTO</tt></a>)</li>
+  <li><tt>Fast</tt></li>
 </ul>
 <p><tt>DECODER_PLAY</tt> should not wait for data to become available.
 It should also not wait for the desired URL to open, because this could

@@ -378,8 +378,9 @@ typedef enum
 
 typedef struct _DECODER_PARAMS2
 {
-  /* --- DECODER_SETUP, PLAY */
+  /* --- DECODER_PLAY */
   xstring      URL;         /**< URL to play */
+  const INFO_BUNDLE_CV* Info;/**< Info about the URL to play */
 
   /* --- DECODER_PLAY DECODER_REW, FFWD and JUMPTO */
   PM123_TIME   JumpTo;      /**< absolute positioning in seconds */

@@ -282,6 +282,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
   GlueImp::MaxPos       = 0;
 
   GlueImp::DParams.URL              = song.GetPlayable().URL;
+  GlueImp::DParams.Info             = &song.GetInfo();
   GlueImp::DParams.JumpTo           = start;
   GlueImp::DParams.OutRequestBuffer = &PROXYFUNCREF(GlueImp)GlueRequestBuffer;
   GlueImp::DParams.OutCommitBuffer  = &PROXYFUNCREF(GlueImp)GlueCommitBuffer;
@@ -470,7 +471,9 @@ PROXYFUNCIMP(BOOL DLLENTRY, Glue) OutPlayingData()
 
 PROXYFUNCIMP(int DLLENTRY, GlueImp)
 GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
-{ if (!GlueImp::Initialized)
+{ DEBUGLOG(("GlueImp::GlueRequestBuffer(%p, {%i,%i}, %p) - %u\n",
+    a, format->channels, format->samplerate, buf, GlueImp::Initialized));
+  if (!GlueImp::Initialized)
     return 0;
   // do not pass flush, signal DECEVENT_PLAYSTOP instead.
   if (buf == NULL)
@@ -505,7 +508,8 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
 
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
 GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
-{ if (!GlueImp::Initialized)
+{ DEBUGLOG(("GlueImp::GlueCommitBuffer(%p, %i, %f) - %u\n", a, len, posmarker, GlueImp::Initialized));
+  if (!GlueImp::Initialized)
     return;
   bool send_playstop = false;
   PM123_TIME pos_e = posmarker + (PM123_TIME)len / GlueImp::LastFormat.samplerate;
