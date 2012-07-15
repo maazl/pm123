@@ -80,6 +80,7 @@ class CtrlImp
 
   static TID                  WorkerTID;          ///< Thread ID of the worker
   static Ctrl::ControlCommand* CurCmd;            ///< Currently processed ControlCommand, protected by Queue.Mtx
+  static APlayable*           LastStart;          ///< Weak reference to the last item successfully played or the start item. Must not be dereferenced!
 
   /// Pending Events. These events are set atomically from any thread.
   /// After each last message of a queued set of messages the events are raised and Pending is atomically reset.
@@ -218,6 +219,7 @@ bool                  Ctrl::Repeat    = false;
 queue<Ctrl::QEntry>   Ctrl::Queue;
 TID                   CtrlImp::WorkerTID = 0;
 Ctrl::ControlCommand* CtrlImp::CurCmd    = NULL;
+APlayable*            CtrlImp::LastStart = NULL;
 
 AtomicUnsigned        CtrlImp::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
@@ -348,6 +350,9 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe)
 
   if (Scan != DECFAST_NORMAL_PLAY)
     Glue::DecFast(Scan);
+
+  if (LastStart == NULL)
+    LastStart = &song;
   DEBUGLOG(("Ctrl::DecoderStart - completed\n"));
 
   // Once the player arrives the prefetched item it requests some information.
@@ -937,6 +942,7 @@ void CtrlImp::MsgLoad()
     }
   }
   Pending |= EV_Song|EV_Location;
+  LastStart = NULL;
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
   Reply(RC_OK);
@@ -1025,6 +1031,11 @@ void CtrlImp::MsgDecStop()
   }
 
   PM123_TIME max = Glue::DecMaxPos();
+
+  // Check whether the last decode action actually succeeded.
+  if (max > Glue::DecMinPos())
+    LastStart = NULL;
+
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + max, Current()->Loc);
   pep->Offset += max;
   int dir = Scan == DECFAST_REWIND ? -1 : 1; // DecoderStop resets scan mode
@@ -1033,7 +1044,8 @@ void CtrlImp::MsgDecStop()
   // Navigation
   if ( ( !SkipCore(pep->Loc, dir)
       && (!Repeat || !SkipCore(pep->Loc, dir)) )
-    || (Repeat && pep->Loc.CompareTo(Current()->Loc, Location::CO_IgnorePosition) == 0) ) // no infinite loop
+    || (Repeat && pep->Loc.CompareTo(Current()->Loc, Location::CO_IgnorePosition) == 0) // no infinite loop
+    || pep->Loc.GetCurrent() == LastStart ) // Stop if there are no playable items
   { delete pep;
     Current()->Loc.Reshuffle();
     goto eol; // end of list => same as end of song

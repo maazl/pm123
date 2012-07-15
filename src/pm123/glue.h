@@ -55,8 +55,8 @@ class Glue
   } DecEventArgs;
 
  protected:
-  static PM123_TIME MinPos;            // minimum sample position of a block from the decoder since the last dec_play
-  static PM123_TIME MaxPos;            // maximum sample position of a block from the decoder since the last dec_play
+  static PM123_TIME MinPos;            ///< Minimum sample position of a block from the decoder since the last DecPlay
+  static PM123_TIME MaxPos;            ///< Maximum sample position of a block from the decoder since the last DecPlay
   /// Decoder events
   static event<const DecEventArgs> DecEvent;
   /// Output events
