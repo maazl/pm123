@@ -547,14 +547,16 @@ void CtrlImp::CheckPrefetch(double pos)
 }
 
 PM123_TIME CtrlImp::FetchCurrentSongTime()
-{ DEBUGLOG(("Ctrl::FetchCurrentSongTime() - %u\n", Playing));
-  if (Playing)
+{ if (Playing)
   { PM123_TIME time = Glue::OutPlayingPos();
     // Check whether the output played a prefetched item completely.
     CheckPrefetch(time);
+    DEBUGLOG(("Ctrl::FetchCurrentSongTime: %f (play)\n", time - Current()->Offset));
     return time - Current()->Offset; // relocate playing position
   } else
+  { DEBUGLOG(("Ctrl::FetchCurrentSongTime: %f\n", Current()->Loc.GetPosition()));
     return Current()->Loc.GetPosition();
+  }
 }
 
 void CtrlImp::DecEventHandler(void*, const Glue::DecEventArgs& args)

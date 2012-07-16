@@ -524,6 +524,19 @@ pa_usec_t PAStream::GetTime() throw (PAStreamException)
   return time;
 }
 
+pa_usec_t PAStream::GetLatency(bool& negative) throw (PAStreamException)
+{ pa_usec_t time;
+  PAContext::Lock lock;
+  if (GetState() != PA_STREAM_READY)
+    return 0;
+  int neg;
+  int err = pa_stream_get_latency(Stream, &time, &neg);
+  if (err)
+    throw PAStreamException(Stream, err, "GetLatency failed");
+  negative = neg != 0;
+  return time;
+}
+
 const pa_timing_info* PAStream::GetTimingInfo() throw ()
 { PAContext::Lock lock;
   if (GetState() != PA_STREAM_READY)

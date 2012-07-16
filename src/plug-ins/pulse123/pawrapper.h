@@ -510,6 +510,7 @@ class PAStream
   void               WaitReady() throw (PAStreamException);
 
   pa_usec_t          GetTime() throw (PAStreamException);
+  pa_usec_t          GetLatency(bool& negative) throw (PAStreamException);
   const pa_timing_info* GetTimingInfo() throw ();
   void               Cork(bool pause) throw (PAStreamException);
   void               Flush() throw (PAStreamException);

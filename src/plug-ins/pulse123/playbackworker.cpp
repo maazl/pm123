@@ -410,29 +410,32 @@ BOOL PlaybackWorker::IsPlaying() throw()
 }
 
 PM123_TIME PlaybackWorker::GetPosition() throw()
-{ // Check for buffer level
-  const pa_timing_info* ti = Stream.GetTimingInfo();
-  if (ti)
-  { long ms = pa_bytes_to_usec(ti->write_index - ti->read_index, &SS) / 1000;
-    DEBUGLOG2(("PlaybackWorker::GetPosition Timing info: %u, %u, %u\n", ms, MinLatency, MaxLatency));
-    if (LowWater)
-    { if (ms > MinLatency + MaxLatency)
-      { LowWater = false;
-        (*OutputEvent)(W, OUTEVENT_HIGH_WATER);
-      }
-    } else
-    { if (ms < MinLatency)
-      { LowWater = true;
-        (*OutputEvent)(W, OUTEVENT_LOW_WATER);
-      }
-    }
-  }
-  // get time
+{ // get time
   try
   { if (!TrashFlag && Stream.GetState() == PA_STREAM_READY)
     { double tmp = Stream.GetTime()/1E6 * sizeof(float) * SS.channels * SS.rate;
       tmp = Buffer.GetPosByWriteIndex((uint64_t)tmp + WriteIndexOffset);
       DEBUGLOG(("PlaybackWorker::GetPosition: %f\n", tmp));
+      // Check for buffer level
+      const pa_timing_info* ti = Stream.GetTimingInfo();
+      if (ti)
+      { double ms = pa_bytes_to_usec(ti->write_index, &SS) / 1000. - tmp * 1000;
+        DEBUGLOG2(("PlaybackWorker::GetPosition Timing info: {%i, %Lu,%Lu,%Lu, %i, %i,%Li, %i,%Li,} %u, %u, %u\n",
+          ti->synchronized_clocks, ti->sink_usec, ti->source_usec, ti->transport_usec,
+          ti->playing, ti-> write_index_corrupt, ti->write_index, ti->read_index_corrupt, ti->read_index,
+          ms, MinLatency, MaxLatency));
+        if (LowWater)
+        { if (ms > MinLatency + MaxLatency)
+          { LowWater = false;
+            (*OutputEvent)(W, OUTEVENT_HIGH_WATER);
+          }
+        } else
+        { if (ms < MinLatency)
+          { LowWater = true;
+            (*OutputEvent)(W, OUTEVENT_LOW_WATER);
+          }
+        }
+      }
       return tmp;
     }
   } catch (const PAException& ex)

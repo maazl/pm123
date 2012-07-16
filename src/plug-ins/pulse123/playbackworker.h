@@ -56,17 +56,17 @@ typedef struct OUTPUT_STRUCT
     };
     /// Mutex to protect this instance
     Mutex            Mtx;
-    /// Ring buffer for index entries that point into DataBuffer.
-    /// @remarks The used part of the ring buffer is ordered by \c WriteIndex.
-    Entry            BufferQueue[20];
     /// Current start index in \c BufferQueue. It points to the oldest buffer.
     size_t           BufferLow;
     /// Current end index in \c BufferQueue. It points behind the buffer.
     size_t           BufferHigh;
     /// Maximum write index so far.
     uint64_t         MaxWriteIndex;
+    /// Ring buffer for index entries that point into DataBuffer.
+    /// @remarks The used part of the ring buffer is ordered by \c WriteIndex.
+    Entry            BufferQueue[32];
     /// Ring buffer for sample data. The buffer is managed by BufferQueue.
-    float            DataBuffer[65536];
+    float            DataBuffer[262144];
    private:
     /// Return the index of the \c Entry after or at the write index \a wi.
     /// @return BufferLow => \a wi is before the first buffer.\n

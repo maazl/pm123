@@ -114,6 +114,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "jump",               &CommandProcessor::XJump          }
 , { "load",               &CommandProcessor::XLoad          }
 , { "location",           &CommandProcessor::XLocation      }
+, { "navigate",           &CommandProcessor::XNavigate      }
 , { "next",               &CommandProcessor::XNext          }
 , { "open",               &CommandProcessor::XShow          }
 , { "option",             &CommandProcessor::XOption        }
@@ -658,14 +659,14 @@ void CommandProcessor::XLoad()
 }
 
 void CommandProcessor::XPlay()
-{ ExtLoadHelper lh( Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
+{ ExtLoadHelper lh( LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XEnqueue()
-{
-  // TODO:
+{ LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadAppend);
+  Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XStop()
@@ -706,6 +707,10 @@ void CommandProcessor::XJump()
 { CommandType = true;
   PM123_TIME pos = ParseTime(Request);
   SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
+}
+
+void CommandProcessor::XNavigate()
+{ SendCtrlCommand(Ctrl::MkNavigate(Request, 0, false, false));
 }
 
 void CommandProcessor::XSavestream()

@@ -221,6 +221,7 @@ class CommandProcessor : public ACommandProcessor
   void XRewind();
   void XForward();
   void XJump();
+  void XNavigate();
   void XSavestream();
   void XVolume();
   void XShuffle();
