@@ -109,7 +109,7 @@ class PAStreamException : public PAContextException
 
 class PAStreamEndException : public PAStreamException
 {public:
-  PAStreamEndException();
+  PAStreamEndException(bool closed);
 };
 
 /*class PAStreamConnectException : public PAContextException

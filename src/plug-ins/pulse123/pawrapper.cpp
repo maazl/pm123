@@ -60,9 +60,15 @@ PAStreamException::PAStreamException(pa_stream* s, int err, const char* msg)
     SetException(err, xstring().sprintf("%s, server %s: %s", msg, pa_context_get_server(context), pa_strerror(err)));
 }
 
-PAStreamEndException::PAStreamEndException()
-{ SetException(PA_OK, "Stream has ended");
+static const xstringconst streamend("Stream has ended");
+static const xstringconst streamclosed("Stream has been closed");
+PAStreamEndException::PAStreamEndException(bool closed)
+{ if (closed)
+    SetException(PA_ERR_BADSTATE, streamclosed);
+  else
+    SetException(PA_OK, streamend);
 }
+
 
 void PAProplist::reference::operator=(const char* value)
 { if (value)
@@ -447,11 +453,13 @@ PAStream::~PAStream()
 { DEBUGLOG(("PAStream(%p{%p})::~PAStream()\n", this, Stream));
   if (Stream)
   { PAContext::Lock lock;
-    Terminate = true;
-    pa_stream_disconnect(Stream);
-    if (WaitReadyPending)
-      PAContext::MainloopSignal();
-    pa_stream_unref(Stream);
+    if (Stream)
+    { Terminate = true;
+      pa_stream_disconnect(Stream);
+      if (WaitReadyPending)
+        PAContext::MainloopSignal();
+      pa_stream_unref(Stream);
+    }
   }
 }
 
@@ -479,11 +487,13 @@ void PAStream::Disconnect() throw()
 { DEBUGLOG(("PAStream(%p{%p})::Disconnect()\n", this, Stream));
   if (Stream)
   { PAContext::Lock lock;
-    Terminate = true;
-    pa_stream_unref(Stream);
-    Stream = NULL;
-    if (WaitReadyPending)
-      PAContext::MainloopSignal();
+    if (Stream)
+    { Terminate = true;
+      pa_stream_unref(Stream);
+      Stream = NULL;
+      if (WaitReadyPending)
+        PAContext::MainloopSignal();
+    }
   }
 }
 
@@ -492,8 +502,10 @@ void PAStream::WaitReady() throw(PAStreamException)
   PAContext::Lock lock;
 
   for (;;)
-  { if(Terminate)
-      throw PAStreamEndException();
+  { if (Terminate)
+      throw PAStreamEndException(false);
+    if (!Stream)
+      throw PAStreamEndException(true);
     DEBUGLOG(("PAStream::WaitReady - %i\n", pa_stream_get_state(Stream)));
     switch (pa_stream_get_state(Stream))
     {case PA_STREAM_READY:
@@ -547,6 +559,8 @@ const pa_timing_info* PAStream::GetTimingInfo() throw ()
 void PAStream::Cork(bool pause) throw (PAStreamException)
 { DEBUGLOG(("PAStream(%p{%p})::Cork(%u)\n", this, Stream, pause));
   PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   pa_operation* op = pa_stream_cork(Stream, pause, NULL, NULL);
   if (op == NULL)
     throw PAStreamException(Stream, "Cork failed for stream");
@@ -573,7 +587,7 @@ void PAStream::StateCB(pa_stream *p, void *userdata) throw()
 
 void PASinkOutput::Connect(PAContext& context, const char* name, const pa_sample_spec* ss, const pa_channel_map* map, pa_proplist* props,
   const char* device, pa_stream_flags_t flags, const pa_cvolume* volume, pa_stream* sync_stream)
-throw(PAContextException)
+  throw(PAContextException)
 { DEBUGLOG(("PASinkOutput(%p{%p})::Connect(...,%s, %x, %p, %p)\n", this, Stream,
     device, flags, volume, sync_stream));
   Create(context, name, ss, map, props);
@@ -592,6 +606,8 @@ throw(PAContextException)
 
 size_t PASinkOutput::WritableSize() throw (PAStreamException)
 { PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   size_t ret = pa_stream_writable_size(Stream);
   if (ret == (size_t)-1)
     throw PAStreamException(Stream, "Writable size undefined");
@@ -601,6 +617,8 @@ size_t PASinkOutput::WritableSize() throw (PAStreamException)
 void* PASinkOutput::BeginWrite(size_t& size) throw(PAStreamException)
 { DEBUGLOG(("PASinkOutput(%p{%p})::BeginWrite(&%i)\n", this, Stream, size));
   PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   void* buffer;
   if (pa_stream_begin_write(Stream, &buffer, &size) != 0)
     throw PAStreamException(Stream, "BeginWrite failed for stream");
@@ -617,7 +635,9 @@ throw(PAStreamException)
   { size_t len;
     for (;;)
     { if (Terminate)
-        throw PAStreamEndException();
+        throw PAStreamEndException(false);
+      if (!Stream)
+        throw PAStreamEndException(true);
       len = WritableSize();
       DEBUGLOG(("PASinkOutput::Write - %u writable bytes\n", len));
       if (len)
@@ -646,6 +666,8 @@ void PASinkOutput::RunDrain(PABasicOperation& op) throw (PAStreamException)
 { DEBUGLOG(("PASinkOutput(%p{%p})::RunDrain(&%p)\n", this, Stream, &op));
   PAContext::Lock lock;
   op.Cancel();
+  if (!Stream)
+    throw PAStreamEndException(true);
   op.Attach(pa_stream_drain(Stream, &PABasicOperation::StreamSuccessCB, &op));
   if (!op.IsValid())
     throw PAStreamException(Stream, "Drain failed for stream");
@@ -654,6 +676,8 @@ void PASinkOutput::RunDrain(PABasicOperation& op) throw (PAStreamException)
 void PASinkOutput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
 { DEBUGLOG(("PASinkOutput(%p{%p})::SetVolume({%u,...})\n", this, Stream, volume->channels));
   PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   pa_operation* op = pa_context_set_sink_input_volume(pa_stream_get_context(Stream), pa_stream_get_index(Stream), volume, NULL, NULL);
   if (op == NULL)
     throw PAStreamException(Stream, "SetVolume failed for stream");
@@ -661,7 +685,9 @@ void PASinkOutput::SetVolume(const pa_cvolume* volume) throw (PAStreamException)
 }
 
 void PASinkOutput::SetVolume(pa_volume_t volume) throw (PAStreamException)
-{ PACVolume vol(pa_stream_get_sample_spec(Stream)->channels, volume);
+{ if (!Stream)
+    throw PAStreamEndException(true);
+  PACVolume vol(pa_stream_get_sample_spec(Stream)->channels, volume);
   SetVolume(&vol);
 }
 
@@ -687,6 +713,8 @@ void PASourceInput::Connect(PAContext& context, const char* name, const pa_sampl
 
 size_t PASourceInput::ReadableSize() throw (PAStreamException)
 { PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   size_t ret = pa_stream_readable_size(Stream);
   if (ret == (size_t)-1)
     throw PAStreamException(Stream, "Readable size undefined");
@@ -697,7 +725,9 @@ const void* PASourceInput::Peek(size_t& nbytes) throw (PAStreamException)
 { DEBUGLOG(("PASourceInput(%p{%p})::Peek()\n", this, Stream));
   PAContext::Lock lock;
   do
-  { const void* data;
+  { if (!Stream)
+      throw PAStreamEndException(true);
+    const void* data;
     if (pa_stream_peek(Stream, &data, &nbytes) != 0)
       throw PAStreamException(Stream, "Peek failed for stream");
     if (nbytes)
@@ -708,12 +738,14 @@ const void* PASourceInput::Peek(size_t& nbytes) throw (PAStreamException)
     --WaitReadPending;
 
   } while (!Terminate);
-  throw PAStreamEndException();
+  throw PAStreamEndException(false);
 }
 
 void PASourceInput::Drop() throw (PAStreamException)
 { DEBUGLOG(("PASourceInput(%p{%p})::Drop()\n", this, Stream));
   PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
   if (pa_stream_drop(Stream) != 0)
     throw PAStreamException(Stream, "Drop failed for stream");
 }
