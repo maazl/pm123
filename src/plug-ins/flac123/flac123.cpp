@@ -29,12 +29,6 @@
 #define  INCL_DOS
 #define  INCL_WIN
 #define  INCL_ERRORS
-#include <os2.h>
-#include <malloc.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 
 #include <decoder_plug.h>
 #include <plugin.h>
@@ -45,13 +39,20 @@
 
 #include "decoder.h"
 
+#include <os2.h>
+#include <malloc.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
 
 PLUGIN_CONTEXT Ctx = {0};
 
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int DLLENTRY decoder_init(void** returnw)
+int DLLENTRY decoder_init(struct DECODER_STRUCT** returnw)
 { ThreadDecoder* dec = new ThreadDecoder;
   if (!dec->Init())
   { delete dec;
@@ -62,42 +63,40 @@ int DLLENTRY decoder_init(void** returnw)
 }
 
 /* Uninit function is called when another decoder than this is needed. */
-BOOL DLLENTRY decoder_uninit(void* arg)
-{ delete (ThreadDecoder*)arg;
+BOOL DLLENTRY decoder_uninit(struct DECODER_STRUCT* arg)
+{ delete arg;
   return TRUE;
 }
 
 /* There is a lot of commands to implement for this function. Parameters
    needed for each of the are described in the definition of the structure
    in the decoder_plug.h file. */
-ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
+ULONG DLLENTRY decoder_command(struct DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
 { DEBUGLOG(("flac123:decoder_command(%p, %u, )\n", w, msg));
-  #define dec ((ThreadDecoder*)w)
 
   switch (msg)
   {case DECODER_SETUP:
-    dec->Setup(params->A, params->OutRequestBuffer, params->OutCommitBuffer, params->DecEvent);
+    w->Setup(params->A, params->OutRequestBuffer, params->OutCommitBuffer, params->DecEvent);
     return PLUGIN_OK;
 
    case DECODER_PLAY:
-    return dec->Play(params->URL, params->JumpTo);
+    return w->Play(params->URL, params->JumpTo);
 
    case DECODER_STOP:
-    return dec->Stop();
+    return w->Stop();
 
    case DECODER_FFWD:
-    return dec->SetFast(params->Fast);
+    return w->SetFast(params->Fast);
 
    case DECODER_JUMPTO:
-    return dec->Seek(params->JumpTo);
+    return w->Seek(params->JumpTo);
 
    /*case DECODER_SAVEDATA:
-    return dec->SaveStream(params->SaveFilename);*/
+    return w->SaveStream(params->SaveFilename);*/
 
    default:
     return PLUGIN_UNSUPPORTED;
   }
-  #undef dec
 }
 
 /* currently not required
@@ -106,13 +105,13 @@ void DLLENTRY decoder_event(void* w, OUTEVENTTYPE event)
 }*/
 
 /* Returns current status of the decoder. */
-ULONG DLLENTRY decoder_status( void* arg )
-{ return ((ThreadDecoder*)arg)->GetState();
+ULONG DLLENTRY decoder_status(struct DECODER_STRUCT* arg)
+{ return arg->GetState();
 }
 
 /* Returns number of milliseconds the stream lasts. */
-PM123_TIME DLLENTRY decoder_length( void* arg )
-{ return ((ThreadDecoder*)arg)->GetLength();
+PM123_TIME DLLENTRY decoder_length(struct DECODER_STRUCT* arg)
+{ return arg->GetLength();
 }
 
 /* Returns information about specified file. */
@@ -264,7 +263,7 @@ ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
 
 
 /* Returns information about plug-in. */
-int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param )
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param)
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Marcel Mueller";

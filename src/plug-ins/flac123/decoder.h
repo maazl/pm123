@@ -108,7 +108,7 @@ class MetaDecoder : public DecoderBase
   static void MetadataCB(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
 };
 
-class ThreadDecoder : public DecoderBase
+typedef struct DECODER_STRUCT : public DecoderBase
 {
  private: // Callbacks
   void* A;
@@ -133,7 +133,7 @@ class ThreadDecoder : public DecoderBase
   PM123_TIME GetTime() const { return Format.samplerate <= 0 ? -1 : (double)SamplePos / Format.samplerate; }
 
  public:
-  ThreadDecoder();
+  DECODER_STRUCT();
 
   void Setup(void* a,
     int  DLLENTRYP(req)(void*, const FORMAT_INFO2*, float**),
@@ -162,7 +162,7 @@ class ThreadDecoder : public DecoderBase
 
   static FLAC__StreamDecoderWriteStatus WriteCB(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data);
   static void MetadataCB(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
-};
+} ThreadDecoder;
 
 /*class OggDecoderThread : public OggDecoder
 {private:

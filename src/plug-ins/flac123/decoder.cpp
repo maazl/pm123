@@ -252,7 +252,7 @@ void MetaDecoder::MetadataCB(const FLAC__StreamDecoder *decoder, const FLAC__Str
 }
 
 
-ThreadDecoder::ThreadDecoder()
+ThreadDecoder::DECODER_STRUCT()
 : State(DECODER_STOPPED)
 , Terminate(false)
 {}
