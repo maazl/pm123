@@ -1025,7 +1025,11 @@ void CtrlImp::MsgDecStop()
   { // Song, no repeat => stop
    eol:
     DEBUGLOG(("Ctrl::MsgDecStop: flush\n"));
+    // Acknowledge stop signal,
     Glue::DecStop();
+    // wait for the decoder to complete
+    Glue::DecClose();
+    // and then flush the output.
     Glue::OutFlush();
     // Continue at OUTEVENT_END_OF_DATA
     Reply(RC_OK);

@@ -367,6 +367,7 @@ void PlaybackWorker::DrainOpCompletion(const int& success)
 int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::RequestBuffer({%i, %i}, )\n", this,
     format ? format->channels : -1, format ? format->samplerate : -1));
+  ASSERT(LastBuffer == NULL);
   try
   { if (buf == NULL)
     { // flush request

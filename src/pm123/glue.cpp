@@ -447,7 +447,7 @@ bool Glue::OutTrash()
   return TRUE;
 }
 
-/* Returns 0 = success otherwize MMOS/2 error. */
+/* Returns 0 = success otherwise MMOS/2 error. */
 PROXYFUNCIMP(ULONG DLLENTRY, Glue)
 OutPlayingSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
 { if (!GlueImp::Initialized)
