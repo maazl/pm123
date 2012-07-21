@@ -189,7 +189,7 @@ sfnameext( char *result, const char* location, size_t size )
   // Remove fragment identifier, parameters or query information,
   // if any, from the back of the url.
   if( is_url ) {
-    if(( pc = strpbrk( phead, "#?;" )) != NULL ) {
+    if(( pc = strpbrk( phead, "#?" )) != NULL ) {
       ptail = pc;
     }
   }
@@ -262,7 +262,7 @@ sfext( char* result, const char* location, size_t size )
   // Remove fragment identifier, parameters or query information,
   // if any, from the back of the url.
   if( is_url ) {
-    if(( pc = strpbrk( phead, "#?;" )) != NULL ) {
+    if(( pc = strpbrk( phead, "#?" )) != NULL ) {
       ptail = pc;
     }
   }
@@ -330,7 +330,7 @@ sfname( char* result, const char* location, size_t size )
   // Remove fragment identifier, parameters or query information,
   // if any, from the back of the url.
   if( is_url ) {
-    if(( pc = strpbrk( phead, "#?;" )) != NULL ) {
+    if(( pc = strpbrk( phead, "#?" )) != NULL ) {
       ptail = pc;
     }
   }
@@ -412,7 +412,7 @@ sdrivedir( char *result, const char* location, size_t size )
   // Remove fragment identifier, parameters or query information,
   // if any, from the back of the url.
   if( is_url ) {
-    if(( pc = strpbrk( phead, "#?;" )) != NULL ) {
+    if(( pc = strpbrk( phead, "#?" )) != NULL ) {
       ptail = pc;
     }
   }
