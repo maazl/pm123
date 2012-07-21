@@ -70,7 +70,7 @@ XIObuffer::~XIObuffer()
 
   obs_clear();
   
-  delete head;
+  delete[] head;
   head = NULL;
 }
 

@@ -231,7 +231,8 @@ XURL* url_allocate( const char* string )
     *pc = 0;
   }
 
-  // 5. Parse parameters from the back
+  /* gives problems with files
+  / 5. Parse parameters from the back
   //
   // If the parse string contains a ';', then the substring
   // after the first ';' and up to the end of the parse string
@@ -243,7 +244,7 @@ XURL* url_allocate( const char* string )
   if(( pc = strchr( tail, ';' )) != NULL ) {
     url->params = url_decode( strdup( pc + 1 ));
     *pc = 0;
-  }
+  }*/
 
   // 6. Remainder is path
   //
@@ -311,7 +312,7 @@ void url_free( XURL* url )
     free( url->password );
     free( url->host     );
     free( url->path     );
-    free( url->params   );
+    //free( url->params   );
     free( url->query    );
     free( url->fragment );
     free( url );
@@ -353,7 +354,7 @@ char* url_string( XURL* url, int part )
            urllen( url->password ) +
            urllen( url->host     ) +
            urllen( url->path     ) +
-           urllen( url->params   ) +
+           //urllen( url->params   ) +
            urllen( url->query    ) +
            urllen( url->fragment ) + 32;
   }
@@ -362,14 +363,14 @@ char* url_string( XURL* url, int part )
     size = urllen( url->scheme   ) +
            urllen( url->host     ) +
            urllen( url->path     ) +
-           urllen( url->params   ) +
+           //urllen( url->params   ) +
            urllen( url->query    ) +
            urllen( url->fragment ) + 32;
   }
   else if( part == XURL_STR_REQUEST )
   {
     size = urllen( url->path     ) +
-           urllen( url->params   ) +
+           //urllen( url->params   ) +
            urllen( url->query    ) +
            urllen( url->fragment ) + 4;
   } else {
@@ -420,10 +421,10 @@ char* url_string( XURL* url, int part )
   } else if( part == XURL_STR_REQUEST ) {
     strcat( string, "/" );
   }
-  if( url->params ) {
+  /*if( url->params ) {
     strcat( string, ";" );
     urlcat( string, url->params, size );
-  }
+  }*/
   if( url->query ) {
     strcat( string, "?" );
     strcat( string, url->query );

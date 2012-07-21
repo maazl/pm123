@@ -39,7 +39,7 @@ typedef struct _XURL {
   char*    host;      /* Decoded. */
   unsigned port;      /* Decoded. */
   char*    path;      /* Decoded. */
-  char*    params;    /* Decoded. */
+  //char*    params;    /* Decoded. */
   char*    query;     /* Encoded. */
   char*    fragment;  /* Decoded. */
 

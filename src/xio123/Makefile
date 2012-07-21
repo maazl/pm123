@@ -26,7 +26,7 @@ xio123$(LBI): $(DEF)
 clean:  $(MDUMMY)
 	-@del xio123$(LBI) xio123.dll $(OBJECTS) 2> nul
 
-xio.cpp:	..\utils\utilfct.h ..\include\plugin.h ..\utils\debuglog.h xio.h xio_protocol.h xio_file.h xio_ftp.h xio_http.h xio_cddb.h xio_syncbuffer.h xio_asyncbuffer.h xio_socket.h
+xio.cpp:	..\utils\utilfct.h ..\include\plugin.h ..\utils\debuglog.h ..\utils\cpp\container\stringmap.h xio.h xio_protocol.h xio_file.h xio_ftp.h xio_http.h xio_cddb.h xio_syncbuffer.h xio_asyncbuffer.h xio_socket.h
 xio_protocol.h:	..\include\config.h xio.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h
 xio_buffer.h:	xio_protocol.h
 xio_file.h:	xio.h xio_protocol.h
@@ -55,3 +55,7 @@ xio_syncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_syncbuffer.h xio_
 ..\utils\interlocked.h:	..\include\config.h
 ..\utils\debuglog.h:	..\utils\errorstr.h
 xio_socket.h:	xio_protocol.h
+..\utils\cpp\container\stringmap.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\sorted_vector.h
+..\utils\cpp\container\sorted_vector.h:	..\utils\cpp\smartptr.h ..\utils\cpp\algorithm.h ..\utils\cpp\container\vector.h
+..\utils\cpp\algorithm.h:	..\utils\cpp\container\vector.h
+..\utils\cpp\container\vector.h:	..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h
