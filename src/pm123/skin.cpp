@@ -1470,7 +1470,7 @@ bmp_draw_slider( HPS hps, double location, bool alt )
     if( location >= 0 )
     { ULONG pos = location >= 1
         ? bmp_ulong[UL_SLIDER_WIDTH]
-        : (ULONG)(location * bmp_ulong[UL_SLIDER_WIDTH]);
+        : (ULONG)(location * bmp_ulong[UL_SLIDER_WIDTH] +.5);
 
       bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
                             bmp_pos[ POS_SLIDER ].y, alt && bmp_cache[BMP_ALTSLIDER] ? BMP_ALTSLIDER : BMP_SLIDER );
@@ -1479,19 +1479,9 @@ bmp_draw_slider( HPS hps, double location, bool alt )
 }
 
 /* Calculates a current seeking location [0,1] on the basis of position of the pointer. */
-double
-bmp_calc_time( POINTL pos )
+double bmp_calc_time( POINTL pos )
 {
-  double time = 0;
-
-  if( bmp_ulong[ UL_SLIDER_WIDTH ] && pos.x >= bmp_pos[ POS_SLIDER ].x )
-  {
-    time = (double)( pos.x - bmp_pos[ POS_SLIDER ].x ) / bmp_ulong[ UL_SLIDER_WIDTH ];
-    if( time > 1 )
-      time = 1;
-  }
-
-  return time;
+  return (double)( pos.x - bmp_pos[ POS_SLIDER ].x ) / bmp_ulong[ UL_SLIDER_WIDTH ];
 }
 
 /* Queries whether a point lies within a position slider rectangle. */

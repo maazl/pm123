@@ -409,7 +409,6 @@ ULONG Glue::OutClose()
     return (ULONG)-1;
   GlueImp::OParams.PlayingPos = (*GlueImp::Procs.output_playing_pos)(GlueImp::Procs.A);
   GlueImp::Initialized = false;
-  GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
   ULONG rc = GlueImp::OutCommand(OUTPUT_CLOSE);
   // Now wait for the decoder to stop until we discard the output filter chain.
 

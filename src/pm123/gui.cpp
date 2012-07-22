@@ -107,9 +107,8 @@ class GUIImp : private GUI, private DialogBase
   enum UpdateFlags
   { UPD_NONE             = 0
   , UPD_TIMERS           = 0x0001         // Current time index, remaining time and slider
-  , UPD_TOTALS           = 0x0002         // Total playing time, total number of songs
   , UPD_PLMODE           = 0x0004         // Playlist mode icons
-  , UPD_PLINDEX          = 0x0008         // Playlist index
+  , UPD_PLINDEX          = 0x0008         // Playlist index, playlist totals
   , UPD_RATE             = 0x0010         // Bit rate
   , UPD_CHANNELS         = 0x0020         // Number of channels
   , UPD_VOLUME           = 0x0040         // Volume slider
@@ -137,7 +136,6 @@ class GUIImp : private GUI, private DialogBase
   static UpdateFlags       UpdFlags;      // Pending window updates.
   static UpdateFlags       UpdAtLocMsg;   // Update this fields at the next location message.
   static bool              IsHaveFocus;   // PM123 main window currently has the focus.
-  static int               IsSeeking;     // A number of seek operations is currently on the way.
   static bool              IsVolumeDrag;  // We currently drag the volume bar.
   static bool              IsSliderDrag;  // We currently drag the navigation slider.
   static bool              IsAltSlider;   // Alternate Slider currently active
@@ -158,6 +156,8 @@ class GUIImp : private GUI, private DialogBase
 
   static void      Invalidate(UpdateFlags what);
   static void      SetAltSlider(bool alt);
+  /// WMP_SLIDERDRAG processing.
+  static void      SliderDrag(LONG x, LONG y, JobSet& job);
 
   /// Ensure that a MsgLocation message is processed by the controller
   static void      ForceLocationMsg();
@@ -215,7 +215,6 @@ bool                GUIImp::IsLocMsg        = false;
 GUIImp::UpdateFlags GUIImp::UpdFlags        = UPD_NONE;
 GUIImp::UpdateFlags GUIImp::UpdAtLocMsg     = UPD_NONE;
 bool                GUIImp::IsHaveFocus     = false;
-int                 GUIImp::IsSeeking       = 0;
 bool                GUIImp::IsVolumeDrag    = false;
 bool                GUIImp::IsSliderDrag    = false;
 bool                GUIImp::IsAltSlider     = false;
@@ -322,8 +321,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       const volatile amp_cfg& cfg = Cfg::Get();
       if ( cfg.itemaction == CFG_ACTION_NAVTO && CurrentIter
         && !CurrentIter->NavigateTo(target) ) // Try to navigate to target
-      { GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
-      } else
+        GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
+      else
       { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
         lhp->AddItem(*target.GetCurrent());
         Load(lhp);
@@ -507,7 +506,6 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Invalidate(UPD_VOLUME);
         break;
        case Ctrl::Cmd_Jump:
-        IsSeeking = FALSE;
         delete (SongIterator*)cmd->PtrArg;
         break;
        case Ctrl::Cmd_Save:
@@ -516,8 +514,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case Ctrl::Cmd_Location:
         { IsLocMsg = false;
-          if (IsSeeking) // do not overwrite location while seeking
-              break;
+          if (IsSliderDrag)
+            break;
           // Update CurrentIter
           if (cmd->Flags == Ctrl::RC_OK)
             CurrentIter = (SongIterator*)cmd->PtrArg;
@@ -525,7 +523,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           UpdateFlags upd = UpdAtLocMsg;
           UpdAtLocMsg = UPD_NONE;
           if (Cfg::Get().mode == CFG_MODE_REGULAR)
-              upd |= UPD_TIMERS;
+            upd |= UPD_TIMERS;
           Invalidate(upd);
           break;
         }
@@ -563,9 +561,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (flags & Ctrl::EV_Shuffle)
         WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & Ctrl::EV_Repeat)
-      { WinSendDlgItemMsg(HPlayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
-        inval |= UPD_TOTALS;
-      }
+        WinSendDlgItemMsg(HPlayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & (Ctrl::EV_Root|Ctrl::EV_Song))
       { int_ptr<APlayable> root = Ctrl::GetRoot();
         if (flags & Ctrl::EV_Root)
@@ -574,7 +570,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root.get()));
           if (root)
             root->GetInfoChange() += RootDeleg;
-          UpdAtLocMsg |= UPD_TIMERS|UPD_TOTALS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
+          UpdAtLocMsg |= UPD_TIMERS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
         }
         // New song => attach observer
         CurrentDeleg.detach();
@@ -620,19 +616,21 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       UpdateFlags upd = UPD_NONE;
       if (root == ap)
       { // Root change event
-        if (changed & IF_Obj)
-          upd |= UPD_TIMERS;
         if (changed & IF_Rpl)
-        { upd |= UPD_TOTALS;
+          upd |= UPD_PLINDEX;
           // TODO: needed? ForceLocationMsg();
-        }
+        if (changed & IF_Drpl)
+          upd |= UPD_TIMERS;
+          // TODO: needed? ForceLocationMsg();
         if (changed & IF_Tech)
           upd |= UPD_PLMODE;
       }
       if (CurrentIter->GetCurrent() == ap)
       { // Current change event
         if (changed & IF_Obj)
-          upd |= UPD_TIMERS|UPD_RATE;
+          upd |= UPD_RATE;
+        if (changed & IF_Drpl)
+          upd |= UPD_TIMERS;
         if (changed & IF_Tech)
           upd |= Cfg::Get().viewmode == CFG_DISP_FILEINFO ? UPD_CHANNELS|UPD_TEXT : UPD_CHANNELS;
         if ((changed & IF_Meta) && Cfg::Get().viewmode == CFG_DISP_ID3TAG)
@@ -1053,9 +1051,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       } else if (bmp_pt_in_slider(pos))
       { if (CurrentRoot() && (IsAltSlider
           ? CurrentRoot()->GetInfo().rpl->songs > 0
-          : CurrentSong()->GetInfo().obj->songlength > 0 ))
+          : CurrentSong()->GetInfo().drpl->totallength > 0 ))
         { IsSliderDrag = true;
-          IsSeeking    = true;
           WinSetCapture(HWND_DESKTOP, HPlayer);
         }
       }
@@ -1088,9 +1085,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { switch (SHORT2FROMMP(mp2))
         {case VK_ESC:
           if(!(fsflags & KC_KEYUP))
-          { IsSliderDrag = false;
-            IsSeeking    = false;
-          }
+            IsSliderDrag = false;
           break;
         }
       }
@@ -1135,57 +1130,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WMP_SLIDERDRAG:
     if (IsSliderDrag)
-    { // Cancel delayed slider drag if any
-      DelayedAltSliderDragWorker.Cancel();
-      // get position
-      POINTL pos;
-      pos.x = SHORT1FROMMP(mp1);
-      pos.y = SHORT2FROMMP(mp1);
-      double relpos = bmp_calc_time(pos);
-      JobSet job(PRI_Normal);
-      APlayable* root = CurrentRoot();
-      if (!root)
-        return 0;
-      // adjust CurrentIter from pos
-      if (!IsAltSlider)
-      { const PM123_TIME songlength = CurrentSong()->GetInfo().obj->songlength;
-        // navigation within the current song
-        if (songlength <= 0)
-          return 0;
-        CurrentIter->NavigateLeaveSong();
-        CurrentIter->NavigateTime(job, relpos * songlength);
-      } else switch (Cfg::Get().altnavig)
-      {case CFG_ANAV_TIME:
-        // Navigate only at the time scale
-        if (root->GetInfo().drpl->totallength > 0)
-        { CurrentIter->Reset();
-          bool r = CurrentIter->NavigateTime(job, relpos * root->GetInfo().drpl->totallength);
-          DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
-          break;
-        }
-        // else if no total time is available use song time navigation
-       case CFG_ANAV_SONG:
-       case CFG_ANAV_SONGTIME:
-        // navigate at song and optional time scale
-        { const int num_items = root->GetInfo().rpl->songs;
-          if (num_items <= 0)
-            return 0;
-          relpos *= num_items;
-          relpos += 1.;
-          if (relpos > num_items)
-            relpos = num_items;
-          CurrentIter->Reset();
-          bool r = CurrentIter->NavigateCount(job, (int)floor(relpos), TATTR_SONG);
-          DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
-          // navigate within the song
-          const PM123_TIME songlength = CurrentSong()->GetInfo().obj->songlength;
-          if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
-          { relpos -= floor(relpos);
-            CurrentIter->NavigateLeaveSong();
-            CurrentIter->NavigateTime(job, relpos * songlength);
-          }
-        }
-      }
+    { JobSet job(PRI_Normal);
+      SliderDrag(SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), job);
       // Did we have unfulfilled dependencies?
       job.Commit();
       if (job.AllDepends.Size())
@@ -1237,8 +1183,69 @@ void GUIImp::SetAltSlider(bool alt)
 { DEBUGLOG(("GUIImp::SetAltSlider(%u) - %u\n", alt, IsAltSlider));
   if (IsAltSlider != alt)
   { IsAltSlider = alt;
-    Invalidate(UPD_TIMERS);
+    Invalidate(UPD_TIMERS|UPD_PLINDEX);
   }
+}
+
+void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
+{ DEBUGLOG(("GUIImp::SliderDrag(%li, %li, ) - %u\n", x,y, IsAltSlider));
+  // Cancel delayed slider drag if any
+  DelayedAltSliderDragWorker.Cancel();
+
+  APlayable* root = CurrentRoot();
+  if (!root)
+    return;
+  // get position
+  POINTL pos;
+  pos.x = x;
+  pos.y = y;
+  double relpos = bmp_calc_time(pos);
+  if (relpos < 0.)
+    relpos = 0;
+  else if (relpos >= 1.)
+    relpos = 1. - 1E-6; // Well, PM123 dislikes to navigate exactly to the end of the song.
+
+  // adjust CurrentIter from pos
+  if (!IsAltSlider)
+  { const PM123_TIME songlength = CurrentSong()->GetInfo().drpl->totallength;
+    // navigation within the current song
+    if (songlength <= 0)
+      return;
+    CurrentIter->NavigateLeaveSong();
+    CurrentIter->NavigateTime(job, relpos * songlength);
+  } else
+    switch (Cfg::Get().altnavig)
+    {case CFG_ANAV_TIME:
+      // Navigate only at the time scale
+      if (root->GetInfo().drpl->totallength > 0)
+      { CurrentIter->Reset();
+        bool r = CurrentIter->NavigateTime(job, relpos * root->GetInfo().drpl->totallength);
+        DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
+        break;
+      }
+      // else if no total time is available use song time navigation
+     case CFG_ANAV_SONG:
+     case CFG_ANAV_SONGTIME:
+      // navigate at song and optional time scale
+      { const int num_items = root->GetInfo().rpl->songs;
+        if (num_items <= 0)
+          return;
+        relpos *= num_items;
+        relpos += 1.;
+        if (relpos > num_items)
+          relpos = num_items;
+        CurrentIter->Reset();
+        bool r = CurrentIter->NavigateCount(job, (int)floor(relpos), TATTR_SONG);
+        DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
+        // navigate within the song
+        const PM123_TIME songlength = CurrentSong()->GetInfo().drpl->totallength;
+        if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
+        { relpos -= floor(relpos);
+          CurrentIter->NavigateLeaveSong();
+          CurrentIter->NavigateTime(job, relpos * songlength);
+        }
+      }
+    }
 }
 
 void GUIImp::ForceLocationMsg()
@@ -1572,7 +1579,7 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
 
 
 void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
-{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i %i\n", hps, index, offset, Cfg::Get().mode, IsSeeking));
+{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, index, offset, Cfg::Get().mode));
 
   APlayable* root = CurrentIter->GetRoot();
   if (root == NULL)
@@ -1589,7 +1596,7 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
 
   PM123_TIME list_left = -1;
   PM123_TIME play_left = total_song;
-  PM123_TIME position = CurrentIter->GetPosition();
+  PM123_TIME position = CurrentIter->GetTime();
   if (position < 0)
     position = 0;
   if (play_left > 0)
@@ -1612,8 +1619,8 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
     }
     break;
    case CFG_ANAV_TIME:
-    if (root->GetInfo().obj->songlength > 0)
-    { pos = (offset + position) / root->GetInfo().obj->songlength;
+    if (root->GetInfo().drpl->totallength > 0)
+    { pos = (offset + position) / root->GetInfo().drpl->totallength;
       break;
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
@@ -1684,7 +1691,7 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   if (mask & UPD_BACKGROUND)
     bmp_draw_background(hps, HPlayer);
   APlayable* root = CurrentRoot();
-  if (mask & (UPD_TIMERS|UPD_TOTALS|UPD_PLINDEX))
+  if (mask & (UPD_TIMERS|UPD_PLINDEX))
   { int index = -1;
     PM123_TIME offset = -1;
     if (root)
@@ -1699,9 +1706,11 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
     }
     if (mask & UPD_TIMERS)
       RefreshTimers(hps, index, offset);
-    if (mask & (UPD_TOTALS|UPD_PLINDEX))
-      bmp_draw_plind(hps, index+1,
-        root && (root->GetInfo().tech->attributes & TATTR_SONG) ? root->GetInfo().rpl->songs : -1);
+    if (mask & UPD_PLINDEX)
+      if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
+        bmp_draw_plind(hps, index+1, root->GetInfo().rpl->songs);
+      else
+        bmp_draw_plind(hps, -1, -1);
   }
   if (mask & UPD_PLMODE)
     bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());

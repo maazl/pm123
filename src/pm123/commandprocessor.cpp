@@ -654,13 +654,12 @@ void CommandProcessor::XReset()
 // PLAY CONTROL
 
 void CommandProcessor::XLoad()
-{ LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
+{ LoadHelper lh(LoadHelper::LoadDefault);
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XPlay()
-{ ExtLoadHelper lh( LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
-                    Ctrl::MkPlayStop(Ctrl::Op_Set) );
+{ ExtLoadHelper lh(LoadHelper::LoadPlay, Ctrl::MkPlayStop(Ctrl::Op_Set));
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
@@ -808,7 +807,7 @@ void CommandProcessor::XTime()
 { Location loc;
   Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false));
   if (cmd->Flags == Ctrl::RC_OK)
-    Reply.appendf("%f", loc.GetPosition());
+    Reply.appendf("%f", loc.GetTime());
   cmd->Destroy();
 }
 

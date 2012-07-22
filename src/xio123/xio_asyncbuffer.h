@@ -43,7 +43,7 @@ class XIOasyncbuffer : public XIObuffer
   //              M  all write, only reliable while mtx_access is locked  
   char* tail;           // C  Pointer to beyond of the last byte of the buffer.
   int   prefill;        // C  Start sending data not before this buffer level.
-  char* data_head;      // X  Pointer to the first byte of the data.
+  char* data_head;      // M  Pointer to the first byte of the data.
   char* data_tail;      // R  Pointer to beyond of the last byte of the data.
   char* data_read;      // M  Current read position in the data pool.
   int   data_size;      // M  Current size of the data.

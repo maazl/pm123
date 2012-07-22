@@ -380,15 +380,20 @@ bool SongIterator::IsShuffle() const
 }
 
 InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& target, InfoFlags what, JobSet& job)
-{ DEBUGLOG(("SongIterator(%p)::CalcFrontAggregate(&%p, %x, )\n", this, &job, &target, what));
+{ DEBUGLOG(("SongIterator(%p)::AddFrontAggregate(&%p, %x, )\n", this, &job, &target, what));
   ASSERT(target.Exclude.size() == 0);
 
   if (!Root || !what)
     return what;
-  InfoFlags whatnotok = IF_None;
+
+  OwnedPlayableSet exclude;
+  return Root->AddSliceAggregate(target, exclude, what, job, NULL, this);
+
+  /*InfoFlags whatnotok = IF_None;
 
   // Aggregate offsets of the call stack
   const vector<PlayableInstance>& callstack = GetCallstack();
+
   OffsetCache.set_size(callstack.size());
   OwnedPlayableSet exclude;
   exclude.reserve(callstack.size());
@@ -423,8 +428,8 @@ InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& target, InfoFlags what,
 
   // Aggregate Offset in the current song.
   APlayable* cur = GetCurrent();
-  if (cur && GetPosition() > 0)
+  if (cur && Position > 0)
     whatnotok |= cur->AddSliceAggregate(target, exclude, what, job, NULL, this, callstack.size());
 
-  return whatnotok;
+  return whatnotok;*/
 }

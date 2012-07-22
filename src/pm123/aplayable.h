@@ -217,8 +217,8 @@ class APlayable
   /// @param start Start location in \c *this. If \c NULL then the start of \c *this is taken.
   /// @param stop Stop location in \c *this. If \c NULL then the end of \c *this is taken.
   /// @param level Take the start and stop locations from depth \a level.
-  /// I.e. \a cur is not the root of start/stop but at level in the call stack of start/stop.
-  /// @return Returns the kind of information that is not successfully obtained.
+  /// I.e. \a cur is not the root of \a start/stop but at level in the call stack of \a start/stop.
+  /// @return Returns the kind of information that is \e not successfully obtained.
   /// If nonzero then some information depends on other objects. The dependencies in \a job have been adjusted.
           InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level = 0);
 

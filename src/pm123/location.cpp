@@ -106,6 +106,16 @@ Playable* Location::GetPlaylist() const
   }
 }
 
+PM123_TIME Location::GetTime() const
+{ if (Position < 0)
+    return Position;
+  APlayable* pp = GetCurrent(); // GetCurrent() must not be NULL if Position >= 0
+  int_ptr<Location> start = pp->GetStartLoc();
+  if (start && start->GetPosition() > 0)
+    return Position - start->GetPosition();
+  return Position;
+}
+
 unsigned Location::FindInCallstack(const Playable* pp) const
 { if (pp)
   { if (Root == pp)
@@ -350,47 +360,47 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
   return ret;
 }
 
-Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth)
-{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %f, %u) - %u\n", this, job.Pri, offset, mindepth, Callstack.size()));
+Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth, bool absolute)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %f, %u, %u) - %u\n", this, job.Pri, offset, mindepth, absolute, Callstack.size()));
   
   if (Root == NULL)
     return "Cannot Navigate without root.";
 
   xstring ret;
-  if (offset == 0)
-    return ret; // no-op
-
-  const bool direction = offset > 0;
+  const bool direction = offset >= 0;
 
   for (;;)
   { unsigned maxdepth = UINT_MAX;
     APlayable* cur = GetCurrent();
     if (!cur)
       goto next; // we entered a playlist but did not navigate to an item.
-    if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child))
+    if (job.RequestInfo(*cur, IF_Tech|IF_Obj|IF_Child|IF_Slice))
       return xstring::empty;
     if (cur->GetInfo().tech->attributes & TATTR_SONG)
     { // Try to navigate within the current song.
+      int_ptr<Location> start = cur->GetStartLoc();
+      int_ptr<Location> stop = cur->GetStopLoc();
+      PM123_TIME begin = !absolute && start && start->GetPosition() > 0 ? start->GetPosition() : 0;
+      PM123_TIME end = !absolute && stop && stop->GetPosition() >= 0 ? stop->GetPosition() : cur->GetInfo().obj->songlength;
       if (direction)
       { if (Position < 0)
-          Position = 0;
+          Position = begin;
         Position += offset;
-        const PM123_TIME songlength = cur->GetInfo().obj->songlength;
-        if (Position < songlength)
+        if (Position < end)
           return ret; // Navigation within song succeeded
-        else if (songlength < 0)
+        else if (end < 0)
           return "Indeterminate song length.";
-        offset = Position - songlength; // remaining part
+        offset = Position - end; // remaining part
       } else // Backwards
       { if (Position < 0)
-        { Position = cur->GetInfo().obj->songlength;
+        { Position = end;
           if (Position < 0)
             return "Indeterminate song length.";
         }
         Position += offset;
-        if (Position >= 0)
+        if (Position >= begin)
           return ret; // Navigation within song succeeded
-        offset = Position; // remaining part
+        offset = Position - begin; // remaining part
       }
     } else
     { // Playlist => try to skip entirely
@@ -589,7 +599,7 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          ret = NavigateTime(job, t[0]);
+          ret = NavigateTime(job, t[0], GetLevel(), true);
           if (ret)
             return ret;
           continue;

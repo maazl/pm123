@@ -80,11 +80,12 @@ class CtrlImp
 
   static TID                  WorkerTID;          ///< Thread ID of the worker
   static Ctrl::ControlCommand* CurCmd;            ///< Currently processed ControlCommand, protected by Queue.Mtx
-  static APlayable*           LastStart;          ///< Weak reference to the last item successfully played or the start item. Must not be dereferenced!
-
   /// Pending Events. These events are set atomically from any thread.
   /// After each last message of a queued set of messages the events are raised and Pending is atomically reset.
   static AtomicUnsigned       Pending;
+
+  static APlayable*           LastStart;          ///< Weak reference to the last item successfully played or the start item. Must not be dereferenced!
+  static bool                 IsSeeking;          ///< True during seek operations. This prevents calls to \c OutPlayingPos().
 
   // Delegates for the tracked events of the decoder, the output and the current song.
   static delegate<void, const Glue::DecEventArgs> DecEventDelegate;
@@ -162,7 +163,7 @@ class CtrlImp
   /// Event handler for output events.
   static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
   /// Event handler for tracking modifications of the currently playing song.
-  static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
+  //static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
   /// Event handler for tracking modifications of the currently loaded object.
   static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
 
@@ -182,6 +183,7 @@ class CtrlImp
   void  MsgRepeat  ();
   void  MsgLocation();
   void  MsgDecStop ();
+  void  MsgSeekStop();
   void  MsgOutStop ();
 
  private: // non-constructible, non-copyable
@@ -219,9 +221,10 @@ bool                  Ctrl::Repeat    = false;
 queue<Ctrl::QEntry>   Ctrl::Queue;
 TID                   CtrlImp::WorkerTID = 0;
 Ctrl::ControlCommand* CtrlImp::CurCmd    = NULL;
-APlayable*            CtrlImp::LastStart = NULL;
-
 AtomicUnsigned        CtrlImp::Pending   = Ctrl::EV_None;
+APlayable*            CtrlImp::LastStart = NULL;
+bool                  CtrlImp::IsSeeking = false;
+
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
 delegate<void, const Glue::DecEventArgs> CtrlImp::DecEventDelegate(&CtrlImp::DecEventHandler);
@@ -344,6 +347,7 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe)
       at = start;
   }
 
+  IsSeeking = at > 0;
   ULONG rc = Glue::DecPlay(song, pe.Offset-start, at, stop);
   if (rc != 0)
     return rc;
@@ -440,7 +444,9 @@ void CtrlImp::NavigateCore(Location& si)
       if (rc)
       { ReplyDecoderError(rc);
         return;
-    } }
+      }
+      IsSeeking = true;
+    }
     Pending |= EV_Location;
     Mutex::Lock lock(PLMtx);
     Current()->Loc.Swap(si);
@@ -547,7 +553,7 @@ void CtrlImp::CheckPrefetch(double pos)
 }
 
 PM123_TIME CtrlImp::FetchCurrentSongTime()
-{ if (Playing)
+{ if (Playing && !IsSeeking)
   { PM123_TIME time = Glue::OutPlayingPos();
     // Check whether the output played a prefetched item completely.
     CheckPrefetch(time);
@@ -568,9 +574,10 @@ void CtrlImp::DecEventHandler(void*, const Glue::DecEventArgs& args)
     // Well, same as on play error.
     PostCommand(MkDecStop());
     break;
-   /* currently unused
    case DECEVENT_SEEKSTOP:
+    PostCommand(MkSeekStop());
     break;
+    /* currently unused
    case DEVEVENT_CHANGETECH:
     break;
    case DECEVENT_CHANGEMETA:
@@ -602,11 +609,9 @@ void CtrlImp::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
     if (!ps || ps != &args.Instance)
       return; // too late...
   }
-  /*EventFlags events = (EventFlags)((unsigned)args.Changed / Playable::IF_Tech * (unsigned)EV_RootTech) & EV_RootAll & ~EV_Root; // Dirty hack to shift the bits to match EV_Root*
-  if (events)
-  { InterlockedOr(&Pending, events);
-    PostCommand(MkNop());
-  }*/  
+  // Ensure invalidated infos to reload.
+  if (args.Invalidated)
+    args.Instance.RequestInfo(args.Invalidated & (IF_Tech|IF_Obj|IF_Meta|IF_Child|IF_Aggreg), PRI_Low, REL_Confirmed);
 }
 
 
@@ -655,9 +660,10 @@ void CtrlImp::MsgScan()
       { ReplyDecoderError(rc);
         return;
       } else // if (cfg.trash)
-        // Going back in the stream to what is currently playing.
-        Glue::DecJump(FetchCurrentSongTime());
-
+      { // Going back in the stream to what is currently playing.
+        if (Glue::DecJump(FetchCurrentSongTime()) == 0)
+          IsSeeking = true;
+      }
     } else if (Flags & Op_Set)
     { Reply(RC_NotPlaying);
       return;
@@ -811,7 +817,6 @@ void CtrlImp::MsgNavigate()
       return;
     }
   }
-  // TODO: extend total playing time when leaving bounds of parent iterator?
 
   // commit
   NavigateCore(*sip);
@@ -996,20 +1001,15 @@ void CtrlImp::MsgLocation()
   { Reply(RC_NoSong); // no root
     return;
   }
-  if (Flags & 1)
-  { // stopat location
-    // TODO: not yet implemented
-  } else
-  { // Fetch time first because that may change Current().
-    PM123_TIME pos;
-    if ((Flags & 2) == 0)
-      pos = FetchCurrentSongTime();
-    Location& loc = *(Location*)PtrArg;
-    loc = Current()->Loc; // copy
-    loc.NavigateLeaveSong();
-    if ((Flags & 2) == 0 && pos >= 0)
-      loc.NavigateTime(SyncJob, pos);
-  }
+  Location& loc = *(Location*)PtrArg;
+  // Fetch time first because that may change Current().
+  PM123_TIME pos;
+  if ((Flags & 2) == 0)
+    pos = FetchCurrentSongTime();
+  loc = Current()->Loc; // copy
+  loc.NavigateLeaveSong();
+  if ((Flags & 2) == 0 && pos >= 0)
+    loc.NavigateTime(SyncJob, pos);
   Reply(RC_OK);
 }
 
@@ -1080,6 +1080,12 @@ void CtrlImp::MsgDecStop()
   Reply(RC_OK);
 }
 
+// A seek command completed
+void CtrlImp::MsgSeekStop()
+{ DEBUGLOG(("Ctrl::MsgSeekStop()\n"));
+  IsSeeking = false;
+}
+
 // The output completed playing
 void CtrlImp::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
@@ -1112,7 +1118,7 @@ void CtrlImp::Worker()
     { register Ctrl::ControlCommand* ccp = CurCmd; // Create a local copy
       DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %08x%08x, %x, %p, %p} - %u\n",
         ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->PtrArg, (&ccp->PtrArg)[1], ccp->Flags, ccp->Callback, ccp->Link, fail));
-      static void (CtrlImp::*const cmds[])() =
+      static void (CtrlImp::*const cmds[])() = // MUST match enum Command
       { &CtrlImp::MsgNop
       , &CtrlImp::MsgLoad
       , &CtrlImp::MsgSkip
@@ -1127,6 +1133,7 @@ void CtrlImp::Worker()
       , &CtrlImp::MsgSave
       , &CtrlImp::MsgLocation
       , &CtrlImp::MsgDecStop
+      , &CtrlImp::MsgSeekStop
       , &CtrlImp::MsgOutStop
       };
       if (fail)

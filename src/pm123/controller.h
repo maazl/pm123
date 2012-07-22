@@ -69,6 +69,7 @@ class Ctrl
     Cmd_Location,
     // internal events
     Cmd_DecStop,
+    Cmd_SeekStop,
     Cmd_OutStop
   };
 
@@ -293,6 +294,9 @@ class Ctrl
   /// The current decoder finished it's work.
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
+  /// The current decoder finished it's work.
+  static ControlCommand* MkSeekStop()
+  { return new ControlCommand(Cmd_SeekStop, xstring(), (void*)NULL, 0); }
   /// The output finished playback.
   static ControlCommand* MkOutStop()
   { return new ControlCommand(Cmd_OutStop, xstring(), (void*)NULL, 0); }

@@ -185,13 +185,20 @@ class Location : public Iref_count
   /// The last entry in the call stack may be \c NULL if the Location points
   /// before the first item of a playlist.
   const vector<PlayableInstance>& GetCallstack() const     { return Callstack; }
-  /// @brief Returns the time offset of this Location within the current item.
-  /// @details The offset is only valid if \c GetCurrent() is a song.
+  /// @brief Returns the time offset of this Location within the current Playable.
   /// @return The offset in seconds from the beginning of the current song.
   /// A value of \c <0 indicates that the position has not yet been set.
   /// In case the current item is a playlist the function always return \c -2.
-  /// @remarks This is not the same as the time offset within the current root.
+  /// @remarks This is not the same as the time offset within the current root
+  /// as well as not the same than the time displayed in PM123. See GetTime.
   PM123_TIME                  GetPosition() const          { return Position; }
+  /// @brief Returns the time offset of this Location within the current APlayable.
+  /// @return The offset in seconds from the beginning of the current song.
+  /// A value of \c <0 indicates that the position has not yet been set.
+  /// In case the current item is a playlist the function always return \c -2.
+  /// @remarks This is the time display in PM123, i.e. the time from the start
+  /// of the current slice (if any).
+  PM123_TIME                  GetTime() const;
   /// Depth of the current location.
   /// @details
   /// - 0 = At the root.
@@ -285,7 +292,7 @@ class Location : public Iref_count
   /// @return See \c NavigationResult.
   /// @remarks If you want to navigate within the root call Reset before.
   /// If Navigate succeeds, the current item is always a song.
-  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth = 0);
+  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth = 0, bool absolute = false);
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
