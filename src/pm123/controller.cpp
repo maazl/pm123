@@ -139,7 +139,7 @@ class CtrlImp
   /// the function returns false and si is in reset state.
          bool  SkipCore(SongIterator& si, int count);
   /// Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
-  static bool  AdjustNext(SongIterator& si);
+  static bool  AdjustNext(Location& si);
   /// Jump to the location si. The function will destroy the content of si.
          void  NavigateCore(Location& si);
   // Register events to a new current song and request some information if not yet known.
@@ -318,6 +318,7 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe)
 
   APlayable& song = *pe.Loc.GetCurrent();
   ASSERT(&song);
+  song.RequestInfo(IF_Tech|IF_Slice|IF_Obj, PRI_Sync);
 
   PM123_TIME start = 0;
   { int_ptr<Location> lp = song.GetStartLoc();
@@ -367,7 +368,7 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe)
 
 ULONG CtrlImp::OutputStart(APlayable& pp)
 { DEBUGLOG(("Ctrl::OutputStart(&%p)\n", &pp));
-  ULONG rc = Glue::OutSetup(pp);
+  ULONG rc = Glue::OutSetup(pp, 0);
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   if (rc != PLUGIN_OK)
     Glue::OutClose();
@@ -412,7 +413,7 @@ bool CtrlImp::SkipCore(SongIterator& si, int count)
   return true;
 }
 
-bool CtrlImp::AdjustNext(SongIterator& si)
+bool CtrlImp::AdjustNext(Location& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
   APlayable* pp = si.GetCurrent();
   if (pp)
@@ -428,6 +429,8 @@ bool CtrlImp::AdjustNext(SongIterator& si)
 
 void CtrlImp::NavigateCore(Location& si)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
+  // Move forward to the next Song, if the current item is a playlist.
+  AdjustNext(si);
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Loc);
   DEBUGLOG(("Ctrl::NavigateCore - %i\n", level));
@@ -460,21 +463,21 @@ void CtrlImp::NavigateCore(Location& si)
     Glue::OutTrash(); // discard buffers
     PrefetchClear(true);
   }
-  { // Mutex because Current is modified.
-    Mutex::Lock lock(PLMtx);
-    // deregister current song delegate
-    //CurrentSongDelegate.detach();
-    // swap iterators
-    Current()->Offset = 0;
-    Current()->Loc.Swap(si);
-  }
+  // deregister current song delegate
+  //CurrentSongDelegate.detach();
   // Events
-  UpdateStackUsage(si.GetCallstack(), Current()->Loc.GetCallstack());
+  UpdateStackUsage(Current()->Loc.GetCallstack(), si.GetCallstack());
   Pending |= EV_Song|EV_Location;
 
   // restart decoder immediately?
   if (Playing)
-  { ULONG rc = DecoderStart(*Current());
+  { PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + Glue::DecMaxPos(), Current()->Loc);
+    pep->Loc.Swap(si);
+    { // Mutex because Current is modified.
+      Mutex::Lock lock(PLMtx);
+      PrefetchList.append() = pep;
+    }
+    ULONG rc = DecoderStart(*pep);
     if (rc)
     { OutputStop();
       Playing = false;
@@ -482,6 +485,10 @@ void CtrlImp::NavigateCore(Location& si)
       ReplyDecoderError(rc);
       return;
     }
+  } else
+  { Mutex::Lock lock(PLMtx);
+    Current()->Offset = 0;
+    Current()->Loc.Swap(si);
   }
   Reply(RC_OK);
 }
@@ -804,8 +811,6 @@ void CtrlImp::MsgNavigate()
       Flags = RC_BadIterator;
       return;
     }
-    // Move forward to the next Song, if the current item is a playlist.
-    AdjustNext(*sip);
   } else
   { if (!(Flags & 0x01))
       sip->NavigateLeaveSong();
@@ -1037,13 +1042,11 @@ void CtrlImp::MsgDecStop()
   }
 
   PM123_TIME max = Glue::DecMaxPos();
-
   // Check whether the last decode action actually succeeded.
   if (max > Glue::DecMinPos())
     LastStart = NULL;
 
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + max, Current()->Loc);
-  pep->Offset += max;
   int dir = Scan == DECFAST_REWIND ? -1 : 1; // DecoderStop resets scan mode
   Glue::DecStop();
 
@@ -1061,9 +1064,9 @@ void CtrlImp::MsgDecStop()
   Glue::DecClose();
 
   // store result
-  Mutex::Lock lock(PLMtx);
-  PrefetchList.append() = pep;
-
+  { Mutex::Lock lock(PLMtx);
+    PrefetchList.append() = pep;
+  }
   // start decoder for the prefetched item
   ULONG rc = DecoderStart(*pep);
   if (rc)

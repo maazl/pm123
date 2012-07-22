@@ -385,15 +385,14 @@ ULONG Glue::DecSave(const char* file)
 
 
 /* setup new output stage or change the properties of the current one */
-ULONG Glue::OutSetup(const APlayable& song)
+ULONG Glue::OutSetup(const APlayable& song, PM123_TIME offset)
 { const INFO_BUNDLE_CV& info = song.GetInfo();
   DEBUGLOG(("Glue::OutSetup(&%p{%s,{%i,%i,%x...}})\n",
     &song, song.DebugName().cdata(), info.tech->samplerate, info.tech->channels, info.tech->attributes));
   GlueImp::OParams.URL        = song.GetPlayable().URL;
   GlueImp::OParams.Info       = &info;
-  // TODO: is this position correct?
-  GlueImp::OParams.PlayingPos = GlueImp::PosOffset;
-  
+  GlueImp::OParams.PlayingPos = offset;
+
   if (!GlueImp::Initialized)
   { ULONG rc = GlueImp::Init(); // here we initiate the setup of the filter chain
     if (rc != 0)

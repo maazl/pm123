@@ -40,7 +40,8 @@
 
 
 void PlaybackWorker::BackupBuffer::Reset()
-{ BufferLow = 0;
+{ Mutex::Lock lock(Mtx);
+  BufferLow = 0;
   BufferHigh = 0;
   MaxWriteIndex = 0;
   BufferQueue[countof(BufferQueue)-1].Data = 0;
@@ -343,11 +344,13 @@ ULONG PlaybackWorker::TrashBuffers(PM123_TIME pos) throw()
   ULONG ret = 0;
   try
   { Stream.Flush();
+    //Buffer.Reset();
   } catch (const PAException& ex)
   { // We ignore errors here
     DEBUGLOG(("PlaybackWorker::TrashBuffers %s\n", ex.GetMessage().cdata()));
     ret = ex.GetError();
   }
+  LastBuffer = NULL; // Discard any currently requested buffer
   TimeOffset = pos;
   TrashFlag = true;
   if (!LowWater)
@@ -390,14 +393,16 @@ int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw
   }
 }
 void PlaybackWorker::CommitBuffer(int len, PM123_TIME pos) throw()
-{ DEBUGLOG(("PlaybackWorker(%p)::CommitBuffer(%i, %f) - %p\n", this, len, pos, LastBuffer));
-  ASSERT(LastBuffer);
+{ float* buffer = LastBuffer;
+  DEBUGLOG(("PlaybackWorker(%p)::CommitBuffer(%i, %f) - %p\n", this, len, pos, buffer));
+  LastBuffer = NULL;
+  if (!buffer || len <= 0)
+    return;
   try
   { len *= SS.channels;
-    uint64_t wi = Stream.Write(LastBuffer, len * sizeof(float));
-    Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, LastBuffer, len);
+    uint64_t wi = Stream.Write(buffer, len * sizeof(float));
+    Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, buffer, len);
     TrashFlag = false;
-    LastBuffer = NULL;
   } catch (const PAStreamEndException& ex)
   { return;
   } catch (const PAException& ex)

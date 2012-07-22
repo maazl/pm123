@@ -1708,7 +1708,7 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
       RefreshTimers(hps, index, offset);
     if (mask & UPD_PLINDEX)
       if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
-        bmp_draw_plind(hps, index+1, root->GetInfo().rpl->songs);
+        bmp_draw_plind(hps, index, root->GetInfo().rpl->songs);
       else
         bmp_draw_plind(hps, -1, -1);
   }
