@@ -161,9 +161,10 @@ bool MetaDecoder::Analyze(const INFO_BUNDLE* target, XFILE* file, const xstring&
     &MetaDecoder::ErrorCB) )
     return false;
 
+  Target->tech->attributes = TATTR_NONE;
   if (!FLAC__stream_decoder_process_until_end_of_metadata(Decoder))
     return false;
-  return true;
+  return Target->tech->attributes != TATTR_NONE;
 }
 
 // vorbis comment lookup table
