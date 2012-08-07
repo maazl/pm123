@@ -450,7 +450,13 @@ M3UReader* M3UReader::Sniffer(const char* url, XFILE* source)
   if (xio_ftell(source) < 7)
     return NULL;
   if (memcmp(buffer, "#EXTM3U", 7) != 0)
-    return NULL;
+  { // Accept non extended M3U also in case of the M3U extension.
+    char ext[6];
+    sfext(ext, url, sizeof ext);
+    if (stricmp(ext, ".m3u") != 0)
+      return NULL;
+    xio_rewind(source);
+  }
   return new M3UReader(url, source);
 }
 
