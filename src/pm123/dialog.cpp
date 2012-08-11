@@ -220,7 +220,7 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
 
   // TODO: we should not wait synchronously on the data.
   // We should update the combo box list on change instead.
-  GUI::GetUrlMRU().RequestInfo(IF_Child, PRI_Sync);
+  GUI::GetUrlMRU().RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
@@ -319,7 +319,7 @@ void amp_add_bookmark(HWND owner, APlayable& item)
   if (WinProcessDlg(hdlg) == DID_OK)
   { const xstring& alias = WinQueryDlgItemXText(hdlg, EF_BM_DESC);
     Playable& p = GUI::GetDefaultBM();
-    p.RequestInfo(IF_Child, PRI_Sync);
+    p.RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
     if (alias != desc) // Don't set alias if not required.
     { // We have to copy the PlayableRef to modify it.
       PlayableSlice ps(item);

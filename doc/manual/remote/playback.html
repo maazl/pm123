@@ -23,9 +23,7 @@ enclosed in square brackets.</p>
 [...]] <small><sup><a href="playback.html#note2">(2.)</a></sup></small></td>
       <td>Loads one or more <a href="../urlformat.html">file
 or URL</a>
-into the player. Any currently playing item will be aborted. Starts
-playing it too, if <i>auto play on load</i>
-is set.<br>
+into the player. Any currently playing item will be aborted.<br>
 Specifying
 more than one file is equivalent to dropping multiple items on the
 player. This implicitly modifies the default playlist. The file names
@@ -54,6 +52,14 @@ element if any. This will never intercept any active playback.<br>
 The file names
 may be enclosed in double quotes (<tt>"</tt>).</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="invoke"></a>invoke </tt>[<tt><var>&lt;url&gt;&nbsp;</var></tt>[<tt><var>&lt;url&gt;</var></tt>
+[...]]] <small><sup><a href="playback.html#note2">(2.)</a></sup></small></td>
+      <td valign="top">Same as <a href="#play"><tt>play</tt></a> if "<a
+ href="../settings1.html">play on load</a>" is set, same as <a
+ href="#load"><tt>load</tt></a> otherwise.</td>
+      <td valign="top">Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
       <td><tt><a name="stop"></a>stop</tt></td>
@@ -97,7 +103,7 @@ is specified, you can skip more than one song at once.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
-      <td><tt><a name="jump"></a>jump <var>&lt;n&gt;</var></tt></td>
+      <td><tt>jump <var>&lt;n&gt;</var></tt></td>
       <td>Jump to <tt><var>&lt;n&gt;</var></tt>
 seconds in the currently playing file. <tt><var>&lt;n&gt;</var></tt>
 may be a fractional number.<br>
@@ -110,24 +116,20 @@ the previous song in doubt.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
     <tr>
-      <td><tt><a name="navigate"></a>navigate
-song <var>&lt;url&gt;</var></tt><br>
-[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
-      <td colspan="1" rowspan="2">Navigate within
+      <td><tt><a name="navigate"></a></tt><tt>navigate </tt>[<tt>/;</tt>|<tt>..;</tt>|<tt>.;</tt>]
+[<tt><var>&lt;item&gt;</var></tt><tt>;</tt>[<tt><var>&lt;sub&nbsp;item&gt;</var></tt><tt>;</tt>[...]]]
+[<tt><var>&lt;time&gt;</var></tt>[<tt>%</tt>]]</td>
+      <td colspan="1" rowspan="1">Navigate within
 the currently loaded playlist. Examples:<br>
-'<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
+'<tt>navigate /;D:\songs\song1.mp3</tt>' navigates to
 the start of the song within the currently loaded playlist. If the file
 is referenced twice, the first instance is taken. <tt>navigate</tt>
 uses the <a href="../location.html">location string</a>
 syntax.<br>
-'<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
+'<tt>navigate D:\songs\song1.mp3;1:02.7</tt>'
 navigates to location 62.7 seconds within the next occurrence of <tt>D:\songs\song1.mp3</tt>.</td>
-      <td colspan="1" rowspan="2">Result code,
+      <td colspan="1" rowspan="1">Result code,
 non-zero = <a href="error.html">error</a>.</td>
-    </tr>
-    <tr>
-      <td><tt>navigate path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub&nbsp;item&gt;</var></tt>[<tt>;</tt>...]]
-[<tt>time&nbsp;<var>&lt;time&gt;</var></tt>[<tt>%</tt>]]</td>
     </tr>
     <tr>
       <td><tt><a name="savestream"></a>savestream </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
@@ -193,14 +195,20 @@ commands for this purpose.</td>
     </tr>
     <tr>
       <td valign="top"><tt><a name="time"></a>time</tt></td>
-      <td valign="top">Return the current playing time. If no playback
-is active and a resume position has been saved it is returned.</td>
+      <td valign="top">Return the current playing time from the start
+of the current song. This is the time displayed in the PM123 main
+window. If no playback
+is active and a resume position has been saved it is returned. <tt>time</tt>
+is the opposite of <a href="#jump"><tt>jump</tt></a>.</td>
       <td valign="top">Playing time in seconds, -1 if not available or
 empty on error.</td>
     </tr>
     <tr>
       <td><tt><a name="location"></a>location</tt></td>
-      <td>Query the current playing location.</td>
+      <td>Query the current playing location. In contrast to <tt>time</tt>
+      <tt>location</tt> always return a navigation string starting at
+the&nbsp; current root and ignoring any slices. <tt>location</tt> is
+the opposite of <a href="#navigate"><tt>navigate</tt></a>.</td>
       <td><a href="../location.html">Location string</a> or empty if
 none.</td>
     </tr>

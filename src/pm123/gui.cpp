@@ -936,7 +936,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case BMP_PL:
         { APlayable* root = CurrentRoot();
           int_ptr<PlaylistView> pv(PlaylistView::GetByKey(root && root->IsPlaylist() ? root->GetPlayable() : *DefaultPL));
-          pv->SetVisible(!pv->GetVisible());
+          ShowHidePlaylist(pv, pv->GetVisible() ? DLA_CLOSE : DLA_SHOW);
           break;
         }
 
@@ -1211,7 +1211,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
     // navigation within the current song
     if (songlength <= 0)
       return;
-    CurrentIter->NavigateLeaveSong();
+    CurrentIter->NavigateRewindSong();
     CurrentIter->NavigateTime(job, relpos * songlength);
   } else
     switch (Cfg::Get().altnavig)
@@ -1241,7 +1241,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
         const PM123_TIME songlength = CurrentSong()->GetInfo().drpl->totallength;
         if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
         { relpos -= floor(relpos);
-          CurrentIter->NavigateLeaveSong();
+          CurrentIter->NavigateRewindSong();
           CurrentIter->NavigateTime(job, relpos * songlength);
         }
       }
@@ -1571,7 +1571,7 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
     break;
    case DLA_CLOSE:
     if (rc)
-      plp->SetVisible(false);
+      plp->Close();
    default:; // avoid warning
   }
   return rc;
@@ -2147,7 +2147,7 @@ const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
 
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
 { DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.DebugName().cdata(), max, ps.GetPlayable().URL.cdata()));
-  list.RequestInfo(IF_Child, PRI_Sync);
+  list.RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
   Mutex::Lock lock(list.Mtx);
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size

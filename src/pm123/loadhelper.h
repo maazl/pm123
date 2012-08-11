@@ -36,9 +36,9 @@
 #include <os2.h>
 
 
-/* Helper class to load one or more objects into PM123.
+/** Helper class to load one or more objects into PM123.
  */
-class LoadHelper// : public Iref_count
+class LoadHelper
 {public:
   enum Options
   { LoadDefault      = 0,
@@ -53,17 +53,17 @@ class LoadHelper// : public Iref_count
   const Options         Opt;
   vector_int<APlayable> Items;
  protected:
-  // Returns /one/ APlayable that represents all the objects in the list.
-  virtual APlayable*    ToAPlayable();
+  /// Returns /one/ APlayable that represents all the objects in the list.
+  APlayable*            ToAPlayable();
  public:
-  // Initialize LoadHelper
-                        LoadHelper(Options opt)    : Opt(opt), Items(20) {}
+  /// Initialize LoadHelper
+                        LoadHelper(Options opt);
   //                      ~LoadHelper();
-  // Add a item to play to the list of items.
+  /// Add a item to play to the list of items.
   void                  AddItem(APlayable& ps) { Items.append() = &ps; }
-  // Create a sequence of controller commands from the current list.
-  virtual Ctrl::ControlCommand* ToCommand();
-  // Send command to the controller and wait for reply.
+  /// Create a sequence of controller commands from the current list.
+  Ctrl::ControlCommand* ToCommand();
+  /// Send command to the controller and wait for reply.
   Ctrl::RC              SendCommand();
 };
 FLAGSATTRIBUTE(LoadHelper::Options);

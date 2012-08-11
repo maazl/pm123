@@ -360,8 +360,9 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
   return ret;
 }
 
-Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth, bool absolute)
-{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %f, %u, %u) - %u\n", this, job.Pri, offset, mindepth, absolute, Callstack.size()));
+Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, int mindepth, bool absolute)
+{ DEBUGLOG(("Location(%p)::NavigateTime({%u,}, %f, %i, %u) - %u\n", this,
+    job.Pri, offset, mindepth, absolute, Callstack.size()));
   
   if (Root == NULL)
     return "Cannot Navigate without root.";
@@ -380,11 +381,11 @@ Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset
     { // Try to navigate within the current song.
       int_ptr<Location> start = cur->GetStartLoc();
       int_ptr<Location> stop = cur->GetStopLoc();
-      PM123_TIME begin = !absolute && start && start->GetPosition() > 0 ? start->GetPosition() : 0;
-      PM123_TIME end = !absolute && stop && stop->GetPosition() >= 0 ? stop->GetPosition() : cur->GetInfo().obj->songlength;
+      PM123_TIME begin = start && start->GetPosition() > 0 ? start->GetPosition() : 0;
+      PM123_TIME end = stop && stop->GetPosition() >= 0 ? stop->GetPosition() : cur->GetInfo().obj->songlength;
       if (direction)
       { if (Position < 0)
-          Position = begin;
+          Position = absolute ? 0 : begin;
         Position += offset;
         if (Position < end)
           return ret; // Navigation within song succeeded
@@ -393,7 +394,7 @@ Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset
         offset = Position - end; // remaining part
       } else // Backwards
       { if (Position < 0)
-        { Position = end;
+        { Position = absolute ? cur->GetInfo().obj->songlength : end;
           if (Position < 0)
             return "Indeterminate song length.";
         }
@@ -599,9 +600,7 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          ret = NavigateTime(job, t[0], GetLevel(), true);
-          if (ret)
-            return ret;
+          NavigateTime(job, t[0], GetLevel(), true);
           continue;
         }
       }

@@ -222,7 +222,7 @@ void PlaylistView::InitDlg()
 { DEBUGLOG(("PlaylistView(%p)::InitDlg()\n", this));
 
   // Initializes the container of the playlist.
-  HwndContainer = WinWindowFromID(GetHwnd(), FID_CLIENT);
+  HwndContainer = WinWindowFromID(GetHwnd(), CO_CONTENT);
   PMASSERT(HwndContainer != NULLHANDLE);
   // Attention!!! Intended side effect: CCS_VERIFYPOINTERS is only set in debug builds
   PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
@@ -261,7 +261,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
   switch (msg)
   {case WM_CONTROL:
-    if (SHORT1FROMMP(mp1) == FID_CLIENT)
+    if (SHORT1FROMMP(mp1) == CO_CONTENT)
     { switch (SHORT2FROMMP(mp1))
       {
        case CN_HELP:

@@ -78,7 +78,7 @@ void debuglog( const char* fmt, ... )
   sprintf(buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   //sprintf( buffer, "%08ld %03hx%hx%c%04ld %08lx ", clock(), (unsigned short)ptib->tib_ptib2->tib2_ulpri, ptib->tib_ptib2->tib2_usMCCount, ptib->tib_ptib2->tib2_fMCForceFlag ? '!' : ':', ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   vsnprintf(buffer+28, 1024, fmt, va );
-  DosWrite(2, buffer, 28 + strlen(buffer+28), &dummy);
+  DosWrite(2, buffer, 28 + strnlen(buffer+28, 1024), &dummy);
   va_end(va);
   #ifdef DEBUG_MEM
   ASSERT(_heapchk() == _HEAPOK);

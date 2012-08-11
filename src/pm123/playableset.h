@@ -49,9 +49,9 @@ class PlayableSetBase
   
   static  int              compare(const PlayableSetBase& l, const PlayableSetBase& r);
   // returns true if and only if all elements in this set are also in r.
-  bool                     isSubsetOf(const PlayableSetBase& r) const;
+          bool             isSubsetOf(const PlayableSetBase& r) const;
   #ifdef DEBUG_LOG
-  xstring                  DebugDump() const;
+          const char*      DebugDump() const;
   #endif
 };
 

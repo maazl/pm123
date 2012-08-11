@@ -44,7 +44,7 @@
 *
 *  helper class ExtLoadHelper
 *
-****************************************************************************/
+****************************************************************************
 class ExtLoadHelper : public LoadHelper
 {private:
   Ctrl::ControlCommand* Ext;
@@ -53,7 +53,7 @@ class ExtLoadHelper : public LoadHelper
   virtual Ctrl::ControlCommand* ToCommand();
  public:
   ExtLoadHelper(Options opt, Ctrl::ControlCommand* ext) : LoadHelper(opt), Ext(ext) {}
-};
+};*/
 
 
 /****************************************************************************
@@ -214,6 +214,7 @@ class CommandProcessor : public ACommandProcessor
   void XLoad();
   void XPlay();
   void XEnqueue();
+  void XInvoke();
   void XStop();
   void XPause();
   void XNext();

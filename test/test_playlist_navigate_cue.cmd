@@ -1,33 +1,26 @@
 /**/
 dir = DIRECTORY()
 
-CALL CallPipe 'play 'dir'\data\test.flac'
+CALL CallPipe 'load 'dir'\data\test.cue'
 CALL Assert 'REPLY', '= 0'
 
-CALL CallPipe 'jump 0:03.5'
-CALL Assert 'REPLY', '= 0'
-
-CALL CallPipe 'time'
-CALL Assert 'REPLY', '= 3.5'
-
-CALL CallPipe 'play'
-CALL Assert 'REPLY', '= 0'
-
-lasttime = CallPipe('time')
-CALL Assert 'REPLY', '>= 3.5'
-CALL Assert 'REPLY', '<= 3.6'
-
-CALL SysSleep(1)
-CALL CallPipe 'time'
-CALL Assert 'REPLY', '> 'lasttime
-CALL Assert 'REPLY', '<= 'lasttime+1.2
-
-CALL CallPipe 'jump 2'
+CALL CallPipe 'navigate /;[3];7.495'
 CALL Assert 'REPLY', '= 0'
 
 CALL CallPipe 'time'
-CALL Assert 'REPLY', '>= 2'
-CALL Assert 'REPLY', '<= 2.1'
+CALL Assert 'REPLY', '= 1.095'
+
+CALL CallPipe 'location'
+CALL Assert 'REPLY', '= """test2.wav""[2];0:07.495"'
+
+CALL CallPipe 'jump 0.114'
+CALL Assert 'REPLY', '= 0'
+
+CALL CallPipe 'time'
+CALL Assert 'REPLY', '= 0.114'
+
+CALL CallPipe 'location'
+CALL Assert 'REPLY', '= """test2.wav""[2];0:06.514"'
 
 EXIT
 

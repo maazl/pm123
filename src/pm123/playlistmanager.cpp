@@ -105,7 +105,7 @@ InfoFlags PlaylistManager::FilterRecordRequest(RecordBase* const rec, InfoFlags&
 
 void PlaylistManager::InitDlg()
 { DEBUGLOG(("PlaylistManager(%p{%s})::InitDlg()\n", this, DebugName().cdata()));
-  HwndContainer = WinWindowFromID(GetHwnd(), FID_CLIENT);
+  HwndContainer = WinWindowFromID(GetHwnd(), CO_CONTENT);
   PMASSERT(HwndContainer != NULLHANDLE);
   // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
   PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
@@ -128,7 +128,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
   switch (msg)
   {case WM_CONTROL:
-    if (SHORT1FROMMP(mp1) == FID_CLIENT)
+    if (SHORT1FROMMP(mp1) == CO_CONTENT)
     { switch (SHORT2FROMMP(mp1))
       {
        case CN_HELP:

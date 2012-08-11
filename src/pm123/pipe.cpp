@@ -96,9 +96,11 @@ static void TFNENTRY pipe_thread(void*)
         ULONG bytesread2;
         rc = DosRead(HPipe, buffer.get() + bytesread, PIPE_BUFFER_SIZE - bytesread -1, &bytesread2);
         if (rc == NO_ERROR)
-        { bytesread += bytesread2;
-          buffer[bytesread] = 0; // ensure terminating zero
-          continue;
+        { if (bytesread2)
+          { bytesread += bytesread2;
+            buffer[bytesread] = 0; // ensure terminating zero
+            continue;
+          }
         } else if (rc != ERROR_NO_DATA)
         { DEBUGLOG(("pipe_thread: DosRead failed with rc = %u\n", rc));
           break; // results in continue in the outer loop
@@ -109,7 +111,20 @@ static void TFNENTRY pipe_thread(void*)
       char* cp2 = cp + strspn(cp, " \t");
       // and execute (if non-blank)
       if (*cp2)
-      { const char* ret = cmdproc->Execute(cp2);
+      { if (*cp2 != '*')
+        { // immediate load command
+          if (cp2 < buffer.get() + 7)
+          { // make room for the command string
+            if (bytesread > PIPE_BUFFER_SIZE - 8) // avoid buffer overflow
+              buffer[bytesread = PIPE_BUFFER_SIZE - 8] = 0;
+            memmove(buffer.get() + 7, cp2, bytesread + 1);
+            cp2 = buffer.get();
+          } else
+            cp2 -= 7;
+          memcpy(cp2, "invoke ", 7);
+        } else
+          ++cp2;
+        const char* ret = cmdproc->Execute(cp2);
         DEBUGLOG(("pipe_thread: command done: %s\n", ret));
         // send reply
         ULONG actual = strlen(ret);
@@ -167,23 +182,21 @@ bool amp_pipe_check()
 }
 
 /* Opens specified pipe and writes data to it. */
-bool amp_pipe_open_and_write( const char* pipename, const char* data, size_t size )
+bool amp_pipe_open_and_write(const char* pipename, const char* data, size_t size)
 {
   HPIPE  hpipe;
   ULONG  action;
   APIRET rc;
 
   rc = DosOpen((PSZ)pipename, &hpipe, &action, 0, FILE_NORMAL,
-                OPEN_ACTION_FAIL_IF_NEW  | OPEN_ACTION_OPEN_IF_EXISTS,
-                OPEN_SHARE_DENYREADWRITE | OPEN_ACCESS_READWRITE | OPEN_FLAGS_FAIL_ON_ERROR,
-                NULL );
-
-  if( rc == NO_ERROR )
-  {
-    DosWrite( hpipe, (PVOID)data, size, &action );
-    DosResetBuffer( hpipe );
-    DosDisConnectNPipe( hpipe );
-    DosClose( hpipe );
+               OPEN_ACTION_FAIL_IF_NEW |OPEN_ACTION_OPEN_IF_EXISTS,
+               OPEN_SHARE_DENYREADWRITE|OPEN_ACCESS_READWRITE|OPEN_FLAGS_FAIL_ON_ERROR,
+               NULL);
+  if (rc == NO_ERROR)
+  { DosWrite(hpipe, (PVOID)data, size, &action);
+    DosResetBuffer(hpipe);
+    DosDisConnectNPipe(hpipe);
+    DosClose(hpipe);
     return true;
   } else {
     return false;

@@ -31,6 +31,7 @@
 #include "playable.h"
 
 #include <debuglog.h>
+#include <snprintf.h>
 
 
 /****************************************************************************
@@ -112,14 +113,24 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
 }
 
 #ifdef DEBUG_LOG
-xstring PlayableSetBase::DebugDump() const
-{ xstringbuilder sb;
+// dirty hack: static buffer.
+static char DebugDumpBuffer[32][32];
+
+const char* PlayableSetBase::DebugDump() const
+{ TIB* tip;
+  DosGetInfoBlocks(&tip, NULL);
+  char* buf = DebugDumpBuffer[tip->tib_ptib2->tib2_ultid-1];
+  *buf = 0;
+  size_t pos = 0;
   for (size_t i = 0; i < size(); ++i)
   { if (i)
-      sb.append(',');
-    sb.appendf("%p", (*this)[i]);
+      buf[pos++] = ',';
+    pos += snprintf(buf+pos, 32-pos, "%p", (*this)[i]);
+    if (pos >= 30)
+      break;
   }
-  return sb;
+  buf[31] = 0;
+  return buf;
 }
 #endif
 

@@ -284,7 +284,8 @@ AggregateInfo& PlayableSlice::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n", this, DebugName().cdata(), &ai, what, pri, rel));
+{ DEBUGLOG(("PlayableSlice(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n",
+    this, DebugName().cdata(), &ai, what, pri, rel));
 
   // We have to check whether the supplied AggregateInfo is mine or from *RefTo.
   if (!CIC || !CIC->IsMine(ai))
@@ -346,10 +347,10 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
   if (CIC == NULL) // Nothing to do?
     return;
 
-  PlayableChangeArgs args(*this);
   InfoState::Update upd(CIC->DefaultInfo.InfoStat, job.Pri);
   DEBUGLOG(("PlayableSlice::DoLoadInfo: update %x\n", upd.GetWhat()));
   // Prepare slice info.
+  PlayableChangeArgs args(*this);
   if (upd & IF_Slice)
   { int cr = CalcLoc(Item.start, StartCache, Location::CO_Default, job);
     job.Commit();
@@ -373,52 +374,37 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
   }
 
   // Load aggregate info if any.
-  if (upd)
-  { DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {0}\n"));
-    AggregateInfo ai(PlayableSet::Empty);
-    OwnedPlayableSet exclude; // exclusion list
-    // We can be pretty sure that ITEM_INFO is overridden.
-    int_ptr<Location> start = StartCache;
-    int_ptr<Location> stop  = StopCache;
-    InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
-    job.Commit();
-    upd.Rollback(whatnotok);
+  int_ptr<Location> start = StartCache;
+  int_ptr<Location> stop  = StopCache;
+  OwnedPlayableSet exclude; // exclusion list
+  CollectionInfo* iep = NULL;
+  if (!upd)
+    goto next;
+  do
+  { { // retrieve information
+      CollectionInfo& ci = iep ? *iep : CIC->DefaultInfo;
+      DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {%u}\n", ci.Exclude.size()));
+      AggregateInfo ai(ci.Exclude);
+      exclude = ci.Exclude; // copy exclusion list
+      // We can be pretty sure that ITEM_INFO is overridden.
+      InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
+      job.Commit();
+      upd.Rollback(whatnotok);
 
-    InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
-    if (whatok)
-    { // At least one info completed
-      Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-      if ((whatok & IF_Rpl) && CIC->DefaultInfo.Rpl.CmpAssign(ai.Rpl))
-        args.Changed |= IF_Rpl;
-      if ((whatok & IF_Drpl) && CIC->DefaultInfo.Drpl.CmpAssign(ai.Drpl))
-        args.Changed |= IF_Drpl;
-      args.Loaded |= upd.Commit(IF_Aggreg);
-      Overridden |= IF_Aggreg;
-    }
-  }
-  for (CollectionInfo* iep = NULL; CIC->GetNextWorkItem(iep, job.Pri, upd);)
-  { // retrieve information
-    DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {%u}\n", iep->Exclude.size()));
-    AggregateInfo ai(iep->Exclude);
-    OwnedPlayableSet exclude(iep->Exclude); // copy exclusion list
-    // We can be pretty sure that ITEM_INFO is overridden.
-    int_ptr<Location> start = StartCache;
-    int_ptr<Location> stop  = StopCache;
-    InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
-    job.Commit();
-    upd.Rollback(whatnotok);
-
-    InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
-    if (whatok)
-    { // At least one info completed
-      Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-      if ((whatok & IF_Rpl) && iep->Rpl.CmpAssign(ai.Rpl))
-        args.Changed |= IF_Rpl;
-      if ((whatok & IF_Drpl) && iep->Drpl.CmpAssign(ai.Drpl))
-        args.Changed |= IF_Drpl;
-      args.Loaded |= upd.Commit(whatok);
-    }
-  }
+      InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
+      if (whatok)
+      { // At least one info completed
+        Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+        if ((whatok & IF_Rpl) && ci.Rpl.CmpAssign(ai.Rpl))
+          args.Changed |= IF_Rpl;
+        if ((whatok & IF_Drpl) && ci.Drpl.CmpAssign(ai.Drpl))
+          args.Changed |= IF_Drpl;
+        args.Loaded |= upd.Commit(whatok);
+        if (iep == NULL)
+          Overridden |= whatok;
+    } }
+   next:;
+  } while (CIC->GetNextWorkItem(iep, job.Pri, upd));
   if (!args.IsInitial())
     InfoChange(args);
 }

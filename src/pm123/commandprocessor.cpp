@@ -52,7 +52,7 @@
 #include <time.h>
 
 
-Ctrl::ControlCommand* ExtLoadHelper::ToCommand()
+/*Ctrl::ControlCommand* ExtLoadHelper::ToCommand()
 { Ctrl::ControlCommand* cmd = LoadHelper::ToCommand();
   if (cmd)
   { Ctrl::ControlCommand* cmde = cmd;
@@ -63,7 +63,7 @@ Ctrl::ControlCommand* ExtLoadHelper::ToCommand()
     cmd = Ext;
   Ext = NULL;
   return cmd;
-}
+}*/
 
 
 bool URLTokenizer::Next(const char*& url)
@@ -110,6 +110,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "info pl playlist",   &CommandProcessor::XPlInfoPlaylist}
 , { "info playlist",      &CommandProcessor::XInfoPlaylist  }
 , { "info refresh",       &CommandProcessor::XInfoRefresh   }
+, { "invoke",             &CommandProcessor::XInvoke        }
 , { "isvisible",          &CommandProcessor::XIsVisible     }
 , { "jump",               &CommandProcessor::XJump          }
 , { "load",               &CommandProcessor::XLoad          }
@@ -203,7 +204,7 @@ CommandProcessor::SyntaxException::SyntaxException(const char* fmt, ...)
 CommandProcessor::CommandProcessor()
 : CurSI(&GUI::GetDefaultPL())
 , Command(NULL)
-, SyncJob(PRI_Sync)
+, SyncJob(PRI_Sync|PRI_Normal)
 , vd_message(&CommandProcessor::MessageHandler, this)
 , vd_message2(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
@@ -258,60 +259,51 @@ void CommandProcessor::Exec()
     *ape = 0;
   }
   try
-  { // TODO: it is not up to the command interpreter to handle interface specific prefixes
-    if (Request[0] != '*')
-    { Command = "(load)";
-      CommandType = false;
-      XLoad();
-      Command = NULL;
-    } else
-    { ++Request;
+  { Request += strspn(Request, " \t"); // skip leading blanks
+    // check for plug-in specific commands
+    size_t len = strcspn(Request, " \t:");
+    if (Request[len] == ':')
+    { // Plug-in option
+      Request[len] = 0;
+      int_ptr<Module> plugin(ParsePlugin(Request));
+      if (!plugin)
+        return; // Plug-in not found.
+      Request += len+1;
       Request += strspn(Request, " \t"); // skip leading blanks
-      // check for plug-in specific commands
-      size_t len = strcspn(Request, " \t:");
-      if (Request[len] == ':')
-      { // Plug-in option
-        Request[len] = 0;
-        int_ptr<Module> plugin(ParsePlugin(Request));
-        if (!plugin)
-          return; // Plug-in not found.
-        Request += len+1;
-        Request += strspn(Request, " \t"); // skip leading blanks
-        // Call plug-in function
-        xstring result;
-        plugin->Command(Request, result);
-        Reply.append(result);
-      } else
-      { // Search command handler ...
-        const CmdEntry* cep = mapsearcha(CmdList, Request);
-        DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
-        if (cep)
-        { char* cp;
-          // Check for non-alpha
-          while (isgraph(*(cp = Request + strlen(cep->Str))))
-          { // Try next entry
-            if ( ++cep == CmdList + sizeof(CmdList)/sizeof(*CmdList)
-              || strabbrevicmp(Request, cep->Str) != 0 )
-              goto fail;
-          }
-          if (*cp)
-            *cp++ = 0;
-          Command = Request;
-          CommandType = false;
-          Request = cp + strspn(cp, " \t");
-          DEBUGLOG(("CommandProcessor::Exec: %s\n", Request));
-          // ... and execute
-          (this->*cep->Val)();
-          Command = NULL;
-        } else
-        {fail:
-          // Invalid command
-          Messages.append("E Syntax error: unknown command \"");
-          size_t start = Messages.length();
-          Messages.append(Request, strnlen(Request, sizeof(cep->Str)));
-          EscapeNEL(Messages, start);
-          Messages.append("\"\n");
+      // Call plug-in function
+      xstring result;
+      plugin->Command(Request, result);
+      Reply.append(result);
+    } else
+    { // Search command handler ...
+      const CmdEntry* cep = mapsearcha(CmdList, Request);
+      DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
+      if (cep)
+      { char* cp;
+        // Check for non-alpha
+        while (isgraph(*(cp = Request + strlen(cep->Str))))
+        { // Try next entry
+          if ( ++cep == CmdList + sizeof(CmdList)/sizeof(*CmdList)
+            || strabbrevicmp(Request, cep->Str) != 0 )
+            goto fail;
         }
+        if (*cp)
+          *cp++ = 0;
+        Command = Request;
+        CommandType = false;
+        Request = cp + strspn(cp, " \t");
+        DEBUGLOG(("CommandProcessor::Exec: %s\n", Request));
+        // ... and execute
+        (this->*cep->Val)();
+        Command = NULL;
+      } else
+      {fail:
+        // Invalid command
+        Messages.append("E Syntax error: unknown command \"");
+        size_t start = Messages.length();
+        Messages.append(Request, strnlen(Request, sizeof(cep->Str)));
+        EscapeNEL(Messages, start);
+        Messages.append("\"\n");
       }
     }
   } catch (const SyntaxException& ex)
@@ -659,12 +651,17 @@ void CommandProcessor::XLoad()
 }
 
 void CommandProcessor::XPlay()
-{ ExtLoadHelper lh(LoadHelper::LoadPlay, Ctrl::MkPlayStop(Ctrl::Op_Set));
+{ LoadHelper lh(LoadHelper::LoadPlay);
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::XEnqueue()
 { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadAppend);
+  Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+}
+
+void CommandProcessor::XInvoke()
+{ LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay);
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
@@ -985,7 +982,7 @@ Playable* CommandProcessor::PrepareEditPlaylist()
     if (!root)
       Messages.append("E No current playlist.\n");
     else
-    { root->RequestInfo(IF_Obj|IF_Tech|IF_Child, PRI_Sync);
+    { root->RequestInfo(IF_Obj|IF_Tech|IF_Child, PRI_Sync|PRI_Normal);
       if (root->GetInfo().tech->attributes & TATTR_SONG)
         Messages.append("E Cannot edit a song as playlist.\n");
       else
@@ -1058,7 +1055,7 @@ void CommandProcessor::PlDir(bool recursive)
       url = amp_make_dir_url(url, recursive);
       int_ptr<Playable> dir = Playable::GetByURL(url);
       // Request simple RPL info to force all recursive playlists to load.
-      dir->RequestInfo(IF_Rpl, PRI_Sync);
+      dir->RequestInfo(IF_Rpl, PRI_Sync|PRI_Normal);
       { // get all songs
         class Location iter(dir);
         while (iter.NavigateCount(SyncJob, 1, TATTR_SONG) == NULL)
@@ -1189,7 +1186,7 @@ void CommandProcessor::AppendReplayGain(float tg, float tp, float ag, float ap)
 }
 
 void CommandProcessor::DoFormatInfo(APlayable& item)
-{ item.RequestInfo(IF_Phys|IF_Tech|IF_Obj, PRI_Sync);
+{ item.RequestInfo(IF_Phys|IF_Tech|IF_Obj, PRI_Sync|PRI_Normal);
   const INFO_BUNDLE_CV& info = item.GetInfo();
   // return info
   xstring tmpstr;
@@ -1223,7 +1220,7 @@ void CommandProcessor::DoFormatInfo(APlayable& item)
 }
 
 void CommandProcessor::DoMetaInfo(APlayable& item)
-{ item.RequestInfo(IF_Meta, PRI_Sync);
+{ item.RequestInfo(IF_Meta, PRI_Sync|PRI_Normal);
   const volatile META_INFO& meta = *item.GetInfo().meta;
   AppendStringAttribute("TITLE", meta.title);
   AppendStringAttribute("ARTIST", meta.artist);
@@ -1237,7 +1234,7 @@ void CommandProcessor::DoMetaInfo(APlayable& item)
 }
 
 void CommandProcessor::DoPlaylistInfo(APlayable& item)
-{ item.RequestInfo(IF_Rpl|IF_Drpl, PRI_Sync);
+{ item.RequestInfo(IF_Rpl|IF_Drpl, PRI_Sync|PRI_Normal);
   { const volatile RPL_INFO& rpl = *item.GetInfo().rpl;
     AppendIntAttribute("SONGS=%u\n", rpl.songs);
     AppendIntAttribute("LISTS=%u\n", rpl.lists);
@@ -1277,7 +1274,7 @@ void CommandProcessor::XPlInfoItem()
 { APlayable* cur = CurSI.GetCurrent();
   if (cur == NULL)
     return;
-  cur->RequestInfo(IF_Item|IF_Attr|IF_Slice, PRI_Sync);
+  cur->RequestInfo(IF_Item|IF_Attr|IF_Slice, PRI_Sync|PRI_Normal);
   { const volatile ITEM_INFO& item = *cur->GetInfo().item;
     AppendStringAttribute("ALIAS", item.alias);
     int_ptr<class Location> loc = cur->GetStartLoc();
@@ -1316,7 +1313,7 @@ void CommandProcessor::XInfoRefresh()
 { // get the song object
   int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song)
-    song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
+    song->RequestInfo(~IF_None, PRI_Sync|PRI_Normal, REL_Reload);
 }
 
 void CommandProcessor::XInfoInvalidate()
@@ -1387,7 +1384,7 @@ void CommandProcessor::XWriteMetaTo()
   const url123& url = ParseURL(Request);
   int_ptr<Playable> song = Playable::GetByURL(url);
   // Write meta
-  song->RequestInfo(IF_Tech, PRI_Sync);
+  song->RequestInfo(IF_Tech, PRI_Sync|PRI_Normal);
   Reply.appendf("%i", song->SaveMetaInfo(Meta, MetaFlags));
 }
 

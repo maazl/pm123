@@ -38,6 +38,11 @@
 *
 ****************************************************************************/
 
+LoadHelper::LoadHelper(Options opt)
+: Opt(opt)
+, Items(20)
+{}
+
 APlayable* LoadHelper::ToAPlayable()
 { switch (Items.size())
   {case 0:

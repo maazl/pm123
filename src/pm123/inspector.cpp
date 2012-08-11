@@ -124,12 +124,12 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
     return 0;
 
-   case WM_SYSCOMMAND:
+   /*case WM_SYSCOMMAND:
     if (SHORT1FROMMP(mp1) == SC_CLOSE)
     { Destroy();
       return 0;
     }
-    break;
+    break;*/
 
    case WM_TIMER:
     switch (SHORT1FROMMP(mp1))

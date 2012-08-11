@@ -567,7 +567,9 @@ or should be NULL otherwise. </li>
   <li><code><b>DECEVENT_SEEKSTOP</b></code>
 when a <code>DECODER_JUMPTO</code> operation is completed
 (i.e. when no buffers from before the seek is sent to the output
-plug-in anymore).</li>
+plug-in anymore). The message must also be sent, when playback starts
+in the middle of a song.<br>
+  </li>
   <li><code><b>DECEVENT_CHANGETECH</b></code>
 is sent whenever you want PM123 to change the display of the current
 technical information of the stream (like samplerate). <var>param</var>

@@ -43,6 +43,7 @@
 #include <string.h>
 #include <io.h>
 #include <utilfct.h>
+#include <cpp/xstring.h>
 
 #include <os2.h>
 

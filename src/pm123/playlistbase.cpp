@@ -309,8 +309,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
          case MBID_NO:;
         }
       }
-      Destroy();
-      return 0;
     }
     break;
 
@@ -342,7 +340,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
-    {case FID_CLIENT:
+    {case CO_CONTENT:
       switch (SHORT2FROMMP(mp1))
       {
        case CN_CONTEXTMENU:

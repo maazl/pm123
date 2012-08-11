@@ -1,7 +1,7 @@
 /**/
 dir = DIRECTORY()
 
-CALL CallPipe 'load 'dir'\data\test.mp3'
+CALL CallPipe 'play 'dir'\data\test.mp3'
 CALL Assert 'REPLY', '= 0'
 
 CALL CallPipe 'jump 0:03.5'

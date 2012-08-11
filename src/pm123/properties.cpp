@@ -158,7 +158,6 @@ class PropertyDialog : public NotebookDialogBase
 
  public:
   PropertyDialog(HWND owner);
-  void Process();
  protected:
   virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 };
@@ -1084,46 +1083,44 @@ PropertyDialog::PropertyDialog(HWND owner)
 MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch( msg )
-  { case WM_COMMAND:
-      switch (SHORT1FROMMP(mp1))
-      {
-        case PB_UNDO:
-        case PB_DEFAULT:
-        { HWND page = NULLHANDLE;
-          LONG id = (LONG)SendCtrlMsg(NB_CONFIG, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP,BKA_MAJOR));
-          if( id && id != BOOKERR_INVALID_PARAMETERS )
-            page = (HWND)SendCtrlMsg(NB_CONFIG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0 );
-          if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS )
-            WinPostMsg(page, CFG_GLOB_BUTTON, mp1, mp2);
-          return MRFROMLONG(1L);
-        }
-
-        case PB_HELP:
-          GUI::ShowHelp(IDH_PROPERTIES);
-          return 0;
+  {case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {
+      case PB_UNDO:
+      case PB_DEFAULT:
+      { HWND page = NULLHANDLE;
+        LONG id = (LONG)SendCtrlMsg(NB_CONFIG, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP,BKA_MAJOR));
+        if( id && id != BOOKERR_INVALID_PARAMETERS )
+          page = (HWND)SendCtrlMsg(NB_CONFIG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0 );
+        if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS )
+          WinPostMsg(page, CFG_GLOB_BUTTON, mp1, mp2);
+        return MRFROMLONG(1L);
       }
-      return 0;
 
-    case WM_INITDLG:
-      Cfg::RestWindowPos(GetHwnd());
-      break;
+      case PB_HELP:
+        GUI::ShowHelp(IDH_PROPERTIES);
+        return 0;
+    }
+    return 0;
 
-    case WM_DESTROY:
-      Cfg::SaveWindowPos(GetHwnd());
-      break;
+   case WM_INITDLG:
+    Cfg::RestWindowPos(GetHwnd());
+    break;
+
+   case WM_DESTROY:
+    Cfg::SaveWindowPos(GetHwnd());
+    break;
+
+   case WM_CLOSE:
+    // Save settings
+    { Cfg::ChangeAccess cfg;
+      for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
+        WinSendMsg((*pp)->GetHwnd(), CFG_SAVE, MPFROMP(&cfg), 0);
+    }
+    Cfg::SaveIni();
+    break;
   }
   return NotebookDialogBase::DlgProc(msg, mp1, mp2);
-}
-
-void PropertyDialog::Process()
-{
-  NotebookDialogBase::Process();
-  // Save settings
-  { Cfg::ChangeAccess cfg;
-    for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
-      WinSendMsg((*pp)->GetHwnd(), CFG_SAVE, MPFROMP(&cfg), 0);
-  }
-  Cfg::SaveIni();
 }
 
 

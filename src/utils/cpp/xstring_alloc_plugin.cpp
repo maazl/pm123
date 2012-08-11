@@ -36,7 +36,7 @@
 extern PLUGIN_CONTEXT Ctx;
 
 
-#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+#if defined(__IBMCPP__) && defined(__DEBUG_ALLOC__)
 void* xstring::StringData::operator new(size_t s, const char*, size_t, size_t l)
 #else
 void* xstring::StringData::operator new(size_t s, size_t l)
@@ -48,7 +48,7 @@ void* xstring::StringData::operator new(size_t s, size_t l)
   that->Len = l;
   return that+1;
 }
-#if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+#if defined(__IBMCPP__) && defined(__DEBUG_ALLOC__)
 void xstring::StringData::operator delete(void* p, const char*, size_t)
 #else
 void xstring::StringData::operator delete(void* p)

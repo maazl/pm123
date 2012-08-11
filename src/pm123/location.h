@@ -172,7 +172,7 @@ class Location : public Iref_count
   Playable*                   GetRoot() const              { return Root; }
   /// Get the current item within the current root where this Location points to.
   /// @return This returns the root itself unless the Location has been modified since the last initialization.
-  /// It will return NULL if there is currently no root.
+  /// It will return NULL if there is currently no root or the location is before the start of a playlist.
   APlayable*                  GetCurrent() const;
   /// Get the innermost entered playlist.
   /// @return NULL if none.
@@ -256,8 +256,8 @@ class Location : public Iref_count
   /// You can't enter sons or invalid items.
   /// @return See \c NavigationResult.
   NavigationResult            NavigateInto(JobSet& job);
-  /// Leave the current song if any.
-  void                        NavigateLeaveSong() { Position = -2; }
+  /// Restart the current song if any.
+  void                        NavigateRewindSong()          { if (Position >= 0) Position = -1; }
   /// Navigate explicitly to a given PlayableInstance.
   /// @param pi The PlayableInstance must be a child of the current item.
   /// \a pi might be \c NULL to explicitly navigate before the start of a playlist without leaving it.
@@ -287,12 +287,10 @@ class Location : public Iref_count
   /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
   /// The navigation starts from the current location.
-  /// @param mindepth Do not navigate to a higher level than \a mindepth.
-  /// This can be used to restrict the navigation to the current song or to the current playlist.
   /// @return See \c NavigationResult.
   /// @remarks If you want to navigate within the root call Reset before.
   /// If Navigate succeeds, the current item is always a song.
-  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, unsigned mindepth = 0, bool absolute = false);
+  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, int mindepth = 0, bool absolute = false);
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
@@ -319,8 +317,8 @@ class Location : public Iref_count
   /// - The return value is greater than zero if the current iterator is greater than r.
   /// - The absolute value is the level where the two iterators are different.
   /// E.g.: a return value of 2 means that r is greater than \c *this in a sublist that is part of the current root.
-  /// The returned absolute may exceed the current level of the SongIterator by one
-  /// if both SongIterators address the same song and callstack but at a different location.
+  /// The returned absolute may exceed the current level of the \c Location by one
+  /// if both \c Locations address the same song and call stack but at a different location.
   /// - A return value of \c INT_MIN means that the two iterators differ in their root node.
   /// In this case they are unordered.
   /// @param options Optional compare options.

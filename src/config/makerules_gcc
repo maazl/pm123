@@ -23,7 +23,7 @@ CFLAGS     = $(CFLAGS) -funsigned-char -march=pentium -mcpu=pentiumpro
 CFLAGS_CPP = -Wno-non-virtual-dtor
 CFLAGS_DBG = $(CFLAGS_DBG_USR) -g -DDEBUG=$(DEBUG)
 CFLAGS_OPT = $(CFLAGS_OPT_USR) -O3 -fomit-frame-pointer -funroll-loops -finline-functions
-CFLAGS_MEM = -DDEBUG_ALLOC
+CFLAGS_MEM = -DDEBUG_MEM
 # regparm is buggy with gcc/2
 #CFLAGS_OPT = -O2 -mregparm=3
 
@@ -92,9 +92,9 @@ LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
 MFLAGS = $(MFLAGS) NDEBUG=1
 !endif
 
-!ifdef DEBUG_ALLOC
+!ifdef DEBUG_MEM
 CFLAGS = $(CFLAGS) $(CFLAGS_MEM)
-MFLAGS = $(MFLAGS) DEBUG_ALLOC=1
+MFLAGS = $(MFLAGS) DEBUG_MEM=1
 LFLAGS = $(LFLAGS) $(TOPDIR)\utils\cpp\debugmem$(CO)
 !endif
 

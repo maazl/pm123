@@ -55,8 +55,8 @@ class DialogBase
     DLA_CLOSE                      ///< Close a certain dialog window.
   };
   enum DlgFlags
-  { DF_None           = 0x00,
-    DF_AutoResize     = 0x01
+  { DF_None           = 0x00,      ///< No flags
+    DF_AutoResize     = 0x01       ///< Resize affects children with respect to \c PPU_RESIZEINFO.
   };
  private:
   /// wrap pointer to keep PM happy
@@ -118,10 +118,10 @@ class DialogBase
   /// Get the window handle
   HWND              GetHwnd() const { ASSERT(HwndFrame != NULLHANDLE); return HwndFrame; }
   /// Make the window visible (or not)
-  virtual void      SetVisible(bool show);
+  virtual void      SetVisible(bool show = true);
   bool              GetVisible() const;
   ULONG             Process()       { return WinProcessDlg(HwndFrame); }
-  void              Close(ULONG result = DID_CANCEL)         { PMRASSERT(WinDismissDlg(HwndFrame, result)); }
+  void              Close()         { WinSendMsg(HwndFrame, WM_CLOSE, 0,0); }
 };
 FLAGSATTRIBUTE(DialogBase::DlgFlags);
 
@@ -170,6 +170,7 @@ class ManagedDialog : public BASE, public IVref_count
   virtual void      OnInit();
   /// @remarks If you override OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
   ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DialogBase::DF_None) : BASE(rid, module, flags) {}
 };
@@ -188,6 +189,17 @@ void ManagedDialog<BASE>::OnDestroy()
   Self.swap(keepalive);
   DialogBase::OnDestroy();
   // this may get invalid here
+}
+
+template <class BASE>
+MRESULT ManagedDialog<BASE>::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  {case WM_CLOSE:
+    // Managed Dialogs destroy themselves on close button or explicit close.
+    Destroy();
+    return 0;
+  }
+  return BASE::DlgProc(msg, mp1, mp2);
 }
 
 

@@ -232,12 +232,13 @@ int main(int argc, char** argv)
   { xstringbuilder cmd;
     if (command)
       cmd.append('*');
-    const char*const*const epp = files.end();
-    const char*const* spp = files.begin();
-    cmd.append(*spp);
-    while (++spp != epp)
+    foreach (const char*const*, spp, files)
     { cmd.append(' ');
+      if (!command)
+        cmd.append('"');
       cmd.append(*spp);
+      if (!command)
+        cmd.append('"');
     }
     // Pipe command
     xstring pipe_name(Cfg::Get().pipe_name);

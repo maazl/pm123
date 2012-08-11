@@ -53,12 +53,14 @@ void* operator new(size_t len)
   ++storage;
   memset(storage, NEW_MAGIC, len);
   *(int*)((char*)storage+len) = SCALAR_MAGIC;
+  DEBUGLOG(("operator new(%u) : %p\n", len, storage));
   return storage;
 }
 
 void operator delete(void* ptr)
 { if (!ptr)
     return;
+  DEBUGLOG(("operator delete(%p)\n", ptr));
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == SCALAR_MAGIC);
   ASSERT(*(unsigned*)((char*)ptr+storage->length) == SCALAR_MAGIC);
@@ -76,12 +78,14 @@ void* operator new[](size_t len)
   storage->magic = ARRAY_MAGIC;
   ++storage;
   *(unsigned*)((char*)storage+len) = ARRAY_MAGIC;
+  DEBUGLOG(("operator new[](%u) : %p\n", len, storage));
   return storage;
 }
 
 void operator delete[](void* ptr)
 { if (!ptr)
     return;
+  DEBUGLOG(("operator delete[](%p)\n", ptr));
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == ARRAY_MAGIC);
   ASSERT(*(unsigned*)((char*)ptr+storage->length) == ARRAY_MAGIC);

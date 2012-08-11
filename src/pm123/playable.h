@@ -124,13 +124,17 @@ class Playable
    public:
     Entry(Playable& parent, APlayable& refto, IDType::func_type ifn);
     virtual                 ~Entry()         { DEBUGLOG(("Playable::Entry(%p)::~Entry()\n", this)); }
-    // Activate the event handlers
+    /// Activate the event handlers
     void                    Attach()         { DEBUGLOG(("Playable::Entry(%p)::Attach()\n", this)); ASSERT(Parent); GetInfoChange() += InstDelegate; }
-    // Detach a PlayableInstance from the collection.
-    // This function must be called only by the parent collection and only while it is locked.
+    /// Detach a PlayableInstance from the collection.
+    /// This function must be called only by the parent collection and only while it is locked.
     void                    Detach()         { DEBUGLOG(("Playable::Entry(%p)::Detach()\n", this)); InstDelegate.detach(); Parent = NULL; Index = 0; }
-    // Update Index in Collection
+    /// Update Index in Collection
+    #ifdef DEBUG_LOG
     void                    SetIndex(int index) { Index = index; }
+    #else
+    void                    SetIndex(int index) { Index = index; InvalidateDebugName(); }
+    #endif
   };
 
   class PlaylistData : public CollectionInfoCache

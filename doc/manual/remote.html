@@ -28,7 +28,7 @@ understands a set of commands that are written to the pipe. For example:</p>
 <p>These commands will add the file <tt>d:\music\test.mp3</tt> to the
 default playlist.</p>
 <p><em>If you use <tt>echo</tt>, remember to prepend any commands sent
-to it with a <tt>*</tt> character.</em></p>
+to it with an asterisk <tt>*</tt>.</em></p>
 <p>Now for the cool part. You can control PM123 over your OS/2 Local
 Area Network. Just use <tt>\\<var>SERVER</var>\PIPE\PM123</tt>.
 <tt>\\<var>SERVER</var></tt> is the name of the computer PM123 runs on.
@@ -38,6 +38,10 @@ For example,</p>
 </blockquote>
 <p>Will do the same as examples above, but from a different computer.
 Easy, isn't it?</p>
+<p>If you need to get some reply, for instance a success indicator or
+the result of a query command, then you need to use bidirectional pipe
+communication. See the REXX example file <tt>123remote.cmd</tt>
+shipped with PM123.</p>
 <p>See the <a href="remote/index.html">command reference</a> for more
 details.</p>
 </body>

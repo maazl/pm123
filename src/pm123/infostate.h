@@ -71,8 +71,9 @@ enum Priority
 { PRI_None      = 0,   /// Do not execute anything, only check for existance.
   PRI_Low       = 1,   /// Execute request at idle time.
   PRI_Normal    = 2,   /// Execute request.
-  PRI_Sync      = 3,   /// Execute request synchronously, i.e. wait for the response.
+  PRI_Sync      = 4,   /// Execute request synchronously, i.e. wait for the response.
 };
+FLAGSATTRIBUTE(Priority);
 
 /// @brief Information reliability level
 /// @details When used for requests only level 1 and up make sense.

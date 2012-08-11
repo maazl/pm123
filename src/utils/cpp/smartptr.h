@@ -133,7 +133,7 @@ class Iref_count
   typedef unsigned char offset; // must be able to hold ALIGNMENT
  public:
   // alignment
-  #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+  #if defined(__IBMCPP__) && defined(__DEBUG_ALLOC__)
   static void* operator new(size_t len, const char*, size_t)
   #else
   static void* operator new(size_t len)
@@ -333,8 +333,9 @@ inline void int_ptr<T>::swap(int_ptr<T>& r) volatile
 
 template <class T>
 inline void int_ptr<T>::reset()
-{ release(Data);
+{ unsigned d = Data;
   Data = 0;
+  release(d);
 }
 template <class T>
 inline void int_ptr<T>::reset() volatile

@@ -306,7 +306,7 @@ AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this, &ai, ai.Exclude.DebugDump().cdata(), what, pri, rel));
+{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this, &ai, ai.Exclude.DebugDump(), what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
 
   InfoFlags what2 = IF_None;

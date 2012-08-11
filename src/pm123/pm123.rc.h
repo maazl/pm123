@@ -129,6 +129,7 @@
 #define DLG_PLAYLIST        700
 /* Playlistmanager */
 #define DLG_PM              702
+#define CO_CONTENT          703
 
 #define MNU_PLAYLIST        710
 #define MNU_RECORD          711
@@ -408,7 +409,7 @@
 
 /* Object Info */
 #define DLG_INFO           1700
-#define NB_INFO            FID_CLIENT
+#define NB_INFO            1701
 
 #define DLG_TECHINFO       1710
 #define EF_URL             1711

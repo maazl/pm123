@@ -93,15 +93,27 @@ class APlayable
 { friend class WaitInfo;
   friend class WaitAggregateInfo;
 
- private:
-  /// Keep track of scheduled asynchronous requests.
-  AtomicUnsigned              AsyncRequest;
  protected:
   unsigned                    InUse;
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
+ private:
+  /// Keep track of scheduled asynchronous requests.
+  AtomicUnsigned              AsyncRequest;
+  #ifdef DEBUG_LOG
+  /// Cache DebugName in case of debug builds that call this function frequently.
+  /// May be reset in case it is invalid.
+  /// @note Strictly speaking this member must be volatile to get strong thread safety.
+  /// But since it applies only to debug builds and it changes rarely
+  /// a small race condition is left open.
+  mutable xstring             DebugNameCache;
+  #endif
 
+ protected:
                               APlayable()         : InUse(0) {}
+  #ifdef DEBUG_LOG
+          void                InvalidateDebugName() { DebugNameCache.reset(); }
+  #endif
  public:
   virtual                     ~APlayable()        {}
   /// Get't the referenced content.
@@ -119,7 +131,11 @@ class APlayable
   /// Create some human readable output for debug logging.
   /// @note This function is aware of being invoked on a \c NULL pointer.
   /// Strictly speaking this is u.b. but in practice it works.
-          xstring             DebugName() const   { return this ? DoDebugName() : "<null>"; } // Hack: allow this == NULL
+  #ifdef DEBUG_LOG
+          xstring             DebugName() const;
+  #else
+          xstring             DebugName() const   { return (int)this < 0x10000 ? "<null>" : DoDebugName() } // Hack: allow this == NULL
+  #endif
 
   /// Get start position
   /// @return Pointer to a start \c Location if the object does not start at the beginning of \c this->GetPlayable(),
