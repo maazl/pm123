@@ -400,7 +400,10 @@ void ThreadDecoder::DecoderThread()
           break; // Seek out of range => begin/end of song
       }
 
-      if (!FLAC__stream_decoder_process_single(Decoder))
+      bool more = FLAC__stream_decoder_process_single(Decoder);
+      if (Terminate)
+        goto end;
+      if (!more)
         goto fail;
       // The return value of FLAC__stream_decoder_process_single is not reliable, so check stream state always.
       switch (FLAC__stream_decoder_get_state(Decoder))
@@ -424,33 +427,6 @@ void ThreadDecoder::DecoderThread()
        case FLAC__STREAM_DECODER_READ_FRAME:;
       }
 
-      /*float* target;
-      int count = (*OutRequestBuffer)(A, &output_format, &target);
-      if (count <= 0)
-      { (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
-        goto end;
-      }
-
-      int read;
-      { Mutex::Lock lock(Mtx);
-        read = OggRead(target, count);
-      }
-      if (read <= 0)
-        break; // End of song
-
-      (*OutCommitBuffer)(A, read, GetPos() - (double)read / GetSamplerate());*/
-
-      /* Don't work anyway
-      if( w->metadata_buff && w->metadata_size && w->hwnd )
-      {
-        ogg_get_string( w, curr_title, "TITLE", sizeof( curr_title ));
-
-        if( strcmp( curr_title, last_title ) != 0 ) {
-          strlcpy ( last_title, curr_title, sizeof( last_title ));
-          snprintf( w->metadata_buff, w->metadata_size, "StreamTitle='%s';", last_title );
-          WinPostMsg( w->hwnd, WM_METADATA, MPFROMP( w->metadata_buff ), 0 );
-        }
-      }*/
       if (Terminate)
         goto end;
     }
