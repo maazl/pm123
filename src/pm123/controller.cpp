@@ -716,7 +716,7 @@ void CtrlImp::MsgPlayStop()
       && si.GetCurrent()->GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
       if (time >= 0)
-        si.NavigateTime(SyncJob, time, si.GetLevel(), true);
+        si.NavigateTime(SyncJob, time, si.GetCallstack().size(), true);
     }
   }
 
@@ -1013,7 +1013,7 @@ void CtrlImp::MsgLocation()
   loc = Current()->Loc; // copy
   loc.NavigateRewindSong();
   if (pos >= 0)
-    loc.NavigateTime(SyncJob, pos, loc.GetLevel(), true);
+    loc.NavigateTime(SyncJob, pos, loc.GetCallstack().size(), true);
   Reply(RC_OK);
 }
 
