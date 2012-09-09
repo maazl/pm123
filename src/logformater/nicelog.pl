@@ -1,4 +1,5 @@
 #!perl
+# Indent log entries according to the the call stack depth
 use strict;
 
 my @stack;

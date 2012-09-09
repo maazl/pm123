@@ -103,17 +103,5 @@ class ProxyHelper
   static void Uninit();
 };
 
-#define DO_8(p,x) \
-do \
-{ { const int p = 0; x; } \
-  { const int p = 1; x; } \
-  { const int p = 2; x; } \
-  { const int p = 3; x; } \
-  { const int p = 4; x; } \
-  { const int p = 5; x; } \
-  { const int p = 6; x; } \
-  { const int p = 7; x; } \
-} while (false)
-
 
 #endif

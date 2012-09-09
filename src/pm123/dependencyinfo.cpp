@@ -310,7 +310,8 @@ void DependencyInfoWorker::Cancel()
 }
 
 void DependencyInfoWorker::MandatoryInfoChangeEvent(const PlayableChangeArgs& args)
-{ DEBUGLOG(("DependencyInfoWorker(%p)::MandatoryInfoChangeEvent({&%p, %x})\n", this, &args.Instance, args.Loaded));
+{ DEBUGLOG(("DependencyInfoWorker(%p)::MandatoryInfoChangeEvent({&%p, %x}) - %x\n",
+    this, &args.Instance, args.Loaded, NowWaitingFor));
   NowWaitingFor &= ~args.Loaded;
   if ( NowWaitingFor == IF_None // Have we finished?
     && Deleg.detach() ) // and did /we/ deregister ourself?

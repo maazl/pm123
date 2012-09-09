@@ -276,14 +276,16 @@ class Location : public Iref_count
   /// - If the url is \c NULL only the index is used to count the items (see NavigateCount).
   /// @param index Navigate to the index-th occurrence of \a url within the current playlist.
   /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
-  /// @param flat If flat is \c true all content from the current location is flattened.
-  /// So the Navigation goes to the item in the set of non-recursive items in the current playlist
+  /// @param flatdepth If \a flatdepth is \c &ge \c 0 all content from the playlist at depth \a flatdepth is flattened.
+  /// So the Navigation goes to the item in the set of non-recursive items in the flattened playlist
   /// and all sublists.
-  /// If Navigate with flat = true succeeds, the current item is always a song.
+  /// If Navigate with \a flatdepth \c &ge \c 0 succeeds, the current item is always a song.
+  /// Common value are \c 0 to navigate flat within the current root and GetCallstack().size()
+  /// to navigate within the current innermost playlist.
   /// @return See \c NavigationResult.
   /// @remarks \c Navigate will automatically enter the root playlist if necessary.
   /// It will not enter any other playlist.
-  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, bool flat);
+  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, int flatdepth = -1);
   /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
   /// The navigation starts from the current location.
@@ -294,6 +296,7 @@ class Location : public Iref_count
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
+  /// @param delimiter Call stack component delimiter. \c ';' by default.
   xstring                     Serialize(bool withpos = true, char delimiter = ';') const;
   /// Deserialize the current instance from a string and return a error message (if any).
   /// @param str \a str is relative. To enforce an absolute location call \c Reset() before.

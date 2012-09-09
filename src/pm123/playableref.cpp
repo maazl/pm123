@@ -187,7 +187,7 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
       CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
     Overridden &= ~(IF_Item|IF_Aggreg);
   }
-  InfoChange(args);
+  RaiseInfoChange(args);
 }
 
 InfoFlags PlayableSlice::Invalidate(InfoFlags what)
@@ -196,7 +196,7 @@ InfoFlags PlayableSlice::Invalidate(InfoFlags what)
     ret |= CIC->DefaultInfo.InfoStat.Invalidate(what);
     // TODO: invalidate CIC entries also
   if (ret)
-    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
+    RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
   return ret;
 }
 
@@ -221,7 +221,7 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
   if (Overridden & IF_Item)
     args2.Purge(IF_Item);
   if (!args2.IsInitial())
-    InfoChange(args2);
+    RaiseInfoChange(args2);
 }
 
 InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
@@ -365,7 +365,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
       args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
       if (!args.IsInitial())
-      { InfoChange(args);
+      { RaiseInfoChange(args);
         args.Reset();
       }
     }
@@ -406,7 +406,7 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
    next:;
   } while (CIC->GetNextWorkItem(iep, job.Pri, upd));
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 const Playable& PlayableSlice::DoGetPlayable() const
@@ -419,7 +419,7 @@ void PlayableSlice::SetInUse(unsigned used)
   InUse = used;
   // TODO: keep origin in case of cascaded execution
   PlayableChangeArgs args(*this, this, IF_Usage, changed * IF_Usage, IF_None);
-  InfoChange(args);
+  RaiseInfoChange(args);
   RefTo->SetInUse(used);
 }
 
@@ -489,7 +489,7 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
     Overridden |= IF_Meta;
   }
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
@@ -512,7 +512,7 @@ void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
     Overridden |= IF_Attr;
   }
   if (!args.IsInitial())
-    InfoChange(args);
+    RaiseInfoChange(args);
 }
 
 void PlayableRef::OverrideInfo(const INFO_BUNDLE& info, InfoFlags override)

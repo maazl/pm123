@@ -25,22 +25,21 @@ CALL CallPipe 'pl navigate [2]'
 CALL Assert 'TRANSLATE(RESULT)', '= """NOT_EXIST.OGG"""'
 /* with time */
 CALL CallPipe 'pl navigate [-1];0:2.8'
-CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """TEST3.OGG"" ;0:02.8"'
+CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """TEST3.OGG"";0:02.8"'
 
 /* up and down */
 CALL CallPipe 'pl navigate ..;list1.lst;list1.lst'
-CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST""[2] ;""LIST1.LST"""'
+CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST""[2];""LIST1.LST"""'
 CALL CallPipe 'pl navigate ..;list1.lst[-1];list2.lst'
-CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"" ;""LIST2.LST"""'
+CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"";""LIST2.LST"""'
 
 /* with song time */
 CALL CallPipe 'pl navigate .;[1];.3'
-CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"" ;""TEST.OGG"" ;0:00.3"'
+CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"";""TEST.OGG"";0:00.3"'
 CALL CallPipe 'pl navigate .3'
-CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"" ;""TEST.OGG"" ;0:00.6"'
+CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= """LIST1.LST"";""TEST.OGG"";0:00.6"'
 CALL CallPipe 'pl navigate ..;[3]'
 CALL Assert 'TRANSLATE(TRANSLATE(RESULT),";","0a0d"x)', '= ""'
-
 
 EXIT
 

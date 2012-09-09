@@ -50,6 +50,7 @@ void debuglog( const char* fmt, ... )
   PTIB ptib;
   PPIB ppib;
   char buffer[28+1024+1];
+  memset(buffer, 0x99, sizeof buffer);
   ULONG dummy;
 
   // Hack to get a more precise stack info: count the number of % in the format string and subtracht taht from the stack.

@@ -901,7 +901,7 @@ void CommandProcessor::XPlNavigate()
   if (result)
     Messages.appendf("E %s at %.30s\n", result.cdata(), cp);
   else
-    Reply.append(CurSI.Serialize(true, '\n'));
+    Reply.append(CurSI.Serialize(true));
 }
 
 void CommandProcessor::XPlReset()
@@ -941,7 +941,7 @@ void CommandProcessor::XPlDepth()
 }
 
 void CommandProcessor::XPlCallstack()
-{ Reply.append(CurSI.Serialize(false, '\n'));
+{ Reply.append(CurSI.Serialize(false));
 }
 
 void CommandProcessor::XPlIndex()

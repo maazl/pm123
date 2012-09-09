@@ -38,7 +38,7 @@ or
 <p>The first part navigates to the first occurrence of the file <tt>my_nested_playlist.lst</tt>
 in the current playlist.<br>
 The second part navigates to the second occurrence of <tt>my_favorite_song.mp3</tt>
-in my_nested_playlist.lst.
+in <tt>my_nested_playlist.lst</tt>.
 It is enclosed with quotes. In this case this is optional because the
 relative URL contains neither a semicolon nor square brackets at the
 end.<br>
@@ -86,7 +86,8 @@ an error to address this item.</p>
   <pre>*"my_favorite_song.mp3"[3]<br>3:44</pre>
 </blockquote>
 <p>The <b>flat navigation</b> is identified by the leading
-asterisk. Flat navigation means that all all non-recursive songs in the
+<b>asterisk</b>. Flat navigation means that all all non-recursive songs
+in the
 nested playlists are taken as one linear playlist. Within this context
 it is the <i>third</i> instance
 of <tt>my_favorite_song.mp3</tt>.
@@ -107,7 +108,7 @@ navigation as shown in the second example.</p>
 all songs of a playlist based on the total playing time. Assuming that <tt>another_song.mp3</tt>
 has
 a length of 3:23 the total time index of our playing location is 21:06.</p>
-<h3>Playlist location syntax reference</h3>
+<h3><a name="reference"></a>Playlist location syntax reference</h3>
 <p>To locate a playlist item use one of the following syntax variants:
 </p>
 <ul>
@@ -144,7 +145,8 @@ resolved within the context of the current playlist also if the nested
 playlist where it is effectively found resides in a different folder. </li>
   <li> <b><tt>*<var>relativeURL</var>[<var>index</var>]</tt> or<br>
     <tt>*<var>absoluteURL</var>[<var>index</var>]</tt></b><br>
-Navigates to the <tt>index</tt><sup>th</sup> song with the above URL
+Navigates to the <var><tt>index</tt></var><sup>th</sup> song with the
+above URL
 in the
 current playlist or any of the nested playlists. </li>
   <li><b><tt>*<var>relativeURL</var>[-<var>index</var>]</tt> or<br>
@@ -165,7 +167,16 @@ the
 current playlist
 and
 it's
-sublists. </li>
+sublists.</li>
+  <li><b><tt>**</tt>...</b><br>
+Placing <em>two</em> asterisks in front of an URL and/or index
+specification will also cause flat navigation, but it always counts
+from the current root. I.e. navigate to the 3<sup>rd</sup> song from
+the current location in a nested playlist that only has 2 songs left,
+will continue in the root playlist.<br>
+While this feature finally breaks with the idea of a call stack it is
+quite useful for user navigation within nested playlist structures.<br>
+  </li>
   <li><b><tt>..</tt></b><br>
 Navigate one level up. This makes only sense if we are currently not at
 the top level.</li>
@@ -175,7 +186,7 @@ item is a playlist the next relative forward navigation will start from
 the start of the list rather than the current position. If the current
 item is a song, the time navigation count from the start of the song
 (or the end in case of negative values).</li>
-  <li><b><tt>/</tt></b><br>
+  <li><tt><b>/</b></tt><br>
 Start over from the current root.</li>
 </ul>
 <p>It is an error to
@@ -183,8 +194,7 @@ Start over from the current root.</li>
 <ul>
   <li>navigate to a non-existing item, </li>
   <li>enclose <tt><var>index</var></tt> with quotes, </li>
-  <li>navigate into a recursive item (see <a href="#note3">note 3</a>).
-  </li>
+  <li>enter a recursive item (see <a href="#note3">note 3</a>). </li>
 </ul>
 <p>If relative navigation is used remember that the current location is
 usually a song. So you need '<tt>..;</tt>' to get to the

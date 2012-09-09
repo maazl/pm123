@@ -95,9 +95,9 @@ class APlayable
 
  protected:
   unsigned                    InUse;
+ private:
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
- private:
   /// Keep track of scheduled asynchronous requests.
   AtomicUnsigned              AsyncRequest;
   #ifdef DEBUG_LOG
@@ -111,6 +111,7 @@ class APlayable
 
  protected:
                               APlayable()         : InUse(0) {}
+  void                        RaiseInfoChange(const PlayableChangeArgs& args);
   #ifdef DEBUG_LOG
           void                InvalidateDebugName() { DebugNameCache.reset(); }
   #endif

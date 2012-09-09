@@ -30,6 +30,7 @@
 #include "decoder.h"
 
 #include <cpp/container/stringmap.h>
+#include <strutils.h>
 #include <charset.h>
 #include <errno.h>
 #include <string.h>
@@ -443,18 +444,6 @@ void ThreadDecoder::DecoderThread()
   DecoderTID = -1;
   DEBUGLOG(("ThreadDecoder(%p)::DecoderThread terminate\n", this));
 }
-
-#define DO_8(p,x) \
-do \
-{ { const int p = 0; x; } \
-  { const int p = 1; x; } \
-  { const int p = 2; x; } \
-  { const int p = 3; x; } \
-  { const int p = 4; x; } \
-  { const int p = 5; x; } \
-  { const int p = 6; x; } \
-  { const int p = 7; x; } \
-} while (false)
 
 FLAC__StreamDecoderWriteStatus ThreadDecoder::WriteCB(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
 { DEBUGLOG(("ThreadDecoder(%p)::WriteCB(%p, {%u, %u, %u,, %Lu, %u}, %p)\n", client_data,

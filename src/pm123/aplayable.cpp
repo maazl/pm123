@@ -71,6 +71,12 @@ xstring APlayable::DebugName() const
 }
 #endif
 
+void APlayable::RaiseInfoChange(const PlayableChangeArgs& args)
+{ DEBUGLOG(("APlayable(%p)::RaiseInfoChange({&%p, %p, %x, %x, %x})\n", this,
+    &args.Instance, args.Origin, args.Loaded, args.Changed, args.Invalidated));
+  InfoChange(args);
+}
+
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 { DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
   if (what == IF_None)

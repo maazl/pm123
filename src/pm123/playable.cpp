@@ -245,7 +245,7 @@ static inline void SetDependentInfo(InfoFlags& what)
 void Playable::RaiseInfoChange(CollectionChangeArgs& args)
 { SetDependentInfo(args.Changed);
   SetDependentInfo(args.Invalidated);
-  InfoChange(args);
+  APlayable::RaiseInfoChange(args);
 }
 
 InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
@@ -308,6 +308,8 @@ AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
 { DEBUGLOG(("Playable(%p)::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this, &ai, ai.Exclude.DebugDump(), what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
+  if (!what)
+    return IF_None; // fast path
 
   InfoFlags what2 = IF_None;
   if (what & IF_Drpl)

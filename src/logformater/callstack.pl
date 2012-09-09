@@ -1,3 +1,4 @@
+# Analyze call stack of each thread from a log file.
 use strict;
 
 my @thread;

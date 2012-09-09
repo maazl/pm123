@@ -293,24 +293,25 @@ Location::NavigationResult Location::NavigateTo(const Location& target)
   return xstring();
 }
 
-Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, bool flat)
-{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %u)\n", this,
-    job.Pri, url.cdata(), index, flat));
+Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, int flatdepth)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i)\n", this,
+    job.Pri, url.cdata(), index, flatdepth));
 
   if (!Root)
     return "Cannot navigate without root.";
 
-  int maxdepth = flat ? INT_MAX : Callstack.size();
+  const int mindepth = flatdepth >= 0 ? flatdepth : 0;
+  int maxdepth = flatdepth >= 0 ? INT_MAX : Callstack.size();
 
   if (!url)
-    return NavigateCount(job, index, ~TATTR_NONE, Callstack.size(), maxdepth);
+    return NavigateCount(job, index, ~TATTR_NONE, mindepth, maxdepth);
 
   xstring ret;
   if (url == "/" || url == "\\")
   { Reset();
     return ret;
   } else if (url == "..")
-  { if (flat)
+  { if (flatdepth >= 0)
       return "Flat navigation to .. is not valid.";
     if (index < 0)
       return "Cannot navigate up a negative number of times.";
@@ -323,7 +324,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
         return xstring::empty; // delayed
       if ((cur->GetInfo().tech->attributes & (TATTR_PLAYLIST|TATTR_SONG)) == TATTR_PLAYLIST)
       { Enter();
-        if (!flat)
+        if (flatdepth <= 0)
           ++maxdepth;
       }
     }
@@ -351,7 +352,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
       index = -index;
     do
     { do
-      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, Callstack.size(), maxdepth);
+      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, mindepth, maxdepth);
         if (ret)
           return ret;
       } while (&GetCurrent()->GetPlayable() != pp);
@@ -484,7 +485,7 @@ xstring Location::Serialize(bool withpos, char delimiter) const
 Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
 { DEBUGLOG(("Location(%p)::Deserialize({%u, }, %s) - %s\n", this, job.Pri, str, Serialize(true).cdata()));
   NavigationResult ret;
-  bool flat = false;
+  int flat = 0;
   size_t len = 0;
   
   for (;; str += len)
@@ -507,13 +508,13 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
       ret = NavigateInto(job);
       if (ret)
         return ret;
-      flat = false;
+      flat = 0;
       len = strspn(++str, ";\r\n");
       continue;
       
      case '*': // Flat navigation
-      flat = true;
-      len = 1;
+      ++flat;
+      ++len;
       continue;
      
      case '"': // Quoted playlist item
@@ -625,12 +626,22 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
     } }
     // do the navigation
     bool noenter = url == "." || url == "..";
+    switch (flat)
+    {case 0:
+      flat = -1;
+      break;
+     case 1:
+      flat = Callstack.size();
+      break;
+     default:
+      flat = 0;
+    }
     ret = Navigate(job, url, index, flat);
     if (ret)
       return ret;
     if (noenter) // skip delimiter to enter after "." or ".."
       len = strspn(str += len, ";\r\n");
-    flat = false;
+    flat = 0;
   } // next part
 }
 

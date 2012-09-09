@@ -144,11 +144,12 @@ string syntax</a>.<br>
 This is similar to <a href="#pl_navigate"><tt>pl navigate</tt></a>,
 but does not include the
 location within the current song. </td>
-      <td valign="top">URLs of parent playlists. One per line and from
+      <td valign="top">URLs of parent playlists. Semicolon delimited
+and from
 top to bottom, empty on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="use">CALL CallPipe 'pl reset' </a>use</tt></td>
+      <td><tt><a name="use"></a>use</tt></td>
       <td>Use the current playlist. This is equivalent to '<tt>load <var>&lt;URL
 to current playlist&gt;</var></tt>'.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
@@ -160,8 +161,7 @@ to current playlist&gt;</var></tt>'.</td>
   <li>
     <p><a name="note1"></a>If you pass relative URLs the path set with
 the <a href="general.html#cd">cd</a> command is used as root. Note
-that this does not apply to locatioCALL CallPipe 'pl reset'<br>
-n strings.</p>
+that this does not apply to location strings.</p>
   </li>
   <li><a name="note2"></a>Note that the navigation will never enter
 recursive playlists. But the recursive list itself is reported if the
