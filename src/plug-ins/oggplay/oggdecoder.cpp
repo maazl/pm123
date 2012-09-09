@@ -157,19 +157,20 @@ int OggDecoder::OggRead(float* buffer, int count)
      case 2:
       { float* l = source[0];
         float* r = source[1];
-        long i = 0;
-        while (i < (done & 7))
-        { buffer[0] = l[i];
-          buffer[1] = r[i];
-          buffer += 2;
-          ++i;
-        }
-        while (i < done)
+        float* le = l + (done & ~7);
+        while (l != le)
         { DO_8(p,
-            buffer[0+2*p] = l[i];
-            buffer[1+2*p] = r[i] );
+            buffer[0+2*p] = l[p];
+            buffer[1+2*p] = r[p] );
           buffer += 2*8;
-          i += 8;
+          l += 8;
+          r += 8;
+        }
+        le = l + (done & 7);
+        while (l != le)
+        { buffer[0] = *l++;
+          buffer[1] = *r++;
+          buffer += 2;
         }
         break;
       }
