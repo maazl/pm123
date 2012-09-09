@@ -40,6 +40,8 @@
 *
 ****************************************************************************/
 
+const Location::NavigationResult Location::End("END");
+
 #ifdef DEBUG
 void Location::RootChange(const CollectionChangeArgs& args)
 { DEBUGLOG(("Location(%p)::RootChange({%p,...})\n", this, &args.Instance));
@@ -161,8 +163,7 @@ void Location::PrevNextCore(bool direction)
 Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
 { DEBUGLOG(("Location(%p)::NavigateCountCore({%u,}, %u, %x, %u, %u) - %u\n", this, job.Pri, dir, stopat, mindepth, maxdepth, Callstack.size()));
   ASSERT(stopat);
-  ASSERT(Callstack.size() >= mindepth);
-  ASSERT(maxdepth >= Callstack.size());
+  ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth && maxdepth >= Callstack.size());
 
   if (!Root)
     return "Cannot navigate without root.";
@@ -184,7 +185,7 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
     else
     {noenter:
       if (Callstack.size() == 0)
-        return "End";
+        return End;
     }
     // Now Callstack.size() is at least 1 and
     // cur points to the parent playlist of Callstack[Callstack.size()-1].
@@ -195,7 +196,7 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
     // End of list => go to parent
     if (Callstack[Callstack.size()-1] == NULL)
     { if (Callstack.size() == mindepth)
-        return "End";
+        return End;
       Leave();
       goto noenter;
     }
@@ -293,16 +294,13 @@ Location::NavigationResult Location::NavigateTo(const Location& target)
   return xstring();
 }
 
-Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, int flatdepth)
-{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i)\n", this,
-    job.Pri, url.cdata(), index, flatdepth));
+Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i, %i)\n", this,
+    job.Pri, url.cdata(), index, mindepth, maxdepth));
+  ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth && maxdepth >= Callstack.size());
 
   if (!Root)
     return "Cannot navigate without root.";
-
-  const int mindepth = flatdepth >= 0 ? flatdepth : 0;
-  int maxdepth = flatdepth >= 0 ? INT_MAX : Callstack.size();
-
   if (!url)
     return NavigateCount(job, index, ~TATTR_NONE, mindepth, maxdepth);
 
@@ -311,10 +309,10 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
   { Reset();
     return ret;
   } else if (url == "..")
-  { if (flatdepth >= 0)
-      return "Flat navigation to .. is not valid.";
-    if (index < 0)
+  { if (index < 0)
       return "Cannot navigate up a negative number of times.";
+    if (index + mindepth > GetLevel())
+      return End;
     return NavigateUp(index);
   }
   // Auto enter root
@@ -324,8 +322,8 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
         return xstring::empty; // delayed
       if ((cur->GetInfo().tech->attributes & (TATTR_PLAYLIST|TATTR_SONG)) == TATTR_PLAYLIST)
       { Enter();
-        if (flatdepth <= 0)
-          ++maxdepth;
+        if (maxdepth == 0)
+          maxdepth = 1;
       }
     }
   }
@@ -626,17 +624,22 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
     } }
     // do the navigation
     bool noenter = url == "." || url == "..";
+    unsigned mindepth;
+    unsigned maxdepth;
     switch (flat)
     {case 0:
-      flat = -1;
+      mindepth = noenter ? 0 : Callstack.size();
+      maxdepth = Callstack.size();
       break;
      case 1:
-      flat = Callstack.size();
+      mindepth = Callstack.size();
+      maxdepth = INT_MAX;
       break;
      default:
-      flat = 0;
+      mindepth = 0;
+      maxdepth = INT_MAX;
     }
-    ret = Navigate(job, url, index, flat);
+    ret = Navigate(job, url, index, mindepth, maxdepth);
     if (ret)
       return ret;
     if (noenter) // skip delimiter to enter after "." or ".."

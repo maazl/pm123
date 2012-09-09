@@ -61,10 +61,12 @@ class Location : public Iref_count
   /// @details It can take three logically distinct values:
   /// - NULL      => Successful.
   /// - ""        => Further information from other objects is required. Retry later.
-  /// - "End"     => The end of the list has been reached.
+  /// - "END"     => The end of the list has been reached.
   /// - any other => Not successful because of a syntax error or a non-existing
   ///                or out of bounds reference. Error Message as plain text.
   typedef xstring             NavigationResult;
+  /// Constant "END"
+  static const NavigationResult      End;
   /// Options for \c CompareTo.
   enum CompareOptions
   { CO_Default        = 0x00, ///< Do default comparions
@@ -114,7 +116,7 @@ class Location : public Iref_count
   /// because of missing informations on sub items. (Tech info and slice info is required.)
   /// @param mindepth Do not ascend beyond depth \a mindepth in the callstack.
   /// If we are currently at depth 2 and the end of the list is reached and \a mindepth is also 2
-  /// PrevNextCore will return an error ("End") instead of applying \a dirfunc to the callstack
+  /// PrevNextCore will return an error ("END") instead of applying \a dirfunc to the callstack
   /// item at depth 1 or less.
   /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
   /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
@@ -236,7 +238,7 @@ class Location : public Iref_count
   /// because of missing informations on sub items. (Tech info and slice info is required.)
   /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.
   /// If we are currently at depth 2 and the end of the list is reached and \a mindepth is also 2
-  /// PrevNextCore will return an error ("End") instead of applying \a dirfunc to the call stack
+  /// PrevNextCore will return an error ("END") instead of applying \a dirfunc to the call stack
   /// item at depth 1 or less.
   /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
   /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
@@ -257,7 +259,7 @@ class Location : public Iref_count
   /// @return See \c NavigationResult.
   NavigationResult            NavigateInto(JobSet& job);
   /// Restart the current song if any.
-  void                        NavigateRewindSong()          { if (Position >= 0) Position = -1; }
+  void                        NavigateRewindSong()         { if (Position >= 0) Position = -1; }
   /// Navigate explicitly to a given PlayableInstance.
   /// @param pi The PlayableInstance must be a child of the current item.
   /// \a pi might be \c NULL to explicitly navigate before the start of a playlist without leaving it.
@@ -276,16 +278,16 @@ class Location : public Iref_count
   /// - If the url is \c NULL only the index is used to count the items (see NavigateCount).
   /// @param index Navigate to the index-th occurrence of \a url within the current playlist.
   /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
-  /// @param flatdepth If \a flatdepth is \c &ge \c 0 all content from the playlist at depth \a flatdepth is flattened.
-  /// So the Navigation goes to the item in the set of non-recursive items in the flattened playlist
-  /// and all sublists.
-  /// If Navigate with \a flatdepth \c &ge \c 0 succeeds, the current item is always a song.
-  /// Common value are \c 0 to navigate flat within the current root and GetCallstack().size()
-  /// to navigate within the current innermost playlist.
+  /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.
+  /// If we are currently at depth 2 and the current list is left for some reason and \a mindepth is also 2
+  /// Naviate will stop and return an error ("END").
+  /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
+  /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
+  /// Navigate will not enter this list and search inside for matching nodes.
   /// @return See \c NavigationResult.
   /// @remarks \c Navigate will automatically enter the root playlist if necessary.
   /// It will not enter any other playlist.
-  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, int flatdepth = -1);
+  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth);
   /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
   /// The navigation starts from the current location.
