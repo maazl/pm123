@@ -63,7 +63,7 @@ const amp_cfg Cfg::Default =
 , false
 , false
 , CFG_ANAV_SONG
-, CFG_ABUT_ALT
+, CFG_BUT_ALT
 , true
 , true // recurse_dnd
 , true

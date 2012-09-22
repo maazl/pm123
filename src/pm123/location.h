@@ -66,7 +66,7 @@ class Location : public Iref_count
   ///                or out of bounds reference. Error Message as plain text.
   typedef xstring             NavigationResult;
   /// Constant "END"
-  static const NavigationResult      End;
+  static const NavigationResult End;
   /// Options for \c CompareTo.
   enum CompareOptions
   { CO_Default        = 0x00, ///< Do default comparions

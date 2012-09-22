@@ -495,17 +495,17 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
     Cfg::ChangeAccess().*option = mp->Val;
   }
 }
-void CommandProcessor::DoOption(cfg_abutton amp_cfg::* option)
-{ static const strmap<6,cfg_abutton> map[] =
-  { { "alt",   CFG_ABUT_ALT   }
-  , { "ctrl",  CFG_ABUT_CTRL  }
-  , { "shift", CFG_ABUT_SHIFT }
+void CommandProcessor::DoOption(cfg_button amp_cfg::* option)
+{ static const strmap<6,cfg_button> map[] =
+  { { "alt",   CFG_BUT_ALT   }
+  , { "ctrl",  CFG_BUT_CTRL  }
+  , { "shift", CFG_BUT_SHIFT }
   };
   Reply.append(map[ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
   else if (Request)
-  { const strmap<6,cfg_abutton>* mp = mapsearch(map, Request);
+  { const strmap<6,cfg_button>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {alt|ctrl|shift} but found \"%s\".", Request);
     Cfg::ChangeAccess().*option = mp->Val;

@@ -87,10 +87,10 @@ enum cfg_anav
 };
 
 /// Alternate navigation button
-enum cfg_abutton
-{ CFG_ABUT_ALT,
-  CFG_ABUT_CTRL,
-  CFG_ABUT_SHIFT
+enum cfg_button
+{ CFG_BUT_ALT,
+  CFG_BUT_CTRL,
+  CFG_BUT_SHIFT
 };
 
 enum cfg_action
@@ -114,8 +114,10 @@ enum cfg_rgtype
 /// 3. add code to load and store the value from/to the INI file to \c Cfg::LoadIni and \c Cfg::SaveIni,
 /// 4. add a control in PM123's configuration dialog (pm123.rc) to edit the setting,
 /// 5. add code to load and store the value from/to the GUI control to the appropriate dialog procedure in properties.cpp.
-/// 6. You might also want to add a matching remote configuration option to the \c option command in \c CommandProcessor::XOption.
-/// 7. You should query the option somewhere in PM123, of course.
+/// 6. Update the documentation of the properties dialog.
+/// 7. You might also want to add a matching remote configuration option to the \c option command in \c CommandProcessor::XOption
+/// 8. and update the documentation of the option command (doc/manual/remote/option.html).
+/// 9. You should query the option somewhere in PM123, of course.
 struct amp_cfg
 { xstring  defskin;            ///< Default skin.
 
@@ -125,7 +127,7 @@ struct amp_cfg
   bool     retainonstop;       ///< Retain playing position on stop.
   bool     restartonstart;     ///< Restart playing on startup.
   cfg_anav altnavig;           ///< Alternate navigation method
-  cfg_abutton altbutton;       ///< Alternate navigation button
+  cfg_button altbutton;        ///< Alternate navigation button
   bool     autoturnaround;     ///< Turn around at prev/next when at the end of a playlist
   bool     recurse_dnd;        ///< Drag and drop of folders recursive
   bool     folders_first;      ///< Place sub folders before content

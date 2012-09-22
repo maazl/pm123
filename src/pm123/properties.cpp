@@ -213,7 +213,7 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
 
       cfg.autoturnaround = CheckBox(GetCtrl(CB_TURNAROUND)).QueryCheckState();
       cfg.altnavig       = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).QueryCheckIndex();
-      cfg.altbutton      = (cfg_abutton)RadioButton(GetCtrl(RB_ALTKEY)).QueryCheckIndex();
+      cfg.altbutton      = (cfg_button)RadioButton(GetCtrl(RB_ALTKEY)).QueryCheckIndex();
     }
   }
   return SettingsPageBase::DlgProc(msg, mp1, mp2);

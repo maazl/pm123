@@ -1110,15 +1110,15 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         { switch (SHORT2FROMMP(pqmsg->mp2))
           {case VK_ALT:
            case VK_ALTGRAF:
-             if (Cfg::Get().altbutton != CFG_ABUT_ALT)
+             if (Cfg::Get().altbutton != CFG_BUT_ALT)
                break;
             goto setanav;
            case VK_CTRL:
-            if (Cfg::Get().altbutton != CFG_ABUT_CTRL)
+            if (Cfg::Get().altbutton != CFG_BUT_CTRL)
               break;
             goto setanav;
            case VK_SHIFT:
-            if (Cfg::Get().altbutton != CFG_ABUT_SHIFT)
+            if (Cfg::Get().altbutton != CFG_BUT_SHIFT)
               break;
            setanav:
             SetAltSlider(!(fsflags & KC_KEYUP) && CurrentRoot() && CurrentRoot()->IsPlaylist());
