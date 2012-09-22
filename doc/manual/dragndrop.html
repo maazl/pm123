@@ -1,37 +1,44 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1005" level="3" sublinks="*"><head>
-  <title>Drag &amp; Drop</title></head>
+<html resid="1005" level="3" sublinks="*">
+<head>
+  <title>Drag &amp; Drop</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
 <body>
 <h2>PM123's Drag &amp; Drop operations</h2>
-<p>PM123 supports Drag &amp; Drop at the main window and the different playlist windows
-  (<a href="playlist.html">Playlist</a>, <a href="manager.html">Playlist Manager</a>,
-  <a href="bookmark.html">Bookmarks</a>).</p>
-
+<p>PM123 supports Drag &amp; Drop at the main window and the different
+playlist windows (<a href="playlist.html">Playlist</a>, <a
+ href="manager.html">Playlist Manager</a>, <a href="bookmark.html">Bookmarks</a>).</p>
 <h3>Dropping objects at the main window</h3>
-<p><img src="images/dndmain.png" align="left">
-  In general you can drop one or more <b>files</b>, <b>folders</b> and <b>URLs</b> from other applications
-  or objects from a playlist or bookmark window to the main window.
-  This will cause the dropped items to be loaded, played and/or enqueued,
-  depending on the settings in the <a href="properties.html">Properties dialog</a>.</p>
-<p>If more than one item is dropped, the items are placed or added in the default playlist.
-  This playlist is loaded to the player if not yet done.</p>
-
+<p><img src="images/dndmain.png" align="left"> In general you can drop
+one or more <b>files</b>, <b>folders</b> and <b>URLs</b> from other
+applications or objects from a playlist or bookmark window to the main
+window. This will cause the dropped items to be loaded, played and/or
+enqueued, depending on the settings in the <a href="properties.html">Properties
+dialog</a>.</p>
+<p>If more than one item is dropped, the items are placed or added in
+the default playlist. This playlist is loaded to the player if not yet
+done.</p>
+<p>If you pree the control key while dropping the items are always
+appended to the default playlist regardless of the settings in the
+properties dialog. If you press the shift key they are always loaded
+into the player.</p>
 <h3>Dropping objects in a playlist window</h3>
-<p><img src="images/dndplaylist.png" align="left">
-  When you drop <b>files</b>, <b>folders</b> and/or <b>URLs</b> from other applications
-  to a playlist, PM123 always creates references to the dropped items,
-  except for URLs which are copied by value.
-  PM123 will <em>never</em> move or delete the original files.</p>
-<p>When you drag &amp; drop inside a playlist window a move operation is done by default.
-  When you drag &amp; drop between different playlist windows, a copy is created by default.
-  You may alter this behavior with the Shift key while dropping.</p>
-
+<p><img src="images/dndplaylist.png" align="left"> When you drop <b>files</b>,
+<b>folders</b> and/or <b>URLs</b> from other applications to a
+playlist, PM123 always creates references to the dropped items, except
+for URLs which are copied by value. PM123 will <em>never</em> move or
+delete the original files.</p>
+<p>When you drag &amp; drop inside a playlist window a move operation
+is done by default. When you drag &amp; drop between different playlist
+windows, a copy is created by default. You may alter this behavior with
+the Shift key while dropping.</p>
 <h3>Dropping folders at PM123</h3>
-<p>When a folder is dropped to PM123 it's content is scanned.
-  Whether sub folders should be scanned too, is a setting in the <a href="properties.html">Properties dialog</a>.
-  However, PM123 always stores only a reference to the folder.
-  So if the folder content changes (including sub folders), this is sooner or later reflected to PM123.
-  You can enforce this by selecting "Reload" from the context menu.</p>
-
-</body></html>
+<p>When a folder is dropped to PM123 it's content is scanned. Whether
+sub folders should be scanned too, is a setting in the <a
+ href="properties.html">Properties dialog</a>. However, PM123 always
+stores only a reference to the folder. So if the folder content changes
+(including sub folders), this is sooner or later reflected to PM123.
+You can enforce this by selecting "Reload" from the context menu.</p>
+</body>
+</html>

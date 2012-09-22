@@ -1739,7 +1739,6 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo)
 
   PDRAGITEM pditem;
   int       i;
-  USHORT    drag_op = 0;
   USHORT    drag    = DOR_NEVERDROP;
 
   if (!DrgAccessDraginfo(pdinfo))
@@ -1748,21 +1747,28 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo)
   DEBUGLOG(("GUIImp::DragOver(%p{,,%x, %p, %i,%i, %u,})\n",
     pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  for( i = 0; i < pdinfo->cditem; i++ )
-  { pditem = DrgQueryDragitemPtr( pdinfo, i );
+  switch (pdinfo->usOperation)
+  {default:
+    drag = DOR_NODROPOP;
+    break;
 
-    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { drag    = DOR_DROP;
-      drag_op = DO_COPY;
-    } else {
-      drag    = DOR_NEVERDROP;
-      drag_op = 0;
-      break;
+   case DO_MOVE:
+   case DO_COPY:
+   case DO_DEFAULT:
+    for( i = 0; i < pdinfo->cditem; i++ )
+    { pditem = DrgQueryDragitemPtr( pdinfo, i );
+
+      if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+        drag    = DOR_DROP;
+      else
+      { drag    = DOR_NEVERDROP;
+        break;
+      }
     }
   }
 
   DrgFreeDraginfo(pdinfo);
-  return MPFROM2SHORT(drag, drag_op);
+  return MPFROM2SHORT(drag, Cfg::Get().append_dnd ? DO_COPY : DO_MOVE);
 }
 
 struct DropInfo
@@ -1788,8 +1794,8 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
   DEBUGLOG(("GUIImp::DragDrop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_dnd*LoadHelper::LoadAppend));
   ULONG reply = DMFL_TARGETFAIL;
+  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | (pdinfo->usOperation == DO_COPY)*LoadHelper::LoadAppend));
 
   for( int i = 0; i < pdinfo->cditem; i++ )
   {
@@ -1830,7 +1836,7 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
           pdtrans->usOperation      = pdinfo->usOperation;
 
           // Send the message before setting a render-to name.
-          if ( pditem->fsControl & DC_PREPAREITEM
+          if ( (pditem->fsControl & DC_PREPAREITEM)
             && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
           { // Failure => do not send DM_ENDCONVERSATION
             DrgFreeDragtransfer(pdtrans);
