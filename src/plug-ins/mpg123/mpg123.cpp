@@ -630,7 +630,6 @@ void Decoder::ThreadFunc()
   DecMutex.Release();
  start:
   DecEvent.Wait();
-  DecEvent.Reset();
   DecMutex.Request();
 
   if ((Status & 3) == 0)
@@ -642,6 +641,8 @@ void Decoder::ThreadFunc()
     Status = DECODER_PLAYING;
 
  nextblock:
+  DecEvent.Reset();
+
   // Handle seek command
   if (JumpTo >= 0)
   { mpg123_seek(MPEG, Time2Sample(JumpTo), SEEK_SET);

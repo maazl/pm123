@@ -120,7 +120,6 @@ static void TFNENTRY decoder_thread( void* arg )
   for(;;)
   {
     DosWaitEventSem ( w->play, SEM_INDEFINITE_WAIT );
-    DosResetEventSem( w->play, &resetcount );
 
     if (w->Stop)
       break;
@@ -130,6 +129,8 @@ static void TFNENTRY decoder_thread( void* arg )
     while (!w->Stop)
     {
       int read;
+
+      DosResetEventSem( w->play, &resetcount );
 
       if( w->JumpToPos >= 0 )
       { sf_count_t jumptoframe = (sf_count_t)(w->JumpToPos * w->SFInfo.samplerate +.5);

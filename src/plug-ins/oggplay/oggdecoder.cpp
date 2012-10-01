@@ -296,14 +296,15 @@ void OggDecoderThread::DecoderThread()
 
   for(;;)
   { Play.Wait();
-    Play.Reset();
 
     if (StopRq)
       goto end;
 
     Status = DECODER_PLAYING;
     for (;;)
-    { double newpos = JumpToPos;
+    { Play.Reset();
+
+      double newpos = JumpToPos;
       if (FastMode && GetPos() >= NextSkip)
       { if (newpos < 0)
           newpos = GetPos();

@@ -369,7 +369,6 @@ void ThreadDecoder::DecoderThread()
 
   for(;;)
   { PlayEv.Wait();
-    PlayEv.Reset();
 
     if (Terminate)
       goto end;
@@ -377,6 +376,8 @@ void ThreadDecoder::DecoderThread()
     State = DECODER_PLAYING;
     for (;;)
     { DEBUGLOG(("ThreadDecoder(%p)::DecoderThread decode loop - %f\n", this, SeekTo));
+      PlayEv.Reset();
+
       PM123_TIME newpos = SeekTo;
       PM123_TIME pos = GetTime();
       if (FastMode && pos >= NextSkip)
