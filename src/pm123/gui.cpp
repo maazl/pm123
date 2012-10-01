@@ -625,7 +625,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (changed & IF_Tech)
           upd |= UPD_PLMODE;
       }
-      if (CurrentIter->GetCurrent() == ap)
+      if (CurrentSong() == ap)
       { // Current change event
         if (changed & IF_Obj)
           upd |= UPD_RATE;
@@ -779,20 +779,22 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
        case IDM_M_ADDPLBOOK:
-        if (CurrentRoot())
-          amp_add_bookmark(HPlayer, *CurrentIter->GetRoot());
-        break;
-
-       case IDM_M_ADDPLBOOK_TIME:
-        if (CurrentRoot())
-        { PlayableRef ps(*CurrentIter->GetRoot());
-          AttrInfo attr(*ps.GetInfo().attr);
-          attr.at = CurrentIter->Serialize(true);
-          ps.OverrideAttr(&attr);
-          amp_add_bookmark(HPlayer, ps);
+        { APlayable* ap = CurrentRoot();
+          if (ap)
+            amp_add_bookmark(HPlayer, *ap);
+          break;
         }
-        break;
-
+       case IDM_M_ADDPLBOOK_TIME:
+        { APlayable* ap = CurrentRoot();
+          if (ap)
+          { PlayableRef ps(*ap);
+            AttrInfo attr(*ps.GetInfo().attr);
+            attr.at = CurrentIter->Serialize(true);
+            ps.OverrideAttr(&attr);
+            amp_add_bookmark(HPlayer, ps);
+          }
+          break;
+        }
        case IDM_M_EDITBOOK:
         PlaylistView::GetByKey(*DefaultBM)->SetVisible(true);
         break;
@@ -1512,10 +1514,11 @@ void GUIImp::ShowContextMenu()
 
   // Update status
   APlayable* const cur = CurrentSong();
+  APlayable* const root = CurrentRoot();
   mn_enable_item(ContextMenu, IDM_M_TAG,     cur && (cur->GetInfo().phys->attributes & PATTR_WRITABLE) && (cur->GetInfo().tech->attributes & TATTR_WRITABLE));
   mn_enable_item(ContextMenu, IDM_M_SAVE,    cur && (cur->GetInfo().tech->attributes & TATTR_STORABLE));
   mn_enable_item(ContextMenu, IDM_M_CURRENT_SONG, cur != NULL);
-  bool ispl = CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_PLAYLIST);
+  bool ispl = root && (root->GetInfo().tech->attributes & TATTR_PLAYLIST);
   mn_enable_item(ContextMenu, IDM_M_CURRENT_PL, ispl);
   mn_enable_item(ContextMenu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
   mn_enable_item(ContextMenu, IDM_M_NORMAL,  bmp_is_mode_supported(CFG_MODE_REGULAR));
@@ -1533,7 +1536,7 @@ void GUIImp::ShowContextMenu()
   mn_check_item(ContextMenu, IDM_M_TINY,   Cfg::Get().mode == CFG_MODE_TINY);
 
   if (ispl)
-    MenuWorker->AttachMenu(ContextMenu, IDM_M_PLCONTENT, *CurrentIter->GetRoot(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
+    MenuWorker->AttachMenu(ContextMenu, IDM_M_PLCONTENT, *root, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
 
   WinPopupMenu(HPlayer, HPlayer, ContextMenu, pos.x, pos.y, 0,
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
@@ -1581,17 +1584,18 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
 void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
 { DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, index, offset, Cfg::Get().mode));
 
-  APlayable* root = CurrentIter->GetRoot();
-  if (root == NULL)
+  APlayable* root = CurrentRoot();
+  if (!root)
   { bmp_draw_slider(hps, -1, IsAltSlider);
     bmp_draw_timer(hps, -1);
     bmp_draw_tiny_timer(hps, POS_TIME_LEFT, -1);
     bmp_draw_tiny_timer(hps, POS_PL_LEFT,   -1);
     return;
   }
+  APlayable* cur = CurrentSong();
 
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
-  PM123_TIME total_song = CurrentIter->GetCurrent()->GetInfo().drpl->totallength;
+  PM123_TIME total_song = cur ? cur->GetInfo().drpl->totallength : -1;
   PM123_TIME total_time = is_playlist ? root->GetInfo().drpl->totallength : -1;
 
   PM123_TIME list_left = -1;
@@ -1648,16 +1652,20 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
    and selects it for displaying. */
 void GUIImp::PrepareText()
 {
-  if (CurrentRoot() == NULL)
-  { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
-    bmp_set_text("- no file loaded -");
-    return;
+  APlayable* cur = CurrentSong();
+  if (!cur)
+  { cur = CurrentRoot();
+    if (!cur)
+    { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
+      bmp_set_text("- no file loaded -");
+      return;
+    }
   }
-  DEBUGLOG(("GUI::PrepareText() %p %u\n", CurrentSong(), Cfg::Get().viewmode));
+  DEBUGLOG(("GUI::PrepareText() %p %u\n", cur, Cfg::Get().viewmode));
 
   const volatile amp_cfg& cfg = Cfg::Get();
   xstring text;
-  const INFO_BUNDLE_CV& info = CurrentSong()->GetInfo();
+  const INFO_BUNDLE_CV& info = cur->GetInfo();
   switch (cfg.viewmode)
   {case CFG_DISP_ID3TAG:
     text = ConstructTagString(&info);
@@ -1668,7 +1676,7 @@ void GUIImp::PrepareText()
     { // Give Priority to an alias name if any
       text = info.item->alias;
       if (!text)
-      { text = CurrentSong()->GetPlayable().URL.getShortName();
+      { text = cur->GetPlayable().URL.getShortName();
         if (cfg.restrict_meta && text.length() > cfg.restrict_length)
           text = xstring(text, 0, cfg.restrict_length) + "...";
       }
@@ -1691,6 +1699,8 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   if (mask & UPD_BACKGROUND)
     bmp_draw_background(hps, HPlayer);
   APlayable* root = CurrentRoot();
+  APlayable* cur = CurrentSong();
+
   if (mask & (UPD_TIMERS|UPD_PLINDEX))
   { int index = -1;
     PM123_TIME offset = -1;
@@ -1715,9 +1725,9 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   if (mask & UPD_PLMODE)
     bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
   if (mask & UPD_RATE)
-    bmp_draw_rate(hps, root ? CurrentIter->GetCurrent()->GetInfo().obj->bitrate : -1);
+    bmp_draw_rate(hps, cur ? cur->GetInfo().obj->bitrate : -1);
   if (mask & UPD_CHANNELS)
-    bmp_draw_channels(hps, root ? CurrentIter->GetCurrent()->GetInfo().tech->channels : -1);
+    bmp_draw_channels(hps, cur ? cur->GetInfo().tech->channels : -1);
   if (mask & UPD_VOLUME)
     bmp_draw_volume(hps, Ctrl::GetVolume());
   if (mask & UPD_TEXT)
@@ -1747,28 +1757,29 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo)
   DEBUGLOG(("GUIImp::DragOver(%p{,,%x, %p, %i,%i, %u,})\n",
     pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  switch (pdinfo->usOperation)
-  {default:
-    drag = DOR_NODROPOP;
-    break;
+  for( i = 0; i < pdinfo->cditem; i++ )
+  { pditem = DrgQueryDragitemPtr( pdinfo, i );
 
-   case DO_MOVE:
-   case DO_COPY:
-   case DO_DEFAULT:
-    for( i = 0; i < pdinfo->cditem; i++ )
-    { pditem = DrgQueryDragitemPtr( pdinfo, i );
-
-      if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-        drag    = DOR_DROP;
-      else
-      { drag    = DOR_NEVERDROP;
-        break;
-      }
+    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123URL", NULL))
+      drag    = DOR_DROP;
+    else
+    { drag    = DOR_NEVERDROP;
+      break;
     }
   }
 
+  if (drag == DOR_DROP)
+    // we can only copy or link to the main window, not move.
+    switch (pdinfo->usOperation)
+    {default:
+      drag = DOR_NODROPOP;
+     case DO_COPY:
+     case DO_LINK:
+     case DO_DEFAULT:;
+    }
+
   DrgFreeDraginfo(pdinfo);
-  return MPFROM2SHORT(drag, Cfg::Get().append_dnd ? DO_COPY : DO_MOVE);
+  return MPFROM2SHORT(drag, Cfg::Get().append_dnd ? DO_LINK : DO_COPY);
 }
 
 struct DropInfo
@@ -1795,7 +1806,7 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
   ULONG reply = DMFL_TARGETFAIL;
-  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | (pdinfo->usOperation == DO_COPY)*LoadHelper::LoadAppend));
+  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | (pdinfo->usOperation == DO_LINK)*LoadHelper::LoadAppend));
 
   for( int i = 0; i < pdinfo->cditem; i++ )
   {
@@ -1807,7 +1818,37 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
 
     reply = DMFL_TARGETFAIL;
 
-    if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
+    if (DrgVerifyRMF(pditem, "DRM_123URL", NULL))
+    { // In the DRM_123URL transfer mechanism the target is responsible for doing the target related stuff
+      // while the source does the source related stuff. So a DO_MOVE operation causes
+      // - a create in the target window and
+      // - a remove in the source window.
+      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
+
+      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
+      if (pdtrans)
+      { pdtrans->cb               = sizeof(DRAGTRANSFER);
+        pdtrans->hwndClient       = HPlayer;
+        pdtrans->pditem           = pditem;
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123URL,DRF_UNKNOWN>");
+        pdtrans->hstrRenderToName = 0;
+        pdtrans->fsReply          = 0;
+        pdtrans->usOperation      = pdinfo->usOperation;
+
+        // Ask the source to render the selected item.
+        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
+
+        // insert item
+        if ((pdtrans->fsReply & DMFL_NATIVERENDER))
+        { // TODO: slice!
+          lhp->AddItem(*Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
+          reply = DMFL_TARGETSUCCESSFUL;
+        }
+        // cleanup
+        DrgFreeDragtransfer(pdtrans);
+      }
+    }
+    else if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
     {
       // fetch full qualified path
       size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
@@ -1875,36 +1916,6 @@ MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
         { lhp->AddItem(*Playable::GetByURL(url));
           reply = DMFL_TARGETSUCCESSFUL;
         }
-      }
-
-    } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { // In the DRM_123FILE transfer mechanism the target is responsible for doing the target related stuff
-      // while the source does the source related stuff. So a DO_MOVE operation causes
-      // - a create in the target window and
-      // - a remove in the source window.
-      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
-
-      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
-      if (pdtrans)
-      { pdtrans->cb               = sizeof(DRAGTRANSFER);
-        pdtrans->hwndClient       = HPlayer;
-        pdtrans->pditem           = pditem;
-        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123FILE,DRF_UNKNOWN>");
-        pdtrans->hstrRenderToName = 0;
-        pdtrans->fsReply          = 0;
-        pdtrans->usOperation      = pdinfo->usOperation;
-
-        // Ask the source to render the selected item.
-        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
-
-        // insert item
-        if ((pdtrans->fsReply & DMFL_NATIVERENDER))
-        { // TODO: slice!
-          lhp->AddItem(*Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
-          reply = DMFL_TARGETSUCCESSFUL;
-        }
-        // cleanup
-        DrgFreeDragtransfer(pdtrans);
       }
     }
     // Tell the source you're done.

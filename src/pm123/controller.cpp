@@ -1055,7 +1055,11 @@ void CtrlImp::MsgDecStop()
     || (Repeat && pep->Loc.CompareTo(Current()->Loc, Location::CO_IgnorePosition) == 0) // no infinite loop
     || pep->Loc.GetCurrent() == LastStart ) // Stop if there are no playable items
   { delete pep;
-    Current()->Loc.Reshuffle();
+    SongIterator& si = Current()->Loc;
+    si.Reshuffle();
+    // Reset the iterator to the first song.
+    si.Reset();
+    AdjustNext(si);
     goto eol; // end of list => same as end of song
   }
 

@@ -59,41 +59,42 @@ class GUI
   };
 
  protected:
-  enum WMUser                             // MP1               MP2
-  { WMP_REFRESH_CONTROLS = WM_USER + 1000 // 0                 0
-  , WMP_PAINT                             // mask              0
-  , WMP_LOAD                              // LoadHelper*
-  , WMP_NAVIGATE                          // Location*
-  , WMP_RELOADSKIN                        // 0                 0
-  , WMP_LOAD_VISUAL                       // int_ptr<Visual>   TRUE
-  , WMP_DISPLAY_MESSAGE                   // message           TRUE (info) or FALSE (error)
-  , WMP_DISPLAY_MODE                      // 0                 0
-  , WMP_QUERY_STRING                      // buffer            size and type
-  , WMP_SHOW_DIALOG                       // int_ptr<Playable> DialogType,DialogAction
-  , WMP_EDIT_META                         // int_ptr<Playable>
-  , WMP_SHOW_CONFIG                       // int_ptr<Module>   DialogAction
-  , WMP_DO_CONFIG                         // int_ptr<Module>
-  , WMP_PLAYABLE_EVENT                    // APlayable*        Changed, Loaded
-  , WMP_CTRL_EVENT                        // EventFlags        0
-  , WMP_CTRL_EVENT_CB                     // ControlCommand*   0
+  /// Internal window messages
+  enum WMUser                             ///< MP1               MP2
+  { WMP_REFRESH_CONTROLS = WM_USER + 1000 ///< 0                 0
+  , WMP_PAINT                             ///< mask              0
+  , WMP_LOAD                              ///< LoadHelper*
+  , WMP_NAVIGATE                          ///< Location*
+  , WMP_RELOADSKIN                        ///< 0                 0
+  , WMP_LOAD_VISUAL                       ///< int_ptr<Visual>   TRUE
+  , WMP_DISPLAY_MESSAGE                   ///< message           TRUE (info) or FALSE (error)
+  , WMP_DISPLAY_MODE                      ///< 0                 0
+  , WMP_QUERY_STRING                      ///< buffer            size and type
+  , WMP_SHOW_DIALOG                       ///< int_ptr<Playable> DialogType,DialogAction
+  , WMP_EDIT_META                         ///< int_ptr<Playable>
+  , WMP_SHOW_CONFIG                       ///< int_ptr<Module>   DialogAction
+  , WMP_DO_CONFIG                         ///< int_ptr<Module>
+  , WMP_PLAYABLE_EVENT                    ///< APlayable*        Changed, Loaded
+  , WMP_CTRL_EVENT                        ///< EventFlags        0
+  , WMP_CTRL_EVENT_CB                     ///< ControlCommand*   0
   , WMP_REFRESH_ACCEL
-  , WMP_SLIDERDRAG                        // pos(x,y),         TRUE: navigate and complete
-  , WMP_ARRANGEDOCKING                    //
+  , WMP_SLIDERDRAG                        ///< pos(x,y),         TRUE: navigate and complete
+  , WMP_ARRANGEDOCKING
   };
 
  protected: // Internal playlist objects
-  static int_ptr<Playable> DefaultPL;     // Default playlist, representing PM123.LST in the program folder.
-  static int_ptr<Playable> DefaultPM;     // PlaylistManager window, representing PFREQ.LST in the program folder.
-  static int_ptr<Playable> DefaultBM;     // Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
-  static int_ptr<Playable> LoadMRU;       // Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
-  static int_ptr<Playable> UrlMRU;        // Most recent used entries in the load URL dialog, representing URLMRU.LST in the program folder.
+  static int_ptr<Playable> DefaultPL;     ///< Default playlist, representing PM123.LST in the program folder.
+  static int_ptr<Playable> DefaultPM;     ///< PlaylistManager window, representing PFREQ.LST in the program folder.
+  static int_ptr<Playable> DefaultBM;     ///< Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
+  static int_ptr<Playable> LoadMRU;       ///< Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
+  static int_ptr<Playable> UrlMRU;        ///< Most recent used entries in the load URL dialog, representing URLMRU.LST in the program folder.
 
  protected: // Working set
-  static HWND              HFrame;        // Frame window
-  static HWND              HPlayer;       // Player window
-  static HWND              HHelp;         // Help instance
-  static SongIterator      IterBuffer[2]; // Two SongIterators. CurrentIter points to one of them.
-  static SongIterator*     CurrentIter;   // current SongIterator. NOT NULL!
+  static HWND              HFrame;        ///< Frame window
+  static HWND              HPlayer;       ///< Player window
+  static HWND              HHelp;         ///< Help instance
+  static SongIterator      IterBuffer[2]; ///< Two SongIterators. CurrentIter points to one of them.
+  static SongIterator*     CurrentIter;   ///< current SongIterator. NOT NULL!
 
  public: // Utility functions
   static HWND      GetFrameWindow()       { return HFrame; }

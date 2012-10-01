@@ -1398,7 +1398,7 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
 
     // native PM123 object
-    if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    if (DrgVerifyRMF(pditem, "DRM_123URL", NULL))
     { // Check for recursive operation
       if (!DragAfter && target && amp_string_from_drghstr(pditem->hstrSourceName) == target->Data->Content->GetPlayable().URL)
       { drag = DOR_NODROP;
@@ -1553,8 +1553,8 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         reply = DMFL_TARGETSUCCESSFUL;
       }
 
-    } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { // In the DRM_123FILE transfer mechanism the target is responsible for doing the target related stuff
+    } else if (DrgVerifyRMF(pditem, "DRM_123URL", NULL))
+    { // In the DRM_123URLtransfer mechanism the target is responsible for doing the target related stuff
       // while the source does the source related stuff. So a DO_MOVE operation causes
       // - a create in the target window and
       // - a remove in the source window.
@@ -1565,7 +1565,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       { pdtrans->cb               = sizeof(DRAGTRANSFER);
         pdtrans->hwndClient       = GetHwnd();
         pdtrans->pditem           = pditem;
-        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123FILE,DRF_UNKNOWN>");
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123URL,DRF_UNKNOWN>");
         pdtrans->hstrRenderToName = 0;
         pdtrans->fsReply          = 0;
         pdtrans->usOperation      = pdinfo->usOperation;
@@ -1668,13 +1668,10 @@ void PlaylistBase::DragInit()
     pditem->hwndItem          = GetHwnd();
     pditem->ulItemID          = (ULONG)rec;
     pditem->hstrType          = DrgAddStrHandle(DRT_BINDATA);
-    pditem->hstrRMF           = DrgAddStrHandle("(DRM_123FILE,DRM_DISCARD)x(DRF_UNKNOWN)");
+    pditem->hstrRMF           = DrgAddStrHandle("(DRM_123URL,DRM_DISCARD)x(DRF_UNKNOWN)");
     pditem->hstrContainerName = DrgAddStrHandle(Content->URL);
     pditem->hstrSourceName    = DrgAddStrHandle(rec->Data->Content->GetPlayable().URL);
-    // TODO:
-    /*if (rec->Data->Content->GetAlias())
-      pditem->hstrTargetName  = DrgAddStrHandle(rec->Data->Content->GetAlias());*/
-    pditem->fsSupportedOps    = DO_MOVEABLE | DO_COPYABLE;
+    pditem->fsSupportedOps    = DO_MOVEABLE|DO_COPYABLE|DO_LINKABLE;
     DEBUGLOG(("PlaylistBase::DragInit: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
