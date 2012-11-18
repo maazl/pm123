@@ -762,7 +762,7 @@ static void DLLENTRY output_samples_cb(void* arg, const FORMAT_INFO2* format, co
 
 /// Request samples from the output plug-in
 static inline void request_samples()
-{ DEBUGLOG(("analyzer:request_samples() - %i\n", stored_samples));
+{ DEBUGLOG2(("analyzer:request_samples() - %i\n", stored_samples));
   // Avoid more than one request at a time.
   if ( InterlockedCxc((volatile unsigned*)&stored_samples, (unsigned)-1, 0) == (unsigned)-1
     && (*OutPlayingPamples)(0, &output_samples_cb, NULL) )
