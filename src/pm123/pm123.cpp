@@ -278,7 +278,7 @@ int main(int argc, char** argv)
   { // Files passed at command line => load them initially.
     // TODO: do not load last used file in this case!
     const url123& cwd = amp_get_cwd();
-    LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+    LoadHelper lhp(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
     const char*const*const epp = files.end();
     const char*const* spp = files.begin();
     do
@@ -286,7 +286,7 @@ int main(int argc, char** argv)
       if (!url)
         EventHandler::PostFormat(MSG_ERROR, "Invalid file or URL: '%s'", *spp);
       else
-        lhp->AddItem(*Playable::GetByURL(url));
+        lhp.AddItem(*Playable::GetByURL(url));
     } while (++spp != epp);
     GUI::Load(lhp);
   }

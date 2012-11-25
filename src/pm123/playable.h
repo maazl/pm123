@@ -289,19 +289,24 @@ class Playable
   int                       SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo);
 
   /// Insert a new item before the item \a before.
+  /// @param item Item to insert.
   /// @param before If the parameter before is \c NULL the item is appended.
   /// @return The function fails with returning \c NULL if the PlayableInstance before is no longer valid
   /// or the update flags cannot be locked. Otherwise it returns the newly created \c PlayableInstance.
   int_ptr<PlayableInstance> InsertItem(APlayable& item, PlayableInstance* before = NULL);
   /// Move an item inside the list.
+  /// @param item Item to move within this playlist.
   /// @param before If the parameter before is \c NULL the item is moved to the end.
   /// @return The function fails with returning false if one of the PlayableInstances is no longer valid
   /// or the update flags cannot be locked.
-  bool                      MoveItem(PlayableInstance* item, PlayableInstance* before);
+  /// @pre item must belong to this playlist.
+  bool                      MoveItem(PlayableInstance& item, PlayableInstance* before);
   /// Remove an item from the playlist.
+  /// @param item Item to remove from this playlist.
   /// @return The function fails with returning false if the PlayableInstance is no longer valid
   /// or the update flags cannot be locked.
-  bool                      RemoveItem(PlayableInstance* item);
+  /// @pre item must belong to this playlist.
+  bool                      RemoveItem(PlayableInstance& item);
   /// Remove all items from the playlist.
   /// @return The function returns \c false if the update flags cannot be locked.
   bool                      Clear();

@@ -64,8 +64,8 @@
 Playable::Entry::Entry(Playable& parent, APlayable& refto, IDType::func_type ifn)
 // The implementation always refers to the underlying playable object.
 // But the overridable properties are copied.
-: PlayableInstance(parent, refto.GetPlayable()),
-  InstDelegate(parent, ifn)
+: PlayableInstance(parent, refto.GetPlayable())
+, InstDelegate(parent, ifn)
 { DEBUGLOG(("Playable::Entry(%p)::Entry(&%p, &%p, &%p)\n", this, &parent, &refto, &ifn));
   InfoFlags valid = ~refto.RequestInfo(IF_Meta|IF_Attr|IF_Item, PRI_None, REL_Cached);
   const INFO_BUNDLE_CV& ref_info = refto.GetInfo();
@@ -120,7 +120,13 @@ Playable::Playable(const url123& url)
 
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
-  // Notify about dyeing
+  // Revoke child subscriptions.
+  if (Playlist)
+  { Entry* ep = NULL;
+    while ((ep = Playlist->Items.next(ep)) != NULL)
+      ep->Detach();
+  }
+  // Notify about dying
   CollectionChangeArgs args(*this);
   RaiseInfoChange(args);
   // No more events.
@@ -903,12 +909,12 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
   return ep;
 }
 
-bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, DebugName().cdata(),
-    item, item->DebugName().cdata(), before->DebugName().cdata()));
+bool Playable::MoveItem(PlayableInstance& item, PlayableInstance* before)
+{ DEBUGLOG(("Playable(%p{%s})::InsertItem(&%p{%s}, %p{%s}) - %u\n", this, DebugName().cdata(),
+    &item, item.DebugName().cdata(), before->DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the parameter before is still valid
-  if (!item->HasParent(this) || (before && !before->HasParent(this)))
+  if (!item.HasParent(this) || (before && !before->HasParent(this)))
     return false;
   InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
@@ -916,12 +922,12 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     return false;
 
   // Now move the entry.
-  Entry* const next = Playlist->Items.next((Entry*)item);
-  if (MoveEntry((Entry*)item, (Entry*)before))
-  { if (before == NULL || item->GetIndex() < before->GetIndex())
-      RenumberEntries(next, (Entry*)before, item->GetIndex());
+  Entry* const next = Playlist->Items.next(&(Entry&)item);
+  if (MoveEntry(&(Entry&)item, (Entry*)before))
+  { if (before == NULL || item.GetIndex() < before->GetIndex())
+      RenumberEntries(next, (Entry*)before, item.GetIndex());
     else
-      RenumberEntries((Entry*)item, next, before->GetIndex());
+      RenumberEntries(&(Entry&)item, next, before->GetIndex());
     if (!Modified)
     { what |= IF_Usage;
       Modified = true;
@@ -931,17 +937,17 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     what &= ~IF_Child;
   // done!
   Info.InfoStat.EndUpdate(IF_Child);
-  CollectionChangeArgs args(*this, PCT_Move, item, what|IF_Child, what);
+  CollectionChangeArgs args(*this, PCT_Move, &item, what|IF_Child, what);
   RaiseInfoChange(args);
   return true;
 }
 
-bool Playable::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playable(%p{%s})::RemoveItem(%p{%s})\n", this, DebugName().cdata(),
-    item, item->DebugName().cdata()));
+bool Playable::RemoveItem(PlayableInstance& item)
+{ DEBUGLOG(("Playable(%p{%s})::RemoveItem(&%p{%s})\n", this, DebugName().cdata(),
+    &item, item.DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
-  if (!item || !item->HasParent(this))
+  if (!item.HasParent(this))
   { DEBUGLOG(("Playable::RemoveItem: Bad item or bad parent.\n"));
     return false;
   }
@@ -952,8 +958,8 @@ bool Playable::RemoveItem(PlayableInstance* item)
     return false;
 
   // now detach the item from the container
-  RenumberEntries(Playlist->Items.next((const Entry*)item), NULL, item->GetIndex());
-  RemoveEntry((Entry*)item);
+  RenumberEntries(Playlist->Items.next(&(const Entry&)item), NULL, item.GetIndex());
+  RemoveEntry(&(Entry&)item);
   --Info.Obj.num_items;
 
   InfoFlags what = upd;
@@ -964,9 +970,9 @@ bool Playable::RemoveItem(PlayableInstance* item)
   }
 
   DEBUGLOG(("Playable::RemoveItem: before change event\n"));
-  CollectionChangeArgs args(*this, PCT_Delete, item, what, what);
+  CollectionChangeArgs args(*this, PCT_Delete, &item, what, what);
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
-                   | Playlist->Invalidate(IF_Aggreg, &item->GetPlayable());
+                   | Playlist->Invalidate(IF_Aggreg, &item.GetPlayable());
   RaiseInfoChange(args);
   return true;
 }

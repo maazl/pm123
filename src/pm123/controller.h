@@ -224,9 +224,10 @@ class Ctrl
   { return new ControlCommand(Cmd_Nop, xstring(), (void*)NULL, 0); }
   /// Load an URL
   /// @param root new current root
-  /// @param keepplaying true: Start playback immediately if currently playing.
-  static ControlCommand* MkLoad(APlayable* root, bool keepplaying)
-  { return new ControlCommand(Cmd_Load, xstring(), int_ptr<APlayable>(root).toCptr(), keepplaying); }
+  /// @param keepitem true: If the current root is part of the new root keep the current position alive.
+  /// This will also continue playing.
+  static ControlCommand* MkLoad(APlayable* root, bool keepitem)
+  { return new ControlCommand(Cmd_Load, xstring(), int_ptr<APlayable>(root).toCptr(), keepitem); }
   /// @brief Move to song number or some songs forward or backward.
   /// @details This makes only sense if the currently loaded object is enumerable.
   /// Absolute positioning is not recommended. Use \c MkNavigate instead.

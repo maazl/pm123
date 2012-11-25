@@ -43,11 +43,13 @@ const url123 amp_get_cwd();
 /// Reads url from specified file.
 const xstring amp_url_from_file(const char* filename);
 
+/// Get temporary file name to be used for drag and drop operations.
+/// @remarks This will be always the same name since only one drag and drop can happen at a time.
+const url123& amp_dnd_temp_file();
+
+
 /// Append appropriate parameters directory URL to meet configuration settings.
 const xstring amp_make_dir_url(const char* url, bool recursive);
-
-/// Reads an string from a drag and drop structure.
-const xstring amp_string_from_drghstr(HSTR hstr);
 
 /// Make readable string from font attributes
 const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size);

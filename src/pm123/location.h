@@ -270,12 +270,27 @@ class Location : public Iref_count
   /// @param Target location. Note that \a target need not to have the same root than the current Location.
   /// It is sufficient if the two locations are related. The navigateion will then take place
   /// in the common subset. If the locations are unrelated, an error is returned.
-  /// @return See \c NavigationResult, but NavigateTo will never depend on outstanding information and return "".
+  /// @return See \c NavigationResult, but \c NavigateTo will never depend on outstanding information and return "".
   NavigationResult            NavigateTo(const Location& target);
   /// Navigate to an occurrence of \a url within the current deepmost playlist.
   /// @param url
-  /// - If the url is \c '..' the current playlist is left (see \c NavigateUp).
-  /// - If the url is \c NULL only the index is used to count the items (see NavigateCount).
+  /// - If the \a url is \c '..' the current playlist is left (see \c NavigateUp).
+  /// - If the \a url is \c NULL only the index is used to count the items (see NavigateCount).
+  /// @param index Navigate to the index-th occurrence of \a url within the current playlist.
+  /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
+  /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.
+  /// If we are currently at depth 2 and the current list is left for some reason and \a mindepth is also 2
+  /// Naviate will stop and return an error ("END").
+  /// @param maxdepth Do not descend beyond \a maxdepth slice in the callstack.
+  /// If we are currently at depth 1 a a nested playlist and \a maxdepth is also 1.
+  /// Navigate will not enter this list and search inside for matching nodes.
+  /// @return See \c NavigationResult.
+  /// @remarks \c Navigate will automatically enter the root playlist if necessary.
+  /// It will not enter any other playlist.
+  NavigationResult            Navigate(JobSet& job, APlayable* pp, int index, unsigned mindepth, unsigned maxdepth);
+  /// Navigate to an occurrence of \c Playable or \c PlayableInstance within the current deepmost playlist.
+  /// @param pp Navigation target.
+  /// If the \a target is \c NULL only the index is used to count the items (see NavigateCount).
   /// @param index Navigate to the index-th occurrence of \a url within the current playlist.
   /// The index must not be 0, otherwise navigation fails. A negative index counts from the back.
   /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.

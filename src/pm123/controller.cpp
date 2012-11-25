@@ -550,8 +550,8 @@ void CtrlImp::CheckPrefetch(double pos)
       { PrefetchEntry& pe = *ped[--n]; 
         if (plp && pe.Loc.GetCallstack().size() >= 1)
         { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
-          if (pe.Loc.NavigateCount(SyncJob, 1, TATTR_SONG, 1))// we played the last item of a top level entry
-            plp->RemoveItem(pip);
+          if (pip && pe.Loc.NavigateCount(SyncJob, 1, TATTR_SONG, 1))// we played the last item of a top level entry
+            plp->RemoveItem(*pip);
         }
         delete &pe;
       } while (n);
@@ -708,18 +708,6 @@ void CtrlImp::MsgVolume()
 void CtrlImp::MsgPlayStop()
 { DEBUGLOG(("Ctrl::MsgPlayStop() {%x} - %u\n", Flags, Playing));
 
-  if (Playing)
-  { SongIterator& si = Current()->Loc;
-    si.NavigateRewindSong();
-    // Set new playing position
-    if ( Cfg::Get().retainonstop && Flags != Op_Reset
-      && si.GetCurrent()->GetInfo().obj->songlength > 0 )
-    { PM123_TIME time = FetchCurrentSongTime();
-      if (time >= 0)
-        si.NavigateTime(SyncJob, time, si.GetCallstack().size(), true);
-    }
-  }
-
   if (!SetFlag(Playing))
     return;
 
@@ -756,7 +744,18 @@ void CtrlImp::MsgPlayStop()
     }
 
   } else
-  { // stop playback
+  { // Fetch current playling position
+    SongIterator& si = Current()->Loc;
+    si.NavigateRewindSong();
+    // Set new playing position
+    if ( Cfg::Get().retainonstop && Flags != Op_Reset
+      && si.GetCurrent()->GetInfo().obj->songlength > 0 )
+    { PM123_TIME time = FetchCurrentSongTime();
+      if (time >= 0)
+        si.NavigateTime(SyncJob, time, si.GetCallstack().size(), true);
+    }
+
+    // stop playback
     Glue::DecStop();
     Glue::OutTrash();
     OutputStop();
@@ -902,6 +901,46 @@ void CtrlImp::MsgSkip()
 /* Loads Playable object to player. */
 void CtrlImp::MsgLoad()
 { DEBUGLOG(("Ctrl::MsgLoad() {%p, %x}\n", PtrArg, Flags));
+  int_ptr<APlayable> play;
+  play.fromCptr((APlayable*)PtrArg);
+
+  /*// If keepitem is requested and we have a new root and an old root...
+  if ((Flags & 1) && play && PrefetchList.size())
+  { // ... then try to keep the current item alive.
+    APlayable* oldroot = PrefetchList[0]->Loc.GetRoot();
+    // Is it a null operation?
+    if (oldroot == play)
+      goto ok; // no-op
+
+    // Check whether play is a descendant of the current root first,
+    // because this check is more likely to cause no I/O operation.
+
+
+    Location loc(oldroot);
+    if (!loc.Navigate(SyncJob, play, -1, 0, INT_MAX))
+    { // Got it! => navigate to if not already done.
+
+
+    }
+
+    // Now check the other way around, whether the current root is a descendant of play.
+    Location loc(oldroot);
+    if (!loc.Navigate(SyncJob, play, -1, 0, INT_MAX))
+    { // Got it! => relocate call stack
+      unsigned level = loc.GetLevel();
+      foreach (PrefetchEntry**, pepp, PrefetchList)
+      { SongIterator& si = (*pepp)->Loc;
+        loc.NavigateTo(si);
+        si = loc;
+        // restore location for next prefetch entry.
+        loc.NavigateUp(loc.GetLevel() - level);
+      }
+      Pending |= EV_Root;
+      goto ok;
+    }
+
+
+  }*/
 
   // always stop
   // TODO: continue flag
@@ -917,10 +956,8 @@ void CtrlImp::MsgLoad()
     PrefetchClear(false);
   }
 
-  if (PtrArg)
-  { int_ptr<APlayable> play;
-    play.fromCptr((APlayable*)PtrArg);
-    { Mutex::Lock lock(PLMtx);
+  if (play)
+  { { Mutex::Lock lock(PLMtx);
       PrefetchEntry* pe = new PrefetchEntry(0, SongIterator(play));
       pe->Loc.Reshuffle();
       pe->Loc.SetOptions(Shuffle * PLO_SHUFFLE);
@@ -955,7 +992,7 @@ void CtrlImp::MsgLoad()
   Pending |= EV_Song|EV_Location;
   LastStart = NULL;
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
-
+ ok:
   Reply(RC_OK);
 }
 
@@ -1096,9 +1133,14 @@ void CtrlImp::MsgSeekStop()
 void CtrlImp::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
   // Check whether we have to remove items in queue mode
-  APlayable* plp = Current()->Loc.GetRoot();
+  PrefetchEntry* pe = Current();
+  ASSERT(pe);
+  APlayable* plp = pe->Loc.GetRoot();
   if (Cfg::Get().queue_mode && PrefetchList.size() && plp == &GUI::GetDefaultPL())
-    plp->GetPlayable().RemoveItem(Current()->Loc.GetCallstack()[0]);
+  { PlayableInstance* pip = pe->Loc.GetCallstack()[0];
+    if (pip)
+      plp->GetPlayable().RemoveItem(*pip);
+  }
   // In any case stop the engine
   Flags = Op_Reset;
   MsgPlayStop();

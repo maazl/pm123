@@ -16,15 +16,6 @@ distribution to successfully compile PM123 from the sources.
 Tools Needed to Compile
 =======================
 
-You will need the following tools and libraries to compile PM123
-via IBM Visualage C++:
-
-  VisualAge C++ 3.6 fixpak 2 or VisualAge C++ 3.0 fixpack 8
-  A recent IBM OS/2 Developer's Toolkit
-  NASM
-  WarpIN (if you want to create an installation package)
-  Info-ZIP (if you want to create the ZIP package)
-
 You will need the following tools and libraries to compile PM123 via
 gcc:
 
@@ -34,6 +25,8 @@ gcc:
   IBM OS/2 Developer's Toolkit).
   WarpIN (if you want to create an installation package)
   Info-ZIP (if you want to create the ZIP package)
+
+Open IBM Visualage C++ is currently untested and likely to fail at some C++ codes.
 
 Open Watcom C++ is currently untested and likely to fail at some C++ codes.
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2011-2012 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,45 +26,58 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  LOADHELPER_H
-#define  LOADHELPER_H
+#ifndef POSTMSGINFO_H
+#define POSTMSGINFO_H
 
 #define INCL_WIN
-#include <cpp/smartptr.h>
+#include "dependencyinfo.h"
 
-#include "controller.h"
+#include <cpp/atomic.h>
+#include <cpp/event.h>
+#include <cpp/pmutils.h>
+
 #include <os2.h>
 
 
-/** Helper class to load one or more objects into PM123.
- */
-class LoadHelper
-{public:
-  enum Options
-  { LoadDefault      = 0,
-    LoadPlay         = 0x01, // Start Playing when completed
-    LoadRecall       = 0x02, // Add item to the MRU-List if it is only one
-    LoadAppend       = 0x04, // Always append to the default playlist
-    //LoadKeepPlaylist = 0x08, // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
-  };
- protected:
-  const Options         Opt;
-  vector_int<APlayable> Items;
- protected:
-  /// Returns /one/ APlayable that represents all the objects in the list.
-  APlayable*            ToAPlayable();
+class PostMsgWorker
+{private:
+  AtomicUnsigned  Filter;
+  class_delegate<PostMsgWorker, const PlayableChangeArgs> Deleg;
+  WindowMsg       Message;
+
  public:
-  /// Initialize LoadHelper
-                        LoadHelper(Options opt);
-  //                      ~LoadHelper();
-  /// Add a item to play to the list of items.
-  void                  AddItem(APlayable& ps) { Items.append() = &ps; }
-  /// Create a sequence of controller commands from the current list.
-  Ctrl::ControlCommand* ToCommand();
-  /// Send command to the controller and wait for reply.
-  Ctrl::RC              SendCommand();
+  PostMsgWorker();
+  void            Start(APlayable& ap, InfoFlags what, Priority pri,
+                        HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
+  bool            Cancel() { return Deleg.detach(); }
+ private:
+  void            InfoChangeHandler(const PlayableChangeArgs& args);
+ protected:
+  virtual void    OnCompleted();
 };
-FLAGSATTRIBUTE(LoadHelper::Options);
+
+class AutoPostMsgWorker : private PostMsgWorker
+{private:
+  AutoPostMsgWorker() {}
+  ~AutoPostMsgWorker() {}
+ public:
+  static  void    Start(APlayable& ap, InfoFlags what, Priority pri,
+                        HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
+                  { (new AutoPostMsgWorker())->PostMsgWorker::Start(ap, what, pri, target, msg, mp1, mp2); }
+ private:
+  virtual void    OnCompleted();
+};
+
+
+/** Helper class that posts a window message on completion of a DependencyInfoWorker.
+ */
+class PostMsgDIWorker : public DependencyInfoWorker
+{private:
+  WindowMsg       Message;
+ public:
+  void            Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
+ private:
+  virtual void    OnCompleted();
+};
 
 #endif
-

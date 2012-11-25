@@ -63,7 +63,7 @@ struct RadioButton : ControlBase
 struct ListBox : ControlBase
 { ListBox(HWND hwnd)                                : ControlBase(hwnd) {}
   void        DeleteAll() const                     { PMRASSERT(WinSendMsg(Hwnd, LM_DELETEALL, 0, 0)); }
-  void        InsertItem(const char* item, SHORT where = LIT_END) const { PMXASSERT(SHORT1FROMMR(WinSendMsg(Hwnd, LM_INSERTITEM, MPFROMSHORT(where), MPFROMP(item))), >= 0); }
+  void        InsertItem(const char* item, SHORT where = LIT_END) const { PMXASSERT((SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, LM_INSERTITEM, MPFROMSHORT(where), MPFROMP(item))), >= 0); }
   void        InsertItems(const char*const* items, unsigned count, int where = LIT_END) const;
   void        SetHandle(unsigned i, ULONG value) const{ PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
   USHORT      Count() const                         { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYITEMCOUNT, 0, 0)); }

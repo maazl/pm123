@@ -28,6 +28,7 @@
 
 #include "debuglog.h"
 #include "snprintf.h"
+#include "strutils.h"
 
 #define INCL_BASE
 #include <stdio.h>

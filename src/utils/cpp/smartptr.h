@@ -116,6 +116,8 @@ class Iref_count
   void operator=(const Iref_count&);
  protected:
   Iref_count() : Count(0) {}
+  /// Initialize with a given seed - be very careful!
+  Iref_count(unsigned count) : Count(count<<INT_PTR_STOLEN_BITS) {}
   ~Iref_count() {} // You must not call the non-virtual destructor directly.
  public:
   // Checks whether the object is currently unique. If you currently hold an int_ptr with the object

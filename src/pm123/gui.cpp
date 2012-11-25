@@ -46,7 +46,7 @@
 #include "playlistview.h"
 #include "playlistmanager.h"
 #include "inspector.h"
-#include "dependencyinfo.h"
+#include "postmsginfo.h"
 #include "loadhelper.h"
 #include "playlistmenu.h"
 #include "button95.h"
@@ -118,6 +118,12 @@ class GUIImp : private GUI, private DialogBase
   , UPD_LED              = 0x0200         // Draw player activity LED
   };
   CLASSFLAGSATTRIBUTE(UpdateFlags);
+
+  struct HandleDrop : public HandleDragTransfers
+  { LoadHelper Loader;
+    HandleDrop(DRAGINFO* di, HWND hwnd);
+    virtual ~HandleDrop();
+  };
 
   /// Cache lifetime of unused playable objects in seconds
   /// Objects are removed after [CLEANUP_INTERVALL, 2*CLEANUP_INTERVALL].
@@ -196,12 +202,14 @@ class GUIImp : private GUI, private DialogBase
 
   // Drag & drop
   static MRESULT   DragOver(DRAGINFO* pdinfo);
-  static MRESULT   DragDrop(PDRAGINFO pdinfo);
-  static MRESULT   DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc);
+  static void      DragDrop(DRAGINFO* pdinfo);
+  static void      DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT rc);
 
  public: // Initialization interface
   static void      Init();
   static void      Uninit();
+
+  static void      Load(LoadHelper& lhp) { Ctrl::ControlCommand* cmd = lhp.ToCommand(); if (cmd) GUIImp::PostCtrlCommand(cmd); }
 };
 
 
@@ -228,37 +236,9 @@ delegate<const void, const PlayableChangeArgs> GUIImp::CurrentDeleg   (&GUIImp::
 delegate<const void, const CfgChangeArgs>      GUIImp::ConfigDeleg    (&GUIImp::ConfigNotification);
 
 
-/// Helper class that posts a window message on completion of a DependencyInfoWorker.
-class PostMsgWorker : public DependencyInfoWorker
-{private:
-  HWND            Target;
-  ULONG           Msg;
-  MPARAM          MP1;
-  MPARAM          MP2;
- public:
-  void            Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
- private:
-  virtual void    OnCompleted();
-};
-
-void PostMsgWorker::Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ Cancel();
-  Data.Swap(data);
-  Target = target;
-  Msg = msg;
-  MP1 = mp1;
-  MP2 = mp2;
-  DependencyInfoWorker::Start();
-}
-
-void PostMsgWorker::OnCompleted()
-{ WinPostMsg(Target, Msg, MP1, MP2);
-}
-
-
 /// Helper that posts a message when alternate navigation is delayed
 /// because of missing dependencies for recursive playlist information.
-PostMsgWorker DelayedAltSliderDragWorker;
+PostMsgDIWorker DelayedAltSliderDragWorker;
 
 
 void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override)
@@ -323,20 +303,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         && !CurrentIter->NavigateTo(target) ) // Try to navigate to target
         GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
       else
-      { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
-        lhp->AddItem(*target.GetCurrent());
+      { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
+        lhp.AddItem(*target.GetCurrent());
         Load(lhp);
       }
-      return 0;
-    }
-
-   case WMP_LOAD:
-    { DEBUGLOG(("GUIImp::DlgProc: WMP_LOAD %p\n", mp1));
-      LoadHelper* lhp = (LoadHelper*)mp1;
-      Ctrl::ControlCommand* cmd = lhp->ToCommand();
-      if (cmd)
-        PostCtrlCommand(cmd);
-      delete lhp;
       return 0;
     }
 
@@ -1159,9 +1129,12 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case DM_DRAGOVER:
     return DragOver((PDRAGINFO)mp1);
    case DM_DROP:
-    return DragDrop((PDRAGINFO)mp1);
+    DragDrop((PDRAGINFO)mp1);
+    return 0;
    case DM_RENDERCOMPLETE:
-    return DragRenderDone((PDRAGTRANSFER)mp1, SHORT1FROMMP(mp2));
+    DropRenderComplete((PDRAGTRANSFER)mp1, SHORT1FROMMP(mp2));
+    DEBUGLOG(("GUIImp::DlgProc: DM_RENDERCOMPLETE done\n"));
+    return 0;
    case DM_DROPHELP:
     ShowHelp(IDH_DRAG_AND_DROP);
     // Continue in default procedure to free ressources.
@@ -1743,226 +1716,178 @@ void GUIImp::AutoSave(Playable& list)
     list.Save(list.URL, "plist123.dll", NULL, false);
 }
 
+
 /* Prepares the player to the drop operation. */
-MRESULT GUIImp::DragOver(DRAGINFO* pdinfo)
-{ DEBUGLOG(("GUIImp::DragOver(%p)\n", pdinfo));
-
-  PDRAGITEM pditem;
-  int       i;
-  USHORT    drag    = DOR_NEVERDROP;
-
-  if (!DrgAccessDraginfo(pdinfo))
+MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
+{ DEBUGLOG(("GUIImp::DragOver(%p)\n", pdinfo_));
+  ScopedDragInfo di(pdinfo_);
+  if (!di.get())
     return MRFROM2SHORT(DOR_NEVERDROP, 0);
+  DEBUGLOG(("GUIImp::DragOver({,,%x, %p, %i,%i, %u,})\n",
+    di->usOperation, di->hwndSource, di->xDrop, di->yDrop, di->cditem));
 
-  DEBUGLOG(("GUIImp::DragOver(%p{,,%x, %p, %i,%i, %u,})\n",
-    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
+  USHORT drag = DOR_NEVERDROP;
+  USHORT op = 0;
 
-  for( i = 0; i < pdinfo->cditem; i++ )
-  { pditem = DrgQueryDragitemPtr( pdinfo, i );
-
-    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123URL", NULL))
-      drag    = DOR_DROP;
+  for (int i = 0; i < di->cditem; i++)
+  { DragItem item(di[i]);
+    if (item.VerifyRMF("DRM_OS2FILE", NULL) || item.VerifyRMF("DRM_123LST", NULL))
+      drag = DOR_DROP;
     else
-    { drag    = DOR_NEVERDROP;
+    { drag = DOR_NEVERDROP;
       break;
     }
   }
 
   if (drag == DOR_DROP)
     // we can only copy or link to the main window, not move.
-    switch (pdinfo->usOperation)
+    switch (di->usOperation)
     {default:
       drag = DOR_NODROPOP;
+      break;
      case DO_COPY:
      case DO_LINK:
-     case DO_DEFAULT:;
+      op = di->usOperation;
+      break;
+     case DO_DEFAULT:
+      op = Cfg::Get().append_dnd ? DO_LINK : DO_COPY;
     }
 
-  DrgFreeDraginfo(pdinfo);
-  return MPFROM2SHORT(drag, Cfg::Get().append_dnd ? DO_LINK : DO_COPY);
+  DEBUGLOG(("GUIImp::DragOver: %u, %x\n", drag, op));
+  return MPFROM2SHORT(drag, op);
 }
 
-struct DropInfo
-{ //USHORT count;    // Count of dragged objects.
-  //USHORT index;    // Index of current item [0..Count)
-  xstring URL;      // Object to drop
-  xstring Start;    // Start Iterator
-  xstring Stop;     // Stop iterator
-  sco_ptr<LoadHelper> LH;
-  int     options;  // Options for amp_load_playable
-  HWND    hwndItem; // Window handle of the source of the drag operation.
-  ULONG   ulItemID; // Information used by the source to identify the
-                    // object being dragged.
-};
+GUIImp::HandleDrop::HandleDrop(DRAGINFO* di, HWND hwnd)
+: HandleDragTransfers(di, hwnd)
+, Loader(Cfg::Get().playonload*LoadHelper::LoadPlay | (di->usOperation == DO_LINK)*LoadHelper::LoadAppend)
+{}
+
+GUIImp::HandleDrop::~HandleDrop()
+{ // post load command automatically if anything to post.
+  GUIImp::Load(Loader);
+}
 
 /* Receives dropped files or playlist records. */
-MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
-{ DEBUGLOG(("GUIImp::DragDrop(%p)\n", pdinfo));
+void GUIImp::DragDrop(PDRAGINFO pdinfo_)
+{ DEBUGLOG(("GUIImp::DragDrop(%p)\n", pdinfo_));
 
-  if (!DrgAccessDraginfo(pdinfo))
-    return 0;
-
+  int_ptr<HandleDrop> worker(new HandleDrop(pdinfo_, HPlayer));
   DEBUGLOG(("GUIImp::DragDrop: {,%u,%x,%p, %u,%u, %u,}\n",
-    pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
+    (*worker)->cbDragitem, (*worker)->usOperation, (*worker)->hwndSource, (*worker)->xDrop, (*worker)->yDrop, (*worker)->cditem));
 
   ULONG reply = DMFL_TARGETFAIL;
-  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | (pdinfo->usOperation == DO_LINK)*LoadHelper::LoadAppend));
-
-  for( int i = 0; i < pdinfo->cditem; i++ )
-  {
-    DRAGITEM* pditem = DrgQueryDragitemPtr( pdinfo, i );
+  for (int i = 0; i < (*worker)->cditem; i++)
+  { UseDragTransfer dt((*worker)[i]);
+    DragItem item(dt.Item());
     DEBUGLOG(("GUIImp::DragDrop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
-      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
-      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
-      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+      item->hwndItem, item->ulItemID, item.Type().cdata(), item.RMF().cdata(),
+      item.ContainerName().cdata(), item.SourceName().cdata(), item.TargetName().cdata(),
+      item->cxOffset, item->cyOffset, item->fsControl, item->fsSupportedOps));
 
     reply = DMFL_TARGETFAIL;
 
-    if (DrgVerifyRMF(pditem, "DRM_123URL", NULL))
-    { // In the DRM_123URL transfer mechanism the target is responsible for doing the target related stuff
-      // while the source does the source related stuff. So a DO_MOVE operation causes
-      // - a create in the target window and
-      // - a remove in the source window.
-      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
-
-      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
-      if (pdtrans)
-      { pdtrans->cb               = sizeof(DRAGTRANSFER);
-        pdtrans->hwndClient       = HPlayer;
-        pdtrans->pditem           = pditem;
-        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123URL,DRF_UNKNOWN>");
-        pdtrans->hstrRenderToName = 0;
-        pdtrans->fsReply          = 0;
-        pdtrans->usOperation      = pdinfo->usOperation;
-
-        // Ask the source to render the selected item.
-        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
-
-        // insert item
-        if ((pdtrans->fsReply & DMFL_NATIVERENDER))
-        { // TODO: slice!
-          lhp->AddItem(*Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
-          reply = DMFL_TARGETSUCCESSFUL;
-        }
-        // cleanup
-        DrgFreeDragtransfer(pdtrans);
-      }
+    if (item.VerifyRMF("DRM_123LST", NULL))
+    { dt.SelectedRMF("<DRM_123LST,DRF_UNKNOWN>");
+      dt.RenderTo(amp_dnd_temp_file());
     }
-    else if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
-    {
-      // fetch full qualified path
-      size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
-      size_t lenN = DrgQueryStrNameLen(pditem->hstrSourceName);
-      xstring fullname;
-      char* cp = fullname.allocate(lenP + lenN);
-      DrgQueryStrName(pditem->hstrContainerName, lenP+1, cp);
-      DrgQueryStrName(pditem->hstrSourceName,    lenN+1, cp+lenP);
-
-      if (pditem->hwndItem && DrgVerifyType(pditem, "UniformResourceLocator"))
-      { // URL => The droped item must be rendered.
-        DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
-        if (pdtrans)
-        { DropInfo* pdsource = new DropInfo();
-          pdsource->LH       = lhp.detach();
-          pdsource->hwndItem = pditem->hwndItem;
-          pdsource->ulItemID = pditem->ulItemID;
-
-          pdtrans->cb               = sizeof( DRAGTRANSFER );
-          pdtrans->hwndClient       = HPlayer;
-          pdtrans->pditem           = pditem;
-          pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_OS2FILE,DRF_TEXT>");
-          pdtrans->hstrRenderToName = 0;
-          pdtrans->ulTargetInfo     = (ULONG)pdsource;
-          pdtrans->fsReply          = 0;
-          pdtrans->usOperation      = pdinfo->usOperation;
-
-          // Send the message before setting a render-to name.
-          if ( (pditem->fsControl & DC_PREPAREITEM)
-            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION
-            DrgFreeDragtransfer(pdtrans);
-            delete pdsource;
+    else if (item.VerifyRMF("DRM_OS2FILE", NULL))
+    { // fetch full qualified path
+      xstring fullname = item.SourcePath();
+      if (fullname)
+      { // have file name => use target rendering
+        DEBUGLOG(("GUIImp::DragDrop: DRM_OS2FILE && fullname - %x\n", item->fsControl));
+        if (item.VerifyType("UniformResourceLocator"))
+        { // have file name => use target rendering
+          fullname = amp_url_from_file(fullname);
+          if (!fullname)
             continue;
-          }
-          pdtrans->hstrRenderToName = DrgAddStrHandle(tmpnam(NULL));
-          // Send the message after setting a render-to name.
-          if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
-            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION
-            DrgFreeDragtransfer(pdtrans);
-            delete pdsource;
-            continue;
-          }
-          // Ask the source to render the selected item.
-          BOOL ok = LONGFROMMR(DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0));
-
-          if (ok) // OK => DM_ENDCONVERSATION is send at DM_RENDERCOMPLETE
-            continue;
-          // something failed => we have to cleanup ressources immediately and cancel the conversation
-          DrgFreeDragtransfer(pdtrans);
-          delete pdsource;
-          // ... send DM_ENDCONVERSATION below
         }
-      } else if (pditem->hstrContainerName && pditem->hstrSourceName)
-      { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
-        if (pditem->fsControl & DC_CONTAINER)
-          // TODO: recursive should be alterable
-          fullname = amp_make_dir_url(fullname, Cfg::Get().recurse_dnd);
+        if (item->fsControl & DC_CONTAINER)
+          fullname = amp_make_dir_url(fullname, Cfg::Get().recurse_dnd); // TODO: should be alterable
 
         const url123& url = url123::normalizeURL(fullname);
-        DEBUGLOG(("GUIImp::DragDrop: url=%s\n", url ? url.cdata() : "<null>"));
+        DEBUGLOG(("GUIImp::DragDrop: url=%s\n", url.cdata()));
         if (url)
-        { lhp->AddItem(*Playable::GetByURL(url));
-          reply = DMFL_TARGETSUCCESSFUL;
+        { worker->Loader.AddItem(*Playable::GetByURL(url));
+          dt.EndConversation();
         }
       }
+      else if (item->hwndItem && item.VerifyType("UniformResourceLocator"))
+      { // URL w/o file name => need source rendering
+        DEBUGLOG(("GUIImp::DragDrop: DRM_OS2FILE && URL && !fullname - %x\n", item->fsControl));
+        dt.SelectedRMF("<DRM_OS2FILE,DRF_TEXT>");
+        dt.RenderTo(amp_dnd_temp_file().cdata() + 8);
+      }
     }
-    // Tell the source you're done.
-    DrgSendTransferMsg(pditem->hwndItem, DM_ENDCONVERSATION, MPFROMLONG(pditem->ulItemID), MPFROMLONG(reply));
-
   } // foreach pditem
-
-  DrgDeleteDraginfoStrHandles( pdinfo );
-  DrgFreeDraginfo( pdinfo );
-
-  if (reply == DMFL_TARGETSUCCESSFUL)
-    Load(lhp.detach());
-  return 0;
 }
 
 /* Receives dropped and rendered files and urls. */
-MRESULT GUIImp::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
-{
-  DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
+void GUIImp::DropRenderComplete(PDRAGTRANSFER pdtrans_, USHORT flags)
+{ DEBUGLOG(("GUIImp::DropRenderComplete(%p, %x)\n", pdtrans_, flags));
+  UseDragTransfer dt(pdtrans_, true);
+  DEBUGLOG(("GUIImp::DropRenderComplete({, %x, %p{...}, %s, %s, %p, %i, %x}, )\n",
+    dt->hwndClient, dt->pditem, dt.SelectedRMF().cdata(), dt.RenderToName().cdata(),
+    dt->ulTargetInfo, dt->usOperation, dt->fsReply));
 
-  ULONG reply = DMFL_TARGETFAIL;
-  // If the rendering was successful, use the file, then delete it.
-  if ((rc & DMFL_RENDEROK) && pdsource)
-  { // fetch render to name
-    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName);
-    // fetch file content
-    const xstring& fullname = amp_url_from_file(rendered);
-    DosDelete(rendered);
+  if (!(flags & DMFL_RENDEROK))
+    return;
 
-    if (fullname)
-    { const url123& url = url123::normalizeURL(fullname);
-      DEBUGLOG(("GUIImp::DragRenderDone: url=%s\n", url ? url.cdata() : "<null>"));
-      if (url)
-      { pdsource->LH->AddItem(*Playable::GetByURL(url));
-        reply = DMFL_TARGETSUCCESSFUL;
-      }
+  int_ptr<HandleDrop> worker((HandleDrop*)dt.Worker());
+  if (dt.VerifySelectedRMF("<DRM_OS2FILE,DRF_TEXT>"))
+  { // URL-File => read content and insert URL into playlist.
+    const xstring& url = url123::normalizeURL(amp_url_from_file(dt.RenderToName()));
+    if (!url)
+      return;
+    int_ptr<Playable> pp = Playable::GetByURL(url);
+    if (!pp)
+      return;
+
+    APlayable* ap = pp;
+    if (dt->pditem->hstrTargetName)
+    { ap = new PlayableRef(*pp);
+      ItemInfo item;
+      item.alias = dt.Item().TargetName();
+      ((PlayableRef*)ap)->OverrideItem(&item);
+    }
+    worker->Loader.AddItem(*ap);
+
+    // Remove temp file
+    remove(dt.RenderToName());
+
+    dt.EndConversation(true);
+  }
+  else if (dt.VerifySelectedRMF("<DRM_123LST,DRF_UNKNOWN>"))
+  { // PM123 temporary playlist to insert.
+    const xstring& url = url123::normalizeURL(dt.RenderToName());
+    if (!url)
+      return;
+    int_ptr<Playable> pp = Playable::GetByURL(url);
+    if (!pp)
+      return;
+
+    if (pp->RequestInfo(IF_Child, PRI_Normal, flags & 0x8000 ? REL_Cached : REL_Reload))
+    { // Info not available synchronously => post DM_RENDERCOMPLETE later, when the infos arrived.
+      DEBUGLOG(("GUIImp::DropRenderComplete: delayed\n"));
+      dt.Hold();
+      AutoPostMsgWorker::Start(*pp, IF_Child, PRI_Normal,
+        HPlayer, DM_RENDERCOMPLETE, MPFROMP(pdtrans_), MPFROMSHORT(flags|0x8000));
+    } else
+    { // Read playlist
+      DEBUGLOG(("GUIImp::DropRenderComplete: execute\n"));
+      int_ptr<PlayableInstance> pi;
+      while ((pi = pp->GetNext(pi)) != NULL)
+        worker->Loader.AddItem(*pi);
+
+      // Remove temp file
+      #ifndef DEBUG // keep in case of debug builds
+      remove(url.cdata() + 8);
+      #endif
+
+      // Never tell the source success, because that could cause deletions with DO_MOVE.
     }
   }
-
-  // Tell the source you're done.
-  DrgSendTransferMsg(pdsource->hwndItem, DM_ENDCONVERSATION, (MPARAM)pdsource->ulItemID, (MPARAM)reply);
-
-  delete pdsource;
-  DrgDeleteStrHandle(pdtrans->hstrSelectedRMF);
-  DrgDeleteStrHandle(pdtrans->hstrRenderToName);
-  DrgFreeDragtransfer(pdtrans);
-  return 0;
 }
 
 
@@ -2171,7 +2096,7 @@ void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
   while ((pi = list.GetNext(pi)) != NULL)
   { DEBUGLOG(("GUI::Add2MRU - %p{%s}\n", pi.get(), pi->DebugName().cdata()));
     if (max == 0 || pi->GetPlayable() == ps.GetPlayable()) // Instance equality of Playable is sufficient
-      list.RemoveItem(pi);
+      list.RemoveItem(*pi);
      else
       --max;
   }
@@ -2204,6 +2129,10 @@ bool GUI::Show(DialogBase::DialogAction action)
    default:; // avoid warning
   }
   return !(swp.fl & SWP_HIDE);
+}
+
+void GUI::Load(LoadHelper& lhp)
+{ GUIImp::Load(lhp);
 }
 
 /*struct dialog_show;

@@ -68,33 +68,13 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
   if (ps == NULL)
     return NULL;
   // TODO: LoadKeepPlaylist
-  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, false);
-  /* TODO: This part must be implemented in class GUI
-  if (Opt & ShowErrors)
-    cmd->Callback = &GUI::ControllerEventCB;*/
+  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, true);
   Ctrl::ControlCommand* tail = cmd;
-  // TODO: the controller must handle start and stop, not the UI
-  /*if (ps->GetInfo().item->stop)
-    tail = tail->Link = Ctrl::MkStopAt(ps->GetInfo().item->stop, 0, false);
-  if (ps->GetInfo().attr->at)
-    tail = tail->Link = Ctrl::MkNavigate(ps->GetInfo().attr->at, 0, false, true);*/
   if (Opt & LoadPlay)
     // Start playback immediately after loading has completed
     tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
   return cmd;
 }
-
-/*void LoadHelper::PostCommand()
-{ if (Opt & PostGUI)
-  { GUI::Load(*this); 
-  } else
-  { Ctrl::ControlCommand* cmd = ToCommand();
-    if (cmd)
-    { Items.clear();
-      Ctrl::PostCommand(cmd);
-    }
-  }
-}*/
 
 Ctrl::RC LoadHelper::SendCommand()
 { Ctrl::ControlCommand* cmd = ToCommand();
@@ -112,8 +92,3 @@ Ctrl::RC LoadHelper::SendCommand()
   cmd->Destroy();
   return rc;
 }
-
-/*LoadHelper::~LoadHelper()
-{ if (Opt & AutoPost)
-    PostCommand();
-}*/

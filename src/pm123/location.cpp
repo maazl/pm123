@@ -294,10 +294,49 @@ Location::NavigationResult Location::NavigateTo(const Location& target)
   return xstring();
 }
 
+Location::NavigationResult Location::Navigate(JobSet& job, APlayable* target, int index, unsigned mindepth, unsigned maxdepth)
+{ DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i, %i)\n", this,
+    job.Pri, target->DebugName().cdata(), index, mindepth, maxdepth));
+  ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth);
+
+  if (!Root)
+    return "Cannot navigate without root.";
+  if (!target)
+    return NavigateCount(job, index, ~TATTR_NONE, mindepth, maxdepth);
+
+  // Auto enter root
+  { APlayable* cur = GetCurrent();
+    if (cur && cur == Root)
+    { if (job.RequestInfo(*cur, IF_Tech))
+        return xstring::empty; // delayed
+      if ((cur->GetInfo().tech->attributes & (TATTR_PLAYLIST|TATTR_SONG)) == TATTR_PLAYLIST)
+      { Enter();
+        if (maxdepth == 0)
+          maxdepth = 1;
+      }
+    }
+  }
+
+  // Do navigation
+  xstring ret;
+  if (index)
+  { bool dir = index > 0;
+    if (!dir)
+      index = -index;
+    do
+    { do
+      { ret = NavigateCountCore(job, dir, ~TATTR_NONE, mindepth, maxdepth);
+        if (ret)
+          return ret;
+      } while (GetCurrent() != target && &GetCurrent()->GetPlayable() != target);
+    } while (--index);
+  }
+  return ret;
+}
 Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth)
 { DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i, %i)\n", this,
     job.Pri, url.cdata(), index, mindepth, maxdepth));
-  ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth && maxdepth >= Callstack.size());
+  ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth);
 
   if (!Root)
     return "Cannot navigate without root.";

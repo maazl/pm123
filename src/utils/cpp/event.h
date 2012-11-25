@@ -29,10 +29,8 @@
 #ifndef CPP_EVENT_H
 #define CPP_EVENT_H
 
-#define INCL_PM
 #include <config.h>
 #include <cpp/mutex.h>
-#include <os2.h>
 
 #include <debuglog.h>
 

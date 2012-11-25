@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2010-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,45 +26,53 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  LOADHELPER_H
-#define  LOADHELPER_H
 
-#define INCL_WIN
-#include <cpp/smartptr.h>
+#include "postmsginfo.h"
 
-#include "controller.h"
-#include <os2.h>
+#include <debuglog.h>
 
 
-/** Helper class to load one or more objects into PM123.
- */
-class LoadHelper
-{public:
-  enum Options
-  { LoadDefault      = 0,
-    LoadPlay         = 0x01, // Start Playing when completed
-    LoadRecall       = 0x02, // Add item to the MRU-List if it is only one
-    LoadAppend       = 0x04, // Always append to the default playlist
-    //LoadKeepPlaylist = 0x08, // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
-  };
- protected:
-  const Options         Opt;
-  vector_int<APlayable> Items;
- protected:
-  /// Returns /one/ APlayable that represents all the objects in the list.
-  APlayable*            ToAPlayable();
- public:
-  /// Initialize LoadHelper
-                        LoadHelper(Options opt);
-  //                      ~LoadHelper();
-  /// Add a item to play to the list of items.
-  void                  AddItem(APlayable& ps) { Items.append() = &ps; }
-  /// Create a sequence of controller commands from the current list.
-  Ctrl::ControlCommand* ToCommand();
-  /// Send command to the controller and wait for reply.
-  Ctrl::RC              SendCommand();
-};
-FLAGSATTRIBUTE(LoadHelper::Options);
+PostMsgWorker::PostMsgWorker()
+: Filter(IF_None)
+, Deleg(*this, &PostMsgWorker::InfoChangeHandler)
+{}
 
-#endif
+void PostMsgWorker::Start(APlayable& ap, InfoFlags what, Priority pri,
+                          HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG(("PostMsgWorker(%p)::Start(&%p, %x, %u, %p, %u, %p,%p)\n", this,
+    &ap, what, pri, target, msg, mp1, mp2));
+  Deleg.detach();
+  Message.assign(target, msg, mp1, mp2);
+  Filter = what;
+  ap.GetInfoChange() += Deleg;
+  if (!(Filter &= ap.RequestInfo(what, pri)) && Deleg.detach())
+    OnCompleted();
+}
+
+void PostMsgWorker::InfoChangeHandler(const PlayableChangeArgs& args)
+{ if (!(Filter &= ~args.Loaded) && Deleg.detach())
+    OnCompleted();
+}
+
+void PostMsgWorker::OnCompleted()
+{ Message.Post();
+}
+
+
+void AutoPostMsgWorker::OnCompleted()
+{ PostMsgWorker::OnCompleted();
+  delete this;
+}
+
+
+void PostMsgDIWorker::Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ Cancel();
+  Data.Swap(data);
+  Message.assign(target, msg, mp1, mp2);
+  DependencyInfoWorker::Start();
+}
+
+void PostMsgDIWorker::OnCompleted()
+{ Message.Post();
+}
 

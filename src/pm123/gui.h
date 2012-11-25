@@ -63,7 +63,6 @@ class GUI
   enum WMUser                             ///< MP1               MP2
   { WMP_REFRESH_CONTROLS = WM_USER + 1000 ///< 0                 0
   , WMP_PAINT                             ///< mask              0
-  , WMP_LOAD                              ///< LoadHelper*
   , WMP_NAVIGATE                          ///< Location*
   , WMP_RELOADSKIN                        ///< 0                 0
   , WMP_LOAD_VISUAL                       ///< int_ptr<Visual>   TRUE
@@ -127,7 +126,7 @@ class GUI
 
   /// Load objects into the player.
   /// Attention!!! Load takes the exclusive ownership of lhp and deletes it afterwards.
-  static void      Load(LoadHelper* lhp)  { PMRASSERT(WinPostMsg(HFrame, WMP_LOAD, MPFROMP(lhp), 0)); }
+  static void      Load(LoadHelper& lhp);
   /// Navigate to a selected playlist entry.
   /// The action taken demands on the configuration and whether \a target
   /// is related to the current location.

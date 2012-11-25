@@ -13,7 +13,7 @@ CFLAGS_USR=-fcheck-new -DPM123_CORE
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) url123$(CO) xstringbuilder$(CO)
 OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringmap$(CO)
-OBJECTS = $(OBJECTS) windowbase$(CO) dlgcontrols$(CO)
+OBJECTS = $(OBJECTS) pmutils_dnd$(CO) windowbase$(CO) dlgcontrols$(CO)
 
 OBJECTS2 = xstring_alloc$(CO)
 OBJECTS3 = xstring_alloc_plugin$(CO)
@@ -86,3 +86,4 @@ xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 dlgcontrols.cpp:	dlgcontrols.h ..\debuglog.h
 dlgcontrols.h:	xstring.h pmutils.h ..\debuglog.h
 xstringconst.cpp:	xstring.h ..\interlocked.h ..\debuglog.h
+pmutils_dnd.cpp:	pmutils.h

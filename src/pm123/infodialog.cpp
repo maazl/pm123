@@ -1264,7 +1264,7 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     PlayableInstance* pi2 = list.InsertItem(*pp, pi);
     if (pi2 == NULL)
       return;
-    list.RemoveItem(pi);
+    list.RemoveItem(*pi);
     pi = pi2;
     // TODO: follow with current window.
   }

@@ -47,10 +47,6 @@
 
 #include <os2.h>
 
-#ifndef DC_PREPAREITEM
-#define DC_PREPAREITEM   0x0040
-#endif
-
 #include <debuglog.h>
 
 
@@ -96,9 +92,9 @@ class PlaylistBase
     virtual             ~CPDataBase() {} // free the right objects
   };
   /// @brief POD part of a record
-  /// @remarks This is a POD struct that derives from MINIRECORDCORE.
+  /// @remarks This is a POD struct that derives from \c MINIRECORDCORE.
   /// It can be directly passed to PM as long as PM is instructed to
-  /// reserve additional sizeof(RecordBase) - sizeof(MINIRECORDCORE) bytes for each record structure.
+  /// reserve additional \c sizeof(RecordBase) - \c sizeof(MINIRECORDCORE) bytes for each record structure.
   struct RecordBase : public MINIRECORDCORE
   { /// Reference counter to keep Records alive while posted messages are on the way.
     AtomicUnsigned      UseCount;
@@ -108,6 +104,12 @@ class PlaylistBase
     xstring             DebugName() const;
     static xstring      DebugName(const RecordBase* rec);
     #endif
+  };
+
+  struct HandleDrop : public HandleDragTransfers
+  { int_ptr<Playable> DropTarget;     ///< Playlist where to insert dropped items.
+    int_ptr<PlayableInstance> DropBefore; ///< Where to insert in the above playlist.
+    HandleDrop(DRAGINFO* di, HWND hwnd) : HandleDragTransfers(di, hwnd) {}
   };
  public:
   struct UserAddCallbackParams;
@@ -135,25 +137,31 @@ class PlaylistBase
   enum
   { UM_UPDATEINFO = WM_USER+0x101,
     /// Execute a update command for a record.
-    /// mp1 = Record* or NULL
+    /// @param mp1 Record* or NULL
     /// The reference counter of the Record is decremented after the message is processed.
     /// The Commands to be executed are atomically taken from the Update bitvector
     /// in the referenced record or the container.
     UM_RECORDUPDATE,
     /// Delete a record structure and put it back to PM
-    /// mp1 = Record
+    /// @param mp1 Record
     UM_DELETERECORD,
     /// Play status event hit.
-    /// mp1 = status
+    /// @param mp1 status
     UM_PLAYSTATUS,
     /// Asynchronous insert operation
-    /// mp1 = InsertInfo*
+    /// @param mp1 InsertInfo*
     /// The InsertInfo structure is deleted after the message is processed.
     UM_INSERTITEM,
     /// Remove item addressed by a record asynchronously
-    /// mp1 = Record*
+    /// @param mp1 Record*
     /// The reference counter of the Record is decremented after the message is processed.
     UM_REMOVERECORD,
+    /// @brief Do Source rendering in Drag and drop.
+    /// @param mp1 DRAGTRANSFER*
+    /// @param mp2 int_ptr<Playable>
+    /// @details The message expects that the passed \c Playlist already contains all the content.
+    /// Only the I/O is still missing. After saving a \c DM_RENDERCOMPLETE message is sent to the target.
+    UM_RENDERASYNC,
     /// Update decoder tables.
     UM_UPDATEDEC
   };
@@ -177,21 +185,12 @@ class PlaylistBase
   };
  protected: // User actions
   struct InsertInfo
-  { int_ptr<Playable> Parent; // List where to insert the new item
-    int_ptr<PlayableInstance> Before; // Item where to do the insert
-    int_ptr<PlayableRef> Item;// What to insert
-  };
- protected: // D'n'd
-  struct DropInfo
-  { HWND         Hwnd;    // Window handle of the source of the drag operation.
-    ULONG        ItemID;  // Information used by the source to identify the object being dragged.
-    int_ptr<Playable> Parent; // List where to insert the new item
-    xstring      Alias;   // Alias name at the target
-    RecordBase*  Before;  // Record where to insert the item
-                          // Keeping the Record here requires an allocation with BlockRecord.
+  { int_ptr<Playable>         Parent; ///< List where to insert the new item
+    int_ptr<PlayableInstance> Before; ///< Item where to do the insert
+    int_ptr<PlayableRef>      Item;   ///< What to insert
   };
 
- protected: // Cached Icon ressources
+ protected: // Cached icon resources
   enum ICP
   { ICP_Empty,
     ICP_Closed,
@@ -218,24 +217,24 @@ class PlaylistBase
 
  protected: // content
   int_ptr<Playable> Content;
-  HACCEL            AccelTable;    ///< Accelerator table - TODO: use shared accelerator table
+  HACCEL            AccelTable;     ///< Accelerator table - TODO: use shared accelerator table
   #if DEBUG_LOG
   xstring           DebugName() const;
   #endif
  protected: // working set
-  HWND              HwndContainer; ///< content window handle
+  HWND              HwndContainer;  ///< content window handle
   DECODER_WIZARD_FUNC LoadWizards[16];///< Current load wizards
-  bool              NoRefresh;     ///< Avoid update events to ourself
-  xstring           DirectEdit;    ///< String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
-  CommonState       EvntState;     ///< Event State
-  vector<RecordBase> Source;       ///< Array of records used for source emphasis
-  HWND              HwndMenu;      ///< Window handle of last context menu
-  bool              DragAfter;     ///< Recent drag operation was ORDERED
+  bool              NoRefresh;      ///< Avoid update events to ourself
+  xstring           DirectEdit;     ///< String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
+  CommonState       EvntState;      ///< Event State
+  vector<RecordBase> Source;        ///< Array of records used for source emphasis
+  bool              DragAfter;      ///< Recent drag operation was ORDERED
+  HWND              HwndMenu;       ///< Window handle of last context menu
   Playable::ItemComparer SortComparer; ///< Current comparer for next sort operation
-  bool              DecChanged;    ///< Flag whether the decoder table has changed since the last invokation of the context menu.
+  bool              DecChanged;     ///< Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
-  int_ptr<PlaylistBase> Self;      ///< We hold a reference to ourself as long as the current window is open.
-  PlaylistMenu*     MenuWorker;    ///< Worker for playlist content in menu. Implicitely deleted by WM_DESTROY.
+  int_ptr<PlaylistBase> Self;       ///< We hold a reference to ourself as long as the current window is open.
+  PlaylistMenu*     MenuWorker;     ///< Worker for playlist content in menu. Implicitely deleted by WM_DESTROY.
   class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const PluginEventArgs> PluginDelegate;
@@ -407,11 +406,13 @@ class PlaylistBase
   /// Handle CN_INITDRAG
   void              DragInit();
   /// Handle DM_DISCARDOBJECT
-  bool              DropDiscard(DRAGINFO* pdinfo);
+  ULONG             DropDiscard(DRAGINFO* pdinfo);
   /// Handle DM_RENDER
-  BOOL              DropRender(DRAGTRANSFER* pdtrans);
+  BOOL              DropRender(DragTransfer pdtrans);
+  /// Handle UM_RENDERASYNC
+  void              DropRenderAsync(DragTransfer pdtrans, Playable* pp);
   /// Handle DM_ENDCONVERSATION
-  void              DropEnd(RecordBase* rec, bool ok);
+  void              DropEnd(vector<RecordBase>* source, bool ok);
 
  public: // public interface
   virtual           ~PlaylistBase();

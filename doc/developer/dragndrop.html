@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <title>Drag and drop format</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=ISO-8859-1">
+</head>
+<body>
+<h2>PM123 Drag and drop format
+</h2>
+PM123 supports the following drag and drop formats:<br>
+<ul>
+  <li><b>DRM_DISCARD</b> (source only)</li>
+  <li><b>DRM_OS2FILE</b> (target only)</li>
+  <li><b>DRM_123PI</b> - PlayableInstance of PM123<b> </b></li>
+</ul>
+<h3><tt>DRM_DISCARD</tt> (playlist, target)
+</h3>
+<p><tt>DRM_DISCARD</tt> is supported by <a
+ href="../manual/playlist.html">playlist</a>
+and <a href="../manual/manager.html">playlist manager</a> windows to
+remove items from the playlist.</p>
+<h3><tt>DRM_123LST</tt> (playlist, source)</h3>
+<p>The render method <tt>DRM_123LST</tt> passes the URL of the
+enclosing
+playlist in <tt>hstrContainerName</tt>. Everything else is up to the <tt>DM_RENDER</tt>
+message. <tt>DRM_123LST</tt> always only reports only one item to <tt>DrgDrag</tt>,
+regardless how many items are dragged. When this item is rendered, it
+receives a list of items in a temporary playlist file. The file name is
+chosen by the target in <tt>hstrRenderToName</tt>.</p>
+<p>Normally, the source is responsible for the source related stuff and
+the target is responsible for the target related stuff. So a <tt>DO_MOVE</tt>
+operation causes<br>
+&nbsp;- an insert at the target and<br>
+&nbsp;- a delete operation at the source.<br>
+The latter is performed at <tt>DM_ENDCONVERSATION</tt>.</p>
+<p>There is one exception. If<br>
+&nbsp;- source and target refer to the same playlist container and<br>
+&nbsp;- source and target refer to a window within the same PM123
+instance<br>
+then the target performs the move operation directly in place. In this
+case it reports <tt>DMFL_TARGETFAIL</tt> although the drag and drop
+succeeded to prevent the source from deleting the records.
+</p>
+<h3><tt>DRM_123LST</tt> (playlist, target)</h3>
+<p>When a source with <tt>DRM_123LST</tt> is dropped on a playlist,
+PM123 tells the source to render the temporary playlist with the
+dropped items.</p>
+<p>PM123 supports the actions <tt>DO_COPY</tt> and <tt>DO_MOVE</tt>.
+In case of <tt>DO_MOVE</tt> the deletion in the source is performed by
+the source unless source and target refer to the same playlist
+container within the same PM123 instance, where the move operation is
+performed by the target directly.</p>
+<h3><tt>DRM_123LST</tt> (main window target)</h3>
+<p>When dropping a playlist item on the player's main window, the
+function 'load' is performed. The action <tt>DO_COPY</tt> indicates
+that the item is immediately loaded into the player. The action <tt>DO_LINK</tt>
+appends the items to the default playlist.
+It depends on the player settings which one is the default. Multiple
+items are always placed in the default playlist.</p>
+<h3><tt>DRM_OS2FILE</tt> (playlist, target)</h3>
+Dropping files on a playlist inserts links to the files immediately at
+the location of the drop. Except for the file type <tt>UniformResourceLocator</tt>,
+in which case the contained URL is inserted instead of the file itself.
+The only supported operation is <tt>DO_LINK</tt>.<br>
+<h3><tt>DRM_OS2FILE</tt> (main window, target)</h3>
+<p>Dropping a file or folder on the player causes the object either to
+be played immediately (<tt>DO_COPY</tt>) or to be appended to the
+default playlist (<tt>DO_LINK</tt>). It depends on the player settings
+which one is the default.</p>
+</body>
+</html>

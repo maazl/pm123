@@ -113,15 +113,19 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 
 /* Get current working directory */
 const url123 amp_get_cwd()
-{ char cdir[_MAX_PATH+1];
-  RASSERT(_getcwd(cdir, sizeof cdir -1));
-  size_t len = strlen(cdir);
-  // Append trailing slash?
-  if (cdir[len-1] != '\\')
-  { cdir[len] = '\\';
-    cdir[len+1] = 0;
+{ static url123 CWD;
+  if (!CWD)
+  { char cdir[_MAX_PATH+1];
+    RASSERT(_getcwd(cdir, sizeof cdir -1));
+    size_t len = strlen(cdir);
+    // Append trailing slash?
+    if (cdir[len-1] != '\\')
+    { cdir[len] = '\\';
+      cdir[len+1] = 0;
+    }
+    CWD = url123::normalizeURL(cdir);
   }
-  return url123::normalizeURL(cdir);
+  return CWD;
 }
 
 /* Reads url from specified file. */
@@ -147,6 +151,24 @@ const xstring amp_url_from_file(const char* filename)
   return ret;
 }
 
+const url123& amp_dnd_temp_file()
+{ static url123 DnDTempFile;
+  if (!DnDTempFile)
+  { const char* temp = getenv("TEMP");
+    size_t len = 0;
+    if (temp)
+    { len = strlen(temp);
+      if (len && temp[len-1] == '\\')
+        --len;
+    }
+    char* cp = DnDTempFile.allocate(8+len+12);
+    memcpy(cp, "file:///", 8);
+    memcpy(cp+8, temp, len);
+    memcpy(cp+8+len, "/~123DnD.lst", 13);
+  }
+  return DnDTempFile;
+}
+
 const xstring amp_make_dir_url(const char* url, bool recursive)
 { size_t len = strlen(url);
   xstringbuilder sb(len + 50);
@@ -161,13 +183,6 @@ const xstring amp_make_dir_url(const char* url, bool recursive)
     sb.append("foldersfirst&");
   sb.erase(sb.length()-1);
   return sb;
-}
-
-const xstring amp_string_from_drghstr(HSTR hstr)
-{ size_t len = DrgQueryStrNameLen(hstr);
-  xstring ret;
-  DrgQueryStrName(hstr, len+1, ret.allocate(len));
-  return ret;
 }
 
 const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)

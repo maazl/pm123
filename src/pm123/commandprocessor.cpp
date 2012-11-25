@@ -1032,7 +1032,7 @@ void CommandProcessor::XPlRemove()
   { PlayableInstance* cur = CurrentPlaylistItem();
     if (!cur)
       Messages.append("E No current item to remove.\n");
-    else if (root->RemoveItem(cur))
+    else if (root->RemoveItem(*cur))
     { Reply.append(cur->GetPlayable().URL);
       CurSI.NavigateCount(SyncJob, 1, ~TATTR_NONE, 0, 1);
     }
