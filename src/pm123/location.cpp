@@ -42,6 +42,13 @@
 
 const Location::NavigationResult Location::End("END");
 
+static const strmap<12,TECH_ATTRIBUTES> Patterns[] =
+{ { "invalid",  TATTR_INVALID }
+, { "list",     TATTR_PLAYLIST }
+, { "playlist", TATTR_PLAYLIST }
+, { "song",     TATTR_SONG }
+};
+
 #ifdef DEBUG
 void Location::RootChange(const CollectionChangeArgs& args)
 { DEBUGLOG(("Location(%p)::RootChange({%p,...})\n", this, &args.Instance));
@@ -342,8 +349,15 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
     return "Cannot navigate without root.";
   if (!url)
     return NavigateCount(job, index, ~TATTR_NONE, mindepth, maxdepth);
-
   xstring ret;
+  if (url.startsWith('?'))
+  { // Pattern URL
+    const strmap<12,TECH_ATTRIBUTES>* pp = mapsearch(Patterns, url.cdata()+1);
+    if (pp == NULL)
+      return ret.sprintf("Invalid pattern '%s'", url.cdata());
+    return NavigateCount(job, index, pp->Val, mindepth, maxdepth);
+  }
+
   if (url == "/" || url == "\\")
   { Reset();
     return ret;
@@ -379,7 +393,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
     return "Cannot navigate to item inside a song.";
   const url123& absurl = pp->URL.makeAbsolute(url);
   if (!absurl)
-    return ret.sprintf("Invalid URL %s", url.cdata());
+    return ret.sprintf("Invalid URL '%s'", url.cdata());
   pp = Playable::GetByURL(absurl);
 
   // Do navigation
@@ -551,7 +565,7 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
       
      case '*': // Flat navigation
       ++flat;
-      ++len;
+      len = 1;
       continue;
      
      case '"': // Quoted playlist item

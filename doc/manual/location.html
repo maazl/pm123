@@ -25,7 +25,7 @@ general consists of several parts separated by '<tt>;</tt>' or new-line
 enclosed with double quotes (<tt>"</tt>) to avoid confusion with
 special characters.</p>
 <p>In case of navigation, the location string may also specify relative
-pos2itions. This includes that you can also navigate to the parent with
+positions. This includes that you can also navigate to the parent with
 <tt>".."</tt>. </p>
 <h3>Examples:</h3>
 <blockquote>
@@ -120,23 +120,29 @@ The path is considered to be relative within the context of the
 immediately enclosing playlist. The use of '<tt>../</tt>' is allowed. </li>
   <li><b><tt><var>relativeURL</var>[<var>index</var>]</tt> or<br>
     <tt><var>absoluteURL</var>[<var>index</var>]</tt></b><br>
-Navigates to the <tt><var>index</var></tt><sup>th</sup> occurrence of <tt><var>URL</var></tt>
+Navigates to the <tt><var>index</var></tt><small><sup>th</sup></small>
+occurrence of <tt><var>URL</var></tt>
 within the playlist. </li>
   <li><b><tt><var>relativeURL</var>[-<var>index</var>]</tt> or<br>
     <tt><var>absoluteURL</var>[-<var>index</var>]</tt></b><br>
-Navigates to the <tt><var>index</var></tt><sup>th</sup> occurrence of <tt><var>URL</var></tt>
+Navigates to the <tt><var>index</var></tt><small><sup>th</sup></small>
+occurrence of <tt><var>URL</var></tt>
 within the playlist counting from the back. </li>
-  <li><b><tt>[<var>index</var>]</tt></b><br>
+  <li><b><tt>[<var>ind</var></tt><tt><var>ex</var>]</tt> or<br>
+    <tt>[-<var>index</var>]</tt></b><br>
 Navigates to item no. <tt><var>index</var></tt> within the playlist.
-It is
+Negative numbers count from the back. It is
 not recommended to use this method because it easily may miss the mark
 when the list is modified.<br>
 Note that the numbering differs from the item numbers displayed in the
 PM123 window, because only the immediate sub items in the playlist
-count here. </li>
-  <li><b><tt>[-<var>index</var>]</tt></b><br>
-Navigates to item no. #<tt><var>index</var></tt> within the playlist
-counting from the back. </li>
+count here.</li>
+  <li><b><tt>?song[<var>ind</var></tt><tt><var>ex</var>]</tt> or<br>
+    <tt>?song[-<var>index</var>]</tt></b><b> or<br>
+    <tt>?list[<var>index</var>]</tt></b><b> or<br>
+    <tt>?list[-<var>index</var>]</tt></b><br>
+Same as <tt>[<var>index</var>]</tt> but count only songs or playlists
+respectively.</li>
   <li><b><tt>*<var>relativeURL</var></tt> or<br>
     <tt>*<var>absoluteURL</var></tt></b><br>
 Navigates to the first song with the above URL in the current playlist
@@ -145,38 +151,40 @@ resolved within the context of the current playlist also if the nested
 playlist where it is effectively found resides in a different folder. </li>
   <li> <b><tt>*<var>relativeURL</var>[<var>index</var>]</tt> or<br>
     <tt>*<var>absoluteURL</var>[<var>index</var>]</tt></b><br>
-Navigates to the <var><tt>index</tt></var><sup>th</sup> song with the
+Navigates to the <var><tt>index</tt></var><small><sup>th</sup></small>
+song with the
 above URL
 in the
 current playlist or any of the nested playlists. </li>
   <li><b><tt>*<var>relativeURL</var>[-<var>index</var>]</tt> or<br>
     <tt>*<var>absoluteURL</var>[-<var>index</var>]</tt></b><br>
-Navigates to the <var><tt>index</tt></var><sup>th</sup> song from the
+Navigates to the <var><tt>index</tt></var><small><sup>th</sup></small>
+song from the
 back with
 the above
 URL in the current playlist or any of the nested playlists. </li>
-  <li><b><tt>*[<var>index</var>]</tt></b><br>
-Navigates to the <var><tt>index</tt></var><sup>th</sup> song within
+  <li><b><tt>*[<var>index</var>]</tt> or </b><b><tt>*[-<var>index</var>]</tt></b><br>
+Navigates to the <var><tt>index</tt></var><small><sup>th</sup></small>
+song within
 the current
 playlist and
-it's sublists. </li>
-  <li><b><tt>*[-<var>index</var>]</tt></b><br>
-Navigates to the <var><tt>index</tt></var><sup>th</sup> song from the
-back within
-the
-current playlist
-and
-it's
-sublists.</li>
+it's sublists. Negative numbers count from the back.</li>
+  <li><b><tt>*?song[<var>ind</var></tt><tt><var>ex</var>]</tt> or<br>
+    <tt>*?song[-<var>index</var>]</tt></b><b> or<br>
+    <tt>*?list[<var>index</var>]</tt></b><b> or<br>
+    <tt>*?list[-<var>index</var>]</tt></b><br>
+Same as <tt>*[<var>index</var>]</tt> but count only songs or playlists
+respectively.</li>
   <li><b><tt>**</tt>...</b><br>
 Placing <em>two</em> asterisks in front of an URL and/or index
 specification will also cause flat navigation, but it always counts
-from the current root. I.e. navigate to the 3<sup>rd</sup> song from
+from the current root. I.e. navigate to the 3<small><sup>rd</sup></small>
+song from
 the current location in a nested playlist that only has 2 songs left,
-will continue in the root playlist.<br>
+will continue in the root playlist. Note that <tt>**?song[1]</tt> and <tt>**?song[-1]</tt>
+is the function of the previous/next button of PM123.<br>
 While this feature finally breaks with the idea of a call stack it is
-quite useful for user navigation within nested playlist structures.<br>
-  </li>
+quite useful for user navigation within nested playlist structures. </li>
   <li><b><tt>..</tt></b><br>
 Navigate one level up. This makes only sense if we are currently not at
 the top level.</li>
