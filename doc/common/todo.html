@@ -9,7 +9,7 @@
 .open {
   background-color: #ffcccc;
 }
-.test {
+.work {
   background-color: #ffffcc;
 }
 .fixed {
@@ -18,9 +18,11 @@
 .cancel {
   background-color: #cccccc;
 }
+.test {
+  background-color: #ccffff;
+}
 
   </style>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Known Problems &amp; Todo list</h2>
@@ -126,9 +128,8 @@ slider jumps to zero for the time of the initialization.</td>
       <td>PM123 1.32 also support Unicode playlist files. This
 has to be ported.</td>
     </tr>
-    <tr class="open test">
-      <td width="15%">14 minor todo, in work<br>
-      </td>
+    <tr class="work">
+      <td width="15%">14 minor todo, in work </td>
       <td>Feature: continue playing when loading an enclosing
 playlist.</td>
       <td>If the currently playing item is part of the actually
@@ -151,9 +152,8 @@ equivalent.</td>
       <td>When saving Ogg vorbis comments all tags that PM123
 does not know are deleted silently.</td>
     </tr>
-    <tr class="open cancel">
-      <td width="15%">17 minor todo, won't fix<br>
-      </td>
+    <tr class="cancel">
+      <td width="15%">17 minor todo, won't fix </td>
       <td>Write ID3 tags and Vorbis comments always in place to
 preserve additional file properties.</td>
       <td>Currently PM123 creates a copy of the file and then
@@ -163,7 +163,7 @@ like access rights on a remote host
 or hard links to the file. There should be an in-place option to work
 around this.</td>
     </tr>
-    <tr class="test">
+    <tr class="work">
       <td width="15%"><em>18 medium todo, in work</em></td>
       <td>The command line interface and the remote interface
 needs to be reworked and tested.</td>
@@ -185,8 +185,8 @@ is annoying to do this again and again.</td>
 libvorbis can change vorbis comments in place. ogg123 should use this
 to avoid unnecessary file replacements. This may supersede #17.</td>
     </tr>
-    <tr class="open">
-      <td width="15%"><em>21 medium bug, open</em></td>
+    <tr class="fixed">
+      <td width="15%"><em>21 medium bug, gone</em></td>
       <td>Dropping a folder to PM123 program object does not work.</td>
       <td>When invoking PM123 with a folder as command line
 argument
@@ -234,16 +234,14 @@ object is opened for write access. </td>
       <td valign="top">The priority handling seems to be somehow
 broken. </td>
     </tr>
-    <tr class="open fixed">
-      <td valign="top" width="15%">28 medium bug, fixed<br>
-      </td>
+    <tr class="fixed">
+      <td valign="top" width="15%">28 medium bug, fixed </td>
       <td valign="top">RealEQ sadly fails on mono files. </td>
       <td valign="top">The RealEQ output is highly distorted if the
 playback stream has only one channel. </td>
     </tr>
-    <tr class="open fixed">
-      <td valign="top"><em>29 medium bug, fixed<br>
-      </em></td>
+    <tr class="fixed">
+      <td valign="top"><em>29 medium bug, fixed </em></td>
       <td valign="top">Drag &amp; drop looses playlist item properties.</td>
       <td valign="top">Drag &amp; drop currently only passes the URL of
 the dragged item. Properties like slices and alias names are lost.</td>

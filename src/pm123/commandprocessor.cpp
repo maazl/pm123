@@ -1421,8 +1421,8 @@ static const strmap<12,int> windowmap[] =
   { "metainfo",   GUI::DLT_METAINFO },
   { "playlist",   GUI::DLT_PLAYLIST },
   { "properties", -1                },
-  { "techinfo",   GUI::DLT_TECHINFO },
   { "tagedit",    GUI::DLT_INFOEDIT },
+  { "techinfo",   GUI::DLT_TECHINFO },
   { "tree",       GUI::DLT_PLAYLISTTREE }
 };
 
@@ -1475,6 +1475,7 @@ void CommandProcessor::XIsVisible()
 
 void CommandProcessor::XQuit()
 { GUI::Quit();
+  Reply.append('1');
 }
 
 void CommandProcessor::XSkin()

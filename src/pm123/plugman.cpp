@@ -441,7 +441,9 @@ PROXYFUNCIMP(void DLLENTRY, Module) PluginDisplayMessage(MESSAGE_TYPE type, cons
 
 
 int_ptr<Module> Module::FindByKey(const char* name)
-{ return ModuleImp::Repository::FindByKey(*sfnameext2(name));
+{ if (!name)
+    return int_ptr<Module>();
+  return ModuleImp::Repository::FindByKey(*sfnameext2(name));
 }
 
 int_ptr<Module> Module::GetByKey(const char* name)

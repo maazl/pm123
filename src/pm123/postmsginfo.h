@@ -62,8 +62,7 @@ class AutoPostMsgWorker : private PostMsgWorker
   ~AutoPostMsgWorker() {}
  public:
   static  void    Start(APlayable& ap, InfoFlags what, Priority pri,
-                        HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
-                  { (new AutoPostMsgWorker())->PostMsgWorker::Start(ap, what, pri, target, msg, mp1, mp2); }
+                        HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
  private:
   virtual void    OnCompleted();
 };

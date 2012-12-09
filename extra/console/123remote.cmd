@@ -37,5 +37,6 @@ Remote: PROCEDURE EXPOSE pipe
 
 Error: PROCEDURE
   CALL LINEOUT STDERR, ARG(2)
+  CALL STREAM pipe, 'c', 'close'
   EXIT ARG(1)
 

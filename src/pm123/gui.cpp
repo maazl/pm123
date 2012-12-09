@@ -319,7 +319,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       switch (type)
       {case DLT_INFOEDIT:
         if (action == DialogBase::DLA_SHOW)
-          PMRASSERT(WinPostMsg(HPlayer, WMP_EDIT_META, MPFROMP(pp.toCptr()), 0));
+          AutoPostMsgWorker::Start(*(Playable*)mp1, IF_Decoder|IF_Meta, PRI_Normal, HPlayer, WMP_EDIT_META, MPFROMP(pp.toCptr()), 0);
         break;
        case DLT_METAINFO:
         return MRFROMLONG(ShowHideInfoDlg(*pp, AInfoDialog::Page_MetaInfo, action));
@@ -340,7 +340,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       ULONG rc;
       try
       { int_ptr<Decoder> dp = Decoder::GetDecoder(xstring(pp->GetInfo().tech->decoder));
-        rc = dp->EditMeta(HFrame, pp->URL);
+        if (!dp)
+          rc = 400;
+        else
+          rc = dp->EditMeta(HFrame, pp->URL);
       } catch (const ModuleException& ex)
       { amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", ex.GetErrorText().cdata());
         break;

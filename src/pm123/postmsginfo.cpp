@@ -59,6 +59,14 @@ void PostMsgWorker::OnCompleted()
 }
 
 
+void AutoPostMsgWorker::Start(APlayable& ap, InfoFlags what, Priority pri,
+  HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ if (!ap.RequestInfo(what, pri))
+    WinPostMsg(target, msg, mp1, mp2);
+  else
+    (new AutoPostMsgWorker())->PostMsgWorker::Start(ap, what, pri, target, msg, mp1, mp2);
+}
+
 void AutoPostMsgWorker::OnCompleted()
 { PostMsgWorker::OnCompleted();
   delete this;
