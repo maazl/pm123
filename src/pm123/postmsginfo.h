@@ -56,11 +56,23 @@ class PostMsgWorker
   virtual void    OnCompleted();
 };
 
+/// Helper class to send a window message when some information becomes available.
 class AutoPostMsgWorker : private PostMsgWorker
 {private:
   AutoPostMsgWorker() {}
   ~AutoPostMsgWorker() {}
  public:
+  /// Send a window message as soon an some information is available.
+  /// @param ap APlayable object to query.
+  /// @param what What kind of information is required to process the message.
+  /// If \a what is zero the message is sent immediately.
+  /// @param pri Priority of the information request. (Parameter to \c RequestInfo)
+  /// @remarks The function allocates a observer object that dispatches the message
+  /// as soon as the information is complete and destroys itself afterwards.
+  /// If the information is immediately available the message is sent immediately
+  /// without any allocation.
+  /// \par Whatever happens, the window message is always sent exactly once
+  /// if the information arrives before the application terminates.
   static  void    Start(APlayable& ap, InfoFlags what, Priority pri,
                         HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
  private:

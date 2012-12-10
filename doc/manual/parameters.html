@@ -24,10 +24,9 @@ applies to <tt>-cmd</tt> as well
 as to GUI starts. Note that OS/2 pipe names must start with <tt>\\PIPE\</tt>.
 Example: <samp>-pipe \\PIPE\MYPIPENAME</samp></dd>
   <dt><tt>-start</tt></dt>
-  <dd>Start PM123 if not yet running. This implicitely checks whether
+  <dd>Start PM123 if not yet running. This implicitly checks whether
 the pipe name is already used and if not PM123 keeps running. Otherwise
-the just started instance terminates immediately.<br>
-  </dd>
+the just started instance terminates immediately. </dd>
   <dt><tt>-nogui</tt></dt>
   <dd>Do not show the PM123 window by default. User interface windows
 might still be shown by the remote interface. </dd>
@@ -52,7 +51,7 @@ and <tt><var>XX</var></tt> is a CD track number. The effect is similar
 to dropping multiple files on PM123.</p>
 <p><strong>You must not start PM123 from a batch file with an explicit
 path.</strong> The current working directory must be the executables
-path.
+path. Otherwise PM123 will not find its DLLs.
 </p>
 <h3>Notes</h3>
 <ol>
