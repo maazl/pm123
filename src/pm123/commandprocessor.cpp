@@ -601,7 +601,7 @@ void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
 { cmd = Ctrl::SendCommand(cmd);
   Reply.appendd(cmd->Flags);
   if (cmd->StrArg)
-    MessageHandler(this, MSG_ERROR, cmd->StrArg);
+    MessageHandler(this, cmd->Flags ? MSG_ERROR : MSG_INFO, cmd->StrArg);
   cmd->Destroy();
 }
 
@@ -651,8 +651,12 @@ void CommandProcessor::XLoad()
 }
 
 void CommandProcessor::XPlay()
-{ LoadHelper lh(LoadHelper::LoadPlay);
-  Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+{ if (!*Request)
+    SendCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Set));
+  else
+  { LoadHelper lh(LoadHelper::LoadPlay);
+    Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
+  }
 }
 
 void CommandProcessor::XEnqueue()

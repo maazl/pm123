@@ -72,7 +72,7 @@ class AutoPostMsgWorker : private PostMsgWorker
   /// If the information is immediately available the message is sent immediately
   /// without any allocation.
   /// \par Whatever happens, the window message is always sent exactly once
-  /// if the information arrives before the application terminates.
+  /// unless the application terminates before the information arrives.
   static  void    Start(APlayable& ap, InfoFlags what, Priority pri,
                         HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
  private:
