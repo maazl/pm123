@@ -183,7 +183,7 @@ int main(int argc, char** argv)
           amp_fail("The -cmd option could not be used after an URL: %s", files[0]);
         files.append() = fetcharg(argv, "cmd");
         while(*++argv)
-          files.append() = arg;
+          files.append() = *argv;
         command = true;
         break;
       } else if (stricmp(arg, "smooth") == 0)
