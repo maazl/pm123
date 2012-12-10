@@ -529,8 +529,9 @@ FLAC__StreamDecoderWriteStatus ThreadDecoder::WriteCB(const FLAC__StreamDecoder 
 void ThreadDecoder::MetadataCB(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
 { DEBUGLOG(("ThreadDecoder(%p)::MetadataCB(%p, %p{%u})\n", client_data, decoder, metadata, metadata->type));
   #define this ((ThreadDecoder*)client_data)
-  if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO)
-  { this->Format.channels = metadata->data.stream_info.channels;
+  switch (metadata->type)
+  {case FLAC__METADATA_TYPE_STREAMINFO:
+    this->Format.channels = metadata->data.stream_info.channels;
     this->Format.samplerate = metadata->data.stream_info.sample_rate;
   }
   #undef this
