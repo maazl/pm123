@@ -10,7 +10,6 @@
 <h3>PM123 1.41 (alpha 1)</h3>
 <ul>
   <li>Added <em>playlist plug-in</em> support.</li>
-  <li>Added <em>Pulseaudio</em> client support, playback and recording.</li>
   <li>Switched PM123 engine to 32 bits per sample.</li>
   <li>Significant speed up when invoking large playlists with many http
 URLs as long as you use no old decoder plug-ins.</li>
@@ -26,6 +25,7 @@ footprint of song and playlist objects in PM123.</li>
 from unresponsive UI.</li>
   <li>Reasonable resizing of most dialogs.</li>
   <li>Fixed dealing with playlist slices.</li>
+  <li>Added several dozens of new test cases.</li>
   <li>Changed plug-in API to use strongly typed user parameters.
 (binary compatible)</li>
 </ul>
@@ -37,14 +37,41 @@ from unresponsive UI.</li>
   <li><em>Gap-less playback</em> support for MP3.</li>
 </ul>
 <blockquote>
-  <h4>os2audio</h4>
+  <h4>FLAC123</h4>
+</blockquote>
+<ul>
+  <li>FLAC decoder is now shipped by default. This decoder supersedes
+FLACPLAY.DLL.</li>
+</ul>
+<blockquote>
+  <h4>PLIST123</h4>
+</blockquote>
+<ul>
+  <li>Moved playlist read/write to a separate plug-in.</li>
+  <li>Added support for CUE sheets.</li>
+</ul>
+<blockquote>
+  <h4>FOLDR123</h4>
+</blockquote>
+<ul>
+  <li>Moved support for virtual folder playlists to a separate plug-in.</li>
+</ul>
+<blockquote>
+  <h4>PULSE123</h4>
+</blockquote>
+<ul>
+  <li>Added <em>PulseAudio</em> client support, playback and recording.</li>
+  <li>Support configuration by introspection API.</li>
+</ul>
+<blockquote>
+  <h4>OS2AUDIO</h4>
 </blockquote>
 <ul>
   <li>Moved replay gain processing to PM123 core.</li>
   <li>Moved logarithmic volume control to os2audio.</li>
 </ul>
 <blockquote>
-  <h4>wavplay</h4>
+  <h4>WAVPLAY</h4>
 </blockquote>
 <ul>
   <li>Upgrade to libsndfile 1.0.23.</li>
