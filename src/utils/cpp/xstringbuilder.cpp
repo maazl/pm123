@@ -182,12 +182,13 @@ void xstringbuilder::appendf(const char* fmt, ...)
 }
 void xstringbuilder::vappendf(const char* fmt, va_list va)
 { const size_t len = vsnprintf(Data + Len, Cap ? Cap - Len + 1 : 0, fmt, va);
-  Len += len;
-  if (Len <= Cap)
-    return;
-  // reallocation required
-  auto_alloc(Len);
-  vsnprintf(Data + Len - len, len + 1, fmt, va);
+  const size_t newlen = Len + len;
+  if (newlen > Cap)
+  { // reallocation required
+    auto_alloc(newlen);
+    vsnprintf(Data + Len, len + 1, fmt, va);
+  }
+  Len = newlen;
 }
 
 void xstringbuilder::insert(size_t at, char c)
