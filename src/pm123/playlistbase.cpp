@@ -153,7 +153,7 @@ void PlaylistBase::InitIcons()
 
 
 PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
-: ManagedDialog<DialogBase>(rid, NULLHANDLE)
+: ManagedDialog<DialogBase>(rid, NULLHANDLE, DF_AutoResize)
 , Content(&content)
 , HwndContainer(NULLHANDLE)
 , NoRefresh(false)
