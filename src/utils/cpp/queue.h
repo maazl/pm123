@@ -164,10 +164,7 @@ class priority_queue_base
   /// Read the next item with at least \a *priority (numerically less or same).
   /// @param priority Input: priority level to read.
   ///                 Output: priority level of the returned message (less or same than on input).
-  qentry*      Read(size_t* priority);
-  /// Read the next item with at least \a priority (numerically less or same).
-  /// The function blocks until an item is available.
-  qentry*      Read(size_t priority)  { return Read(&priority); }
+  qentry*      Read(size_t& priority);
   /// Append a queue item at priority level \a priority.
   void         Write(qentry* entry, size_t priority);
   /// Prepend a queue item at priority level \a priority.
@@ -194,10 +191,8 @@ class priority_queue : public priority_queue_base
  public:
                priority_queue(size_t priorities) : priority_queue_base(priorities) {}
                ~priority_queue()      { Purge(); }
-  /// Read the next item.
-  T*           Read(size_t priority)  { return (T*)priority_queue_base::Read(priority); }
   /// Read the next item and return the priority of the read item.
-  T*           Read(size_t* priority) { return (T*)priority_queue_base::Read(priority); }
+  T*           Read(size_t& priority) { return (T*)priority_queue_base::Read(priority); }
   /// Post an element to the Queue
   void         Write(T* entry, size_t priority) { priority_queue_base::Write(entry, priority); }
   /// Puts back an element into the queue.

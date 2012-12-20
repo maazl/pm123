@@ -52,11 +52,10 @@ void priority_queue_base::Dump() const
     cp += sprintf(cp, ", %p(%u)", PriEntries[i].Tail, PriEntries[i].EvEmpty.IsSet());
   DEBUGLOG(("priority_queue_base::Dump Head, Tail: %s\n", buf));
   cp = buf;
-  cp += sprintf(cp, "%p", Head);
   const qentry* qp = Head;
-  while (qp)
-  { qp = qp->Next;
-    cp += snprintf(cp, buf + sizeof(buf) - cp, ", %p", qp);
+  while (qp && cp < buf + sizeof(buf) - 3)
+  { cp += snprintf(cp, buf + sizeof(buf) - cp, cp != buf ? ", %p" : "%p", qp);
+    qp = qp->Next;
   }
   DEBUGLOG(("priority_queue_base::Dump Content: %s\n", buf));
 }
@@ -99,32 +98,32 @@ void priority_queue_base::Check() const
 #undef qASSERT
 #endif
 
-qentry* priority_queue_base::Read(size_t* priority)
-{ DEBUGLOG(("priority_queue_base(%p)::Read(*%u)\n", this, *priority));
-  ASSERT(*priority < Priorities);
-  PriEntry* pe = PriEntries + *priority;
+qentry* priority_queue_base::Read(size_t& priority)
+{ DEBUGLOG(("priority_queue_base(%p)::Read(&%u)\n", this, priority));
+  ASSERT(priority < Priorities);
+  PriEntry* pe = PriEntries + priority;
   for(;;)
   { pe->EvEmpty.Wait();
     Mutex::Lock lock(Mtx);
-    //Dump();
+    Dump();
     if (pe->Tail) // The event is not reliable.
     { qentry* entry = Head;
       // Detect real priority level
       pe = PriEntries;
       while (pe->Tail == NULL)
         ++pe;
-      *priority = pe - PriEntries;
+      priority = pe - PriEntries;
       // Update Head
-      qentry* next = entry->Next;
-      Head = next;
+      Head = entry->Next;
       // Update Tail pointers
       if (pe->Tail == entry)
       { PriEntry* const pee = PriEntries + Priorities;
         do
-        { pe->Tail = next;
+        { pe->Tail = NULL;
         } while (++pe != pee && pe->Tail == entry);
       }
-      DEBUGLOG(("priority_queue_base::Read(*%u): %p\n", *priority, entry));
+      DEBUGLOG(("priority_queue_base::Read(*%u): %p\n", priority, entry));
+      Dump();
       Check();
       return entry;
     }
@@ -151,6 +150,7 @@ void priority_queue_base::Write(qentry* entry, size_t priority)
   { pe->Tail = entry;
     pe->EvEmpty.Set();
   } while (++pe != PriEntries + Priorities && pe->Tail == tp);
+  Dump();
   Check();
 }
 
@@ -177,6 +177,7 @@ void priority_queue_base::WriteFront(qentry* entry, size_t priority)
     pe->Tail = entry;
     pe->EvEmpty.Set();
   } while (++pe != PriEntries + Priorities);
+  Dump();
   Check();
 }
 

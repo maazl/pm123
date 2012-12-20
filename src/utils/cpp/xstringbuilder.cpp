@@ -181,7 +181,7 @@ void xstringbuilder::appendf(const char* fmt, ...)
   va_end(va);
 }
 void xstringbuilder::vappendf(const char* fmt, va_list va)
-{ const size_t len = vsnprintf(Data + Len, Cap - Len + 1, fmt, va);
+{ const size_t len = vsnprintf(Data + Len, Cap ? Cap - Len + 1 : 0, fmt, va);
   Len += len;
   if (Len <= Cap)
     return;
