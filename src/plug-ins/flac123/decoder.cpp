@@ -405,13 +405,11 @@ void ThreadDecoder::DecoderThread()
       bool more = FLAC__stream_decoder_process_single(Decoder);
       if (Terminate)
         goto end;
-      if (!more)
-        goto fail;
       // The return value of FLAC__stream_decoder_process_single is not reliable, so check stream state always.
-      switch (FLAC__stream_decoder_get_state(Decoder))
+      FLAC__StreamDecoderState state = FLAC__stream_decoder_get_state(Decoder);
+      switch (state)
       {default:
-       fail:
-        DEBUGLOG(("ThreadDecoder::DecoderThread fail: %s\n", FLAC__stream_decoder_get_resolved_state_string(Decoder)));
+        DEBUGLOG(("ThreadDecoder::DecoderThread fail: %i\n", state));
         { xstring errortext;
           errortext.sprintf("Unable to decode %s\nState %s", URL.cdata(), FLAC__stream_decoder_get_resolved_state_string(Decoder));
           (*DecEvent)(A, DECEVENT_PLAYERROR, (void*)errortext.cdata());
@@ -423,10 +421,12 @@ void ThreadDecoder::DecoderThread()
         goto end;
        case FLAC__STREAM_DECODER_END_OF_STREAM:
         goto eos;
-       case FLAC__STREAM_DECODER_SEARCH_FOR_METADATA:
        case FLAC__STREAM_DECODER_READ_METADATA:
-       case FLAC__STREAM_DECODER_SEARCH_FOR_FRAME_SYNC:
-       case FLAC__STREAM_DECODER_READ_FRAME:;
+       case FLAC__STREAM_DECODER_READ_FRAME:
+        if (!more)
+          goto eos;
+       case FLAC__STREAM_DECODER_SEARCH_FOR_METADATA:
+       case FLAC__STREAM_DECODER_SEARCH_FOR_FRAME_SYNC:;
       }
 
       if (Terminate)
@@ -533,6 +533,7 @@ void ThreadDecoder::MetadataCB(const FLAC__StreamDecoder *decoder, const FLAC__S
   {case FLAC__METADATA_TYPE_STREAMINFO:
     this->Format.channels = metadata->data.stream_info.channels;
     this->Format.samplerate = metadata->data.stream_info.sample_rate;
+   default:;
   }
   #undef this
 }
