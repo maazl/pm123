@@ -86,7 +86,7 @@ InfoFlags InfoState::Cache(InfoFlags what)
 
 InfoFlags InfoState::Request(InfoFlags what, Priority pri)
 { ASSERT(pri != PRI_None);
-  if (pri == PRI_Low)
+  if (pri & PRI_Low)
     // This is not fully atomic because a high priority request may be placed
     // after the mask is applied to what. But this has the only consequence that
     // an unnecessary request is placed in the worker queue. This request causes a no-op.

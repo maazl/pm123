@@ -266,7 +266,7 @@ inline void InfoState::PeekRequest(RequestState& req) const
 
 inline InfoFlags InfoState::GetRequest(Priority pri) const
 { DEBUGLOG(("InfoState(%p)::GetRequest(%u) - %x,%x\n", this, pri, +ReqLow, +ReqHigh));
-  return (InfoFlags)(pri == PRI_Low ? ReqLow|ReqHigh : +ReqHigh);
+  return (InfoFlags)(pri & PRI_Low ? ReqLow|ReqHigh : +ReqHigh);
 }
 
 /*inline void InfoState::ResetAsync(Priority pri)

@@ -128,12 +128,12 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 
 volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   const PlayableSetBase& exclude, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("APlayable(%p{%s})::RequestAggregateInfo({%u,}, %x, %d, %d)\n", this, DebugName().cdata(),
-    exclude.size(), what, pri, rel));
+{ DEBUGLOG(("APlayable(%p{%s})::RequestAggregateInfo({%s}, %x, %d, %d)\n", this, DebugName().cdata(),
+    exclude.DebugDump(), what, pri, rel));
   AggregateInfo& ai = DoAILookup(exclude);
   InfoFlags rq = what;
   InfoFlags async = DoRequestAI(ai, rq, pri, rel);
-  DEBUGLOG(("APlayable::RequestAggregateInfo ai = &%p{%s,}, rq = %x, async = %x\n",
+  DEBUGLOG(("APlayable::RequestAggregateInfo ai = &%p{%s}, rq = %x, async = %x\n",
     &ai, ai.Exclude.DebugDump(), rq, async));
   ASSERT(async == IF_None || pri);
   #ifdef DEBUG
@@ -183,8 +183,8 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
 }
 
 InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
-{ DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%u,}, %x, {%u,}, %p, %p, %i)\n", this, DebugName().cdata(),
-    exclude.size(), what, job.Pri, start, stop, level));
+{ DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%s}, %x, {%u,}, %p, %p, %i)\n", this, DebugName().cdata(),
+    exclude.DebugDump(), what, job.Pri, start, stop, level));
   InfoFlags whatnotok = IF_None;
 
  recurse:
@@ -323,8 +323,8 @@ RescheduleWorker::RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Pri
 : DependencyInfoWorker()
 , Inst(&inst)
 , Pri(pri)
-{ DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p, %u)\n", this,
-    &data, data.DebugDump().cdata(), &inst, pri));
+{ DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p{%s}, %u)\n", this,
+    &data, data.DebugDump().cdata(), &inst, inst.DebugName().cdata(), pri));
   Data.Swap(data);
   { Mutex::Lock lock(Mtx);
     Instances.get(*this) = this;
@@ -366,7 +366,7 @@ void APlayable::ScheduleRequest(Priority pri)
 void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%u)\n", this, DebugName().cdata(), pri));
   JobSet job(pri & ~PRI_Sync); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
-  if (pri == PRI_Low)
+  if (pri & PRI_Low)
     AsyncRequest = 0;
   else
     AsyncRequest.bitrst(0);
@@ -378,10 +378,10 @@ void APlayable::HandleRequest(Priority pri)
 }
 
 void APlayable::PlayableWorker(WInit& init)
-{ const size_t pri = init.Pri <= PRI_Low;
-  // Do the work!
+{ // Do the work!
   for (;;)
   { DEBUGLOG(("PlayableWorker(%u) looking for work\n", init.Pri));
+    size_t pri = (init.Pri & PRI_Low) != 0;
     QEntry* qp = WQueue.Read(pri);
     DEBUGLOG(("PlayableWorker received message %p %p\n", qp, qp->Data.get()));
 
@@ -392,7 +392,7 @@ void APlayable::PlayableWorker(WInit& init)
     }
 
     init.Current = qp->Data;
-    qp->Data->HandleRequest(init.Pri);
+    qp->Data->HandleRequest(pri ? PRI_Low : PRI_Normal);
     delete qp;
     init.Current.reset();
   }
@@ -435,7 +435,7 @@ void APlayable::Init()
   WNumDlgWorkers = Cfg::Get().num_dlg_workers; // sample this atomically
   WItems = new WInit[WNumWorkers+WNumDlgWorkers];
   for (WInit* wp = WItems + WNumWorkers+WNumDlgWorkers; wp-- != WItems; )
-  { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Low : PRI_Normal;
+  { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Normal : PRI_Low;
     wp->TID = _beginthread(&PlayableWorkerStub, NULL, 65536, wp);
     ASSERT(wp->TID != -1);
   }

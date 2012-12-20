@@ -161,6 +161,9 @@ class DependencyInfoWorker
   /// @brief List of delegates for optional dependencies.
   /// @details This list is non-null if and only if we are waiting for optional dependencies.
   vector_own<DelegType>     DelegList;
+  #ifdef DEBUG
+  APlayable*                NowWaitingOn;
+  #endif
 
  private: // non-copyable
   DependencyInfoWorker(const DependencyInfoWorker&);

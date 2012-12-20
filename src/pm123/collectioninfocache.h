@@ -52,21 +52,7 @@ struct CollectionInfo
 };
 
 
-/** @brief Class to support any playable object.
- *
- * This class instances are unique for each URL.
- * Comparing two pointers for equality is equivalent to comparing the URL for equality.
- *
- * All instances of this class are owned by the class itself and must not be deleted.
- * You should only hold instances in the smart pointer \c int_ptr<Playable>. Otherwise
- * the referred object may be deleted in background. But it is allowed to call
- * a function with parameter \c Playable* (e.g. member functions) while you have an active
- * instance of \c int_ptr<Playable> unless the function keeps a local copy of the pointer
- * after it returns. It is also allowed to pass the result of a function returning
- * \c int_ptr<Playable> directly to a function taking \c Playable* with the same restriction
- * because temporary objects are always kept until the next statement.
- * If a function that receives \c Playable* wants to keep the reference after returning
- * it must create a \c int_ptr<Playable> object. This will work as expected.
+/** @brief Set of \c CollectionInfo ordered by the exclusion list.
  */
 class CollectionInfoCache
 {protected:

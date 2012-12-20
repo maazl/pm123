@@ -114,7 +114,7 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
 
 #ifdef DEBUG_LOG
 // dirty hack: static buffer.
-static char DebugDumpBuffer[32][32];
+static char DebugDumpBuffer[32][128];
 
 const char* PlayableSetBase::DebugDump() const
 { TIB* tip;
@@ -125,7 +125,7 @@ const char* PlayableSetBase::DebugDump() const
   for (size_t i = 0; i < size(); ++i)
   { if (i)
       buf[pos++] = ',';
-    pos += snprintf(buf+pos, 32-pos, "%p", (*this)[i]);
+    pos += snprintf(buf+pos, sizeof(*DebugDumpBuffer)-pos, "%p", (*this)[i]);
     if (pos >= 30)
       break;
   }

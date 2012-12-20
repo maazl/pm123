@@ -70,6 +70,7 @@ struct PlayableChangeArgs
   PlayableChangeArgs(APlayable& inst, InfoFlags loaded, InfoFlags changed)
                                                   : Instance(inst), Origin(&inst), Loaded(loaded), Changed(changed), Invalidated(IF_None) {}
   PlayableChangeArgs(APlayable& inst)             : Instance(inst), Origin(&inst), Loaded(IF_None), Changed(IF_None), Invalidated(IF_None) {}
+  PlayableChangeArgs(APlayable& inst, const PlayableChangeArgs& r) : Instance(inst), Origin(r.Origin), Loaded(r.Loaded), Changed(r.Changed), Invalidated(r.Invalidated) {}
   bool                        IsInitial() const   { return (Changed|Loaded|Invalidated) == IF_None; }
   void                        Reset()             { Changed = IF_None; Loaded = IF_None; Invalidated = IF_None; }
   void                        Purge(InfoFlags what) { Loaded &= ~what; Changed &= ~what; Invalidated &= ~what; }
@@ -214,7 +215,7 @@ class APlayable
   /// i.e. that have been valid before.
   /// @remarks It might look that you get not the desired result if some consumer has registered
   /// to the invalidate event and requests the information as soon as it has been invalidated.
-  virtual InfoFlags           Invalidate(InfoFlags what) = 0;
+  virtual InfoFlags           Invalidate(InfoFlags what, const Playable* source = NULL) = 0;
 
   /// Return the overridden information.
   virtual InfoFlags           GetOverridden() const = 0;
@@ -312,10 +313,10 @@ class APlayable
   };
  private:
   static  priority_queue<APlayable::QEntry> WQueue;
-  static  size_t              WNumWorkers;  // number of workers in the above list
-  static  size_t              WNumDlgWorkers;// number of workers in the above list
-  static  WInit*              WItems;       // List of workers
-  static  bool                WTermRq;      // Termination Request to Worker
+  static  size_t              WNumWorkers;  ///< number of low priority workers in the above list (must not be zero)
+  static  size_t              WNumDlgWorkers;///< number of high priority workers in the above list
+  static  WInit*              WItems;       ///< List of workers
+  static  bool                WTermRq;      ///< Termination Request to Worker
  private:
           void                ScheduleRequest(Priority pri);
           void                HandleRequest(Priority pri);

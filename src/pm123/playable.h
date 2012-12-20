@@ -131,9 +131,9 @@ class Playable
     void                    Detach()         { DEBUGLOG(("Playable::Entry(%p)::Detach()\n", this)); InstDelegate.detach(); Parent = NULL; Index = 0; }
     /// Update Index in Collection
     #ifdef DEBUG_LOG
-    void                    SetIndex(int index) { Index = index; }
-    #else
     void                    SetIndex(int index) { Index = index; InvalidateDebugName(); }
+    #else
+    void                    SetIndex(int index) { Index = index; }
     #endif
   };
 
@@ -250,11 +250,14 @@ class Playable
 
   /// Invalidate some infos, but do not reload unless this is required.
   /// @param what The kind of information that is to be invalidated.
+  /// @param source playable object that caused the invalidation.
+  /// This is only significant when \a what contains \c IF_Aggreg.
+  /// If \a source is \c NULL, all \c CollectionInfoCache entries are invalidated.
   /// @return Return the bits in what that really caused an information to be invalidated,
   /// i.e. that have been valid before.
   /// @remarks It might look that you get not the desired result if some consumer has registered
   /// to the invalidate event and requests the information as soon as it has been invalidated.
-  virtual InfoFlags         Invalidate(InfoFlags what);
+  virtual InfoFlags         Invalidate(InfoFlags what, const Playable* source = NULL);
 
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void              PeekRequest(RequestState& req) const;

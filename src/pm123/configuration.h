@@ -144,7 +144,7 @@ struct amp_cfg
   int      pri_high;           ///< High decoder priority
   int      pri_limit;          ///< Maximum high priority seconds
 
-  int      num_workers;        ///< Number of worker threads for Playable objects
+  int      num_workers;        ///< Number of general purpose worker threads for Playable objects (non zero)
   int      num_dlg_workers;    ///< Number of dialog (high priority) worker threads for Playable objects
 
   int      font;               ///< Use font 1 or font 2.

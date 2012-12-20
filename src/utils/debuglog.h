@@ -71,7 +71,7 @@ long getTID();
 
 /* Assertions
 */
-#if defined(DEBUG) || defined(DEBUG_LOG)
+#if defined(DEBUG)
   /** Raise assertion
    * @param file Code file, usually \c __FILE__
    * @param line Line number in code file, usually \c __LINE__

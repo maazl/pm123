@@ -128,7 +128,7 @@ class PlayableSlice : public APlayable
   /// i.e. that have been valid before.
   /// @remarks It might look that you get not the desired result if some consumer has registered
   /// to the invalidate event and requests the information as soon as it has been invalidated.
-  virtual InfoFlags         Invalidate(InfoFlags what);
+  virtual InfoFlags         Invalidate(InfoFlags what, const Playable* source = NULL);
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void              PeekRequest(RequestState& req) const;
 

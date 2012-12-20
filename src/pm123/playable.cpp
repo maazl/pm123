@@ -183,15 +183,18 @@ InfoFlags Playable::GetOverridden() const
 { return IF_None;
 }
 
-InfoFlags Playable::Invalidate(InfoFlags what)
-{ what = Info.InfoStat.Invalidate(what);
-  // TODO: invalidate CIC also.
-  if (what)
+InfoFlags Playable::Invalidate(InfoFlags what, const Playable* source)
+{ DEBUGLOG(("Playable(%p)::Invalidate(%x, %p)\n", this, what, source));
+  InfoFlags inval = Info.InfoStat.Invalidate(what);
+  if ((what & IF_Aggreg) && Playlist)
+    // Invalidate CIC entries.
+    inval |= Playlist->Invalidate(what, source);
+  if (inval)
   { Mutex::Lock lock(Mtx);
-    CollectionChangeArgs args(*this, this, IF_None, IF_None, what);
+    CollectionChangeArgs args(*this, this, IF_None, IF_None, inval);
     RaiseInfoChange(args);
   }
-  return what;
+  return inval;
 }
 
 void Playable::PeekRequest(RequestState& req) const
@@ -706,20 +709,11 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
 void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
 { DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.DebugName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
-  /* TODO: InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
-    if (f)
-    { // Invalidate dependent info and reload if already known
-      InvalidateInfo(f, true);
-      // Invalidate CollectionInfoCache entries.
-      InvalidateCIC(f, args.Instance);
-    }
-  }
 
-    if (args.Flags & PlayableInstance::SF_Slice)
-      // Update dependent tech info, but only if already available
-      // Same as TechInfoChange => emulate another event
-      ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech, IF_Tech));
-  }*/
+  InfoFlags aggreg = (args.Changed|args.Invalidated) & IF_Aggreg;
+  if (aggreg)
+    Invalidate(aggreg, &args.Instance.GetPlayable());
+
   if ((args.Changed & (IF_Item|IF_Attr)) && args.Origin == &args.Instance) // Only if the change is originated from the child itself.
     SetModified(true, args.Origin);
 }

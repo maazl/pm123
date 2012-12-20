@@ -190,11 +190,11 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
   RaiseInfoChange(args);
 }
 
-InfoFlags PlayableSlice::Invalidate(InfoFlags what)
+InfoFlags PlayableSlice::Invalidate(InfoFlags what, const Playable* source)
 { InfoFlags ret = RefTo->Invalidate(what);
   if (CIC)
-    ret |= CIC->DefaultInfo.InfoStat.Invalidate(what);
-    // TODO: invalidate CIC entries also
+    ret |= CIC->DefaultInfo.InfoStat.Invalidate(what)
+         | CIC->Invalidate(what, source);
   if (ret)
     RaiseInfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
   return ret;
@@ -213,7 +213,7 @@ void PlayableSlice::PeekRequest(RequestState& req) const
 void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableSlice(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
-  PlayableChangeArgs args2(args);
+  PlayableChangeArgs args2(*this, args);
   if (args.Changed & (IF_Rpl|IF_Drpl))
   { if (CIC)
       args2.Invalidated |= CIC->Invalidate(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
@@ -297,9 +297,9 @@ InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priorit
     what2 = IF_Phys|IF_Tech|IF_Obj|IF_Child|IF_Slice; // required for DRPL_INFO aggregate
   else if (what & IF_Rpl)
     what2 = IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
-  DoRequestInfo(what2, pri, rel);
+  what2 = DoRequestInfo(what2, pri, rel);
 
-  return ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+  return ((CollectionInfo&)ai).RequestAI(what, pri, rel) | what2;
 }
 
 
@@ -534,7 +534,7 @@ void PlayableRef::AssignInstanceProperties(const PlayableRef& src)
 void PlayableRef::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableRef(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
-  PlayableChangeArgs args2(args);
+  PlayableChangeArgs args2(*this, args);
   if (Overridden & IF_Meta)
   { args2.Changed     &= ~IF_Meta;
     args2.Invalidated &= ~IF_Meta;
