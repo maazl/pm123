@@ -152,20 +152,20 @@ long getTID();
   #define PMEASSERT(expr) ((expr), pmassert(__FILE__, __LINE__, #expr))
 #else
   #define ASSERT(erpr)
-  #define RASSERT(expr) (expr)
-  #define XASSERT(expr, cond) (expr)
+  #define RASSERT(expr) (void)(expr)
+  #define XASSERT(expr, cond) (void)(expr)
   #define PASSERT(expr)
 
   #define CASSERT(expr)
-  #define CXASSERT(expr, cond) (expr)
+  #define CXASSERT(expr, cond) (void)(expr)
 
   #define OASSERT(expr)
-  #define ORASSERT(expr) (expr)
+  #define ORASSERT(expr) (void)(expr)
 
   #define PMASSERT(expr)
-  #define PMXASSERT(expr, cond) (expr)
-  #define PMRASSERT(expr) (expr)
-  #define PMEASSERT(expr) (expr)
+  #define PMXASSERT(expr, cond) (void)(expr)
+  #define PMRASSERT(expr) (void)(expr)
+  #define PMEASSERT(expr) (void)(expr)
 #endif
 
 #ifdef __cplusplus

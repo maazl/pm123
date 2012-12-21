@@ -10,13 +10,15 @@ PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
 PARTS   = $(PARTS) src\plug-ins\os2audio\os2audio.dll
-PARTS   = $(PARTS) src\plug-ins\foldr123\foldr123.dll
 PARTS   = $(PARTS) src\plug-ins\oggplay\oggplay.dll
+PARTS   = $(PARTS) src\plug-ins\flac123\flac123.dll
 PARTS   = $(PARTS) src\plug-ins\realeq\realeq.dll
 PARTS   = $(PARTS) src\plug-ins\wavplay\wavplay.dll
 PARTS   = $(PARTS) src\plug-ins\wavout\wavout.dll
 PARTS   = $(PARTS) src\plug-ins\os2rec\os2rec.dll
 PARTS   = $(PARTS) src\plug-ins\pulse123\pulse123.dll
+PARTS   = $(PARTS) src\plug-ins\foldr123\foldr123.dll
+PARTS   = $(PARTS) src\plug-ins\plist123\plist123.dll
 PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
@@ -72,6 +74,11 @@ src\vrb123\lib\libvorbis$(LBO): src\ogg123\src\libogg$(LBO)
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
+src\libflac\src\libFLAC\libFLAC$(LBO):
+	cd src\libflac\src\libFLAC
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..\..
+
 src\zlb123\zlb123.dll src\zlb123\zlb123$(LBI):
 	cd src\zlb123
 	@$(MAKE) $(MFLAGS)
@@ -117,11 +124,6 @@ src\plug-ins\os2audio\os2audio.dll: src\utils\utilfct$(LBO)
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\mpg123\foldr123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
-	cd src\plug-ins\foldr123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
-
 src\plug-ins\realeq\realeq.dll: src\utils\utilfct$(LBO) src\fft123\fft123$(LBI)
 	cd src\plug-ins\realeq
 	@$(MAKE) $(MFLAGS)
@@ -142,13 +144,28 @@ src\plug-ins\oggplay\oggplay.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
+src\plug-ins\flac123\flac123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\libflac\src\libFLAC\libFLAC$(LBO)
+	cd src\plug-ins\flac123
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
+
 src\plug-ins\os2rec\os2rec.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
 	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\os2rec\pulse123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\pulseaudio\pulsecore\pulsecore$(LBO) src\pulseaudio\pulse\pulse$(LBO) src\pulseaudio\json-c\libjson$(LBO)
+src\plug-ins\pulse123\pulse123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\pulseaudio\pulsecore\pulsecore$(LBO) src\pulseaudio\pulse\pulse$(LBO) src\pulseaudio\json-c\libjson$(LBO)
 	cd src\plug-ins\pulse123
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
+
+src\plug-ins\foldr123\foldr123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
+	cd src\plug-ins\foldr123
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
+
+src\plug-ins\plist123\plist123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
+	cd src\plug-ins\plist123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
@@ -237,10 +254,19 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
+	cd src\plug-ins\flac123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\pulse123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\foldr123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\plist123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\pm123
@@ -290,10 +316,19 @@ clean123: $(MDUMMY)
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
+	cd src\plug-ins\flac123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\pulse123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\foldr123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\plist123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\pm123
@@ -361,6 +396,9 @@ depend: $(MDUMMY)
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
+	cd src\plug-ins\flac123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
 	cd src\plug-ins\os2audio
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
@@ -368,6 +406,12 @@ depend: $(MDUMMY)
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
 	cd src\plug-ins\pulse123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\foldr123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\plist123
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..\..
 	cd src\pm123
@@ -397,8 +441,11 @@ distfiles: distclean $(PARTS) $(MDUMMY)
 	copy src\plug-ins\wavout\wavout.dll     dist\files
 	copy src\plug-ins\wavplay\wavplay.dll   dist\files
 	copy src\plug-ins\oggplay\oggplay.dll   dist\files
+	copy src\plug-ins\flac123\flac123.dll   dist\files
 	copy src\plug-ins\os2rec\os2rec.dll     dist\files
 	copy src\plug-ins\pulse123\pulse123.dll dist\files
+	copy src\plug-ins\foldr123\foldr123.dll dist\files
+	copy src\plug-ins\plist123\plist123.dll dist\files
 	copy src\pm123\pm123.exe        dist\files
 	copy src\pm123\default.skn      dist\files
 	copy src\skinutil\skinutil.exe  dist\files

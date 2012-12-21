@@ -56,7 +56,7 @@ int xstring::compareI(const char* l, const char* r, size_t len)
   return 0;
 }
 
-inline xstring::StringData* xstring::copycore(const char* src, size_t len)
+xstring::StringData* xstring::copycore(const char* src, size_t len)
 { if (!len)
     return empty.Data.get();
   StringData* ret = new(len) StringData;

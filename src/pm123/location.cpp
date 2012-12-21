@@ -72,7 +72,7 @@ void Location::Swap2(Location& l)
   AssignRoot(l.Root);
   l.AssignRoot(tmp);
   #else
-  swap(Root, r.Root);
+  swap(Root, l.Root);
   #endif
   Callstack.swap(l.Callstack);
   swap(Position, l.Position);

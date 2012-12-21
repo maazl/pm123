@@ -136,7 +136,7 @@ class APlayable
   #ifdef DEBUG_LOG
           xstring             DebugName() const;
   #else
-          xstring             DebugName() const   { return (int)this < 0x10000 ? "<null>" : DoDebugName() } // Hack: allow this == NULL
+          xstring             DebugName() const   { return (int)this < 0x10000 ? "<null>" : DoDebugName(); } // Hack: allow this == NULL
   #endif
 
   /// Get start position
