@@ -221,11 +221,13 @@
 #define IDM_PL_APPEND       900
 #define IDM_PL_APPFILE      901
 #define IDM_PL_APPURL       902
-#define IDM_PL_APPOTHER     903 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_APPCPL       903
+#define IDM_PL_APPOTHER     904 /* Need some IDs for plugin extensions.     */
 #define IDM_PL_APPENDALL    920
 #define IDM_PL_APPFILEALL   921
 #define IDM_PL_APPURLALL    922
-#define IDM_PL_APPOTHERALL  923 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_APPCPLALL    923
+#define IDM_PL_APPOTHERALL  924 /* Need some IDs for plugin extensions.     */
 #define IDM_PL_OPEN         940
 #define IDM_PL_OPENLAST     941 /* A lot of IDs after this need to be free. */
 

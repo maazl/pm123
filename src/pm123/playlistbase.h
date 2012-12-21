@@ -224,6 +224,7 @@ class PlaylistBase
  protected: // working set
   HWND              HwndContainer;  ///< content window handle
   DECODER_WIZARD_FUNC LoadWizards[16];///< Current load wizards
+  enum              { StaticWizzards = 3 };
   bool              NoRefresh;      ///< Avoid update events to ourself
   xstring           DirectEdit;     ///< String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
   CommonState       EvntState;      ///< Event State

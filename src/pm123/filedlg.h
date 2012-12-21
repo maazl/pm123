@@ -38,11 +38,15 @@
 FLAGSATTRIBUTE(DECODER_TYPE);
 
 /* file dialog additional flags */
-#define FDU_DIR_ENABLE       0x0001
-#define FDU_RECURSEBTN       0x0002
-#define FDU_RECURSE_ON       0x0004
-#define FDU_RELATIVBTN       0x0008
-#define FDU_RELATIV_ON       0x0010
+enum FD_UserOpts
+{ FDU_NONE       = 0x00,
+  FDU_DIR_ENABLE = 0x01,
+  FDU_RECURSEBTN = 0x02,
+  FDU_RECURSE_ON = 0x04,
+  FDU_RELATIVBTN = 0x08,
+  FDU_RELATIV_ON = 0x10
+};
+FLAGSATTRIBUTE(FD_UserOpts);
 
 #define FDT_ALL "<All supported files>"
 

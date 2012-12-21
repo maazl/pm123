@@ -244,7 +244,7 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
   return ret;
 }
 
-url123 amp_playlist_select(HWND owner, const char* title)
+url123 amp_playlist_select(HWND owner, const char* title, FD_UserOpts opts)
 {
   DEBUGLOG(("amp_playlist_select(%p, %s)\n", owner, title));
   sco_ptr<APSZ_list> types(amp_file_types(DECODER_FILENAME|DECODER_PLAYLIST));
@@ -255,7 +255,7 @@ url123 amp_playlist_select(HWND owner, const char* title)
   filedialog.papszITypeList = *types;
   char type[_MAX_PATH] = "Playlist File";
   filedialog.pszIType       = type;
-  filedialog.ulUser         = FDU_RECURSEBTN|FDU_DIR_ENABLE;
+  filedialog.ulUser         = opts;
 
   xstring listdir(Cfg::Get().listdir);
   if (listdir.length() > 8)
@@ -290,6 +290,25 @@ url123 amp_playlist_select(HWND owner, const char* title)
   } else
   { return url123();
   }
+}
+
+ULONG DLLENTRY amp_new_list_wizard(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param)
+{ DEBUGLOG(("amp_new_list_wizard(%x, %s, %p, %p)\n", owner, title, callback, param));
+
+  xstring wintitle;
+  wintitle.sprintf(title, " new playlist");
+
+  const url123& url = amp_playlist_select(owner, wintitle, FDU_NONE);
+  if (!url)
+    return PLUGIN_NO_OP;
+
+  TechInfo tech;
+  tech.attributes = TATTR_PLAYLIST|TATTR_STORABLE;
+  tech.decoder = "plist123.dll";
+  INFO_BUNDLE info = { NULL, &tech };
+
+  (*callback)(param, url, &info, IF_None, IF_Tech);
+  return PLUGIN_OK;
 }
 
 /* Default dialog procedure for the bookmark dialog. */

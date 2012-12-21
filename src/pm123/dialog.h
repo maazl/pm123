@@ -33,6 +33,7 @@
 #define  DIALOG_H
 
 #define INCL_WIN
+#include "filedlg.h"
 #include <plugin.h>
 #include <config.h>
 #include <decoder_plug.h>
@@ -44,22 +45,24 @@ class APlayable;
 class Playable;
 
 /// Creates and displays a message window.
-void amp_message( HWND owner, MESSAGE_TYPE type, const char* message );
+void amp_message(HWND owner, MESSAGE_TYPE type, const char* message);
 /// Creates and displays a message window.
-void amp_messagef( HWND owner, MESSAGE_TYPE type, const char* format, ... );
+void amp_messagef(HWND owner, MESSAGE_TYPE type, const char* format, ...);
 /// Requests the user about specified action.
-BOOL amp_query( HWND owner, const char* format, ... );
+BOOL amp_query(HWND owner, const char* format, ...);
 /// Requests the user about specified action. With cancel button.
-USHORT amp_query3( HWND owner, const char* format, ... );
+USHORT amp_query3(HWND owner, const char* format, ...);
 /// Requests the user about overwriting a file.
-BOOL amp_warn_if_overwrite( HWND owner, const char* filename );
+BOOL amp_warn_if_overwrite(HWND owner, const char* filename);
 
 /// Wizard function for the default entry "File..."
-ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param );
+ULONG DLLENTRY amp_file_wizard(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param);
 /// Wizard function for the default entry "URL..."
-ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param );
+ULONG DLLENTRY amp_url_wizard(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param);
 /// Open playlist file dialog.
-url123 amp_playlist_select(HWND owner, const char* title);
+url123 amp_playlist_select(HWND owner, const char* title, FD_UserOpts opts = FDU_RECURSEBTN|FDU_DIR_ENABLE);
+/// Wizard function for the default entry "new Playlist..."
+ULONG DLLENTRY amp_new_list_wizard(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param);
 
 /// Loads a skin selected by the user.
 bool amp_loadskin();

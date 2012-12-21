@@ -169,9 +169,10 @@ PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
   { InitIcons();
     first = false;
   }
-  // These two ones are constant
+  // These ones are constant
   LoadWizards[0] = &amp_file_wizard;
   LoadWizards[1] = &amp_url_wizard;
+  LoadWizards[2] = &amp_new_list_wizard;
 }
 
 PlaylistBase::~PlaylistBase()

@@ -977,6 +977,7 @@ MENU MNU_PLAYLIST
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
     MENUITEM "~URL...",                  IDM_PL_APPURLALL
+    MENUITEM "new ~Playlist...",         IDM_PL_APPCPLALL
   }
   MENUITEM SEPARATOR
   SUBMENU "Sort",                        IDM_PL_SORT
@@ -1031,6 +1032,7 @@ MENU PM_MAIN_MENU
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
     MENUITEM "~URL...",                  IDM_PL_APPURLALL
+    MENUITEM "new ~Playlist...",         IDM_PL_APPCPLALL
   }
   MENUITEM SEPARATOR
   SUBMENU "Sort",                        IDM_PL_SORT
@@ -1068,6 +1070,7 @@ MENU PM_REC_MENU
   SUBMENU  "~Append to...",              IDM_PL_APPEND
   { MENUITEM "~Files...",                IDM_PL_APPFILE
     MENUITEM "~URL...",                  IDM_PL_APPURL
+    MENUITEM "new ~Playlist...",         IDM_PL_APPCPL
   }
   MENUITEM SEPARATOR
   SUBMENU "~Sort",                       IDM_PL_SORT

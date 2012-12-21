@@ -377,8 +377,8 @@ void PlaylistView::InitContextMenu()
       // Populate context menu with plug-in specific stuff.
       MENUITEM item;
       PMRASSERT(WinSendMsg(HwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
-      memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards ); // You never know...
-      Decoder::AppendLoadMenu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
+      memset(LoadWizards+StaticWizzards, 0, sizeof LoadWizards - StaticWizzards*sizeof *LoadWizards ); // You never know...
+      Decoder::AppendLoadMenu(item.hwndSubMenu, IDM_PL_APPOTHERALL, StaticWizzards, LoadWizards+StaticWizzards, sizeof LoadWizards/sizeof *LoadWizards - StaticWizzards);
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? HwndMenu : item.hwndSubMenu);
     }
     GetMenuWorker().AttachMenu(HwndMenu, IDM_PL_CONTENT, *Content, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Enumerate|PlaylistMenu::Recursive, 0);
@@ -413,8 +413,8 @@ void PlaylistView::UpdateAccelTable()
 { DEBUGLOG(("PlaylistView::UpdateAccelTable()\n"));
   AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
-  memset( LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
-  Decoder::AppendAccelTable( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
+  memset( LoadWizards+StaticWizzards, 0, sizeof LoadWizards - StaticWizzards*sizeof *LoadWizards); // You never know...
+  Decoder::AppendAccelTable( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizards+StaticWizzards, sizeof LoadWizards/sizeof *LoadWizards - StaticWizzards);
 }
 
 PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
