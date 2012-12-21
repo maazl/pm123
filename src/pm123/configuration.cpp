@@ -320,7 +320,7 @@ void Cfg::SaveIni()
 // Purge outdated ini locations in the profile
 void Cfg::CleanIniPositions()
 { ULONG size;
-  if (!PrfQueryProfileSize(HIni, "Positions", NULL, &size))
+  if (!Current.win_pos_max_age || !PrfQueryProfileSize(HIni, "Positions", NULL, &size))
     return;
   char* names = (char*)alloca(size+2);
   names[size] = names[size+1] = 0; // ensure termination
@@ -393,7 +393,7 @@ bool Cfg::SaveWindowPos(HWND hwnd, const char* extkey)
   char key1st[20];  // Key in OS2.INI
   { PPIB ppib;
     PTIB ptib;
-    DosGetInfoBlocks( &ptib, &ppib );
+    DosGetInfoBlocks(&ptib, &ppib);
     sprintf(key1st, "P_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid);
   }
   ext_pos_key key2; // Key in PM123.INI
