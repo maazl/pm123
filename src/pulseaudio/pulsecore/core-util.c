@@ -874,7 +874,7 @@ int pa_raise_priority(int nice_level) {
 #ifdef OS_IS_OS2
     APIRET rc;
     if (nice_level < 0) {
-        rc = DosSetPriority(PRTYS_THREAD, -nice_level >> 8, -(nice_level & 0xff), 0);
+        rc = DosSetPriority(PRTYS_THREAD, -nice_level >> 8, -nice_level & 0xff, 0);
         if (rc != 0) {
             pa_log_warn("DosSetPriority failed: %lu", rc);
             errno = EPERM;
