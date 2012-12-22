@@ -96,6 +96,15 @@ typedef const volatile unspecified_struct_type* unspecified_bool_type;
 #define foreach(type, var, list) \
   for (type var = (list).begin(); var != (list).end(); ++var)
 
+/*// Iterate over a C++ container in reverse direction.
+/// @example <pre>vector<MyType> array;
+/// foreach_rev (MyType*const*, iter, array)
+/// { MyType& elem = **iter;
+///   // Do something with elem
+/// }</code>
+#define foreach_rev(type, var, list) \
+  for (type var = (list).end(); var-- != (list).begin(); )*/
+
 /// Get the outer Array size.
 /// @remarks Semantically equivalent to
 /// <code>template <class T, size_t N>

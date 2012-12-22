@@ -30,11 +30,11 @@
 /*                    ':font facename=''WarpSans Bold'' size=9x6.';   */
 /* fonts for headings (1 through 6)                                   */
  Global.HeaderFont.1 = ':font facename=''Helv'' size=24x12.';
- Global.HeaderFont.2 = ':font facename=''Helv'' size=18x10.';
- Global.HeaderFont.3 = ':font facename=''Helv'' size=14x8.'
- Global.HeaderFont.4 = ':font facename=''Helv'' size=12x8.'
- Global.HeaderFont.5 = ':font facename=''Helv'' size=10x6.'
- Global.HeaderFont.6 = ':font facename=''Helv'' size=9x6.'
+ Global.HeaderFont.2 = ':font facename=''Helv'' size=22x10.';
+ Global.HeaderFont.3 = ':font facename=''Helv'' size=18x9.'
+ Global.HeaderFont.4 = ':font facename=''Helv'' size=14x8.'
+ Global.HeaderFont.5 = ':font facename=''Helv'' size=12x8.'
+ Global.HeaderFont.6 = ':font facename=''Helv'' size=10x6.'
 /* font for url links (which launches WebExplorer)                    */
 /* Global.URLinkFont  = ':font facename=''WarpSans Bold'' size=9x6.'  */
  Global.URLinkFont  = '';

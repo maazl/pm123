@@ -198,6 +198,7 @@ class GUIImp : private GUI, private DialogBase
 
   friend void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override);
 
+  static void      AutoSave();
   static void      AutoSave(Playable& list);
 
   // Drag & drop
@@ -1719,6 +1720,34 @@ void GUIImp::AutoSave(Playable& list)
     list.Save(list.URL, "plist123.dll", NULL, false);
 }
 
+void GUIImp::AutoSave()
+{ // Save by default
+  AutoSave(*LoadMRU);
+  AutoSave(*UrlMRU);
+  // Others on request
+  if (Cfg::Get().autosave)
+  { // Keep saves out of the mutex.
+    vector<Playable> tosave;
+    { Playable::RepositoryAccess rep;
+      foreach (Playable*const*, ppp, *rep)
+      { Playable& p = **ppp;
+        if (!p.IsModified())
+          continue;
+        const INFO_BUNDLE_CV& info = p.GetInfo();
+        if ( (info.tech->attributes & (TATTR_PLAYLIST|TATTR_WRITABLE|TATTR_INVALID)) == (TATTR_PLAYLIST|TATTR_WRITABLE)
+          && (info.phys->attributes & (PATTR_WRITABLE|PATTR_INVALID)) == PATTR_WRITABLE )
+          tosave.append() = &p;
+      }
+    }
+    // Now save
+    foreach (Playable*const*, ppp, tosave)
+      AutoSave(**ppp);
+  }
+  // save too
+  AutoSave(*DefaultBM);
+  AutoSave(*DefaultPM);
+  AutoSave(*DefaultPL);
+}
 
 /* Prepares the player to the drop operation. */
 MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
@@ -2011,12 +2040,7 @@ void GUIImp::Uninit()
   IterBuffer[0].SetRoot((APlayable*)NULL);
   IterBuffer[1].SetRoot((APlayable*)NULL);
 
-  // Save by default
-  AutoSave(*DefaultBM);
-  AutoSave(*DefaultPM);
-  AutoSave(*DefaultPL);
-  AutoSave(*LoadMRU);
-  AutoSave(*UrlMRU);
+  AutoSave();
 
   dk_term();
   WinDestroyWindow(HFrame);

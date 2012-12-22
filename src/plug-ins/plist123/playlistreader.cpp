@@ -46,17 +46,25 @@
 *
 ****************************************************************************/
 
+/** Read playlists of formats that can be written too. */
+class WritablePlaylistReader : public PlaylistReader
+{protected:
+  WritablePlaylistReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+ public:
+  virtual bool              Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param);
+};
+
 /** Read PM123 native playlist files */
-class LSTReader : public PlaylistReader
+class LSTReader : public WritablePlaylistReader
 {public:
   static const xstringconst Format;
  private:
-  LSTReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+  LSTReader(const char* url, XFILE* source) : WritablePlaylistReader(url, source) {}
+ protected:
+  virtual bool              ParseLine(char* line);
  public:
   static LSTReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
- protected:
-  virtual bool              ParseLine(char* line);
 };
 
 /** Read WarpVision playlist files. */
@@ -65,24 +73,24 @@ class PLSReader : public PlaylistReader
   static const xstringconst Format;
  private:
   PLSReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+ protected:
+  virtual bool              ParseLine(char* line);
  public:
   static PLSReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
- protected:
-  virtual bool              ParseLine(char* line);
 };
 
 /** Read WinAmp playlist files. */
-class M3UReader : public PlaylistReader
+class M3UReader : public WritablePlaylistReader
 {public:
   static const xstringconst Format;
  protected:
-  M3UReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
+  M3UReader(const char* url, XFILE* source) : WritablePlaylistReader(url, source) {}
+ protected:
+  virtual bool              ParseLine(char* line);
  public:
   static M3UReader*         Sniffer(const char* url, XFILE* source);
   virtual const xstring&    GetFormat() const;
- protected:
-  virtual bool              ParseLine(char* line);
 };
 
 /** Read WinAmp Unicode playlist files. */
@@ -262,6 +270,13 @@ PlaylistReader* PlaylistReader::SnifferFactory(const char* url, XFILE* source)
   ret = CUEReader::Sniffer(url, source);
  ok:
   DEBUGLOG(("PlaylistReader::SnifferFactory: %p\n", ret));
+  return ret;
+}
+
+
+bool WritablePlaylistReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, void* param)
+{ bool ret = PlaylistReader::Parse(info, cb, param);
+  info->tech->attributes |= TATTR_WRITABLE;
   return ret;
 }
 

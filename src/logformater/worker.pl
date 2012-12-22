@@ -75,8 +75,8 @@ sub handle($$)
 	printf "$. Handle: %s, pri=%u isclow=%x ischigh=%x\n", $o, $pri, $reqflags{$o}[2], $reqflags{$o}[3];            
 
 	my $ix = pri_ix $pri;
-	$worker{$o}[$ix] || $worker{$o}[0] or
-		warn sprintf "$. Unrequested handler for %s at priority %u\n", $o, $pri;
+	#$worker{$o}[$ix] || $worker{$o}[0] or
+	#	warn sprintf "$. Unrequested handler for %s at priority %u\n", $o, $pri;
 	$worker{$o}[0] = ' '; # That's logically zero but does not cause the above check to fail.
 	$worker{$o}[$ix] = undef;
 

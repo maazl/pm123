@@ -1225,7 +1225,7 @@ clock_t Playable::LastCleanup = 0;
 
 #ifdef DEBUG_LOG
 void Playable::RPDebugDump()
-{ Repository::IXAccess rp;
+{ RepositoryAccess rp;
   for (Playable*const* ppp = rp->begin(); ppp != rp->end(); ++ppp)
     DEBUGLOG(("Playable::RPDump: %p{%s}\n", *ppp, (*ppp)->URL.cdata()));
 }
@@ -1259,13 +1259,22 @@ void Playable::DetachObjects(const vector<Playable>& list)
 void Playable::Cleanup()
 { DEBUGLOG(("Playable::Cleanup() - %u\n", LastCleanup));
   // Keep destructor calls out of the mutex
-  vector<Playable> todelete(32);
-  // search for unused items
-  { Repository::IXAccess rp;
-    for (Playable*const* ppp = rp->end(); --ppp != rp->begin(); )
-    { if ((*ppp)->RefCountIsUnique() && (long)((*ppp)->LastAccess - LastCleanup) <= 0)
-        todelete.append() = Repository::RemoveWithKey(**ppp, (*ppp)->URL);
+  vector<Playable> todelete;
+  // search for unused items, remove them from the repository and put them into todelete.
+  // All of that in an atomic operation.
+  { RepositoryAccess rp;
+    Playable*const* src = rp->begin();
+    Playable** dst = (Playable**)src; // Hack! Bypass constness of RepositoryAccess
+    Playable*const*const end = rp->end();
+    while (src != end)
+    { Playable& p = **src;
+      if (p.RefCountIsUnique() && !p.Modified && (long)(p.LastAccess - LastCleanup) <= 0)
+        todelete.append() = &p;
+      else
+        *dst++ = &p;
+      ++src;
     }
+    Repository::SetSize(dst - rp->begin());
   }
   // Destroy items
   DetachObjects(todelete);
@@ -1273,18 +1282,38 @@ void Playable::Cleanup()
   LastCleanup = clock();
 }
 
+/*void Playable::ForEach(void (*callback)(Playable& item))
+{ Repository::IXAccess rp;
+  foreach (Playable*const*, ppp, *rp)
+    (*callback)(**ppp);
+}*/
+
+/*int_ptr<Playable> Playable::Iterate(Playable* cur)
+{ Repository::IXAccess rp;
+  size_t pos = 0;
+  if (cur && rp->binary_search(cur->URL, pos))
+    ++pos;
+  if (pos >= rp->size())
+    return int_ptr<Playable>();
+  return rp[pos];
+}*/
+
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   APlayable::Uninit();
   LastCleanup = clock();
-  // Keep destructor calls out of the mutex
-  vector<Playable> todelete(32);
+  /*// Keep destructor calls out of the mutex
+  vector<Playable> todelete;
   // serach for unused items
   { Repository::IXAccess rp;
-    for (Playable*const* ppp = rp->end(); --ppp != rp->begin(); )
+    todelete.reserve(rp->size());
+    foreach_rev (Playable*const*, ppp, *rp)
       todelete.append() = Repository::RemoveWithKey(**ppp, (*ppp)->URL);
   }
   // Detach items
   DetachObjects(todelete);
-  DEBUGLOG(("Playable::Uninit - complete - %u\n", todelete.size()));
+  DEBUGLOG(("Playable::Uninit - complete - %u\n", todelete.size()));*/
+  RepositoryAccess rp;
+  DetachObjects(*rp);
+  Repository::SetSize(0);
 }

@@ -317,9 +317,11 @@ DLGTEMPLATE CFG_SETTINGS2
   DIALOG         "",                                    CFG_SETTINGS2,      0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Playlists ",                         GB_GENERIC,         4, 66, 248, 48, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Playlists ",                         GB_GENERIC,         4, 66, 248, 60, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 94, 232, 12, WS_GROUP
+    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12,106, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    AUTOCHECKBOX "Auto save modified playlists on exit",CB_AUTOSAVEPL,     12, 94, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",
                                                         CB_RECURSEDND,     12, 82, 232, 12, WS_GROUP

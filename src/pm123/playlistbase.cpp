@@ -755,7 +755,7 @@ HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), tattr));
   IC state = GetRecordUsage(rec);
   if (tattr & TATTR_PLAYLIST)
-    return IcoPlaylist[(tattr & TATTR_WRITABLE) != 0][state][GetPlaylistType(rec)];
+    return IcoPlaylist[(tattr & TATTR_WRITABLE) == 0][state][GetPlaylistType(rec)];
   else
     return IcoSong[state];
 }

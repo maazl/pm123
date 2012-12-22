@@ -328,6 +328,7 @@
 #define CB_AUTOUSEPL       1310
 #define CB_RECURSEDND      1311
 #define CB_FOLDERSFIRST    1313
+#define CB_AUTOSAVEPL      1314
 #define RB_ITEMNAVTO       1315
 #define RB_ITEMLOAD        1316
 #define RB_ITEMQUEUE       1317

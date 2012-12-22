@@ -60,6 +60,7 @@ const amp_cfg Cfg::Default =
 , true
 , false
 , true
+, true
 , false
 , false
 , CFG_ANAV_SONG
@@ -180,6 +181,7 @@ void Cfg::LoadIni()
 
   load_ini_int(HIni, cfg.playonload);
   load_ini_int(HIni, cfg.autouse);
+  load_ini_int(HIni, cfg.autosave);
   load_ini_int(HIni, cfg.retainonexit);
   load_ini_int(HIni, cfg.retainonstop);
   load_ini_int(HIni, cfg.restartonstart);
@@ -251,6 +253,7 @@ void Cfg::SaveIni()
 
     save_ini_bool (HIni, cfg.playonload);
     save_ini_bool (HIni, cfg.autouse);
+    save_ini_bool (HIni, cfg.autosave);
     save_ini_bool (HIni, cfg.retainonexit);
     save_ini_bool (HIni, cfg.retainonstop);
     save_ini_bool (HIni, cfg.restartonstart);

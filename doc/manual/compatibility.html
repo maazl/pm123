@@ -1,28 +1,32 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="*" level=3><head>
-<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-<title>Compatibility with earlier versions</title>
-<link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+<html sublinks="*" level="3">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Compatibility with earlier versions</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
-<h2>Compatibility of PM123 1.40 with earlier versions</h2>
+<h2>Compatibility of PM123 1.4x with earlier versions</h2>
 <h3>Playlist files</h3>
 <p>PM123 1.40 stores a bunch of additional properties to playlist
 entries. These entries are ignored by PM123 1.32. But if you edit and
-save the playlist with a previous version <em>the following properties of
+save the playlist with a previous version <em>the following properties
+of
 PM123 1.40 maybe lost</em>:</p>
 <ul>
-<li>Alias name</li>
-<li>Start- and Stop position</li>
+  <li>Alias name</li>
+  <li>Start- and Stop position</li>
 </ul>
 <h3>Profiles and working directory</h3>
 <p>PM123 1.40 will read or convert most of the settings from earlier
 versions. But some information is stored in a way that earlier versions
 can no longer read it. They are:</p>
 <ul>
-<li>The list of loaded plug-ins</li>
-<li>The bookmark names</li>
-</ul><p><em>It is not recommended to share configuration files between different program versions.</em></p>
+  <li>The list of loaded plug-ins</li>
+  <li>The bookmark names</li>
+</ul>
+<p><em>It is not recommended to share configuration files between
+different program versions.</em></p>
 <h3>Running two versions simultaneously</h3>
 <p>Different versions of PM123 use DLLs with the same name. Since
 OS/2 by default will not load a DLL when some other one with the same
@@ -30,10 +34,14 @@ name is already in memory, this will usually result in a crash of the
 secondly started PM123 instance.</p>
 <p>To work around this problem use <strong><tt>SET
 LIBPATHSTRICT=T</tt></strong>
-before you start any of the PM123 instances.</p><h3>Drag and Drop</h3><p>Using
+before you start any of the PM123 instances.</p>
+<h3>Drag and Drop</h3>
+<p>Using
 Drag and Drop to drag playlist items between windows of
 different PM123 versions results in undefined behavior. Most likely one
 of the applications will crash. The machine's user interface may also
-completely lock up, because OS/2 really dislikes crashes during Drag and
+completely lock up, because OS/2 really dislikes crashes during Drag
+and
 Drop.</p>
-</body></html>
+</body>
+</html>
