@@ -652,7 +652,9 @@ Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          NavigateTime(job, t[0], Callstack.size(), true);
+          ret = NavigateTime(job, t[0], Callstack.size(), true);
+          if (ret)
+            return ret;
           continue;
         }
       }

@@ -306,6 +306,7 @@ InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priorit
 PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
 { xstring localstr = strloc;
   DEBUGLOG(("PlayableSlice(%p)::CalcLoc(&%s, &%p, %x, {%u,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
+  CalcResult ret;
   if (localstr)
   { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
     int_ptr<Location> newvalue = new Location(&RefTo->GetPlayable());
@@ -313,7 +314,9 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
     const xstring& err = newvalue->Deserialize(job, cp);
     if (err)
     { if (err.length() == 0) // delayed
-        return CR_Delayed;
+      { ret = CR_Delayed;
+        goto end;
+      }
       // TODO: Errors
       DEBUGLOG(("PlayableSlice::CalcLoc: %s at %.20s\n", err.cdata(), cp));
     }
@@ -330,13 +333,16 @@ PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc,
     // commit
     int_ptr<Location> oldvalue = newvalue;
     oldvalue.swap(cache);
-    return oldvalue && *oldvalue == *newvalue ? CR_Nop : CR_Changed;
+    ret = oldvalue && *oldvalue == *newvalue ? CR_Nop : CR_Changed;
   } else
   { // Default location => NULL
     int_ptr<Location> oldvalue;
     oldvalue.swap(cache);
-    return oldvalue ? CR_Changed : CR_Nop;
+    ret = oldvalue ? CR_Changed : CR_Nop;
   }
+ end:
+  DEBUGLOG(("PlayableSlice::CalcLoc: %u\n", ret));
+  return ret;
 }
 
 void PlayableSlice::DoLoadInfo(JobSet& job)

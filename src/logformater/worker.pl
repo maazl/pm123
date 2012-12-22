@@ -60,7 +60,7 @@ sub req2($$$)
 	return unless $pri;
 	my $ix = pri_ix $pri;
 	exists $reqflags{$o} && ($reqflags{$o}[$ix] || $reqflags{$o}[1]) || $async or
- 		warn sprintf "$. first request for %s at priority %i did not cause an asynchronous request (%x,%x)\n", $o, $pri, $reqflags{$o}[0], $reqflags{$o}[1];
+	warn sprintf "$. first request for %s at priority %i did not cause an asynchronous request (%x,%x)\n", $o, $pri, $reqflags{$o}[0], $reqflags{$o}[1];
 	$reqflags{$o}[$ix] |= $rq;
 	$reqflags{$o}[0] &= ~$rq if $ix;
 	#$reqflags{$o}[2+$ix] |= $rq;

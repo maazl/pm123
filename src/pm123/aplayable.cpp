@@ -191,7 +191,8 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
   int_ptr<PlayableInstance> psp; // start element
   PM123_TIME ss = -1; // start position
   if (start)
-  { size_t size = start->GetCallstack().size();
+  { DEBUGLOG(("APlayable::AddSliceAggregate start: %s\n", start->Serialize().cdata()));
+    size_t size = start->GetCallstack().size();
     if (size > level)
       psp = start->GetCallstack()[level];
     else if (size == level)
@@ -204,7 +205,8 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
   int_ptr<PlayableInstance> pep; // stop element
   PM123_TIME es = -1; // stop position
   if (stop)
-  { size_t size = stop->GetCallstack().size();
+  { DEBUGLOG(("APlayable::AddSliceAggregate stop: %s\n", stop->Serialize().cdata()));
+    size_t size = stop->GetCallstack().size();
     if (size > level)
       pep = stop->GetCallstack()[level];
     else if (size == level)
