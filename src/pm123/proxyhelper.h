@@ -45,12 +45,6 @@ class ProxyHelper
   /* Buffer size for compatibility interface */
   static const int BUFSIZE = 16384;
 
-  /* thread priorities for decoder thread */
-  static const ULONG DECODER_HIGH_PRIORITY_CLASS = PRTYC_TIMECRITICAL;
-  static const ULONG DECODER_HIGH_PRIORITY_DELTA = 0;
-  static const ULONG DECODER_LOW_PRIORITY_CLASS  = PRTYC_FOREGROUNDSERVER;
-  static const ULONG DECODER_LOW_PRIORITY_DELTA  = 0;
-
  protected:
   /// Convert file URL
   /// - discard file: prefix,

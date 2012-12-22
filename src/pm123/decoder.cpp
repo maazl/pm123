@@ -241,7 +241,6 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
   ULONG  DLLENTRYP(vdecoder_length   )(void* w);
   //void   DLLENTRYP(error_display)(char*);
   HWND   hwnd; // Window handle for catching event messages
-  ULONG  tid;  // decoder thread id
   xstring url; // currently playing song
   PM123_TIME temppos;
   int    juststarted; // Status whether the first samples after DECODER_PLAY did not yet arrive. 2 = no data arrived, 1 = no valid data arrived, 0 = OK
@@ -250,11 +249,10 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
   char*  filetypestringbuffer;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
   Mutex  info_mtx; // Mutex to serialize access to the decoder_*info functions.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_editmeta, vd_decoder_length;
+  VDELEGATE vd_decoder_command, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_editmeta, vd_decoder_length;
 
  private:
   PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PARAMS2* params );
-  PROXYFUNCDEF void       DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                                                                 DECODER_INFO_ENUMERATION_CB cb, void* param );
   PROXYFUNCDEF ULONG      DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, xstring* errortxt );
@@ -313,14 +311,12 @@ void DecoderProxy1::LoadPlugin()
   mod.LoadOptionalFunction(&vdecoder_editmeta, "decoder_editmeta");
   mod.LoadOptionalFunction(&decoder_getwizard, "decoder_getwizard");
   decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
-  decoder_event     = vdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
   decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
   if (vdecoder_saveinfo)
     decoder_saveinfo= vdelegate(&vd_decoder_saveinfo, &proxy_1_decoder_saveinfo, this);
   if (vdecoder_editmeta)
     decoder_editmeta= vdelegate(&vd_decoder_editmeta, &proxy_1_decoder_editmeta, this);
   decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
-  tid = (ULONG)-1;
 
   FileTypesCount     = 0;
   FileTypes          = NULL;
@@ -421,9 +417,6 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
   }
 
   op->temppos = -1; // buffer is empty now
-
-  if (op->tid == (ULONG)-1)
-    op->tid = getTID();
 
   while (rem)
   { float* dest;
@@ -574,22 +567,6 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
   }
 
   return rc;
-}
-
-/* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(void DLLENTRY, DecoderProxy1)
-proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->ModRef->Key.cdata(), w, event));
-
-  switch (event)
-  {case OUTEVENT_LOW_WATER:
-    DosSetPriority(PRTYS_THREAD, DECODER_HIGH_PRIORITY_CLASS, DECODER_HIGH_PRIORITY_DELTA, op->tid);
-    break;
-   case OUTEVENT_HIGH_WATER:
-    DosSetPriority(PRTYS_THREAD, DECODER_LOW_PRIORITY_CLASS, DECODER_LOW_PRIORITY_DELTA, op->tid);
-    break;
-   default:; // explicit no-op
-  }
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)

@@ -37,6 +37,7 @@
 
 #include "output.h"
 #include "proxyhelper.h"
+#include "configuration.h"
 #include "pm123.h" // for hab
 #include <cpp/cppvdelegate.h>
 #include <limits.h>
@@ -210,11 +211,14 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
       break;
     }
   }
+  const volatile amp_cfg& cfg = Cfg::Get();
   params.buffersize            = BUFSIZE;
-  params.boostclass            = DECODER_HIGH_PRIORITY_CLASS;
-  params.normalclass           = DECODER_LOW_PRIORITY_CLASS;
-  params.boostdelta            = DECODER_HIGH_PRIORITY_DELTA;
-  params.normaldelta           = DECODER_LOW_PRIORITY_DELTA;
+  int priority = cfg.pri_high; // remove volatile to avoid inconsistent samples.
+  params.boostclass            = priority >> 8;
+  params.boostdelta            = priority & 0xff;
+  priority = cfg.pri_normal;
+  params.normalclass           = priority >> 8;
+  params.normaldelta           = priority & 0xff;
   params.nobuffermode          = FALSE;
   params.error_display         = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
   params.info_display          = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
