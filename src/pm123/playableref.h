@@ -159,7 +159,7 @@ class PlayableRef : public PlayableSlice
           AttrInfo          Attr;
 
  public:
-  explicit                  PlayableRef(APlayable& refto) : PlayableSlice(refto) { Info.meta = NULL; Info.attr = NULL; }
+  explicit                  PlayableRef(APlayable& refto) : PlayableSlice(refto) {}
 
   /// Display name
   virtual xstring           GetDisplayName() const;

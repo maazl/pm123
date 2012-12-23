@@ -174,7 +174,7 @@ xstring Playable::GetDisplayName() const
   if (!ret || !ret[0U])
   { ret = Info.meta->title;
     if (!ret || !ret[0U])
-      ret = URL.getDisplayName();
+      ret = URL.getShortName();
   }
   return ret;
 }
@@ -695,7 +695,7 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
   pp->SetCachedInfo(*info, (InfoFlags)cached, (InfoFlags)reliable);
   // Create reference
   PlayableRef* ps = new PlayableRef(*pp);
-  InfoFlags override = (InfoFlags)(cached|reliable);
+  InfoFlags override = (InfoFlags)(cached & reliable);
   if (override & IF_Meta)
     ps->OverrideMeta(info->meta);
   if (override & IF_Attr)
