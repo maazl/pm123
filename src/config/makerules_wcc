@@ -59,9 +59,6 @@ LIBS_UNI   = libconv.lib libuls.lib
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
 MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
-!ifndef DEBUG_LOG
-DEBUG_LOG = $(DEBUG)
-!endif
 !else
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)

@@ -184,20 +184,11 @@ doc\pm123.inf:
 	@$(MAKE) $(MFLAGS)
 	@cd ..
 
-clean:  $(MDUMMY)
-	cd src\utils
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\utils\cpp
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
+clean:  clean123 $(MDUMMY)
 	cd src\gbm123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd src\fft123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\xio123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd src\libmpg123
@@ -225,54 +216,6 @@ clean:  $(MDUMMY)
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\zlb123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\plug-ins\analyzer
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\cddaplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\mpg123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2audio
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\realeq
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\wavplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\wavout
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\oggplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\flac123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\pulse123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\foldr123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\plist123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\pm123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\skinutil
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd doc
@@ -424,9 +367,9 @@ depend: $(MDUMMY)
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..
 
-dist: distfiles distpackage distzip $(MDUMMY)
+dist: distzip distpackage $(MDUMMY)
 
-distfiles: distclean $(PARTS) $(MDUMMY)
+distfiles: filesclean $(PARTS) $(MDUMMY)
 	-@mkdir dist\files\visplug 2>nul
 	-@mkdir dist\files\icons   2>nul
 	-@mkdir dist\files\pdk     2>nul
@@ -469,7 +412,7 @@ distpackage: distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).wpi del dist\pm123-$(VERSION).wpi
 	wic.exe -a dist\pm123-$(VERSION).wpi 1 -r -cdist\files * -s dist\warpin.wis
 
-distzip: distclean distfiles $(MDUMMY)
+distzip: distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).zip del dist\pm123-$(VERSION).zip
 !ifdef DEBUG_LOG
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION)-debug.zip * -x CVS\* .cvsignore "
@@ -477,11 +420,17 @@ distzip: distclean distfiles $(MDUMMY)
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x CVS\* .cvsignore "
 !endif
 
-distsrc: distclean $(MDUMMY)
-	-@del pm123-$(VERSION)-src.zip  2> nul
-	zip -9 -r pm123-$(VERSION)-src.zip * -x .svn pm123*.zip makerules
+distsrc: $(MDUMMY)
+	-@del dist\pm123-$(VERSION)-src.zip  2> nul
+	zip -9 -r dist\pm123-$(VERSION)-src.zip * -x .svn *.zip dist\files\* src\config\makerules *$(CO) *$(LBI) *$(LBO) *.res *.dll *.exe doc\*.bmp *.ipf *.inf doxydoc\* diff idx stat stat2
 
-distclean: $(MDUMMY)
+distclean: filesclean $(MDUMMY)
+	-@del dist\pm123-$(VERSION).exe 2> nul
+	-@del dist\pm123-$(VERSION).zip 2> nul
+	-@del dist\pm123-$(VERSION)-src.zip 2> nul
+	-@del dist\pm123-$(VERSION).wpi 2> nul
+
+filesclean: $(MDUMMY)
 	-@echo Cleanups...
 	-@del dist\files\icons\* /n     2> nul
 	-@rd  dist\files\icons          2> nul
@@ -527,12 +476,10 @@ distclean: $(MDUMMY)
 	-@del dist\files\*.bak          2> nul
 	-@del dist\files\*.mgr          2> nul
 	-@del dist\files\*.log          2> nul
-	-@del dist\pm123-$(VERSION).exe 2> nul
-	-@del dist\pm123-$(VERSION).zip 2> nul
-	-@del dist\pm123-$(VERSION).wpi 2> nul
 
 test: distfiles
 	cd test
 	@$(MAKE) $(MFLAGS)
 	@cd ..
 
+

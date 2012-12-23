@@ -149,13 +149,13 @@ class priority_queue_base
   #ifdef DEBUG_LOG
   void         Dump() const;
   #else
-  void         Dump() {}
+  void         Dump() const {}
   #endif
   #ifdef DEBUG
   void         Check() const;
   void         Fail(const char* file, int line, const char* msg) const;
   #else
-  void         Check() {}
+  void         Check() const {}
   #endif
   
  public:

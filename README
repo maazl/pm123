@@ -50,14 +50,15 @@ distzip:     will build the ZIP file from the files in "dist\files"
 distclean:   will clean everything made by "dist"
 test:        will run some test cases against the PM123 core engine and it's
              plug-ins.
+depend:      update unclude dependencies in makefiles
 
 You can also use all of the individual makefiles in each of the subdirectories
 of the "src" directory. Each of them contain an "all" and "clean" command.
 
-In all cases, you can add "DEBUG=1" to MAKE's command line to build
+In all cases, you can add "DEBUG=1 DEBUG_LOG=1" to MAKE's command line to build
 a debug version of one of PM123's module. Example:
 
-   [c:\devel\pm123-1_2-src] nmake pm123.exe DEBUG=1
+   [c:\devel\pm123-1_2-src] nmake pm123.exe DEBUG=1 DEBUG_LOG=1
 
 Also you can add "TCP40=1" to MAKE's command line to build modules with
 TCP/IP v4.0 (16bit) support. Example:
