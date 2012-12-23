@@ -39,6 +39,7 @@ void* xstring::StringData::operator new(size_t s, size_t l)
 #endif
 { StringData* that = (StringData*)new char[s+l+1];
   DEBUGLOG2(("xstring::StringData::operator new(%u, %u) - %p\n", s, l, cp));
+  ASSERT(that);
   // Dirty early construction
   that->Count = 0;
   that->Len = l;

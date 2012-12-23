@@ -48,6 +48,7 @@ void* operator new(size_t len)
 { if (!len)
     return NULL;
   preamble* storage = (preamble*)malloc(len + sizeof(preamble) + sizeof(int));
+  ASSERT(storage);
   storage->length = len;
   storage->magic = SCALAR_MAGIC;
   ++storage;
@@ -74,6 +75,7 @@ void* operator new[](size_t len)
 { if (!len)
     return NULL;
   preamble* storage = (preamble*)malloc(len + sizeof(preamble) + sizeof(int));
+  ASSERT(storage);
   storage->length = len;
   storage->magic = ARRAY_MAGIC;
   ++storage;
