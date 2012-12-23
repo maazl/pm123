@@ -43,7 +43,7 @@ priority_queue_base::~priority_queue_base()
 { delete[] PriEntries;
 }
 
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) && DEBUG_LOG >= 2
 void priority_queue_base::Dump() const
 { char buf[1024];
   char* cp = buf;

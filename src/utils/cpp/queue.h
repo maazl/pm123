@@ -146,7 +146,7 @@ class priority_queue_base
   Mutex        Mtx;
 
  protected:
-  #ifdef DEBUG_LOG
+  #if defined(DEBUG_LOG) && DEBUG_LOG >= 2
   void         Dump() const;
   #else
   void         Dump() const {}

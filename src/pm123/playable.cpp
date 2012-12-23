@@ -387,7 +387,7 @@ void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
 
 struct deccbdata
 { Playable&                    Parent;
-  vector_own<PlayableRef>      Children;
+  vector_int<APlayable>        Children;
   deccbdata(Playable& parent) : Parent(parent) {}
   ~deccbdata() {}
 };
@@ -694,16 +694,20 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
   // Apply cached information to *pp.
   pp->SetCachedInfo(*info, (InfoFlags)cached, (InfoFlags)reliable);
   // Create reference
-  PlayableRef* ps = new PlayableRef(*pp);
   InfoFlags override = (InfoFlags)(cached & reliable);
-  if (override & IF_Meta)
-    ps->OverrideMeta(info->meta);
-  if (override & IF_Attr)
-    ps->OverrideAttr(info->attr);
-  if (override & IF_Item)
-    ps->OverrideItem(info->item);
-  // Done
-  cbdata->Children.append() = ps;
+  if (override)
+  { PlayableRef* ps = new PlayableRef(*pp);
+    if (override & IF_Meta)
+      ps->OverrideMeta(info->meta);
+    if (override & IF_Attr)
+      ps->OverrideAttr(info->attr);
+    if (override & IF_Item)
+      ps->OverrideItem(info->item);
+    // Done
+    cbdata->Children.append() = ps;
+  } else
+    // Fast path without PlayableRef
+    cbdata->Children.append() = pp;
 }
 
 void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
@@ -781,15 +785,16 @@ void Playable::RenumberEntries(Entry* from, const Entry* to, int index)
   }
 }
 
-bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
+bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
 { DEBUGLOG(("Playable(%p)::UpdateCollection({%u,...})\n", this, newcontent.size()));
   bool ret = false;
   PlayableRef* first_new = NULL;
   int index = 0;
   // TODO: RefreshActive = true;
   // Place new entries, try to recycle existing ones.
-  for (PlayableRef*const* npp = newcontent.begin(); npp != newcontent.end(); ++npp)
-  { PlayableRef* cur_new = *npp;
+  foreach (APlayable*const*, npp, newcontent)
+  { APlayable& cur_new = **npp;
+    Playable& cur_play = cur_new.GetPlayable();
 
     // Priority 1: prefer an exactly matching one over a reference only to the same Playable.
     // Priority 2: prefer the first match over subsequent matches.
@@ -802,11 +807,11 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
         // No matching entry found, however, we may already have an inexact match.
         break;
       // Is matching item?
-      if (cur_search == cur_new)
+      if (cur_search == &cur_new)
       { // exactly the same object?
         match = cur_search;
         goto exactmatch;
-      } else if (cur_search->RefTo == cur_new->RefTo)
+      } else if (cur_search->GetPlayable() == cur_play)
       { DEBUGLOG(("Playable::UpdateCollection potential match: %p\n", cur_search));
         // only the first inexact match counts
         match = cur_search;
@@ -816,17 +821,19 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
     if (match)
     { // Match! => Swap properties
       // If the slice changes this way an ChildInstChange event is fired here that invalidates the CollectionInfoCache.
-      match->AssignInstanceProperties(*cur_new);
+      if (match->GetPlayable() != cur_play)
+        match->AssignInstanceProperties((PlayableRef&)cur_new);
      exactmatch:
       // If it happened to be the first new entry we have to update first_new too.
-      if (cur_new == first_new)
+      if (&cur_new == first_new)
         first_new = match;
       // move entry to the new location
       ret |= MoveEntry(match, NULL);
     } else
     { // No match => create new entry.
-      match = CreateEntry(cur_new->GetPlayable());
-      match->AssignInstanceProperties(*cur_new);
+      match = CreateEntry(cur_play);
+      if (match->GetPlayable() != cur_play)
+        match->AssignInstanceProperties((PlayableRef&)cur_new);
       InsertEntry(match, NULL);
       ret = true;
     }
@@ -1027,7 +1034,7 @@ bool Playable::Sort(ItemComparer comp)
   // Sort index array
   merge_sort(index.begin(), index.end(), comp);
   // Adjust item sequence
-  vector<PlayableRef> newcontent(index.size());
+  vector<APlayable> newcontent(index.size());
   for (PlayableInstance** cur = index.begin(); cur != index.end(); ++cur)
     newcontent.append() = *cur;
   bool changed = UpdateCollection(newcontent);
@@ -1050,7 +1057,7 @@ bool Playable::Shuffle()
     return false;
 
   // Create index array
-  vector<PlayableRef> newcontent(Info.Obj.num_items);
+  vector<APlayable> newcontent(Info.Obj.num_items);
   Entry* ep = NULL;
   while ((ep = Playlist->Items.next(ep)) != NULL)
     newcontent.insert(rand()%(newcontent.size()+1)) = ep;
@@ -1302,18 +1309,12 @@ void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   APlayable::Uninit();
   LastCleanup = clock();
-  /*// Keep destructor calls out of the mutex
-  vector<Playable> todelete;
-  // serach for unused items
-  { Repository::IXAccess rp;
-    todelete.reserve(rp->size());
-    foreach_rev (Playable*const*, ppp, *rp)
-      todelete.append() = Repository::RemoveWithKey(**ppp, (*ppp)->URL);
-  }
-  // Detach items
-  DetachObjects(todelete);
-  DEBUGLOG(("Playable::Uninit - complete - %u\n", todelete.size()));*/
+  // The following clean-up could be left to the operating system as well.
+  // However, for debug builds it is helpful if there ore not thousands
+  // of memory objects left.
+  #ifdef DEBUG
   RepositoryAccess rp;
   DetachObjects(*rp);
   Repository::SetSize(0);
+  #endif
 }

@@ -141,27 +141,16 @@ PLUGIN_RC DirScan::GetInfo(const INFO_BUNDLE* info)
   return PLUGIN_OK;
 }
 
-bool DirScan::AppendPath(const char* name, size_t len)
+bool DirScan::IsDot(const char* name, size_t len)
 { switch (len)
   {case 2:
     if (name[1] != '.')
       break;
    case 1:
     if (name[0] == '.')
-      return false;
+      return true;
   }
-  Path.erase(BasePathLen);
-  Path.append(name, len);
-  return true;
-}
-
-void DirScan::AppendItem(const FILEFINDBUF3* fb)
-{ DEBUGLOG(("foldr123:DirScan::AppendItem({...}) - %s\n", Path.cdata()));
-  if (fb->attrFile & FILE_DIRECTORY)
-  { Path.append('/');
-    Path.append(Params);
-  }
-  Items.append() = new Entry(Path, fb->attrFile, fb->cbFile, ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite));
+  return false;
 }
 
 void DirScan::Scan()
@@ -186,8 +175,8 @@ void DirScan::Scan()
     { // process result package
       FILEFINDBUF3* fb = (FILEFINDBUF3*)buffer.get();
       while (count--)
-      { if (AppendPath(fb->achName, fb->cchName))
-          AppendItem(fb);
+      { if (!IsDot(fb->achName, fb->cchName))
+          Items.append() = new Entry(fb->achName, fb->cchName, fb->attrFile, fb->cbFile, ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite));
         // next entry
         if (!fb->oNextEntryOffset)
           break;
@@ -214,25 +203,27 @@ void DirScan::Scan()
     { // process result package
       FILEFINDBUF3FEA2LIST* fb = (FILEFINDBUF3FEA2LIST*)(eaop +1);
       while (count--)
-      { if (AppendPath((char*)&fb->cbList + fb->cbList +1, *((unsigned char*)&fb->cbList + fb->cbList)))
-        { // Subdirectory?
-          if (fb->attrFile & FILE_DIRECTORY)
-            AppendItem((FILEFINDBUF3*)fb);
-          else
-          { char buf[XIO_MAX_FILETYPE];
-            const char* eadata = NULL;
-            // Has .type EA?
-            if (fb->cbList > sizeof(FEA2))
-            { const USHORT* eas = (const USHORT*)(fb->list[0].szName + fb->list[0].cbName +1);
-              USHORT eatype = *eas++;
-              *buf = 0;
-              eadecode(buf, sizeof buf, eatype, &eas);
-              eadata = buf;
-            }
-            if (Ctx.plugin_api->obj_supported(Path, eadata))
-              AppendItem((FILEFINDBUF3*)fb);
+      { const char* const name = (char*)&fb->cbList + fb->cbList +1;
+        const size_t name_len = *((unsigned char*)&fb->cbList + fb->cbList);
+        if (IsDot(name, name_len))
+          goto next;
+        // File?
+        if (!(fb->attrFile & FILE_DIRECTORY))
+        { char buf[XIO_MAX_FILETYPE];
+          const char* eadata = NULL;
+          // Has .type EA?
+          if (fb->cbList > sizeof(FEA2))
+          { const USHORT* eas = (const USHORT*)(fb->list[0].szName + fb->list[0].cbName +1);
+            USHORT eatype = *eas++;
+            *buf = 0;
+            eadecode(buf, sizeof buf, eatype, &eas);
+            eadata = buf;
           }
+          if (!Ctx.plugin_api->obj_supported(Path, eadata))
+            goto next;
         }
+        Items.append() = new Entry(name, name_len, fb->attrFile, fb->cbFile, ConvertOS2FTime(fb->fdateLastWrite, fb->ftimeLastWrite));
+       next:
         // next entry
         if (!fb->oNextEntryOffset)
           break;
@@ -244,18 +235,18 @@ void DirScan::Scan()
     }
   }
   DosFindClose(hdir);
-  Path.reset();
 }
 
+/* binary compatible to strnicmp
 static int StandardComparer(const DirScan::Entry* l, const DirScan::Entry* r)
-{ return stricmp(l->URL, r->URL);
-}
+{ return stricmp(l->Path, r->Path);
+}*/
 
 static int FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r)
 { if ((l->Attributes ^ r->Attributes) & FILE_DIRECTORY)
     return (r->Attributes & FILE_DIRECTORY) - (l->Attributes & FILE_DIRECTORY);
   else
-    return stricmp(l->URL, r->URL);
+    return stricmp(l->Name, r->Name);
 }
 
 static META_INFO empty_meta = META_INFO_INIT;
@@ -264,7 +255,7 @@ static ATTR_INFO empty_attr = ATTR_INFO_INIT;
 int DirScan::SendResult(DECODER_INFO_ENUMERATION_CB cb, void* param)
 {
   // Order by
-  merge_sort(Items.begin(), Items.end(), FoldersFirst ? &FoldersFirstComparer : StandardComparer);
+  merge_sort(Items.begin(), Items.end(), FoldersFirst ? &FoldersFirstComparer : (int (*)(const DirScan::Entry*, const DirScan::Entry*))stricmp);
 
   foreach (Entry*const*, epp, Items)
   { const Entry* ep = *epp;
@@ -280,7 +271,14 @@ int DirScan::SendResult(DECODER_INFO_ENUMERATION_CB cb, void* param)
       what |= INFO_TECH|INFO_META|INFO_ATTR;
     } else if (!(ep->Attributes & FILE_READONLY))
       phys.attributes = PATTR_WRITABLE;
-    (*cb)(param, ep->URL.cdata(), &info, INFO_NONE, what);
+    // clac URL
+    Path.erase(BasePathLen);
+    Path.append(ep->Name);
+    if (ep->Attributes & FILE_DIRECTORY)
+    { Path.append('/');
+      Path.append(Params);
+    }
+    (*cb)(param, Path.cdata(), &info, INFO_NONE, what);
   }
 
   return Items.size();

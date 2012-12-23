@@ -35,13 +35,14 @@
 #include <cpp/xstring.h>
 #include <cpp/container/vector.h>
 #include <time.h>
+#include <strutils.h>
 #include <os2.h>
 
 class DirScan
 {public:
   struct Entry
   { /// URL of the entry.
-    const xstring    URL;
+          char       Name[_MAX_FNAME]; // mutable, because lately initialized in the constructor.
     /// File Attributes
     const ULONG      Attributes;
     /// File size
@@ -49,8 +50,8 @@ class DirScan
     /// File modification time
     const int        Timestamp;
     /// Create Entry
-    Entry(const xstring& url, ULONG attr, PM123_SIZE size, int tstmp)
-    : URL(url), Attributes(attr), Size(size), Timestamp(tstmp) {}
+    Entry(const char* name, size_t len, ULONG attr, PM123_SIZE size, int tstmp)
+    : Attributes(attr), Size(size), Timestamp(tstmp) { ASSERT(len < _MAX_PATH); memcpy(Name, name, len); Name[len] = 0; }
   };
  private:
   // Parameters
@@ -74,10 +75,8 @@ class DirScan
 
  private:
   static time_t ConvertOS2FTime(FDATE date, FTIME time);
-  /// Append the object name to the base path in \c Path.
-  /// @return false if name is "." or "..".
-  bool   AppendPath(const char* name, size_t len);
-  void   AppendItem(const FILEFINDBUF3* fb);
+  /// Return true on "." or "..".
+  static bool IsDot(const char* name, size_t len);
  public:
   /// Step 1: initialize a new directory scanner
   DirScan() {}

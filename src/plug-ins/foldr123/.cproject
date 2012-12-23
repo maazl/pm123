@@ -36,6 +36,7 @@
 									<listOptionValue builtIn="false" value="_MAX_PATH=260"/>
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
 									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
+									<listOptionValue builtIn="false" value="_MAX_FNAME=256"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.233872720" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -225,4 +226,5 @@
 			</profile>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 </cproject>
