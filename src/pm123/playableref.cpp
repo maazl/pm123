@@ -440,7 +440,7 @@ xstring PlayableRef::GetDisplayName() const
 { if ((Overridden & IF_Item) && Item.alias)
     return Item.alias;
   if (Overridden & IF_Meta)
-  { xstring ret(Info.meta->title);
+  { xstring ret(Meta.title);
     if (ret && ret[0U])
       return ret;
   }
