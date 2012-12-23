@@ -353,6 +353,7 @@
 
 #define SB_NUMWORKERS      1380
 #define SB_DLGWORKERS      1381
+#define CB_LOWPRIWORKERS   1382
 
 #define CFG_DISPLAY1       1400
 

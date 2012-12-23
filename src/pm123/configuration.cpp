@@ -83,6 +83,7 @@ const amp_cfg Cfg::Default =
 
 , 2 // num_workers
 , 1
+, true
 
 , 1 // font
 , false
@@ -203,6 +204,7 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.pri_limit);
   load_ini_int(HIni, cfg.num_workers);
   load_ini_int(HIni, cfg.num_dlg_workers);
+  load_ini_int(HIni, cfg.low_priority_workers);
   load_ini_int(HIni, cfg.mode);
   load_ini_int(HIni, cfg.font);
   load_ini_int(HIni, cfg.floatontop);
@@ -275,6 +277,7 @@ void Cfg::SaveIni()
     save_ini_value(HIni, cfg.pri_limit);
     save_ini_value(HIni, cfg.num_workers);
     save_ini_value(HIni, cfg.num_dlg_workers);
+    save_ini_bool (HIni, cfg.low_priority_workers);
     save_ini_value(HIni, cfg.mode);
     save_ini_value(HIni, cfg.font);
     save_ini_bool (HIni, cfg.floatontop);

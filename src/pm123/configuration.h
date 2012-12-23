@@ -147,6 +147,7 @@ struct amp_cfg
 
   int      num_workers;        ///< Number of general purpose worker threads for Playable objects (non zero)
   int      num_dlg_workers;    ///< Number of dialog (high priority) worker threads for Playable objects
+  bool     low_priority_workers;///< Enable low priority for PRI_Low work items.
 
   int      font;               ///< Use font 1 or font 2.
   bool     font_skinned;       ///< Use skinned font.

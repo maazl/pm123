@@ -537,6 +537,7 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
 
       SpinButton(+GetCtrl(SB_NUMWORKERS)).SetValue(cfg.num_workers);
       SpinButton(+GetCtrl(SB_DLGWORKERS)).SetValue(cfg.num_dlg_workers);
+      CheckBox(+GetCtrl(CB_LOWPRIWORKERS)).SetCheckState(cfg.low_priority_workers);
       return 0;
     }
 
@@ -582,6 +583,7 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
 
       cfg.num_workers = SpinButton(GetCtrl(SB_NUMWORKERS)).QueryValue();
       cfg.num_dlg_workers = SpinButton(GetCtrl(SB_DLGWORKERS)).QueryValue();
+      cfg.low_priority_workers = CheckBox(GetCtrl(CB_LOWPRIWORKERS)).QueryCheckState();
 
       return 0;
     }

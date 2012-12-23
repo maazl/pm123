@@ -367,16 +367,26 @@ void APlayable::ScheduleRequest(Priority pri)
 
 void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%u)\n", this, DebugName().cdata(), pri));
+  int old_pri = -1;
   JobSet job(pri & ~PRI_Sync); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
   if (pri & PRI_Low)
-    AsyncRequest = 0;
-  else
+  { AsyncRequest = 0;
+    if (Cfg::Get().low_priority_workers)
+    { PTIB ptib;
+      DosGetInfoBlocks(&ptib, NULL);
+      old_pri = ptib->tib_ptib2->tib2_ulpri;
+      DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, 20, 0);
+    }
+  } else
     AsyncRequest.bitrst(0);
+
   DoLoadInfo(job);
   // reschedule required later?
   if (job.AllDepends.Size())
     // The worker deletes itself!
     new RescheduleWorker(job.AllDepends, *this, pri);
+  if (old_pri >= 0)
+    DosSetPriority(PRTYS_THREAD, old_pri >> 8, old_pri & 0xff, 0);
 }
 
 void APlayable::PlayableWorker(WInit& init)
@@ -433,11 +443,11 @@ void APlayable::Init()
   // start the worker threads
   ASSERT(WItems == NULL);
   WTermRq = false;
-  WNumWorkers = Cfg::Get().num_workers;     // sample this atomically
   WNumDlgWorkers = Cfg::Get().num_dlg_workers; // sample this atomically
-  WItems = new WInit[WNumWorkers+WNumDlgWorkers];
-  for (WInit* wp = WItems + WNumWorkers+WNumDlgWorkers; wp-- != WItems; )
-  { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Normal : PRI_Low;
+  WNumWorkers = Cfg::Get().num_workers + WNumDlgWorkers; // sample this atomically
+  WItems = new WInit[WNumWorkers];
+  for (WInit* wp = WItems + WNumWorkers; wp-- != WItems; )
+  { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Low : PRI_Normal;
     wp->TID = _beginthread(&PlayableWorkerStub, NULL, 65536, wp);
     ASSERT(wp->TID != -1);
   }
