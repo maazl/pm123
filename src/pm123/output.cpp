@@ -58,16 +58,18 @@ Output::~Output()
 }
 
 void Output::PluginNotification(void*, const PluginEventArgs& args)
-{ if (args.Plug.PluginType == PLUGIN_OUTPUT)
+{ if (args.Type == PLUGIN_OUTPUT)
   { switch(args.Operation)
     {case PluginEventArgs::Load:
-      if (!args.Plug.GetEnabled())
+      if (!args.Plug->GetEnabled())
         break;
      case PluginEventArgs::Enable:
-      // Output plug-ins are like a radio button. Only one plug-in is enabled at a time.
-      foreach (const int_ptr<Plugin>*, ppp, Outputs)
-        if (*ppp != &args.Plug)
-          (*ppp)->SetEnabled(false);
+      { // Output plug-ins are like a radio button. Only one plug-in is enabled at a time.
+        int_ptr<PluginList> outputs(Outputs);
+        foreach (const int_ptr<Plugin>*, ppp, *outputs)
+          if (*ppp != args.Plug)
+            (*ppp)->SetEnabled(false);
+      }
      default:;
     }
   }

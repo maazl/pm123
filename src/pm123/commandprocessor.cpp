@@ -1720,13 +1720,12 @@ void CommandProcessor::XPluginLoad()
 
 static PLUGIN_TYPE DoUnload(Module& module, PLUGIN_TYPE type)
 { if (type)
-  { PluginList list(type);
-    Mutex::Lock lock(Module::Mtx);
-    Plugin::GetPlugins(list, false);
-    const int_ptr<Plugin>* ppp = list.begin();
-    while (ppp != list.end())
+  { Mutex::Lock lock(Module::Mtx);
+    int_ptr<PluginList> list(new PluginList(*Plugin::GetPluginList(type)));
+    const int_ptr<Plugin>* ppp = list->begin();
+    while (ppp != list->end())
       if ((*ppp)->ModRef == &module)
-      { list.erase(ppp);
+      { list->erase(ppp);
         Plugin::SetPluginList(list);
         return type;
       } else
@@ -1765,14 +1764,15 @@ void CommandProcessor::XPluginUnload()
   WinSendMsg(ServiceHwnd, UM_UNLOAD_PLUGIN, MPFROMP(this), MPFROMLONG(type));
 }
 
-bool CommandProcessor::ReplacePluginList(PluginList& list)
-{ DEBUGLOG(("CommandProcessor(%p)::ReplacePluginList({%x,...}) - %s\n", this, list.Type, Request));
+bool CommandProcessor::ReplacePluginList(PLUGIN_TYPE type)
+{ DEBUGLOG(("CommandProcessor(%p)::ReplacePluginList(%x) - %s\n", this, type, Request));
   xstring err;
+  int_ptr<PluginList> list(new PluginList(*Plugin::GetPluginList(type)));
   // set plug-in list
   if (stricmp(Request, "@default") == 0)
-    err = list.LoadDefaults();
+    err = list->LoadDefaults();
   else if (stricmp(Request, "@empty") == 0)
-    list.clear();
+    list->clear();
   else
   { // Replace \t by \n
     char* cp = Request;
@@ -1780,7 +1780,7 @@ bool CommandProcessor::ReplacePluginList(PluginList& list)
     { *cp = '\n';
       while (*++cp == '\t');
     }
-    err = list.Deserialize(Request);
+    err = list->Deserialize(Request);
   }
   if (err)
   { MessageHandler(this, MSG_ERROR, err);
@@ -1789,9 +1789,6 @@ bool CommandProcessor::ReplacePluginList(PluginList& list)
   }
 
   Plugin::SetPluginList(list);
-  // Clear the list that now contains the old plug-ins.
-  // At this point the references are released and the modules are free.
-  list.clear();
   return true;
 }
 
@@ -1805,13 +1802,11 @@ void CommandProcessor::XPluginList()
   // requested plug-in type
   PLUGIN_TYPE type = ParseType();
   // Current state
-  PluginList list(type);
-  Plugin::GetPlugins(list, false);
-  Reply.append(list.Serialize());
+  Reply.append(Plugin::GetPluginList(type)->Serialize());
   if (*np)
   { Request = np;
     // Continue in thread 1
-    WinSendMsg(ServiceHwnd, UM_LOAD_PLUGIN_LIST, MPFROMP(this), MPFROMP(&list));
+    WinSendMsg(ServiceHwnd, UM_LOAD_PLUGIN_LIST, MPFROMP(this), MPFROMLONG(type));
   }
 }
 
@@ -1874,7 +1869,7 @@ MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
    case CommandProcessor::UM_LOAD_PLUGIN_LIST:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
       EventHandler::LocalRedirect red(cmd->vd_message2);
-      return MRFROMLONG(cmd->ReplacePluginList(*(PluginList*)PVOIDFROMMP(mp2)));
+      return MRFROMLONG(cmd->ReplacePluginList((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
   }
   return WinDefWindowProc(hwnd, msg, mp1, mp2);

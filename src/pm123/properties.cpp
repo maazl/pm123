@@ -120,7 +120,6 @@ class PropertyDialog : public NotebookDialogBase
     PluginList   List;        // List to visualize
     int_ptr<Plugin> Selected; // currently selected plugin
    private:
-    xstring      UndoCfg;
     AtomicUnsigned Requests;
     class_delegate<PluginPage, const PluginEventArgs> PlugmanDeleg;
 
@@ -129,6 +128,7 @@ class PropertyDialog : public NotebookDialogBase
                    const char* minor, const char* major = NULL);
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    xstring amp_cfg::* AccessPluginCfg() const;
     void         RequestList() { if (!Requests.bitset(0)) PostMsg(CFG_REFRESH, 0, 0); }
     void         RequestInfo() { if (!Requests.bitset(1)) PostMsg(CFG_REFRESH, 0, 0); }
     virtual void RefreshList();
@@ -166,23 +166,22 @@ class PropertyDialog : public NotebookDialogBase
 /* Processes messages of the display page of the setup notebook. */
 MRESULT PropertyDialog::SettingsPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
-  { case WM_INITDLG:
-      do_warpsans(GetHwnd());
-      PostMsg(CFG_CHANGE, MPFROMP(&Cfg::Get()), 0);
-      break;
+  {case WM_INITDLG:
+    do_warpsans(GetHwnd());
+    PostMsg(CFG_CHANGE, MPFROMP(&Cfg::Get()), 0);
+    break;
 
-    case CFG_GLOB_BUTTON:
-    { volatile const amp_cfg* data = &Cfg::Get();
-      switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        data = &Cfg::Default;
-       case PB_UNDO:
-        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
-      }
+   case CFG_GLOB_BUTTON:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_DEFAULT:
+      PostMsg(CFG_CHANGE, MPFROMP(&Cfg::Default), 0);
+      break;
+     case PB_UNDO:
+      PostMsg(CFG_CHANGE, MPFROMP(&Cfg::Get()), 0);
     }
-    case WM_COMMAND:
-    case WM_CONTROL:
-      return 0;
+   case WM_COMMAND:
+   case WM_CONTROL:
+    return 0;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
 }
@@ -711,9 +710,23 @@ PropertyDialog::PluginPage::PluginPage
 , PlugmanDeleg(*this, &PluginPage::PlugmanNotification)
 { MajorTitle = major;
   MinorTitle = minor;
-  Plugin::GetPlugins(List);
-  UndoCfg = List.Serialize();
   Plugin::GetChangeEvent() += PlugmanDeleg;
+}
+
+xstring amp_cfg::* PropertyDialog::PluginPage::AccessPluginCfg() const
+{ switch (List.Type)
+  {case PLUGIN_DECODER:
+    return &amp_cfg::decoders_list;
+   case PLUGIN_FILTER:
+    return &amp_cfg::filters_list;
+   case PLUGIN_OUTPUT:
+    return &amp_cfg::outputs_list;
+   case PLUGIN_VISUAL:
+    return &amp_cfg::visuals_list;
+   default:
+    ASSERT(false);
+    return NULL;
+  }
 }
 
 void PropertyDialog::PluginPage::RefreshList()
@@ -721,7 +734,7 @@ void PropertyDialog::PluginPage::RefreshList()
   ListBox lb(GetCtrl(LB_PLUGINS));
   lb.DeleteAll();
 
-  Plugin::GetPlugins(List, false);
+  List = *Plugin::GetPluginList(List.Type);
   int_ptr<Plugin> const* ppp;
   int selected = LIT_NONE;
   for (ppp = List.begin(); ppp != List.end(); ++ppp)
@@ -819,19 +832,151 @@ void PropertyDialog::PluginPage::SetParams(Plugin* pp)
 }
 
 void PropertyDialog::PluginPage::PlugmanNotification(const PluginEventArgs& args)
-{ if (args.Plug.PluginType == List.Type)
+{ if (args.Type == List.Type)
   { switch (args.Operation)
     {case PluginEventArgs::Enable:
      case PluginEventArgs::Disable:
-      if (&args.Plug == Selected)
+      if (args.Plug == Selected)
         RequestInfo();
       break;
      case PluginEventArgs::Load:
      case PluginEventArgs::Unload:
+     case PluginEventArgs::Sequence:
       RequestList();
      default:;
     }
   }
+}
+
+/* Processes messages of the plug-ins pages of the setup notebook. */
+MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG2(("PropertyDialog::PluginPage::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+  LONG i;
+  switch (msg)
+  {case CFG_REFRESH:
+    { unsigned req = Requests.swap(0);
+      if (req & 1)
+        RefreshList();
+      if (req & 2)
+        RefreshInfo();
+      return 0;
+    }
+   case CFG_GLOB_BUTTON:
+    { switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        { int_ptr<PluginList> def(new PluginList(List.Type));
+          const xstring& err = def->LoadDefaults();
+          if (err)
+            EventHandler::Post(MSG_ERROR, err);
+          Plugin::SetPluginList(def);
+          // The GUI is updated by the PluginChange event.
+        }
+        break;
+       case PB_UNDO:
+        { xstring undocfg(Cfg::Get().*AccessPluginCfg());
+          int_ptr<PluginList> list(new PluginList(List.Type));
+          const xstring& err = list->Deserialize(undocfg);
+          if (err)
+            EventHandler::Post(MSG_ERROR, err);
+          Plugin::SetPluginList(list);
+          // The GUI is updated by the PluginChange event.
+        }
+        break;
+      }
+      return 0;
+    }
+   case CFG_SAVE:
+    { ((amp_cfg*)PVOIDFROMMP(mp1))->*AccessPluginCfg() = List.Serialize();
+      return 0;
+    }
+   case WM_INITDLG:
+    do_warpsans(GetHwnd());
+    RequestList();
+    return 0;
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case LB_PLUGINS:
+      switch (SHORT2FROMMP(mp1))
+      {case LN_SELECT:
+        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+        Selected = (size_t)i < List.size() ? List[i] : NULL;
+        RequestInfo();
+        break;
+       case LN_ENTER:
+        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+        if ((size_t)i < List.size())
+          List[i]->ModRef->Config(GetHwnd());
+        break;
+      }
+      break;
+
+     case ML_DEC_FILETYPES:
+      switch (SHORT2FROMMP(mp1))
+      {case MLN_CHANGE:
+        EnableCtrl(PB_PLG_SET, true);
+      }
+      break;
+
+     case CB_DEC_TRYOTHER:
+     case CB_DEC_SERIALIZE:
+      switch (SHORT2FROMMP(mp1))
+      {case BN_CLICKED:
+        EnableCtrl(PB_PLG_SET, true);
+      }
+      break;
+
+    }
+    return 0;
+
+   case WM_COMMAND:
+    i = lb_cursored(GetHwnd(), LB_PLUGINS);
+    switch (SHORT1FROMMP(mp1))
+    {case PB_PLG_UNLOAD:
+      if ((size_t)i < List.size())
+      { List.erase(i);
+        Plugin::SetPluginList(new PluginList(List));
+      }
+      break;
+
+     case PB_PLG_ADD:
+      AddPlugin();
+      break;
+
+     case PB_PLG_UP:
+      if (i > 0 && (size_t)i < List.size())
+      { List.move(i, i-1);
+        Plugin::SetPluginList(new PluginList(List));
+      }
+      break;
+
+     case PB_PLG_DOWN:
+      if ((size_t)i < List.size()-1)
+      { List.move(i, i+1);
+        Plugin::SetPluginList(new PluginList(List));
+      }
+      break;
+
+     case PB_PLG_ENABLE:
+      if ((size_t)i < List.size())
+      { Plugin* pp = List[i];
+        pp->SetEnabled(!pp->GetEnabled());
+      }
+      break;
+
+     case PB_PLG_CONFIG:
+      if ((size_t)i < List.size())
+        List[i]->ModRef->Config(GetHwnd());
+      break;
+
+     case PB_PLG_SET:
+      if ((size_t)i < List.size())
+        SetParams(List[i]);
+      break;
+    }
+    return 0;
+  }
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
 void PropertyDialog::DecoderPage::RefreshInfo()
@@ -906,133 +1051,6 @@ void PropertyDialog::DecoderPage::SetParams(Plugin* pp)
   pp->SetParam("filetypes", filetypes);
   pp->SetParam("tryothers", CheckBox(GetCtrl(CB_DEC_TRYOTHER)).QueryCheckState() ? "1" : "0");
   pp->SetParam("serializeinfo", CheckBox(GetCtrl(CB_DEC_SERIALIZE)).QueryCheckState() ? "1" : "0");
-}
-
-/* Processes messages of the plug-ins pages of the setup notebook. */
-MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("PropertyDialog::PluginPage::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
-  LONG i;
-  switch (msg)
-  { case CFG_REFRESH:
-    { unsigned req = Requests.swap(0);
-      if (req & 1)
-        RefreshList();
-      if (req & 2)
-        RefreshInfo();
-      return 0;
-    }
-    case CFG_GLOB_BUTTON:
-    { switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        { PluginList def(List.Type);
-          const xstring& err = def.LoadDefaults();
-          if (err)
-            EventHandler::Post(MSG_ERROR, err);
-          Plugin::SetPluginList(def);
-          // The GUI is updated by the PluginChange event.
-        }
-        break;
-       case PB_UNDO:
-        { PluginList list(List.Type);
-          const xstring& err = list.Deserialize(UndoCfg);
-          if (err)
-            EventHandler::Post(MSG_ERROR, err);
-          Plugin::SetPluginList(list);
-          // The GUI is updated by the PluginChange event.
-        }
-        break;
-      }
-      return 0;
-    }
-
-    case WM_INITDLG:
-      do_warpsans(GetHwnd());
-      RequestList();
-      return 0;
-
-    case WM_CONTROL:
-      switch (SHORT1FROMMP(mp1))
-      {case LB_PLUGINS:
-        switch (SHORT2FROMMP(mp1))
-        {case LN_SELECT:
-          i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          Selected = (size_t)i < List.size() ? List[i] : NULL;
-          RequestInfo();
-          break;
-         case LN_ENTER:
-          i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          if ((size_t)i < List.size())
-            List[i]->ModRef->Config(GetHwnd());
-          break;
-        }
-        break;
-
-       case ML_DEC_FILETYPES:
-        switch (SHORT2FROMMP(mp1))
-        {case MLN_CHANGE:
-          EnableCtrl(PB_PLG_SET, true);
-        }
-        break;
-
-       case CB_DEC_TRYOTHER:
-       case CB_DEC_SERIALIZE:
-        switch (SHORT2FROMMP(mp1))
-        {case BN_CLICKED:
-          EnableCtrl(PB_PLG_SET, true);
-        }
-        break;
-
-      }
-      return 0;
-
-    case WM_COMMAND:
-      i = lb_cursored(GetHwnd(), LB_PLUGINS);
-      switch (SHORT1FROMMP(mp1))
-      {case PB_PLG_UNLOAD:
-        if ((size_t)i < List.size())
-        { List.erase(i);
-          Plugin::SetPluginList(List);
-        }
-        break;
-
-       case PB_PLG_ADD:
-        AddPlugin();
-        break;
-
-       case PB_PLG_UP:
-        if (i > 0 && (size_t)i < List.size())
-        { List.move(i, i-1);
-          Plugin::SetPluginList(List);
-        }
-        break;
-
-       case PB_PLG_DOWN:
-        if ((size_t)i < List.size()-1)
-        { List.move(i, i+1);
-          Plugin::SetPluginList(List);
-        }
-        break;
-
-       case PB_PLG_ENABLE:
-        if ((size_t)i < List.size())
-        { Plugin* pp = List[i];
-          pp->SetEnabled(!pp->GetEnabled());
-        }
-        break;
-
-       case PB_PLG_CONFIG:
-        if ((size_t)i < List.size())
-          List[i]->ModRef->Config(GetHwnd());
-        break;
-
-       case PB_PLG_SET:
-        if ((size_t)i < List.size())
-          SetParams(List[i]);
-        break;
-      }
-      return 0;
-  }
-  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
 

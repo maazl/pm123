@@ -836,11 +836,9 @@ void Decoder::AppendLoadMenu(HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZ
     lastcount = newcount;
   }
   // for all decoder plug-ins...
-  PluginList decoders(PLUGIN_DECODER);
-  GetPlugins(decoders);
-
-  for (i = 0; i < decoders.size(); ++i)
-  { const Decoder& dec = (Decoder&)*decoders[i];
+  int_ptr<PluginList> decoders = Decoders;
+  for (i = 0; i < decoders->size(); ++i)
+  { const Decoder& dec = (Decoder&)*(*decoders)[i];
     if (dec.GetEnabled() && dec.decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec.decoder_getwizard)();
       DEBUGLOG(("Decoder::AppendLoadMenu: %s - %p\n", dec.ModRef->Key.cdata(), da));
@@ -877,10 +875,9 @@ void Decoder::AppendAccelTable(HACCEL& haccel, ULONG id_base, LONG offset, DECOD
   DEBUGLOG(("Decoder::AppendAccelTable: %i\n", paccel->cAccel));
   bool modified = false;
   // Append plug-in accelerators
-  PluginList decoders(PLUGIN_DECODER);
-  GetPlugins(decoders);
-  for (size_t i = 0; i < decoders.size(); ++i)
-  { Decoder& dec = (Decoder&)*decoders[i];
+  int_ptr<PluginList> decoders = Decoders;
+  for (size_t i = 0; i < decoders->size(); ++i)
+  { Decoder& dec = (Decoder&)*(*decoders)[i];
     if (dec.GetEnabled() && dec.decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec.decoder_getwizard)();
       DEBUGLOG(("Decoder::AppendAccelTable: %s - %p\n", dec.ModRef->Key.cdata(), da));

@@ -1114,8 +1114,8 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
 
 void PlaylistBase::PluginEvent(const PluginEventArgs& args)
 { DEBUGLOG(("PlaylistBase(%p)::PluginEvent({&%p{%s}, %i})\n", this,
-    &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
-  if (args.Plug.PluginType == PLUGIN_DECODER)
+    args.Plug, args.Plug ? args.Plug->ModRef->Key.cdata() : "", args.Operation));
+  if (args.Type == PLUGIN_DECODER)
   { switch (args.Operation)
     {case PluginEventArgs::Enable:
      case PluginEventArgs::Disable:

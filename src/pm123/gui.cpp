@@ -68,20 +68,18 @@
 
 
 static void vis_InitAll(HWND owner)
-{ PluginList visuals(PLUGIN_VISUAL);
-  Plugin::GetPlugins(visuals);
-  for (size_t i = 0; i < visuals.size(); i++)
-  { Visual& vis = (Visual&)*visuals[i];
+{ int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
+  foreach (const int_ptr<Plugin>*, vpp, *visuals)
+  { Visual& vis = (Visual&)**vpp;
     if (vis.GetEnabled() && !vis.IsInitialized())
       vis.InitPlugin(owner);
   }
 }
 
 static void vis_UninitAll()
-{ PluginList visuals(PLUGIN_VISUAL);
-  Plugin::GetPlugins(visuals, false);
-  for (size_t i = 0; i < visuals.size(); i++)
-  { Visual& vis = (Visual&)*visuals[i];
+{ int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
+  foreach (const int_ptr<Plugin>*, vpp, *visuals)
+  { Visual& vis = (Visual&)**vpp;
     if (vis.IsInitialized())
       vis.UninitPlugin();
   }
@@ -1261,20 +1259,20 @@ void GUIImp::PlayableNotification(const void* rcv, const PlayableChangeArgs& arg
 }
 
 void GUIImp::PluginNotification(const void*, const PluginEventArgs& args)
-{ DEBUGLOG(("GUIImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
+{ DEBUGLOG(("GUIImp::PluginNotification(, {&%p{%s}, %i})\n", args.Plug, args.Plug ? args.Plug->ModRef->Key.cdata() : "", args.Operation));
   switch (args.Operation)
   {case PluginEventArgs::Load:
    case PluginEventArgs::Unload:
-    if (!args.Plug.GetEnabled())
+    if (!args.Plug->GetEnabled())
       break;
    case PluginEventArgs::Enable:
    case PluginEventArgs::Disable:
-    switch (args.Plug.PluginType)
+    switch (args.Plug->PluginType)
     {case PLUGIN_DECODER:
       WinPostMsg(HPlayer, WMP_REFRESH_ACCEL, 0, 0);
       break;
      case PLUGIN_VISUAL:
-      { int_ptr<Visual> vis = &(Visual&)args.Plug;
+      { int_ptr<Visual> vis = (Visual*)args.Plug;
         if (args.Operation & 1)
           // activate visual, delayed
           PMRASSERT(WinPostMsg(HPlayer, WMP_LOAD_VISUAL, MPFROMP(vis.toCptr()), MPFROMLONG(TRUE)));

@@ -202,14 +202,16 @@ ULONG GlueImp::Init()
   LowWaterLimit = 0;
 
   // Fetch current active output
-  { PluginList outputs(PLUGIN_OUTPUT);
-    Plugin::GetPlugins(outputs);
-    if (outputs.size() == 0)
-    { EventHandler::Post(MSG_ERROR, "There is no active output plug-in.");
-      return (ULONG)-1;  // ??
-    }
-    ASSERT(outputs.size() == 1);
-    OutPlug = (Output*)outputs[0].get();
+  { int_ptr<PluginList> outputs(Plugin::GetPluginList(PLUGIN_OUTPUT));
+    foreach (const int_ptr<Plugin>*, ppp, *outputs)
+      if ((*ppp)->GetEnabled())
+      { OutPlug = (Output*)ppp->get();
+        goto done;
+      }
+    EventHandler::Post(MSG_ERROR, "There is no active output plug-in.");
+    return (ULONG)-1;  // ??
+
+   done:;
   }
 
   // initially only the output plugin
@@ -218,7 +220,11 @@ ULONG GlueImp::Init()
     goto fail;
   Procs = OutPlug->GetProcs();
   // setup filters
-  Plugin::GetPlugins(FilterPlugs);
+  FilterPlugs = *Plugin::GetPluginList(PLUGIN_FILTER);
+  // removed disabled plug-ins
+  for (size_t i = FilterPlugs.size(); i-- != 0; )
+    if (!FilterPlugs[i]->GetEnabled())
+      FilterPlugs.erase(i);
   Virtualize(FilterPlugs.size()-1);
   // setup OutPlug
   rc = OutCommand(OUTPUT_SETUP);
@@ -673,15 +679,15 @@ OutEventHandler(void* w, OUTEVENTTYPE event)
 static time_t nomsgtill = 0;
 
 void GlueImp::PluginNotification(void*, const PluginEventArgs& args)
-{ DEBUGLOG(("GlueImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef->Key.cdata(), args.Operation));
+{ DEBUGLOG(("GlueImp::PluginNotification(, {&%p{%s}, %i})\n", args.Plug, args.Plug ? args.Plug->ModRef->Key.cdata() : "", args.Operation));
   switch (args.Operation)
   {case PluginEventArgs::Load:
    case PluginEventArgs::Unload:
-    if (!args.Plug.GetEnabled())
+    if (!args.Plug->GetEnabled())
       break;
    case PluginEventArgs::Enable:
    case PluginEventArgs::Disable:
-    switch (args.Plug.PluginType)
+    switch (args.Plug->PluginType)
     {case PLUGIN_DECODER:
      case PLUGIN_FILTER:
      case PLUGIN_OUTPUT:

@@ -173,21 +173,17 @@ class Module
 
 /// Arguments of PluginChange event
 struct PluginEventArgs
-{ Plugin& Plug;
+{ PLUGIN_TYPE Type;
   enum event
-  { /// The plug-in is unloaded by the user
-    Unload,
-    /// The plug-in is loaded by the user
-    Load,
-    /// The plug-in is enabled by the user
-    Disable,
-    /// The plug-in is instantiated by the plug-in manager
-    Enable,
-    /// The plug-in instance is destroyed by the plug-in manager
-    Uninit,
-    /// The plug-in is disabled by the user
-    Init
+  { Unload,              ///< The plug-in is unloaded by the user
+    Load,                ///< The plug-in is loaded by the user
+    Disable,             ///< The plug-in is disabled by the user
+    Enable,              ///< The plug-in is enabled by the user
+    Uninit,              ///< The plug-in instance is destroyed by the plug-in manager
+    Init,                ///< The plug-in is instantiated by the plug-in manager
+    Sequence             ///< The Sequence of the plug-ins has changed. Plug is \c NULL.
   } Operation;
+  Plugin* Plug;
 };
 
 /****************************************************************************
@@ -249,17 +245,21 @@ public:
   void         Serialize(xstringbuilder& target) const;
 
  protected:
-  // The lists are protected by Module::Mtx.
-  static PluginList Decoders; // only decoders
-  static PluginList Outputs;  // only outputs
-  static PluginList Filters;  // only filters
-  static PluginList Visuals;  // only visuals
+  // This lists are protected by Module::Mtx.
+  static volatile int_ptr<PluginList> Decoders;
+  static volatile int_ptr<PluginList> Outputs;
+  static volatile int_ptr<PluginList> Filters;
+  static volatile int_ptr<PluginList> Visuals;
+  /*static volatile int_ptr<PluginList<Decoder> > Decoders;
+  static volatile int_ptr<PluginList<Output> > Outputs;
+  static volatile int_ptr<PluginList<Filter> > Filters;
+  static volatile int_ptr<PluginList<Visual> > Visuals;*/
  private:
   /// Notify changes to the plug-in lists.
   static event<const PluginEventArgs> ChangeEvent;
-
  protected:
-  static PluginList& GetPluginList(PLUGIN_TYPE type);
+  /// Generic access to the PluginLists.
+  static volatile int_ptr<PluginList>& AccessPluginList(PLUGIN_TYPE type);
  public:
   /// Access plug-in change event.
   static event_pub<const PluginEventArgs>& GetChangeEvent() { return ChangeEvent; }
@@ -279,10 +279,10 @@ public:
   /// @remarks This function must be called from thread 1.
   static int_ptr<Plugin> Deserialize(const char* str, PLUGIN_TYPE type);
 
-  /// Put the list of enabled plug-ins into \a target.
-  /// The plug-in type is detected automatically from the type of \a target.
-  /// @param enabled Return only enabled plug-ins (default).
-  static void  GetPlugins(PluginList& target, bool enabled = true);
+  /// Retrieve the list of plug-ins of a given type. (Thread-safe)
+  /// @return strong reference to a snapshot of the plug-ins.
+  /// You must never modify the list!
+  static int_ptr<PluginList> GetPluginList(PLUGIN_TYPE type) { return AccessPluginList(type); }
 
   /// Append the plug-in to the appropriate list.
   /// @exception ModuleException Something went wrong.
@@ -290,7 +290,7 @@ public:
   /// Replace a plug-in list. This activates changes.
   /// The plug-in type is detected automatically from the type of \a source.
   /// @param source New plug-in list. Assigned by the old value on return.
-  static void  SetPluginList(PluginList& source);
+  static void  SetPluginList(PluginList* source);
 
 /*  static void  Init();
   static void  Uninit();*/
@@ -304,7 +304,7 @@ public:
  * This class is not thread-safe.
  *
  ***************************************************************************/
-class PluginList : public vector_int<Plugin>
+class PluginList : public Iref_count, public vector_int<Plugin>
 {public:
   /// Type of the plug-ins in this list instance.
   const PLUGIN_TYPE Type;

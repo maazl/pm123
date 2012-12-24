@@ -1890,28 +1890,22 @@ bmp_clean_skin( void )
 static void bmp_disable_visuals()
 { // disable skinned visuals
   Mutex::Lock lock(Module::Mtx);
-  PluginList vpl(PLUGIN_VISUAL);
-  Plugin::GetPlugins(vpl, false);
+  int_ptr<PluginList> vpl(Plugin::GetPluginList(PLUGIN_VISUAL));
   // remove current skinned plug-ins from list
-  foreach (const int_ptr<Plugin>*, ppp, vpl)
+  foreach (const int_ptr<Plugin>*, ppp, *vpl)
     if (((Visual*)(*ppp).get())->GetProperties().skin)
       (*ppp)->SetEnabled(false);
-  // now replace the list
-  Plugin::SetPluginList(vpl);
   // The plug-ins will get deactivated automatically.
 }
 
 static void bmp_enable_visuals()
 { // enable skinned visuals
   Mutex::Lock lock(Module::Mtx);
-  PluginList vpl(PLUGIN_VISUAL);
-  Plugin::GetPlugins(vpl, false);
+  int_ptr<PluginList> vpl(Plugin::GetPluginList(PLUGIN_VISUAL));
   // remove current skinned plug-ins from list
-  foreach (const int_ptr<Plugin>*, ppp, vpl)
+  foreach (const int_ptr<Plugin>*, ppp, *vpl)
     if (((Visual*)(*ppp).get())->GetProperties().skin)
       (*ppp)->SetEnabled(true);
-  // now replace the list
-  Plugin::SetPluginList(vpl);
   // The plug-ins will get activated automatically.
 }
 
@@ -2153,7 +2147,6 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
   }
 
  finish:
-
   bmp_reflow_and_resize ( hplayer );
 
   // reinit skinned plug-ins
@@ -2169,18 +2162,17 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
     }
   // replace skinned visual plug-ins
   { Mutex::Lock lock(Module::Mtx);
-    PluginList new_vpl(PLUGIN_VISUAL);
-    Plugin::GetPlugins(new_vpl, false);
+    int_ptr<PluginList> new_vpl(new PluginList(*Plugin::GetPluginList(PLUGIN_VISUAL)));
     // remove current skinned plug-ins from list
-    const int_ptr<Plugin>* ppp = new_vpl.begin();
-    while (ppp != new_vpl.end())
+    const int_ptr<Plugin>* ppp = new_vpl->begin();
+    while (ppp != new_vpl->end())
       if (((Visual*)(*ppp).get())->GetProperties().skin)
-        new_vpl.erase(ppp);
+        new_vpl->erase(ppp);
       else
         ++ppp;
     // append new ones
     foreach (, ppp, vpl)
-      new_vpl.append() = *ppp;
+      new_vpl->append() = *ppp;
     // now replace the list
     Plugin::SetPluginList(new_vpl);
     // The plug-ins will get activated automatically.

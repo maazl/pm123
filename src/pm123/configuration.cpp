@@ -145,33 +145,32 @@ HINI                       Cfg::HIni;
 
 
 void Cfg::LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
-{ PluginList list(type);
+{ int_ptr<PluginList> list(new PluginList(type));
   xstring err;
   if (ini_query_xstring(HIni, INI_SECTION, key, Current.*cfg))
-  { err = list.Deserialize(Current.*cfg);
-    if (err && !list.size())
-      list.LoadDefaults();
+  { err = list->Deserialize(Current.*cfg);
+    if (err && !list->size())
+      list->LoadDefaults();
   } else
-    err = list.LoadDefaults();
+    err = list->LoadDefaults();
   if (err)
     EventHandler::Post(MSG_ERROR, err);
   Plugin::SetPluginList(list);
 }
 
 void Cfg::SavePlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
-{
-  PluginList list(type);
-  Plugin::GetPlugins(list, false);
+{ int_ptr<PluginList> list = Plugin::GetPluginList(type);
   // do not save skinned visuals
   if (type == PLUGIN_VISUAL)
-  { const int_ptr<Plugin>* ppp = list.begin();
-    while (ppp != list.end())
+  { list = new PluginList(*list); // duplicate
+    const int_ptr<Plugin>* ppp = list->begin();
+    while (ppp != list->end())
       if (((Visual&)**ppp).GetProperties().skin)
-        list.erase(ppp);
+        list->erase(ppp);
       else
         ++ppp;
   }
-  ini_write_xstring(HIni, INI_SECTION, key, Current.*cfg = list.Serialize());
+  ini_write_xstring(HIni, INI_SECTION, key, Current.*cfg = list->Serialize());
 }
 
 void Cfg::LoadIni()

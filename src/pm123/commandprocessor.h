@@ -336,7 +336,7 @@ class CommandProcessor : public ACommandProcessor
   PLUGIN_TYPE InstantiatePlugin(Module& module, const char* params, PLUGIN_TYPE type);
   PLUGIN_TYPE LoadPlugin(PLUGIN_TYPE type);
   PLUGIN_TYPE UnloadPlugin(PLUGIN_TYPE type);
-  bool ReplacePluginList(PluginList& list);
+  bool ReplacePluginList(PLUGIN_TYPE type);
 
   void XPluginLoad();
   void XPluginUnload();

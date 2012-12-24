@@ -529,10 +529,9 @@ void Playable::DoLoadInfo(JobSet& job)
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 { DEBUGLOG(("Playable(%p{%s})::DecoderFileInfo(%x&, {...}, %p)\n", this, DebugName().cdata(), what, param));
   ASSERT(what);
-  PluginList decoders(PLUGIN_DECODER);
-  Plugin::GetPlugins(decoders);
-  bool* checked = (bool*)alloca(sizeof(bool) * decoders.size());
-  memset(checked, 0, sizeof *checked * decoders.size());
+  int_ptr<PluginList> decoders(Plugin::GetPluginList(PLUGIN_DECODER));
+  bool* checked = (bool*)alloca(sizeof(bool) * decoders->size());
+  memset(checked, 0, sizeof *checked * decoders->size());
   PHYS_INFO& phys = *info.phys;
   TECH_INFO& tech = *info.tech;
 
@@ -563,10 +562,12 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 
   // First check the decoder that matched last time.
   if (info.tech->decoder && *info.tech->decoder)
-  { for (i = 0; i < decoders.size(); i++)
-    { dp = (Decoder*)decoders[i].get();
-      if (dp->GetEnabled() && dp->ModRef->Key.compareToI(info.tech->decoder) == 0)
-      { // Found
+  { for (i = 0; i < decoders->size(); i++)
+    { dp = (Decoder*)(*decoders)[i].get();
+      if (dp->GetEnabled())
+      { if (dp->ModRef->Key.compareToI(info.tech->decoder) != 0)
+          continue;
+        // Found
         whatdec = whatrq;
         rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
         if (rc != PLUGIN_NO_PLAY)
@@ -582,15 +583,15 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
           }
         }
         info.tech->info.reset();
-        checked[i] = true;
-        break;
       }
+      checked[i] = true;
+      break;
     }
   }
 
   // Next checks decoders supporting the specified type of files.
-  for (i = 0; i < decoders.size(); i++)
-  { dp = (Decoder*)decoders[i].get();
+  for (i = 0; i < decoders->size(); i++)
+  { dp = (Decoder*)(*decoders)[i].get();
     DEBUGLOG(("Playable::DecoderFileInfo: %s -> %u %x/%x\n", dp->ModRef->Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (!checked[i] && dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
@@ -616,10 +617,10 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   }
 
   // At last checks the rest decoders with TryOthers set.
-  for (i = 0; i < decoders.size(); i++)
+  for (i = 0; i < decoders->size(); i++)
   { if (checked[i])
       continue;
-    dp = (Decoder*)decoders[i].get();
+    dp = (Decoder*)(*decoders)[i].get();
     if (!dp->TryOthers)
       continue;
     whatdec = whatrq;

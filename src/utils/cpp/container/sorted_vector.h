@@ -80,11 +80,11 @@ class sorted_vector : public vector<T>
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))
   T*                 find(const K& key) const;
-  // Ensure an element with a particular key.
-  // This will either return a reference to a pointer to an existing object which equals to key
-  // or a reference to a NULL pointer which is automatically created at the location in the container
-  // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
-  // Precondition: none, Performance: O(log(n))
+  /// Ensure an element with a particular key.
+  /// This will either return a reference to a pointer to an existing object which equals to key
+  /// or a reference to a NULL pointer which is automatically created at the location in the container
+  /// where a new object with key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// Precondition: none, Performance: O(log(n))
   T*&                get(const K& key);
   // Erase the element which equals key and return the removed pointer.
   // If no such element exists the function returns NULL.

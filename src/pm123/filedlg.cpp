@@ -62,36 +62,35 @@ APSZ_list::operator APSZ*() const
 
 class FileTypesEnumerator
 {private:
-  PluginList              Decoders;
+  int_ptr<PluginList>     Decoders;
   size_t                  DecNo;
   const vector<const DECODER_FILETYPE>* Current;
   size_t                  Item;
  public:
   FileTypesEnumerator();
   const DECODER_FILETYPE* GetCurrent() const { return (*Current)[Item]; }
-  int_ptr<Decoder> GetDecoder() const { return (Decoder*)Decoders[DecNo]; }
+  int_ptr<Decoder> GetDecoder() const { return (Decoder*)(*Decoders)[DecNo].get(); }
   bool            Next();
 };
 
 FileTypesEnumerator::FileTypesEnumerator()
-: Decoders(PLUGIN_DECODER)
+: Decoders(Plugin::GetPluginList(PLUGIN_DECODER))
 , Current(NULL)
-{ Plugin::GetPlugins(Decoders);
-}
+{}
 
 bool FileTypesEnumerator::Next()
 { DEBUGLOG(("FileTypesEnumerator(%p)::Next() - %p\n", this, Current));
   if (!Current)
   { DecNo = 0;
    load_decoder:
-    Current = &((const Decoder&)*Decoders[DecNo]).GetFileTypes();
+    Current = &((const Decoder&)(*Decoders)[DecNo]).GetFileTypes();
     Item = 0;
   } else
     ++Item;
   if (Item < Current->size())
     return true;
-  while (++DecNo < Decoders.size())
-    if (Decoders[DecNo]->GetEnabled())
+  while (++DecNo < Decoders->size())
+    if ((*Decoders)[DecNo]->GetEnabled())
       goto load_decoder;
   Current = NULL;
   return false;

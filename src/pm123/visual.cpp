@@ -109,10 +109,9 @@ bool Visual::UninitPlugin()
 }
 
 void Visual::BroadcastMsg(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ PluginList visuals(PLUGIN_VISUAL);
-  Plugin::GetPlugins(visuals);
-  for (size_t i = 0; i < visuals.size(); i++)
-  { Visual& vis = (Visual&)*visuals[i];
+{ int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
+  for (size_t i = 0; i < visuals->size(); i++)
+  { Visual& vis = (Visual&)*(*visuals)[i];
     if (vis.GetEnabled() && vis.IsInitialized())
       WinSendMsg(vis.Hwnd, msg, mp1, mp2);
   }

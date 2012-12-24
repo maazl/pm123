@@ -290,12 +290,11 @@ PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_obj_supported(const char* url, const char* eatype)
 { const DECODER_TYPE type = Decoder::GetURLType(url);
   // Get list of decoders
-  PluginList decoders(PLUGIN_DECODER);
-  Plugin::GetPlugins(decoders);
+  int_ptr<PluginList> decoders(Plugin::GetPluginList(PLUGIN_DECODER));
   // Seek for match
-  for (size_t i = 0; i < decoders.size(); i++)
-  { Decoder* dp = (Decoder*)decoders[i].get();
-    if ( (dp->GetObjectTypes() & type)
+  for (size_t i = 0; i < decoders->size(); i++)
+  { Decoder* dp = (Decoder*)(*decoders)[i].get();
+    if ( dp->GetEnabled() && (dp->GetObjectTypes() & type)
       && ((type & ~DECODER_FILENAME) || dp->IsFileSupported(url, eatype)) )
       return true;
   }
@@ -489,10 +488,14 @@ void Module::CopyAllInstancesTo(vector_int<Module>& target)
 
 event<const PluginEventArgs> Plugin::ChangeEvent;
 
-PluginList Plugin::Decoders(PLUGIN_DECODER); // only decoders
-PluginList Plugin::Outputs (PLUGIN_OUTPUT);  // only outputs
-PluginList Plugin::Filters (PLUGIN_FILTER);  // only filters
-PluginList Plugin::Visuals (PLUGIN_VISUAL);  // only visuals
+volatile int_ptr<PluginList> Plugin::Decoders(new PluginList(PLUGIN_DECODER)); // only decoders
+volatile int_ptr<PluginList> Plugin::Outputs (new PluginList(PLUGIN_OUTPUT));  // only outputs
+volatile int_ptr<PluginList> Plugin::Filters (new PluginList(PLUGIN_FILTER));  // only filters
+volatile int_ptr<PluginList> Plugin::Visuals (new PluginList(PLUGIN_VISUAL));  // only visuals
+/*volatile int_ptr<PluginList<Decoder> > Plugin::Decoders(PLUGIN_DECODER); // only decoders
+volatile int_ptr<PluginList<Output> > Plugin::Outputs (PLUGIN_OUTPUT);  // only outputs
+volatile int_ptr<PluginList<Filter> > Plugin::Filters (PLUGIN_FILTER);  // only filters
+volatile int_ptr<PluginList<Visual> > Plugin::Visuals (PLUGIN_VISUAL);  // only visuals*/
 
 
 Plugin::Plugin(Module& mod, PLUGIN_TYPE type)
@@ -513,7 +516,7 @@ void Plugin::SetEnabled(bool enabled)
 }
 
 void Plugin::RaisePluginChange(PluginEventArgs::event ev)
-{ const PluginEventArgs ea = { *this, ev };
+{ const PluginEventArgs ea = { PluginType, ev, this };
   ChangeEvent(ea);
 }
 
@@ -560,7 +563,8 @@ void Plugin::Serialize(xstringbuilder& target) const
   }
 }
 
-PluginList& Plugin::GetPluginList(PLUGIN_TYPE type)
+static volatile int_ptr<PluginList> null_list;
+volatile int_ptr<PluginList>& Plugin::AccessPluginList(PLUGIN_TYPE type)
 { switch(type)
   {case PLUGIN_DECODER:
     return Decoders;
@@ -573,7 +577,7 @@ PluginList& Plugin::GetPluginList(PLUGIN_TYPE type)
    default:;
   }
   ASSERT(false);
-  return *(PluginList*)NULL; // This must never happen!
+  return null_list; // This must never happen!
 }
 
 int_ptr<Plugin> Plugin::FindInstance(Module& module, PLUGIN_TYPE type)
@@ -589,7 +593,7 @@ int_ptr<Plugin> Plugin::FindInstance(Module& module, PLUGIN_TYPE type)
    default:;
   }
   ASSERT(false);
-  return NULL;
+  return int_ptr<Plugin>();
 }
 
 int_ptr<Plugin> Plugin::GetInstance(Module& module, PLUGIN_TYPE type)
@@ -633,52 +637,43 @@ int_ptr<Plugin> Plugin::Deserialize(const char* str, PLUGIN_TYPE type)
   return pp;
 }
 
-void Plugin::GetPlugins(PluginList& target, bool enabled)
-{ const PluginList& source = GetPluginList(target.Type);
-  Mutex::Lock lock(Module::Mtx);
-  if (enabled)
-  { target.clear();
-    const int_ptr<Plugin>* ppp = source.begin();
-    const int_ptr<Plugin>*const ppe = source.end();
-    while (ppp != ppe)
-    { if ((*ppp)->Enabled)
-        target.append() = *ppp;
-      ++ppp;
-    }
-  } else
-    target = source;
-}
-
 void Plugin::AppendPlugin(Plugin* plugin)
-{ PluginList& target = GetPluginList(plugin->PluginType);
+{ volatile int_ptr<PluginList>& list = AccessPluginList(plugin->PluginType);
   Mutex::Lock lock(Module::Mtx);
+  PluginList target = *int_ptr<PluginList>(list);
   if (target.contains(plugin))
     throw ModuleException("Tried to load the plug-in %s twice.", plugin->ModRef->Key.cdata());
   plugin->RaisePluginChange(PluginEventArgs::Load);
   target.append() = plugin;
+  // atomic assign
+  list = &target;
 }
 
-void Plugin::SetPluginList(PluginList& source)
-{ PluginList& target = GetPluginList(source.Type);
+void Plugin::SetPluginList(PluginList* source)
+{ volatile int_ptr<PluginList>& list = AccessPluginList(source->Type);
+  int_ptr<PluginList> old = list;
   Mutex::Lock lock(Module::Mtx);
   // check what's removed
-  const int_ptr<Plugin>* ppp = target.begin();
-  const int_ptr<Plugin>* ppe = target.end();
+  const int_ptr<Plugin>* ppp = old->begin();
+  const int_ptr<Plugin>* ppe = old->end();
   while (ppp != ppe)
-  { if (!source.contains(*ppp))
+  { if (!source->contains(*ppp))
       (*ppp)->RaisePluginChange(PluginEventArgs::Unload);
     ++ppp;
   }
-  // assign
-  target.swap(source);
+  // atomic assign
+  list = source;
   // check what's new
-  ppp = target.begin();
-  ppe = target.end();
+  ppp = source->begin();
+  ppe = source->end();
   while (ppp != ppe)
-  { if (!source.contains(*ppp))
+  { if (!old->contains(*ppp))
       (*ppp)->RaisePluginChange(PluginEventArgs::Load);
     ++ppp;
   }
+  // TODO: fire sequence event only if really something like that changed.
+  const PluginEventArgs ea = { source->Type, PluginEventArgs::Sequence, NULL };
+  ChangeEvent(ea);
 }
 
 /*void Plugin::Init()
