@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*" level="3">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Compatibility with older plug-ins</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
+<h2>Compatibility of PM123 1.4x with older plug-ins</h2>
+<table border="1" cellpadding="3" cellspacing="0" width="100%">
+  <tbody>
+    <tr>
+      <th>Plug-in</th>
+      <th>Comment</th>
+    </tr>
+    <tr>
+      <td bgcolor="#ffdddd">X - <a
+ href="http://www.stud.uni-karlsruhe.de/%7Euh45/projects/fade/fade.shtml">Crossfader
+plug-in</a> (<tt>fade.dll</tt>)</td>
+      <td bgcolor="#ffdddd">The plug-in loads as expected,
+but does
+not do it's job anymore. Most likely because it makes assumptions about
+undocumented properties of older PM123 versions.<br>
+The new plug-in interface features of PM123 1.40 should allow to write
+a more sophisticated solution using a filter plug-in. However, somebody
+has to do the job. But since PM123 1.40 supports gap-less playback out
+of the box, it is no longer that important.</td>
+    </tr>
+    <tr>
+      <td bgcolor="#ffdddd">X - <a
+ href="http://www.stud.uni-karlsruhe.de/%7Euh45/projects/normalize/normalize.html">Normalizer
+plug-in</a> (<tt>normal.dll</tt>, <tt>normhelp.dll</tt>)</td>
+      <td bgcolor="#ffdddd">Will not work because it
+utilizes the visual plug-in interface which has changed with PM123 1.32.<br>
+It also is superseded by the built-in Replay-Gain handling since
+1.32rc1.</td>
+    </tr>
+    <tr>
+      <td bgcolor="#ccffcc">OK - Monkey's Audio decoder (<tt>macplay.dll</tt>)</td>
+      <td bgcolor="#ccffcc">Reported to work with PM123 1.40 by Cal.</td>
+    </tr>
+    <tr>
+      <td>? - True Audio decoder (<tt>ttaplay.dll</tt>)</td>
+      <td>May work, but&nbsp;neither I have a file nor
+I can create one with OS/2.</td>
+    </tr>
+    <tr>
+      <td bgcolor="#ffffcc">x - Module files decoder (<tt>DPMikMod.dll</tt>)</td>
+      <td bgcolor="#ffffcc">Crashes with pm123 1.40 sooner
+or later
+when the playback starts, mostly on the 2nd usage. Reason unknown.
+Looks like undefined behavior because
+of&nbsp;a dangling reference to some structure on the stack. No
+source
+available.</td>
+    </tr>
+    <tr>
+      <td bgcolor="#ccffcc">OK - older Ogg Vorbis plug-in<br>
+(<tt>oggplay.dll</tt>)</td>
+      <td bgcolor="#ccffcc">Works as expected. But since
+PM123 1.32rc1 a
+Ogg-Vorbis plug-in is included anyway. Unfortunately it has the same
+name. But it is entirely different and superior.</td>
+    </tr>
+    <tr>
+      <td>? - Musepack decoder (<tt>mpcplay.dll</tt>)</td>
+      <td>Untested. I have no such files.</td>
+    </tr>
+    <tr>
+      <td>? - WavPack decoder (<tt>wvplay.dll</tt>)</td>
+      <td>Untested. I have no such files.</td>
+    </tr>
+    <tr>
+      <td bgcolor="#ccffcc">OK - FLAC play 1.2.1 (<tt>flacplay.dll</tt>)</td>
+      <td bgcolor="#ccffcc">Works as expected. But superseded by
+flac123.dll, shipped with PM123 1.41. </td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Note:</u> When loading older decoder plug-ins
+you might want to add some extended attributes file types&nbsp;to
+the
+plug-in in the properties dialog. This enables you to play files
+without the standard extensions.</p>
+</body>
+</html>

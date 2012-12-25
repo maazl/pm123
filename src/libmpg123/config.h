@@ -1,4 +1,4 @@
-#include <config.h>
+#include <../include/config.h>
 
 /* Static configuration for PM123 */
 #define OPT_MULTI 1
