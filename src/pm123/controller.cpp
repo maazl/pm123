@@ -142,8 +142,8 @@ class CtrlImp
   static void  AdjustNext(Location& si);
   /// Jump to the location si. The function will destroy the content of si.
          void  NavigateCore(Location& si);
-  // Register events to a new current song and request some information if not yet known.
-  //static void  AttachCurrentSong(APlayable& ps);
+  /// Request some information on the current song.
+  static void  AttachCurrentSong();
   /// Clears the prefetch list and keep the first element if keep is true.
   /// The operation is atomic.
   static void  PrefetchClear(bool keep);
@@ -467,6 +467,7 @@ void CtrlImp::NavigateCore(Location& si)
   //CurrentSongDelegate.detach();
   // Events
   UpdateStackUsage(Current()->Loc.GetCallstack(), si.GetCallstack());
+  AttachCurrentSong();
   Pending |= EV_Song|EV_Location;
 
   // restart decoder immediately?
@@ -493,11 +494,15 @@ void CtrlImp::NavigateCore(Location& si)
   Reply(RC_OK);
 }
 
-/*void Ctrl::AttachCurrentSong(APlayable& ps)
-{ DEBUGLOG(("Ctrl::AttachCurrentSong(&%p)\n", &ps));
-  ps.RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Rpl|IF_Drpl, PRI_Low);
-  ps.GetInfoChange() += CurrentSongDelegate;
-}*/
+void CtrlImp::AttachCurrentSong()
+{ DEBUGLOG(("Ctrl::AttachCurrentSong()\n"));
+  if (!PrefetchList.size())
+    return;
+  APlayable* cur = Current()->Loc.GetCurrent();
+  if (cur)
+    cur->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Rpl|IF_Drpl, PRI_Normal);
+  //ps.GetInfoChange() += CurrentSongDelegate;
+}
 
 void CtrlImp::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
@@ -534,7 +539,7 @@ void CtrlImp::CheckPrefetch(double pos)
         //Current()->Iter.Change += SongIteratorDelegate;
       }
       // Now keep track of the next entry
-      //AttachCurrentSong(Current()->Loc.GetCurrent());
+      AttachCurrentSong();
 
       // delete iterators and remove from play queue (if desired)
       Playable* plp = NULL;
@@ -987,8 +992,8 @@ void CtrlImp::MsgLoad()
     AdjustNext(Current()->Loc);
     // track changes
     UpdateStackUsage(EmptyStack, Current()->Loc.GetCallstack());
-    //AttachCurrentSong(ps);
   }
+  AttachCurrentSong();
   Pending |= EV_Song|EV_Location;
   LastStart = NULL;
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));

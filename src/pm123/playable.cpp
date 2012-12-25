@@ -795,7 +795,6 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
   // Place new entries, try to recycle existing ones.
   foreach (APlayable*const*, npp, newcontent)
   { APlayable& cur_new = **npp;
-    Playable& cur_play = cur_new.GetPlayable();
 
     // Priority 1: prefer an exactly matching one over a reference only to the same Playable.
     // Priority 2: prefer the first match over subsequent matches.
@@ -812,7 +811,7 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
       { // exactly the same object?
         match = cur_search;
         goto exactmatch;
-      } else if (cur_search->GetPlayable() == cur_play)
+      } else if (cur_search->GetPlayable() == cur_new.GetPlayable())
       { DEBUGLOG(("Playable::UpdateCollection potential match: %p\n", cur_search));
         // only the first inexact match counts
         match = cur_search;
@@ -822,7 +821,7 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
     if (match)
     { // Match! => Swap properties
       // If the slice changes this way an ChildInstChange event is fired here that invalidates the CollectionInfoCache.
-      if (match->GetPlayable() != cur_play)
+      if (match != &cur_new && &match->GetPlayable() != &cur_new)
         match->AssignInstanceProperties((PlayableRef&)cur_new);
      exactmatch:
       // If it happened to be the first new entry we have to update first_new too.
@@ -832,8 +831,8 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
       ret |= MoveEntry(match, NULL);
     } else
     { // No match => create new entry.
-      match = CreateEntry(cur_play);
-      if (match->GetPlayable() != cur_play)
+      match = CreateEntry(cur_new.GetPlayable());
+      if (match != &cur_new && &match->GetPlayable() != &cur_new)
         match->AssignInstanceProperties((PlayableRef&)cur_new);
       InsertEntry(match, NULL);
       ret = true;
