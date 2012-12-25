@@ -1,6 +1,7 @@
 # GCC with EMX
 
-.SUFFIXES: .c .cpp .e .nasm .asm .S .o .obj .rc .res
+.SUFFIXES:
+.SUFFIXES: .c .cpp .e .nasm .S .o .obj .rc .res
 
 MFLAGS     = -nologo
 MDUMMY     =
