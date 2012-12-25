@@ -74,7 +74,7 @@ class PlayableSlice : public APlayable
  protected:
           AtomicUnsigned    Overridden;
   mutable INFO_BUNDLE_CV    Info;
-          ItemInfo          Item;
+          sco_ptr<ItemInfo> Item;
           sco_ptr<CICache>  CIC;
  private: // Working vars
   // StartCache and StopCache MUST have RefTo->GetPlayable() as root.
@@ -109,7 +109,7 @@ class PlayableSlice : public APlayable
   /// Return the overridden information.
           InfoFlags         GetOverridden() const    { return (InfoFlags)Overridden.get(); }
   /// Return true if the current instance is different from *RefTo.
-          bool              IsSlice() const          { return (Overridden & IF_Item) && (Item.start || Item.stop); }
+          bool              IsSlice() const          { return (Overridden & IF_Item) && (Item->start || Item->stop); }
   /// @brief Override the item information.
   /// @detail If the function is called with NULL the overriding is cancelled.
   /// Note that since the start and stop locations may not be verified immediately
@@ -155,8 +155,8 @@ class PlayableSlice : public APlayable
  */
 class PlayableRef : public PlayableSlice
 {private:
-          MetaInfo          Meta;
-          AttrInfo          Attr;
+          sco_ptr<MetaInfo> Meta;
+          sco_ptr<AttrInfo> Attr;
 
  public:
   explicit                  PlayableRef(APlayable& refto) : PlayableSlice(refto) {}
