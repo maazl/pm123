@@ -39,7 +39,7 @@
 #include <os2.h>
 
 class DirScan
-{public:
+{private:
   struct Entry
   { /// URL of the entry.
           char       Name[_MAX_FNAME]; // mutable, because lately initialized in the constructor.
@@ -55,21 +55,21 @@ class DirScan
   };
  private:
   // Parameters
-  bool    Recursive;
-  bool    AllFiles;
-  bool    Hidden;
-  xstring Pattern;
-  bool    FoldersFirst;
+  bool    Recursive;    ///< Scan sub directories recursively
+  bool    AllFiles;     ///< Include all files regardless of \c Ctx.plugin_api->obj_supported
+  bool    Hidden;       ///< Include hidden files
+  xstring Pattern;      ///< Search pattern, for file manes only
+  bool    FoldersFirst; ///< Return folders first
   // Working set
   /// Path to current item without any URL parameters.
   /// Points to the Folder at first, the sub items later.
   xstringbuilder Path;
   /// Pointer into URL starting a '?' or '\0' if no parameters.
-  const  char* Params;
+  const   char* Params;
   /// Pointer into Path that skips "file://".
-  char*  DosPath;
+  char*   DosPath;
   /// Offset in Path after the trailing slash of the base folder.
-  size_t BasePathLen;
+  size_t  BasePathLen;
   /// Item container
   vector_own<Entry> Items;
 
@@ -77,6 +77,7 @@ class DirScan
   static time_t ConvertOS2FTime(FDATE date, FTIME time);
   /// Return true on "." or "..".
   static bool IsDot(const char* name, size_t len);
+  static int FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r);
  public:
   /// Step 1: initialize a new directory scanner
   DirScan() {}

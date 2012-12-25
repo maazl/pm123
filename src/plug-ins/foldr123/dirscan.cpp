@@ -219,6 +219,8 @@ void DirScan::Scan()
             eadecode(buf, sizeof buf, eatype, &eas);
             eadata = buf;
           }
+          Path.erase(BasePathLen);
+          Path.append(name, name_len);
           if (!Ctx.plugin_api->obj_supported(Path, eadata))
             goto next;
         }
@@ -242,7 +244,7 @@ static int StandardComparer(const DirScan::Entry* l, const DirScan::Entry* r)
 { return stricmp(l->Path, r->Path);
 }*/
 
-static int FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r)
+int DirScan::FoldersFirstComparer(const DirScan::Entry* l, const DirScan::Entry* r)
 { if ((l->Attributes ^ r->Attributes) & FILE_DIRECTORY)
     return (r->Attributes & FILE_DIRECTORY) - (l->Attributes & FILE_DIRECTORY);
   else
