@@ -75,6 +75,7 @@ opt.quiet      = 0
 includes       = 0
 opt.recursive  = 0
 opt.Irecursive = 0
+opt.subdir     = ""
 opt.strippar   = 0
 opt.strict     = 0
 opt.checkrec   = 0
@@ -128,6 +129,8 @@ DO WHILE params \= ''
          opt.recursive = 1
          opt.Irecursive = 1
          END
+       WHEN SUBSTR(param, 2) = 'S' THEN
+         opt.subdir = "S"
        WHEN SUBSTR(param, 2) = 's' THEN
          opt.strippar = 1
        WHEN SUBSTR(param, 2) = '1' THEN
@@ -160,11 +163,20 @@ IF file.0 = 0 THEN
 rule.0 = 0
 DO i = 1 TO file.0
    IF opt.wildcard & (VERIFY(file.i, "*?", "M") \= 0) THEN DO
-      CALL SysFileTree file.i, "match", "OF"
+      CALL SysFileTree file.i, "match", "OF"opt.subdir
       IF match.0 \= 0 THEN DO
-         dir =  FILESPEC('D',file.i)FILESPEC('P',file.i)
+         dir = FILESPEC('D',file.i)FILESPEC('P',file.i)
+         absdir = DIRECTORY() 
+         IF dir \= '' THEN DO
+            CALL SysFileTree dir, "absdir", "OD"
+            IF absdir.0 \= 0 THEN
+               absdir = absdir.1
+            END
+         IF SUBSTR(absdir, LENGTH(absdir)) \= '\' THEN
+            absdir = absdir'\'
          DO j = 1 TO match.0
-            CALL DoFile dir||FILESPEC('N',match.j)
+            /*SAY dir"_"absdir"_"match.j*/
+            CALL DoFile dir||SUBSTR(match.j, LENGTH(absdir)+1)
             END
          ITERATE
          END
@@ -242,7 +254,7 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
          ITERATE
       /* append rule */
       IF length(rule.i) < 7 THEN
-         CALL LINEOUT ARG(1), rule.i":"||"09"x||"09"x||SUBSTR(dep, 2)
+         CALL LINEOUT ARG(1), rule.i":"||"0909"x||SUBSTR(dep, 2)
       ELSE
          CALL LINEOUT ARG(1), rule.i":"||"09"x||SUBSTR(dep, 2)
       END
@@ -448,7 +460,7 @@ CheckRec: PROCEDURE EXPOSE opt. rule. stack.
  * ARG(1)  filename
  * RETURN  symbol */
 SymName: PROCEDURE
-   RETURN "RULE."C2X(ARG(1))
+   RETURN "RULE."C2X(TRANSLATE(ARG(1),'\','/'))
 
 /****************************************************************************
    Error handling
@@ -462,4 +474,3 @@ Warn: PROCEDURE EXPOSE opt.
       CALL LINEOUT STDERR, ARG(1)
    RETURN ARG(1)
 
-

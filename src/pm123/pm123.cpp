@@ -36,18 +36,18 @@
 #include "pm123.h"
 #include "eventhandler.h"
 #include "123_util.h"
-#include "button95.h"
-#include "plugman.h"
-#include "gui.h"
-#include "dialog.h"
+#include "engine/plugman.h"
+#include "engine/controller.h"
+#include "engine/loadhelper.h"
+#include "gui/gui.h"
+#include "gui/dialog.h"
 #include "configuration.h"
-#include "controller.h"
-#include "loadhelper.h"
-#include "pipe.h"
-#include "acommandprocessor.h"
+#include "remote/pipe.h"
+#include "remote/acommandprocessor.h"
 
 #include <xio.h>
 #include <utilfct.h>
+#include <minmax.h>
 #include <os2.h>
 
 #include <stdio.h>
@@ -263,7 +263,6 @@ int main(int argc, char** argv)
     Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
   // start GUI
-  InitButton(Hab);
   GUI::Init();
 
   if (!amp_pipe_create() && start)

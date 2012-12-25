@@ -32,8 +32,8 @@
 #define INCL_ERRORS
 #include "configuration.h"
 #include "eventhandler.h"
-#include "plugman.h"
-#include "visual.h"
+#include "engine/plugman.h"
+#include "engine/visual.h"
 #include "pm123.h"
 #include <inimacro.h>
 #include <os2.h>
@@ -114,8 +114,8 @@ const amp_cfg Cfg::Default =
 , "foldr123.dll?enabled=true\n"
   "flac123.dll?enabled=true\n"
   "oggplay.dll?enabled=true\n"
-  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3&tryothers=0\n"
-  "wavplay.dll?enabled=true&filetypes=Digital Audio&tryothers=0\n"
+  "mpg123.dll?enabled=true\n"
+  "wavplay.dll?enabled=true\n"
   "plist123.dll?enabled=true&filetypes=Playlist\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n"

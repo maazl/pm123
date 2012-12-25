@@ -52,9 +52,9 @@ typedef struct
 
 /** Physical file attributes */
 typedef enum
-{ PATTR_NONE     = 0x00, /**< No special attributes */
-  PATTR_WRITABLE = 0x10, /**< Flag whether the file/URL is writable in place */
-  PATTR_INVALID  = 0x80  /**< The item is physically invalid. (Should not be set by a decoder.) */
+{ PATTR_NONE     = 0x00U /**< No special attributes */
+, PATTR_WRITABLE = 0x10U /**< Flag whether the file/URL is writable in place */
+, PATTR_INVALID  = 0x80U /**< The item is physically invalid. (Should not be set by a decoder.) */
 } PHYS_ATTRIBUTES;
 /** Physical info about the item */
 typedef struct
@@ -66,12 +66,12 @@ typedef struct
 
 /** Technical flags for level 2 plug-ins */
 typedef enum
-{ TATTR_NONE     = 0x00,
-  TATTR_SONG     = 0x01, /**< The item is playable by this decoder. */
-  TATTR_PLAYLIST = 0x02, /**< The item can have sub entries. */
-  TATTR_WRITABLE = 0x10, /**< This format is writable (decoder_saveinfo). */
-  TATTR_STORABLE = 0x20, /**< This stream is saveable (DECODER_SAVEDATA). */
-  TATTR_INVALID  = 0x80  /**< The item is logically invalid. (Should not be set by a decoder.) */
+{ TATTR_NONE     = 0x00U
+, TATTR_SONG     = 0x01U /**< The item is playable by this decoder. */
+, TATTR_PLAYLIST = 0x02U /**< The item can have sub entries. */
+, TATTR_WRITABLE = 0x10U /**< This format is writable (decoder_saveinfo). */
+, TATTR_STORABLE = 0x20U /**< This stream is saveable (DECODER_SAVEDATA). */
+, TATTR_INVALID  = 0x80U /**< The item is logically invalid. (Should not be set by a decoder.) */
 } TECH_ATTRIBUTES;
 /** Technical format structure for level 2 plug-in interfaces */
 typedef struct
@@ -111,10 +111,10 @@ typedef struct
 
 /** Playlist options for ATTR_INFO */
 typedef enum
-{ PLO_NONE        = 0x00, /**< Standard playlist */
-  PLO_ALTERNATION = 0x01, /**< Alternation list */
-  PLO_SHUFFLE     = 0x10, /**< Force shuffle for this playlist */
-  PLO_NO_SHUFFLE  = 0x20  /**< Disable shuffle for this playlist */
+{ PLO_NONE        = 0x00U /**< Standard playlist */
+, PLO_ALTERNATION = 0x01U /**< Alternation list */
+, PLO_SHUFFLE     = 0x10U /**< Force shuffle for this playlist */
+, PLO_NO_SHUFFLE  = 0x20U /**< Disable shuffle for this playlist */
 } PL_OPTIONS;
 /* Playlist sort order 
 typedef enum
@@ -166,16 +166,16 @@ typedef struct
 
 /** Information types for \c INFO_BUNDLE */
 typedef enum
-{ INFO_NONE  = 0x0000,
-  INFO_PHYS  = 0x0001,   /**< content of PHYS_INFO */
-  INFO_TECH  = 0x0002,   /**< content of TECH_INFO */
-  INFO_OBJ   = 0x0004,   /**< content of OBJ_INFO  */
-  INFO_META  = 0x0008,   /**< content of META_INFO */
-  INFO_ATTR  = 0x0010,   /**< content of ATTR_INFO */
-  INFO_CHILD = 0x0080,   /**< Children */
-  INFO_RPL   = 0x0100,   /**< content of RPL_INFO  */
-  INFO_DRPL  = 0x0200,   /**< content of DRPL_INFO */
-  INFO_ITEM  = 0x0400    /**< content of ITEM_INFO */
+{ INFO_NONE  = 0x0000U
+, INFO_PHYS  = 0x0001U   /**< content of PHYS_INFO */
+, INFO_TECH  = 0x0002U   /**< content of TECH_INFO */
+, INFO_OBJ   = 0x0004U   /**< content of OBJ_INFO  */
+, INFO_META  = 0x0008U   /**< content of META_INFO */
+, INFO_ATTR  = 0x0010U   /**< content of ATTR_INFO */
+, INFO_CHILD = 0x0080U   /**< Children */
+, INFO_RPL   = 0x0100U   /**< content of RPL_INFO  */
+, INFO_DRPL  = 0x0200U   /**< content of DRPL_INFO */
+, INFO_ITEM  = 0x0400U   /**< content of ITEM_INFO */
 } INFOTYPE;
 
 /** All of the above information together */
