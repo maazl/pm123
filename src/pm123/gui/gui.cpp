@@ -1759,15 +1759,19 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
 
   for (int i = 0; i < di->cditem; i++)
   { DragItem item(di[i]);
-    if (item.VerifyRMF("DRM_OS2FILE", NULL) || item.VerifyRMF("DRM_123LST", NULL))
+    if (item.VerifyRMF("DRM_123LST", NULL))
       drag = DOR_DROP;
-    else
+    else if (item.VerifyRMF("DRM_OS2FILE", NULL))
+    { if (item.VerifyType("UniformResourceLocator"))
+        op = DO_COPY;
+      drag = DOR_DROP;
+    } else
     { drag = DOR_NEVERDROP;
       break;
     }
   }
 
-  if (drag == DOR_DROP)
+  if (drag == DOR_DROP && op == 0)
     // we can only copy or link to the main window, not move.
     switch (di->usOperation)
     {default:
@@ -1845,7 +1849,7 @@ void GUIImp::DragDrop(PDRAGINFO pdinfo_)
       { // URL w/o file name => need source rendering
         DEBUGLOG(("GUIImp::DragDrop: DRM_OS2FILE && URL && !fullname - %x\n", item->fsControl));
         dt.SelectedRMF("<DRM_OS2FILE,DRF_TEXT>");
-        dt.RenderTo(amp_dnd_temp_file().cdata() + 8);
+        dt.RenderTo(amp_dnd_temp_file().cdata());
       }
     }
   } // foreach pditem

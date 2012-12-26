@@ -1402,11 +1402,18 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
     }
     // File system object?
     else if (DrgVerifyRMF(pditem.get(), "DRM_OS2FILE", NULL))
-    { if ( (di->usOperation == DO_DEFAULT || di->usOperation == DO_LINK)
-        && (pditem->fsSupportedOps & DO_LINKABLE) )
-        drag_op = DO_LINK;
-      else
-        drag = DOR_NODROPOP;
+    { if (pditem.VerifyType("UniformResourceLocator"))
+      { if (pditem->fsSupportedOps & DO_COPYABLE)
+          drag_op = DO_COPY;
+        else
+          drag = DOR_NODROPOP;
+      } else
+      { if ( (di->usOperation == DO_DEFAULT || di->usOperation == DO_LINK)
+          && (pditem->fsSupportedOps & DO_LINKABLE) )
+          drag_op = DO_LINK;
+        else
+          drag = DOR_NODROPOP;
+      }
       continue;
     }
     // invalid object
@@ -1484,7 +1491,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo_, RecordBase* target)
       { // URL w/o file name => need source rendering
         DEBUGLOG(("PlaylistBase::DragDrop: DRM_OS2FILE && URL && !fullname - %x\n", item->fsControl));
         dt.SelectedRMF("<DRM_OS2FILE,DRF_TEXT>");
-        dt.RenderTo(amp_dnd_temp_file().cdata() + 8);
+        dt.RenderTo(amp_dnd_temp_file().cdata());
       }
     }
     else if (item.VerifyRMF("DRM_123LST", NULL))
