@@ -272,13 +272,12 @@ void DependencyInfoWorker::Start()
       if (Data.OptionalSet.size() == 0)
         break;
       DelegList.reserve(Data.OptionalSet.size());
-      size_t i = 0;
-      while (i < Data.OptionalSet.size())
-      { DependencyInfoSet::Entry* ep2 = Data.OptionalSet[i];
+      foreach (DependencyInfoSet::Entry,*const*, epp, Data.OptionalSet)
+      { DependencyInfoSet::Entry& entry = **epp;
         DEBUGLOG(("DependencyInfoWorker::Start checking optional entry %p{%s} : %x\n",
-          ep2->Inst.get(), ep2->Inst->DebugName().cdata(), ep2->What));
-        DelegList.append() = new DelegType(ep2->Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
-        if (ep2->Check() == IF_None)
+          entry.Inst.get(), entry.Inst->DebugName().cdata(), entry.What));
+        DelegList.append() = new DelegType(entry.Inst->GetInfoChange(), *this, &DependencyInfoWorker::OptionalInfoChangeEvent);
+        if (entry.Check() == IF_None)
         { DelegList.clear();
           goto completed;
         }
