@@ -418,11 +418,13 @@ const xstring& PLSReader::GetFormat() const
 
 PLSReader* PLSReader::Sniffer(const char* url, XFILE* source)
 { DEBUGLOG(("PLSReader::Sniffer(%s, %p)\n", url, source));
-  char buffer[14];
-  xio_fgets(buffer, sizeof buffer, source);
-  if (xio_ftell(source) < 11)
+  char buffer[50];
+  if (xio_fread(buffer, 1, sizeof buffer -1, source) < 11)
     return NULL;
-  if (strnicmp(buffer, "[playlist]", 10) != 0)
+  buffer[sizeof buffer -1] = 0; // ensure termination
+  char* cp = buffer;
+  cp += strspn(buffer, " \t\r\n");
+  if (strnicmp(cp, "[playlist]", 10) != 0)
     return NULL;
   return new PLSReader(url, source);
 }
