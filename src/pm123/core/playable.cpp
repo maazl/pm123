@@ -525,6 +525,37 @@ void Playable::DoLoadInfo(JobSet& job)
   RaiseInfoChange(args);
 }
 
+struct StreamHelper
+{public:
+  const char* const URL;
+  XFILE* Handle;
+  int    Error;
+ public:
+  StreamHelper(const char* url);
+  ~StreamHelper() { if (Handle) xio_fclose(Handle); }
+  XFILE* GetHandle() const { return Handle; }
+  bool   Reset();
+};
+
+StreamHelper::StreamHelper(const char* url)
+: URL(url)
+, Handle(xio_fopen(url, "rbU"))
+{ Error = Handle ? 0 : xio_errno();
+}
+
+bool StreamHelper::Reset()
+{ if (Handle && xio_rewind(Handle))
+  { // Try to recover from seek error.
+    DEBUGLOG(("StreamHelper::Reset Buffer overrun for %s (at %li)\n", URL, xio_ftell(Handle)));
+    xio_fclose(Handle);
+    Handle = xio_fopen(URL, "rbU");
+    Error = Handle ? 0 : xio_errno();
+    if (Handle == NULL)
+      return false;
+  }
+  return true;
+}
+
 ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 { DEBUGLOG(("Playable(%p{%s})::DecoderFileInfo(%x&, {...}, %p)\n", this, DebugName().cdata(), what, param));
   ASSERT(what);
@@ -537,21 +568,16 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   InfoFlags whatrq = what;
 
   // Try XIO123 first.
-  XFILE* handle = xio_fopen(URL, "rbU");
+  StreamHelper stream(URL);
   XSTAT st;
   *st.type = 0;
-  int err = 0;
-  if (handle)
-  { // We got a handle
-    if (xio_fstat(handle, &st) == 0)
-    { whatrq &= ~IF_Phys;
-      what |= IF_Phys;
-      phys.filesize = st.size;
-      phys.tstmp = st.mtime;
-      phys.attributes = PATTR_WRITABLE * !(st.attr & S_IAREAD);
-    }
-  } else
-    err = xio_errno();
+  if (stream.Handle && xio_fstat(stream.Handle, &st) == 0)
+  { whatrq &= ~IF_Phys;
+    what |= IF_Phys;
+    phys.filesize = st.size;
+    phys.tstmp = st.mtime;
+    phys.attributes = PATTR_WRITABLE * !(st.attr & S_IAREAD);
+  }
   DECODER_TYPE type_mask = Decoder::GetURLType(URL);
 
   ULONG rc;
@@ -567,20 +593,12 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
       { if (dp->ModRef->Key.compareToI(info.tech->decoder) != 0)
           continue;
         // Found
+        if (!stream.Reset())
+          goto err;
         whatdec = whatrq;
-        rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+        rc = dp->Fileinfo(URL, stream.Handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
         if (rc != PLUGIN_NO_PLAY)
           goto ok; // This also happens in case of a plug-in independent error
-        if (handle && xio_rewind(handle))
-        { // Try to recover from seek error.
-          xio_fclose(handle);
-          handle = xio_fopen(URL, "rbU");
-          if (handle == NULL)
-          { rc = PLUGIN_NO_READ;
-            info.tech->info = xio_strerror(xio_errno());
-            goto ok;
-          }
-        }
         info.tech->info.reset();
       }
       checked[i] = true;
@@ -596,20 +614,12 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     if (!checked[i] && dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
     { if (type_mask == DECODER_FILENAME && !dp->IsFileSupported(URL, st.type))
         continue;
+      if (!stream.Reset())
+        goto err;
       whatdec = whatrq;
-      rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+      rc = dp->Fileinfo(URL, stream.Handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
       if (rc != PLUGIN_NO_PLAY)
         goto ok; // This also happens in case of a plug-in independent error
-      if (handle && xio_rewind(handle))
-      { // Try to recover from seek error.
-        xio_fclose(handle);
-        handle = xio_fopen(URL, "rbU");
-        if (handle == NULL)
-        { rc = PLUGIN_NO_READ;
-          info.tech->info = xio_strerror(xio_errno());
-          goto ok;
-        }
-      }
       info.tech->info.reset();
     }
     checked[i] = true;
@@ -622,32 +632,28 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     dp = (Decoder*)(*decoders)[i].get();
     if (!dp->TryOthers)
       continue;
+    if (!stream.Reset())
+    { rc = PLUGIN_NO_READ;
+      info.tech->info = xio_strerror(stream.Error);
+      goto ok;
+    }
+    if (!stream.Reset())
+      goto err;
     whatdec = whatrq;
-    rc = dp->Fileinfo(URL, handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
+    rc = dp->Fileinfo(URL, stream.Handle, &whatdec, &info, &PROXYFUNCREF(Playable)Playable_DecoderEnumCb, param);
     if (rc != PLUGIN_NO_PLAY)
       goto ok; // This also happens in case of a plug-in independent error
-    if (handle && xio_rewind(handle))
-    { // Try to recover from seek error.
-      xio_fclose(handle);
-      handle = xio_fopen(URL, "rbU");
-      if (handle == NULL)
-      { rc = PLUGIN_NO_READ;
-        info.tech->info = xio_strerror(xio_errno());
-        goto ok;
-      }
-    }
     info.tech->info.reset();
   }
 
   // No decoder found
-  if (err)
-  { tech.info = xio_strerror(err);
+  if (stream.Error)
+  {err:
+    tech.info = xio_strerror(stream.Error);
     whatdec = IF_Decoder;
     rc = PLUGIN_NO_READ;
     goto ok;
   }
-  if (handle)
-    xio_fclose(handle);
   tech.info = "Cannot find a decoder that supports this item.";
   // Even in case of an error the requested information is in fact available.
   what = IF_Decoder;
@@ -655,8 +661,6 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
   return PLUGIN_NO_PLAY;
 
  ok:
-  if (handle)
-    xio_fclose(handle);
   if (dp)
     tech.decoder = dp->ModRef->Key;
   if (rc != 0)
