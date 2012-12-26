@@ -45,7 +45,7 @@ const xstring amp_url_from_file(const char* filename);
 
 /// Get temporary file name to be used for drag and drop operations.
 /// @remarks This will be always the same name since only one drag and drop can happen at a time.
-const url123& amp_dnd_temp_file();
+const xstring& amp_dnd_temp_file();
 
 
 /// Append appropriate parameters directory URL to meet configuration settings.

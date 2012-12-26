@@ -71,7 +71,7 @@ const xstring amp_url_from_file(const char* filename)
   xstring ret;
   if (len > 0)
   { char* dp = ret.allocate(len);
-    if (fgets(dp, len, file))
+    if (fgets(dp, len+1, file))
       blank_strip(dp);
     else
       ret = NULL;
@@ -80,8 +80,8 @@ const xstring amp_url_from_file(const char* filename)
   return ret;
 }
 
-const url123& amp_dnd_temp_file()
-{ static url123 DnDTempFile;
+const xstring& amp_dnd_temp_file()
+{ static xstring DnDTempFile;
   if (!DnDTempFile)
   { const char* temp = getenv("TEMP");
     size_t len = 0;
@@ -90,10 +90,9 @@ const url123& amp_dnd_temp_file()
       if (len && temp[len-1] == '\\')
         --len;
     }
-    char* cp = DnDTempFile.allocate(8+len+12);
-    memcpy(cp, "file:///", 8);
-    memcpy(cp+8, temp, len);
-    memcpy(cp+8+len, "/~123DnD.lst", 13);
+    char* cp = DnDTempFile.allocate(len+12);
+    memcpy(cp, temp, len);
+    memcpy(cp+len, "\\~123DnD.lst", 12);
   }
   return DnDTempFile;
 }

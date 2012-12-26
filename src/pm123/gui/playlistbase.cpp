@@ -1157,7 +1157,7 @@ void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, Recor
 void PlaylistBase::UserInsert(const InsertInfo* pii)
 { DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %p{%s}, %p{%s}})\n", this,
     pii, pii->Parent->DebugName().cdata(),
-    pii->Before.get(), pii->Before->DebugName().cdata(),
+    pii->Before.get(), pii->Before.get()->DebugName().cdata(),
     pii->Item.get(), pii->Item->DebugName().cdata()));
   pii->Parent->InsertItem(*pii->Item, pii->Before);
 }
