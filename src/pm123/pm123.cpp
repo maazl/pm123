@@ -232,7 +232,7 @@ int main(int argc, char** argv)
   { xstringbuilder cmd;
     if (command)
       cmd.append('*');
-    foreach (const char*const*, spp, files)
+    foreach (const char,*const*, spp, files)
     { cmd.append(' ');
       if (!command)
         cmd.append('"');

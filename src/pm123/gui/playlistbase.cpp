@@ -1507,11 +1507,11 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo_, RecordBase* target)
         // Now check whether it is not only the same process but also the same parent playlist.
         // If true and DO_MOVE => move in place.
         if ((*worker)->usOperation == DO_MOVE && item.VerifyContainerName(worker->DropTarget->URL))
-        { foreach(RecordBase**, rpp, *source)
+        { foreach(RecordBase,**, rpp, *source)
             worker->DropTarget->MoveItem(*(*rpp)->Data->Content, worker->DropBefore);
           // do not set success to indicate that the source should not remove the items.
         } else
-        { foreach(RecordBase**, rpp, *source)
+        { foreach(RecordBase,**, rpp, *source)
           worker->DropTarget->InsertItem(*(*rpp)->Data->Content, worker->DropBefore);
           // Set success flag only for DO_MOVE so the source knows when to remove the source items.
           // at DM_END_CONVERSATION.
@@ -1701,7 +1701,7 @@ BOOL PlaylistBase::DropRender(DragTransfer pdtrans)
     return FALSE;
   if (!pp->Clear())
     return FALSE;
-  foreach(RecordBase**, rp, Source)
+  foreach(RecordBase,**, rp, Source)
     if (!pp->InsertItem(*(*rp)->Data->Content, NULL))
       return FALSE;
   pdtrans->fsReply = DMFL_NATIVERENDER;
@@ -1722,7 +1722,7 @@ void PlaylistBase::DropEnd(vector<RecordBase>* source, bool ok)
   if (!source)
     return;
 
-  foreach (RecordBase**, rp, *source)
+  foreach (RecordBase,**, rp, *source)
   { if (ok)
       // We do not lock the record here. Instead we do not /release/ it.
       PostMsg(UM_REMOVERECORD, MPFROMP(*rp), 0);

@@ -5,7 +5,7 @@
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\include;..
 TARGET   = cpputil$(LBO) cpputil_plugin$(LBO)
-SRCFIL   = *.cpp container/*.cpp
+SRCFIL   = *.cpp
 CFLAGS_USR=-fcheck-new -DPM123_CORE
 
 !include $(TOPDIR)\config\makerules
@@ -64,9 +64,7 @@ showaccel.cpp:	showaccel.h ..\snprintf.h
 showaccel.h:	container\sorted_vector.h
 container/list.h:	smartptr.h cpputil.h
 container/vector.cpp:	container/vector.h cpputil.h ..\debuglog.h
-container/vector.h:	mutex.h smartptr.h
 container/stringmap.cpp:	container/stringmap.h
-container/stringmap.h:	xstring.h container\sorted_vector.h
 container/iterator.cpp:	container\iterator.h
 container\iterator.h:	container\vector.h
 debugmem.cpp:	..\debuglog.h
@@ -87,3 +85,4 @@ dlgcontrols.cpp:	dlgcontrols.h ..\debuglog.h
 dlgcontrols.h:	xstring.h pmutils.h ..\debuglog.h
 xstringconst.cpp:	xstring.h ..\interlocked.h ..\debuglog.h
 pmutils_dnd.cpp:	pmutils.h
+container\btree.cpp:	cpputil.h

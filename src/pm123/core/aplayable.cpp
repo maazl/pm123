@@ -55,7 +55,6 @@
 priority_queue<APlayable::QEntry> APlayable::WQueue(2);
 APlayable::WInit* APlayable::WItems = NULL;
 size_t APlayable::WNumWorkers    = 0;
-size_t APlayable::WNumDlgWorkers = 0;
 bool   APlayable::WTermRq        = false;
 
 
@@ -349,7 +348,7 @@ void RescheduleWorker::OnCompleted()
 
 bool RescheduleWorker::QueueTraverse(bool (*action)(APlayable& inst, Priority pri, const DependencyInfoSet& depends, void* arg), void* arg)
 { Mutex::Lock lock(Mtx);
-  foreach (RescheduleWorker**, rpp, Instances)
+  foreach (RescheduleWorker,**, rpp, Instances)
     if (!action(*(*rpp)->Inst, (*rpp)->Pri, (*rpp)->Data, arg))
       return false;
   return true;
@@ -421,7 +420,7 @@ bool APlayable::QueueTraverseProxy(const QEntry& entry, size_t priority, void* a
 
 bool APlayable::QueueTraverse(bool (*action)(APlayable* entry, Priority pri, bool insvc, void* arg), void* arg)
 { QueueTraverseProxyData arg_proxy = { action, arg };
-  const WInit* const wpe = WItems + WNumWorkers+WNumDlgWorkers;
+  const WInit* const wpe = WItems + WNumWorkers;
   Mutex::Lock lock(WQueue.Mtx);
   // In service worker items first
   for (const WInit* wp = WItems; wp != wpe; ++wp)
@@ -443,11 +442,11 @@ void APlayable::Init()
   // start the worker threads
   ASSERT(WItems == NULL);
   WTermRq = false;
-  WNumDlgWorkers = Cfg::Get().num_dlg_workers; // sample this atomically
-  WNumWorkers = Cfg::Get().num_workers + WNumDlgWorkers; // sample this atomically
+  size_t dlgWorkers = Cfg::Get().num_dlg_workers; // sample this atomically
+  WNumWorkers = Cfg::Get().num_workers + dlgWorkers; // sample this atomically
   WItems = new WInit[WNumWorkers];
   for (WInit* wp = WItems + WNumWorkers; wp-- != WItems; )
-  { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Low : PRI_Normal;
+  { wp->Pri = wp >= WItems + dlgWorkers ? PRI_Normal : PRI_Low;
     wp->TID = _beginthread(&PlayableWorkerStub, NULL, 65536, wp);
     ASSERT(wp->TID != -1);
   }

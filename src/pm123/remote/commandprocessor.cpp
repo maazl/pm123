@@ -1059,7 +1059,7 @@ void CommandProcessor::PlDir(bool recursive)
     // do the insert
     { PlayableInstance* cur = CurrentPlaylistItem();
       Mutex::Lock lck(root->Mtx); // Atomic
-      foreach (const int_ptr<APlayable>*, app, list)
+      foreach (const int_ptr<APlayable>,*, app, list)
         root->InsertItem(**app, cur);
     }
     Reply.appendd(list.size());

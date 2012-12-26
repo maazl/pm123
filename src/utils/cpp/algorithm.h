@@ -34,6 +34,15 @@
 
 #include <stdlib.h>
 
+#ifdef __GNUC__
+#define sort_comparer int (*C)(const K& k, const T& e)
+#else
+// Watcom C++ and IBM C++ seem not to support template parameters that depend on previous template args.
+// So we fall back to an unchecked pointer in this case.
+// But keep in mind that the implementation will sadly fail on anything but the above.
+#define sort_comparer void* C
+#endif
+
 /* Algorithmns */
 
 /// Binary search

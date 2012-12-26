@@ -78,7 +78,7 @@ void DependencyInfoPath::Add(APlayable& inst, InfoFlags what, const PlayableSetB
 
 #ifdef DEBUG_LOG
 void DependencyInfoPath::DumpSet(xstringbuilder& dest, const SetType& set)
-{ foreach (Entry*const*, epp, set)
+{ foreach (Entry,*const*, epp, set)
   { if (epp != set.begin())
       dest.append(", ");
     const Entry& entry = **epp;

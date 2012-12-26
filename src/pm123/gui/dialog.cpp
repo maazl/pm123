@@ -295,6 +295,7 @@ ULONG DLLENTRY amp_new_list_wizard(HWND owner, const char* title, DECODER_INFO_E
   TechInfo tech;
   tech.attributes = TATTR_PLAYLIST|TATTR_STORABLE;
   tech.decoder = "plist123.dll";
+  tech.format =  "PM123 Playlist";
   INFO_BUNDLE info = { NULL, &tech };
 
   (*callback)(param, url, &info, IF_None, IF_Tech);

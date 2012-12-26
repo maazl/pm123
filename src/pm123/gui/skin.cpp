@@ -1886,7 +1886,7 @@ static void bmp_disable_visuals()
   Mutex::Lock lock(Module::Mtx);
   int_ptr<PluginList> vpl(Plugin::GetPluginList(PLUGIN_VISUAL));
   // remove current skinned plug-ins from list
-  foreach (const int_ptr<Plugin>*, ppp, *vpl)
+  foreach (const int_ptr<Plugin>,*, ppp, *vpl)
     if (((Visual*)(*ppp).get())->GetProperties().skin)
       (*ppp)->SetEnabled(false);
   // The plug-ins will get deactivated automatically.
@@ -1897,7 +1897,7 @@ static void bmp_enable_visuals()
   Mutex::Lock lock(Module::Mtx);
   int_ptr<PluginList> vpl(Plugin::GetPluginList(PLUGIN_VISUAL));
   // remove current skinned plug-ins from list
-  foreach (const int_ptr<Plugin>*, ppp, *vpl)
+  foreach (const int_ptr<Plugin>,*, ppp, *vpl)
     if (((Visual*)(*ppp).get())->GetProperties().skin)
       (*ppp)->SetEnabled(true);
   // The plug-ins will get activated automatically.
@@ -2145,7 +2145,7 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
 
   // reinit skinned plug-ins
   PluginList vpl(PLUGIN_VISUAL);
-  foreach (SkinnedVisual*const*, svpp, visuals)
+  foreach (SkinnedVisual,*const*, svpp, visuals)
     try
     { int_ptr<Visual> pp((Visual*)Plugin::Deserialize((*svpp)->plugin, PLUGIN_VISUAL).get());
       pp->SetProperties(*svpp);
@@ -2165,8 +2165,10 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
       else
         ++ppp;
     // append new ones
-    foreach (, ppp, vpl)
-      new_vpl->append() = *ppp;
+    ppp = vpl.begin();
+    const int_ptr<Plugin>* pppe = vpl.end();
+    while (ppp != pppe)
+      new_vpl->append() = *ppp++;
     // now replace the list
     Plugin::SetPluginList(new_vpl);
     // The plug-ins will get activated automatically.

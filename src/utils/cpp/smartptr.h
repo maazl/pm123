@@ -187,7 +187,7 @@ class int_ptr
 
   // Raw initialization
   struct uninitialized_tag {};
-  explicit    int_ptr(T* data, uninitialized_tag) : Data(data) {}
+  explicit    int_ptr(T* data, uninitialized_tag) : Data(data) { PASSERT(data); }
  public:
   // Initialize a NULL pointer.
               int_ptr()                 : Data(NULL) {}
@@ -300,7 +300,8 @@ T* int_ptr<T>::transfer(T* data)
 template <class T>
 inline int_ptr<T>::int_ptr(T* ptr)
 : Data(ptr)
-{ if (Data)
+{ PASSERT(ptr);
+  if (Data)
     InterlockedAdd(&Data->access_counter(), INT_PTR_ALIGNMENT);
 }
 template <class T>

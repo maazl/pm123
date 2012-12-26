@@ -140,7 +140,7 @@ void ShuffleWorker::Update()
     }
    default:
     // Delta update
-    foreach (const int_ptr<PlayableInstance>*, pip, changes)
+    foreach (const int_ptr<PlayableInstance>,*, pip, changes)
       UpdateItem(**pip);
   }
 }

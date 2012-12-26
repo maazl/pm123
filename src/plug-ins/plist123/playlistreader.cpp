@@ -605,7 +605,7 @@ bool CUEReader::Parse(const INFO_BUNDLE* info, DECODER_INFO_ENUMERATION_CB cb, v
 
   bool ret = PlaylistReader::Parse(info, cb, param);
 
-  foreach (PlaylistReaderInfo*const*, ipp, Tracks)
+  foreach (PlaylistReaderInfo,*const*, ipp, Tracks)
   {
     PlaylistReaderInfo* ip = *ipp;
     // Ignore data tracks

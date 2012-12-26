@@ -313,8 +313,7 @@ class APlayable
   };
  private:
   static  priority_queue<APlayable::QEntry> WQueue;
-  static  size_t              WNumWorkers;  ///< number of low priority workers in the above list (must not be zero)
-  static  size_t              WNumDlgWorkers;///< number of high priority workers in the above list
+  static  size_t              WNumWorkers;  ///< number of workers in the list below (must not be zero)
   static  WInit*              WItems;       ///< List of workers
   static  bool                WTermRq;      ///< Termination Request to Worker
  private:

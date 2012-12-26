@@ -259,7 +259,7 @@ int DirScan::SendResult(DECODER_INFO_ENUMERATION_CB cb, void* param)
   // Order by
   merge_sort(Items.begin(), Items.end(), FoldersFirst ? &FoldersFirstComparer : (int (*)(const DirScan::Entry*, const DirScan::Entry*))stricmp);
 
-  foreach (Entry*const*, epp, Items)
+  foreach (Entry, *const*, epp, Items)
   { const Entry* ep = *epp;
     PHYS_INFO phys = PHYS_INFO_INIT;
     TECH_INFO tech = TECH_INFO_INIT;

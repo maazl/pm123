@@ -1030,7 +1030,7 @@ void CtrlImp::MsgShuffle()
     Pending |= EV_Shuffle;
   const PL_OPTIONS options = Shuffle * PLO_SHUFFLE;
   Mutex::Lock lock(PLMtx);
-  foreach (PrefetchEntry**, pepp, PrefetchList)
+  foreach (PrefetchEntry,**, pepp, PrefetchList)
     (*pepp)->Loc.SetOptions(options);
 }
 

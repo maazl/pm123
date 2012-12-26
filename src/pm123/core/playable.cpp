@@ -792,7 +792,7 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
   int index = 0;
   // TODO: RefreshActive = true;
   // Place new entries, try to recycle existing ones.
-  foreach (APlayable*const*, npp, newcontent)
+  foreach (APlayable,*const*, npp, newcontent)
   { APlayable& cur_new = **npp;
 
     // Priority 1: prefer an exactly matching one over a reference only to the same Playable.

@@ -129,7 +129,7 @@ unsigned Location::FindInCallstack(const Playable* pp) const
 { if (pp)
   { if (Root == pp)
       return 0;
-    foreach (const int_ptr<PlayableInstance>*, pipp, Callstack)
+    foreach (const int_ptr<PlayableInstance>,*, pipp, Callstack)
       if (&(*pipp)->GetPlayable() == pp)
         return pipp - Callstack.begin() + 1;
   }

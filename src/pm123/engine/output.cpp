@@ -66,7 +66,7 @@ void Output::PluginNotification(void*, const PluginEventArgs& args)
      case PluginEventArgs::Enable:
       { // Output plug-ins are like a radio button. Only one plug-in is enabled at a time.
         int_ptr<PluginList> outputs(Outputs);
-        foreach (const int_ptr<Plugin>*, ppp, *outputs)
+        foreach (const int_ptr<Plugin>,*, ppp, *outputs)
           if (*ppp != args.Plug)
             (*ppp)->SetEnabled(false);
       }

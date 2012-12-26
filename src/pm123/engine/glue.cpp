@@ -203,7 +203,7 @@ ULONG GlueImp::Init()
 
   // Fetch current active output
   { int_ptr<PluginList> outputs(Plugin::GetPluginList(PLUGIN_OUTPUT));
-    foreach (const int_ptr<Plugin>*, ppp, *outputs)
+    foreach (const int_ptr<Plugin>,*, ppp, *outputs)
       if ((*ppp)->GetEnabled())
       { OutPlug = (Output*)ppp->get();
         goto done;
@@ -245,7 +245,7 @@ void GlueImp::Uninit()
 
   Initialized = false;
   // uninitialize filter chain
-  foreach (const int_ptr<Plugin>*, fpp, FilterPlugs)
+  foreach (const int_ptr<Plugin>,*, fpp, FilterPlugs)
   { Filter& fil = (Filter&)**fpp;
     if (fil.IsInitialized())
       fil.UninitPlugin();

@@ -67,7 +67,7 @@
 
 static void vis_InitAll(HWND owner)
 { int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
-  foreach (const int_ptr<Plugin>*, vpp, *visuals)
+  foreach (const int_ptr<Plugin>,*, vpp, *visuals)
   { Visual& vis = (Visual&)**vpp;
     if (vis.GetEnabled() && !vis.IsInitialized())
       vis.InitPlugin(owner);
@@ -76,7 +76,7 @@ static void vis_InitAll(HWND owner)
 
 static void vis_UninitAll()
 { int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
-  foreach (const int_ptr<Plugin>*, vpp, *visuals)
+  foreach (const int_ptr<Plugin>,*, vpp, *visuals)
   { Visual& vis = (Visual&)**vpp;
     if (vis.IsInitialized())
       vis.UninitPlugin();
@@ -1725,7 +1725,7 @@ void GUIImp::AutoSave()
   { // Keep saves out of the mutex.
     vector<Playable> tosave;
     { Playable::RepositoryAccess rep;
-      foreach (Playable*const*, ppp, *rep)
+      foreach (Playable,*const*, ppp, *rep)
       { Playable& p = **ppp;
         if (!p.IsModified())
           continue;
@@ -1736,7 +1736,7 @@ void GUIImp::AutoSave()
       }
     }
     // Now save
-    foreach (Playable*const*, ppp, tosave)
+    foreach (Playable,*const*, ppp, tosave)
       AutoSave(**ppp);
   }
   // save too
