@@ -629,7 +629,7 @@ XIOhttp::XIOhttp()
   memset(s_name , 0, sizeof s_name );
   memset(s_title, 0, sizeof s_title);
   memset(s_title, 0, sizeof s_type );
-  blocksize = 4096;
+  blocksize = 8192;
 }
 
 /* Maps the error number in errnum to an error message string. */

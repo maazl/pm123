@@ -45,9 +45,9 @@ enum XOFLAGS
   XO_CREATE        = 0x0004,
   XO_APPEND        = 0x0008,
   XO_TRUNCATE      = 0x0010,
-  XO_NOBUFFER      = 0x0100, // no buffering
-  XO_ASYNCBUFFER   = 0x1000, // Do asynchronuous buffering
-  XO_NOMUTEX       = 0x2000  // Do not synchronize access
+  XO_NOBUFFER      = 0x0100, ///< no buffering
+  XO_ASYNCBUFFER   = 0x1000, ///< Do asynchronuous buffering
+  XO_NOMUTEX       = 0x2000  ///< Do not synchronize access
 };
 FLAGSATTRIBUTE(XOFLAGS);
 
@@ -64,7 +64,7 @@ enum XSFLAGS
 FLAGSATTRIBUTE(XSFLAGS);
 
 
-/* Base interface of all protocol implementations.
+/** Base interface of all protocol implementations.
    The buffer classes also derive from this protocol and act as a proxy
    to the underlying protocol class instance. 
 
@@ -82,16 +82,16 @@ FLAGSATTRIBUTE(XSFLAGS);
 */
 class XPROTOCOL {
  public:
-  // Interface for observing meta data changes
+  /// Interface for observing meta data changes
   struct Iobserver
   { virtual ~Iobserver() {}
     virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64) = 0;
   };
  
  public: 
-  bool eof;       // End of input stream flag.
-  int  error;     // Last error that appies to the stream state.
-  int  blocksize; // Recommended Blocking factor of the protocol. Filled by Protocol implementation.
+  bool eof;       ///< End of input stream flag.
+  int  error;     ///< Last error that appies to the stream state.
+  int  blocksize; ///< Recommended Blocking factor of the protocol. Filled by Protocol implementation.
 
  protected:
   Iobserver*      observer;

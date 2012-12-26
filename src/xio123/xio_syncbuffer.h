@@ -33,10 +33,10 @@
 
 class XIOsyncbuffer : public XIObuffer
 {private:
-  unsigned int data_size; // Current size of the data in the buffer.
-  unsigned int data_read; // Current read position in the data buffer.
-                          // Note that data_read can be larger that data_size
-                          // if the file was recently shrunken.
+  unsigned int data_size; ///< Current size of the data in the buffer.
+  unsigned int data_read; ///< Current read position in the data buffer.
+                          ///< Note that data_read can be larger that data_size
+                          ///< if the file was recently shrunken.
  private:
   virtual long do_seek( long offset, long* offset64 );
   

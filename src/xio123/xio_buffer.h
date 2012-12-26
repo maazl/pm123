@@ -48,12 +48,12 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
     char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
   };
  protected:
-  XPROTOCOL* chain;        // C  Pointer to virtualized protocol
+  XPROTOCOL* chain;        ///< C  Pointer to virtualized protocol
 
-  char* head;              // C  Pointer to the first byte of the buffer.
-  const unsigned int size; // C  Current size of the buffer.
+  char* head;              ///< C  Pointer to the first byte of the buffer.
+  const unsigned int size; ///< C  Current size of the buffer.
 
-  long  read_pos;          // M  Position of the logical read pointer in the associated file.
+  long  read_pos;          ///< M  Position of the logical read pointer in the associated file.
 
   // Entries for the observer
   obs_entry*   s_obs_head;
