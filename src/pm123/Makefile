@@ -28,8 +28,8 @@ OBJECTS  = eventhandler$(CO) configuration$(CO) 123_util$(CO) pm123$(CO)
 
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = gui\pm123$(RES)
-LIBS     = core\pm123core$(LBO) engine\pm123engine$(LBO) remote\pm123remote$(LBO) gui\pm123gui$(LBO) pm123$(LBO)
-LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS123  = core\pm123core$(LBO) engine\pm123engine$(LBO) remote\pm123remote$(LBO) gui\pm123gui$(LBO) pm123$(LBO)
+LIBS     = $(LIBS123) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\gbm123\libgbm$(LBO)
 STDLIBS  = $(LIBS_UNI)
 
@@ -65,7 +65,7 @@ pm123.exe: $(LIBS) $(RESOURCE) $(DEF)
 
 
 clean: $(MDUMMY)
-	-@del pm123.exe pm123core$(LBO) pm123gui$(LBO) $(OBJECTS) $(OBJECTS2) $(RESOURCE) 2> nul
+	-@del pm123.exe $(LIBS123) $(OBJCORE) $(OBJENGINE) $(OBJREMOTE) $(OBJGUI) $(OBJECTS) $(RESOURCE) 2> nul
 
 todo.txt: $(MDUMMY)
 	grep -i -A 5 TODO *.cpp *.h >todo.txt
