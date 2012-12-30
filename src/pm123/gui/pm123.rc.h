@@ -288,13 +288,11 @@
 #define CB_RECURSE         1101
 #define CB_RELATIVE        1102
 
-/* URL */
+/* URL and Bookmark */
 #define DLG_URL            1110
-#define ENT_URL            1111
-
-/* Bookmark */
-#define DLG_BM_ADD         1120
-#define EF_BM_DESC         1122
+#define DLG_BM_ADD         1111
+#define ENT_URL            1120
+#define EF_DESC            1121
 
 /* Properties */
 #define DLG_CONFIG         1200

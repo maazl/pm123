@@ -90,7 +90,7 @@ class DialogBase
   /// load dialog resources and create window
   void              StartDialog(HWND owner, HWND parent = HWND_DESKTOP);
   /// Destroy window
-  void              Destroy()       { WinDestroyWindow(HwndFrame); }
+  void              Destroy()       { WinDestroyWindow(HwndFrame); HwndFrame = NULLHANDLE; }
   /// Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   /// Dialog initialization

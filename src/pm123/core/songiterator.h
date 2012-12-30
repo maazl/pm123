@@ -190,6 +190,7 @@ class SongIterator : public Location
   ///   \c PLO_SHUFFLE in \c ATTR_INFO of nested playlists. This is the default.
   /// - Setting neither of them enables shuffle processing but does not turn it on
   ///   at the top level.
+  // - Setting \c PLO_ALTERNATION treats Root as an alternation list.
   void                        SetOptions(PL_OPTIONS options);
 
   /// @brief Check whether the current innermost playlist is in shuffle mode.

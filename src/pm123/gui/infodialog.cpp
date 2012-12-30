@@ -163,7 +163,7 @@ class InfoDialog
     xstring         QueryItemTextOrNULL(ULONG id);
     void            CheckButton(ULONG id, unsigned state);
     HWND            SetCtrlText(ULONG id, Fields fld, const char* text);
-    HWND            SetCtrlCB(ULONG id, Fields fld, bool flag);
+    void            SetCtrlCB(ULONG id, Fields fld, bool flag);
     void            SetCtrlRB(ULONG id1, Fields fld, int btn);
     bool            SetCtrlEFValid(ULONG id, bool valid);
     static const char* FormatInt(char* buffer, int value, const char* unit = "");
@@ -445,12 +445,10 @@ HWND InfoDialog::PageBase::SetCtrlText(ULONG id, Fields fld, const char* text)
   return ctrl;
 }
 
-HWND InfoDialog::PageBase::SetCtrlCB(ULONG id, Fields fld, bool flag)
-{ HWND ctrl = WinWindowFromID(GetHwnd(), id);
-  PMASSERT(ctrl != NULLHANDLE);
-  WinSendMsg(ctrl, BM_SETCHECK, MPFROMSHORT(Valid & fld ? flag : 2), 0);
-  PMRASSERT(WinEnableWindow(ctrl, !!(Enabled & fld)));
-  return ctrl;
+void InfoDialog::PageBase::SetCtrlCB(ULONG id, Fields fld, bool flag)
+{ CheckBox ctrl(GetCtrl(id));
+  ctrl.SetCheckState(Valid & fld ? flag : 2);
+  ctrl.Enable((Enabled & fld) != 0);
 }
 
 void InfoDialog::PageBase::SetCtrlRB(ULONG id1, Fields fld, int btn)

@@ -257,22 +257,31 @@ void SongIterator::Leave()
 }
 
 void SongIterator::PrevNextCore(bool direction)
-{ if (!IsShuffle())
+{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
+  const vector<PlayableInstance>& callstack = GetCallstack();
+  size_t depth = callstack.size();
+  ASSERT(depth);
+  APlayable* list = depth > 1 ? callstack[depth-2] : Root;
+
+  // Only play one item of an alternation list.
+  if (callstack[depth-1] && (list->GetInfo().attr->ploptions & PLO_ALTERNATION))
+  { NavigateTo(NULL);
+    return;
+  }
+
+  if (!IsShuffle())
   { Location::PrevNextCore(direction);
     return;
   }
   // Prev/next in shuffle mode
   DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
   // Shuffle cache lookup
-  const vector<PlayableInstance>& callstack = GetCallstack();
-  size_t depth = callstack.size();
   ShuffleWorkerCache.set_size(depth);
   ShuffleWorker* sw = ShuffleWorkerCache[--depth];
   if (!sw)
-  { // Cache miss
-    APlayable* list = depth ? callstack[depth-1] : Root;
+    // Cache miss
     ShuffleWorkerCache[depth] = sw = new ShuffleWorker(list->GetPlayable(), ShuffleSeed);
-  } else
+  else
     ASSERT(sw->Playlist == (depth ? &callstack[depth-1]->GetPlayable() : Location::GetRoot()));
   // Navigate
   PlayableInstance* pi = callstack[depth];
@@ -388,48 +397,4 @@ InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& target, InfoFlags what,
 
   OwnedPlayableSet exclude;
   return Root->AddSliceAggregate(target, exclude, what, job, NULL, this);
-
-  /*InfoFlags whatnotok = IF_None;
-
-  // Aggregate offsets of the call stack
-  const vector<PlayableInstance>& callstack = GetCallstack();
-
-  OffsetCache.set_size(callstack.size());
-  OwnedPlayableSet exclude;
-  exclude.reserve(callstack.size());
-
-  for (size_t i = 0; i < callstack.size(); ++i)
-  { APlayable* parent = i ? callstack[i-1] : Root;
-    OffsetCacheEntry* oce = OffsetCache[i];
-    if (oce == NULL)
-    { // Create cache entry
-      OffsetCache[i] = oce = new OffsetCacheEntry();
-      oce->Exclude = exclude;
-      parent->GetInfoChange() += oce->ListChangeDeleg;
-    }
-    // check Cache item status
-    InfoFlags todo = what & (InfoFlags)~oce->Valid;
-    if (todo)
-    { // Set bits first, so when an concurrent invalidation arrives
-      // the Information is recalculated the next time.
-      oce->Valid |= what;
-      // start over
-      if (todo & IF_Rpl)
-        oce->Offset.Rpl.Reset();
-      if (todo & IF_Drpl)
-        oce->Offset.Drpl.Reset();
-      whatnotok |= parent->AddSliceAggregate(oce->Offset, exclude, todo, job, NULL, this, i);
-    }
-    // do the aggregation
-    target += oce->Offset;
-    // Prepare exclusion list
-    exclude.add(parent->GetPlayable());
-  }
-
-  // Aggregate Offset in the current song.
-  APlayable* cur = GetCurrent();
-  if (cur && Position > 0)
-    whatnotok |= cur->AddSliceAggregate(target, exclude, what, job, NULL, this, callstack.size());
-
-  return whatnotok;*/
 }

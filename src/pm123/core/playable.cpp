@@ -343,7 +343,7 @@ void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
     return; // Nothing to do
 
   // Calculate exclusion list including this
-  PlayableSet excluding(cie.Exclude.size() + 1);
+  PlayableSet excluding(cie.Exclude.size() + 5); // Leave some space
   for (size_t i = 0; i < cie.Exclude.size(); ++i)
     excluding.append() = cie.Exclude[i]; // At this point the sort order is implied.
   excluding.add(*this);
@@ -368,6 +368,9 @@ void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
       rpl += ai.Rpl;
     if (whatok & IF_Drpl)
       drpl += ai.Drpl;
+    // Alternation lists: stop at the first successful item.
+    if ((Info.Attr.ploptions & PLO_ALTERNATION) && whatok && !(pi->GetInfo().tech->attributes & TATTR_INVALID))
+      break;
   }
   job.Commit();
   DEBUGLOG(("Playable::CalcRplInfo: %x, RPL{%i, %i, %i, %i}, DRPL{%f, %i, %f, %i}\n", whatok,

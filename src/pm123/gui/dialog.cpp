@@ -148,16 +148,32 @@ ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUM
   return ret;
 }
 
+class UrlDialog : public DialogBase
+{public:
+  UrlDialog(HWND owner, const char* title);
+  ~UrlDialog() { Destroy(); }
+  const xstring GetURL()  { return WinQueryWindowXText(GetCtrl(ENT_URL)); }
+  const xstring GetDesc() { return WinQueryWindowXText(GetCtrl(EF_DESC)); }
+ protected:
+  virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+};
+
+UrlDialog::UrlDialog(HWND owner, const char* title)
+: DialogBase(DLG_URL, NULL, DF_AutoResize)
+{ StartDialog(owner);
+  ControlBase(+GetHwnd()).SetText(title);
+}
+
 /* Default dialog procedure for the URL dialog. */
-static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch( msg )
+MRESULT UrlDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
   {case WM_CONTROL:
     if (SHORT1FROMMP(mp1) == ENT_URL)
       switch (SHORT2FROMMP(mp1))
       {case CBN_EFCHANGE:
         // Update enabled status of the OK-Button
-        DEBUGLOG(("amp_url_dlg_proc: WM_CONTROL: CBN_EFCHANGE\n"));
-        PMRASSERT(WinEnableWindow(WinWindowFromID(hwnd, DID_OK), WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0));
+        DEBUGLOG(("UrlDialog::DlgProc: WM_CONTROL: CBN_EFCHANGE\n"));
+        ControlBase(+GetCtrl(DID_OK)).Enable(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
         break;
        /*case CBN_ENTER:
         WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(DID_OK), MPFROM2SHORT(CMDSRC_OTHER, FALSE));
@@ -166,42 +182,44 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
     break;
 
    case WM_INITDLG:
-    { Cfg::RestWindowPos(hwnd);
+    { do_warpsans(GetHwnd());
+      Cfg::RestWindowPos(GetHwnd());
+
       // populate drop down list
       Playable& mru = GUI::GetUrlMRU();
-      HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
+      ListBox ctrl(GetCtrl(ENT_URL));
       int_ptr<PlayableInstance> pi;
       for(;;)
       { pi = mru.GetNext(pi);
-        DEBUGLOG(("amp_url_dlg_proc: WM_INITDLG %p %p\n", pi.get(), ctrl));
+        DEBUGLOG(("amp_url_dlg_proc: WM_INITDLG %p %p\n", pi.get(), ctrl.Hwnd));
         if (pi == NULL)
           break;
-        PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(pi->GetPlayable().URL.cdata())), >= 0);
+        ctrl.InsertItem(pi->GetPlayable().URL);
       }
       break;
     }
    
    case WM_DESTROY:
-    Cfg::SaveWindowPos(hwnd);
+    Cfg::SaveWindowPos(GetHwnd());
     break;
 
    case WM_COMMAND:
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
     if (SHORT1FROMMP(mp1) == DID_OK)
-    { HWND ent = WinWindowFromID(hwnd, ENT_URL);
-      const xstring& text = WinQueryWindowXText(ent);
+    { ControlBase ent(GetCtrl(ENT_URL));
+      const xstring& text = ent.QueryText();
       const url123& url = amp_get_cwd().makeAbsolute(text);
       if (!url)
-      { WinMessageBox(HWND_DESKTOP, hwnd, xstring().sprintf("The URL \"%s\" is not well formed.", text.cdata()),
+      { WinMessageBox(HWND_DESKTOP, GetHwnd(), xstring().sprintf("The URL \"%s\" is not well formed.", text.cdata()),
           NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
         return 0; // cancel
       }
       // Replace the text by the expanded URL
-      PMRASSERT(WinSetWindowText(ent, url.cdata()));
+      ent.SetText(url);
       break; // everything OK => continue
     }
   }
-  return WinDefDlgProc(hwnd, msg, mp1, mp2);
+  return DialogBase::DlgProc(msg, mp1, mp2);
 }
 
 /* Adds HTTP file to the playlist or load it to the player. */
@@ -212,25 +230,27 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
   // We should update the combo box list on change instead.
   GUI::GetUrlMRU().RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
 
-  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
-  if (hwnd == NULLHANDLE)
-    return 500;
-
-  do_warpsans(hwnd);
-
   xstring wintitle;
   wintitle.sprintf(title, " URL");
-  WinSetWindowText(hwnd, (PSZ)&*wintitle);
+  UrlDialog dialog(owner, title);
   
   ULONG ret = 300;
-  if (WinProcessDlg(hwnd) == DID_OK)
-  { const xstring& url = WinQueryDlgItemXText(hwnd, ENT_URL);
-    DEBUGLOG(("amp_url_wizard: %s\n", url.cdata()));
-    (*callback)(param, url, NULL, IF_None, IF_None);
+  if (dialog.Process() == DID_OK)
+  { const xstring& url = dialog.GetURL();
+    const xstring& desc = dialog.GetDesc();
+    DEBUGLOG(("amp_url_wizard: %s, %s\n", url.cdata(), desc.cdata()));
+    if (desc && desc.length() > 0)
+    { // Have description
+      ItemInfo item;
+      item.alias = desc;
+      INFO_BUNDLE info = {NULL};
+      info.item = &item;
+      (*callback)(param, url, &info, IF_Item, IF_Item);
+    } else
+      (*callback)(param, url, NULL, IF_None, IF_None);
     GUI::Add2MRU(GUI::GetUrlMRU(), Cfg::Get().max_recall, *Playable::GetByURL(url));
     ret = 0;
   }
-  WinDestroyWindow(hwnd);
   return ret;
 }
 
@@ -324,10 +344,10 @@ void amp_add_bookmark(HWND owner, APlayable& item)
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &amp_bookmark_dlg_proc, NULLHANDLE, DLG_BM_ADD, NULL);
   // TODO: !!!!!! request information before
   const xstring& desc = item.GetDisplayName();
-  WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
+  WinSetDlgItemText(hdlg, EF_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
-  { const xstring& alias = WinQueryDlgItemXText(hdlg, EF_BM_DESC);
+  { const xstring& alias = WinQueryDlgItemXText(hdlg, EF_DESC);
     Playable& p = GUI::GetDefaultBM();
     p.RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
     if (alias != desc) // Don't set alias if not required.
