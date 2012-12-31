@@ -30,7 +30,7 @@
 #define COMMANDPROCESSOR_H
 
 #include "acommandprocessor.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "../core/songiterator.h"
 #include "../core/dependencyinfo.h"
 #include "../engine/controller.h"

@@ -29,11 +29,11 @@
 
 #include "inspector.h"
 #include "pm123.rc.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "../core/playable.h"
 #include "../core/dependencyinfo.h"
 #include "../engine/controller.h"
-#include "pm123.h" // for amp_player_hab
+#include "../pm123.h" // for amp_player_hab
 
 #include <utilfct.h> // for do_warpsans
 #include <math.h>

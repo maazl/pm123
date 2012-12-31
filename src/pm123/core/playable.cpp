@@ -30,7 +30,7 @@
 #define INCL_PM
 #define INCL_BASE
 #include "playable.h"
-#include "eventhandler.h"
+#include "../eventhandler.h"
 #include "../engine/decoder.h"
 #include "dependencyinfo.h"
 #include "location.h"

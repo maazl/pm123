@@ -34,12 +34,12 @@
 #define INCL_PM
 #include "infodialog.h"
 #include "../core/dependencyinfo.h"
-#include "pm123.h"
+#include "../pm123.h"
 #include "gui.h"
 #include "pm123.rc.h"
 #include "dialog.h"
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 #include <utilfct.h> // do_warpsans
 
 #include <cpp/container/inst_index.h>
@@ -447,8 +447,13 @@ HWND InfoDialog::PageBase::SetCtrlText(ULONG id, Fields fld, const char* text)
 
 void InfoDialog::PageBase::SetCtrlCB(ULONG id, Fields fld, bool flag)
 { CheckBox ctrl(GetCtrl(id));
-  ctrl.SetCheckState(Valid & fld ? flag : 2);
-  ctrl.Enable((Enabled & fld) != 0);
+  if (Valid & fld)
+    ctrl.CheckState(flag);
+  else
+  { ULONG style = ctrl.Style() & BS_PRIMARYSTYLES;
+    ctrl.CheckState(style == BS_3STATE || style == BS_AUTO3STATE ? 2 : 0);
+  }
+  ctrl.Enabled((Enabled & fld) != 0);
 }
 
 void InfoDialog::PageBase::SetCtrlRB(ULONG id1, Fields fld, int btn)
@@ -785,7 +790,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // setup first destination
-    EntryField(+GetCtrl(EF_WMURL)).SetText(Dest[0]->GetPlayable().URL);
+    EntryField(+GetCtrl(EF_WMURL)).Text(Dest[0]->GetPlayable().URL);
     PostMsg(UM_START, 0, 0);
     break;
 
@@ -815,9 +820,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       StatusReport* rep = (StatusReport*)PVOIDFROMMP(mp2);
       if (rep->RC == PLUGIN_OK)
       { // Everything fine, next item
-        EntryField(+GetCtrl(EF_WMSTATUS)).SetText("");
+        EntryField(+GetCtrl(EF_WMSTATUS)).Text("");
         ++i; // next item (if any)
-        EntryField(+GetCtrl(EF_WMURL)).SetText((size_t)i < Dest.size() ? Dest[i]->GetPlayable().URL.cdata() : "");
+        EntryField(+GetCtrl(EF_WMURL)).Text((size_t)i < Dest.size() ? Dest[i]->GetPlayable().URL.cdata() : "");
         return 0;
       }
       // Error, worker halted
@@ -841,7 +846,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case DID_CANCEL:
       Cancel = true;
       ResumeSignal.Set();
-      EntryField(+GetCtrl(EF_WMSTATUS)).SetText("- cancelling -");
+      EntryField(+GetCtrl(EF_WMSTATUS)).Text("- cancelling -");
       EnableCtrl(DID_CANCEL, false);
       break;
 
@@ -1244,8 +1249,8 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
   valid &= SetCtrlEFValid(EF_INFOGAIN, tmp.length() == 0
     || (sscanf(tmp, "%f%n", &item.gain, &len) == 1 && len == tmp.length() && fabs(item.gain) < 100) );
 
-  attr.ploptions = PLO_ALTERNATION * CheckBox(GetCtrl(CB_INFOALTERNATION)).QueryCheckState()
-      | PLO_SHUFFLE * RadioButton(GetCtrl(RB_INFOPLSHINHERIT)).QueryCheckIndex();
+  attr.ploptions = PLO_ALTERNATION * CheckBox(GetCtrl(CB_INFOALTERNATION)).CheckState()
+      | PLO_SHUFFLE * RadioButton(GetCtrl(RB_INFOPLSHINHERIT)).CheckIndex();
 
   if (!valid)
     return;
@@ -1278,7 +1283,7 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
       const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
-      EntryField(+GetCtrl(EF_INFOURL)).SetText(data.URL);
+      EntryField(+GetCtrl(EF_INFOURL)).Text(data.URL);
       { const ITEM_INFO& item = data.Info.Item;
         SetCtrlText(EF_INFOALIAS,   F_ITEM_INFO, item.alias);
         SetCtrlText(EF_INFOSTART,   F_ITEM_INFO, item.start);

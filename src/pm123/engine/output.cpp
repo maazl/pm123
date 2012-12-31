@@ -37,8 +37,8 @@
 
 #include "output.h"
 #include "proxyhelper.h"
-#include "configuration.h"
-#include "pm123.h" // for hab
+#include "../configuration.h"
+#include "../pm123.h" // for hab
 #include <cpp/cppvdelegate.h>
 #include <limits.h>
 

@@ -167,7 +167,7 @@ class SongIterator : public Location
  protected:
   virtual void                Enter();
   virtual void                Leave();
-  virtual void                PrevNextCore(bool direction);
+  virtual bool                PrevNextCore(JobSet& job, bool direction);
   virtual void                Swap2(Location& l);
  private:
   virtual void                SetRoot(Playable* root);

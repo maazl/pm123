@@ -38,7 +38,7 @@
 #include "../engine/decoder.h"
 #include "playlistmenu.h"
 #include "gui.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "pm123.rc.h"
 
 #include <utilfct.h>

@@ -32,9 +32,9 @@
 #define  INCL_WIN
 #define  INCL_DOS
 #include "dialog.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "gui.h"
-#include "123_util.h"
+#include "../123_util.h"
 #include <utilfct.h> // for do_warpsans
 #include <fileutil.h>
 #include <cpp/pmutils.h>
@@ -161,7 +161,7 @@ class UrlDialog : public DialogBase
 UrlDialog::UrlDialog(HWND owner, const char* title)
 : DialogBase(DLG_URL, NULL, DF_AutoResize)
 { StartDialog(owner);
-  ControlBase(+GetHwnd()).SetText(title);
+  ControlBase(+GetHwnd()).Text(title);
 }
 
 /* Default dialog procedure for the URL dialog. */
@@ -173,7 +173,7 @@ MRESULT UrlDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       {case CBN_EFCHANGE:
         // Update enabled status of the OK-Button
         DEBUGLOG(("UrlDialog::DlgProc: WM_CONTROL: CBN_EFCHANGE\n"));
-        ControlBase(+GetCtrl(DID_OK)).Enable(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
+        ControlBase(+GetCtrl(DID_OK)).Enabled(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
         break;
        /*case CBN_ENTER:
         WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(DID_OK), MPFROM2SHORT(CMDSRC_OTHER, FALSE));
@@ -207,7 +207,7 @@ MRESULT UrlDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
     if (SHORT1FROMMP(mp1) == DID_OK)
     { ControlBase ent(GetCtrl(ENT_URL));
-      const xstring& text = ent.QueryText();
+      const xstring& text = ent.Text();
       const url123& url = amp_get_cwd().makeAbsolute(text);
       if (!url)
       { WinMessageBox(HWND_DESKTOP, GetHwnd(), xstring().sprintf("The URL \"%s\" is not well formed.", text.cdata()),
@@ -215,7 +215,7 @@ MRESULT UrlDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0; // cancel
       }
       // Replace the text by the expanded URL
-      ent.SetText(url);
+      ent.Text(url);
       break; // everything OK => continue
     }
   }
@@ -352,7 +352,7 @@ void amp_add_bookmark(HWND owner, APlayable& item)
     p.RequestInfo(IF_Child, PRI_Sync|PRI_Normal);
     if (alias != desc) // Don't set alias if not required.
     { // We have to copy the PlayableRef to modify it.
-      PlayableSlice ps(item);
+      PlayableRef ps(item);
       ItemInfo ii;
       ii.alias = alias;
       ps.OverrideItem(&ii);

@@ -32,17 +32,17 @@
 #define  INCL_WIN
 #define  INCL_ERRORS
 #include "properties.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "pm123.rc.h"
-#include "eventhandler.h"
+#include "../eventhandler.h"
 #include "dialog.h"
 #include "gui.h" // ShowHelp
-#include "123_util.h" // amp_font_attrs_to_string
-#include "copyright.h"
+#include "../123_util.h" // amp_font_attrs_to_string
+#include "../copyright.h"
 #include "../engine/plugman.h"
 #include "../engine/decoder.h"
 #include "../engine/visual.h"
-#include "pm123.h"
+#include "../pm123.h"
 #include <utilfct.h>
 #include <cpp/pmutils.h>
 #include <cpp/windowbase.h>
@@ -190,27 +190,27 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
   { case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       // gcc parser error required + prefixes
-      CheckBox(+GetCtrl(CB_PLAYONLOAD    )).SetCheckState(cfg.playonload);
-      CheckBox(+GetCtrl(CB_RETAINONEXIT  )).SetCheckState(cfg.retainonexit);
-      CheckBox(+GetCtrl(CB_RETAINONSTOP  )).SetCheckState(cfg.retainonstop);
-      CheckBox(+GetCtrl(CB_RESTARTONSTART)).SetCheckState(cfg.restartonstart);
+      CheckBox(+GetCtrl(CB_PLAYONLOAD    )).CheckState(cfg.playonload);
+      CheckBox(+GetCtrl(CB_RETAINONEXIT  )).CheckState(cfg.retainonexit);
+      CheckBox(+GetCtrl(CB_RETAINONSTOP  )).CheckState(cfg.retainonstop);
+      CheckBox(+GetCtrl(CB_RESTARTONSTART)).CheckState(cfg.restartonstart);
 
-      CheckBox(+GetCtrl(CB_TURNAROUND    )).SetCheckState(cfg.autoturnaround);
-      CheckBox(+GetCtrl(RB_SONGONLY+cfg.altnavig)).SetCheckState(true);
-      CheckBox(+GetCtrl(RB_ALTKEY+cfg.altbutton)).SetCheckState(true);
+      CheckBox(+GetCtrl(CB_TURNAROUND    )).CheckState(cfg.autoturnaround);
+      CheckBox(+GetCtrl(RB_SONGONLY+cfg.altnavig)).CheckState(true);
+      CheckBox(+GetCtrl(RB_ALTKEY+cfg.altbutton)).CheckState(true);
       return 0;
     }
 
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.playonload     = CheckBox(GetCtrl(CB_PLAYONLOAD)).QueryCheckState();
-      cfg.retainonexit   = CheckBox(GetCtrl(CB_RETAINONEXIT)).QueryCheckState();
-      cfg.retainonstop   = CheckBox(GetCtrl(CB_RETAINONSTOP)).QueryCheckState();
-      cfg.restartonstart = CheckBox(GetCtrl(CB_RESTARTONSTART)).QueryCheckState();
+      cfg.playonload     = CheckBox(GetCtrl(CB_PLAYONLOAD)).CheckState();
+      cfg.retainonexit   = CheckBox(GetCtrl(CB_RETAINONEXIT)).CheckState();
+      cfg.retainonstop   = CheckBox(GetCtrl(CB_RETAINONSTOP)).CheckState();
+      cfg.restartonstart = CheckBox(GetCtrl(CB_RESTARTONSTART)).CheckState();
 
-      cfg.autoturnaround = CheckBox(GetCtrl(CB_TURNAROUND)).QueryCheckState();
-      cfg.altnavig       = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).QueryCheckIndex();
-      cfg.altbutton      = (cfg_button)RadioButton(GetCtrl(RB_ALTKEY)).QueryCheckIndex();
+      cfg.autoturnaround = CheckBox(GetCtrl(CB_TURNAROUND)).CheckState();
+      cfg.altnavig       = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).CheckIndex();
+      cfg.altbutton      = (cfg_button)RadioButton(GetCtrl(RB_ALTKEY)).CheckIndex();
     }
   }
   return SettingsPageBase::DlgProc(msg, mp1, mp2);
@@ -221,27 +221,27 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
   { case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       // gcc parser error required + prefixes
-      CheckBox(+GetCtrl(CB_AUTOUSEPL    )).SetCheckState(cfg.autouse);
-      CheckBox(+GetCtrl(CB_AUTOSAVEPL   )).SetCheckState(cfg.autosave);
-      CheckBox(+GetCtrl(CB_RECURSEDND   )).SetCheckState(cfg.recurse_dnd);
-      CheckBox(+GetCtrl(CB_FOLDERSFIRST )).SetCheckState(cfg.folders_first);
-      CheckBox(+GetCtrl(RB_ITEMNAVTO + cfg.itemaction)).SetCheckState(true);
-      CheckBox(+GetCtrl(RB_DNDLOAD   + cfg.append_dnd)).SetCheckState(true);
-      CheckBox(+GetCtrl(RB_CMDLOAD   + cfg.append_cmd)).SetCheckState(true);
-      CheckBox(+GetCtrl(CB_QUEUEMODE    )).SetCheckState(cfg.queue_mode);
+      CheckBox(+GetCtrl(CB_AUTOUSEPL    )).CheckState(cfg.autouse);
+      CheckBox(+GetCtrl(CB_AUTOSAVEPL   )).CheckState(cfg.autosave);
+      CheckBox(+GetCtrl(CB_RECURSEDND   )).CheckState(cfg.recurse_dnd);
+      CheckBox(+GetCtrl(CB_FOLDERSFIRST )).CheckState(cfg.folders_first);
+      CheckBox(+GetCtrl(RB_ITEMNAVTO + cfg.itemaction)).CheckState(true);
+      CheckBox(+GetCtrl(RB_DNDLOAD   + cfg.append_dnd)).CheckState(true);
+      CheckBox(+GetCtrl(RB_CMDLOAD   + cfg.append_cmd)).CheckState(true);
+      CheckBox(+GetCtrl(CB_QUEUEMODE    )).CheckState(cfg.queue_mode);
       return 0;
     }
 
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.autouse      = CheckBox(GetCtrl(CB_AUTOUSEPL   )).QueryCheckState();
-      cfg.autosave     = CheckBox(GetCtrl(CB_AUTOSAVEPL  )).QueryCheckState();
-      cfg.recurse_dnd  = CheckBox(GetCtrl(CB_RECURSEDND  )).QueryCheckState();
-      cfg.folders_first= CheckBox(GetCtrl(CB_FOLDERSFIRST)).QueryCheckState();
-      cfg.itemaction   = (cfg_action)RadioButton(GetCtrl(RB_ITEMNAVTO)).QueryCheckIndex();
-      cfg.append_dnd   = CheckBox(GetCtrl(RB_DNDQUEUE    )).QueryCheckState();
-      cfg.append_cmd   = CheckBox(GetCtrl(RB_CMDQUEUE    )).QueryCheckState();
-      cfg.queue_mode   = CheckBox(GetCtrl(CB_QUEUEMODE   )).QueryCheckState();
+      cfg.autouse      = CheckBox(GetCtrl(CB_AUTOUSEPL   )).CheckState();
+      cfg.autosave     = CheckBox(GetCtrl(CB_AUTOSAVEPL  )).CheckState();
+      cfg.recurse_dnd  = CheckBox(GetCtrl(CB_RECURSEDND  )).CheckState();
+      cfg.folders_first= CheckBox(GetCtrl(CB_FOLDERSFIRST)).CheckState();
+      cfg.itemaction   = (cfg_action)RadioButton(GetCtrl(RB_ITEMNAVTO)).CheckIndex();
+      cfg.append_dnd   = CheckBox(GetCtrl(RB_DNDQUEUE    )).CheckState();
+      cfg.append_cmd   = CheckBox(GetCtrl(RB_CMDQUEUE    )).CheckState();
+      cfg.queue_mode   = CheckBox(GetCtrl(CB_QUEUEMODE   )).CheckState();
       return 0;
     }
   }
@@ -276,7 +276,7 @@ void PropertyDialog::PlaybackSettingsPage::SetListContent(const cfg_rgtype types
   lb.InsertItems(items, count);
   // set item handles
   for (i = 0; i < count; ++i)
-    lb.SetHandle(i, types[i]);
+    lb.Handle(i, types[i]);
 
   // prepare remaining items array
   count = 0;
@@ -291,14 +291,14 @@ void PropertyDialog::PlaybackSettingsPage::SetListContent(const cfg_rgtype types
   count = 0;
   for (i = 0; i < 4; ++i)
     if (!(contains & (1 << i)))
-      lb.SetHandle(count++, i+1);
+      lb.Handle(count++, i+1);
 }
 
 void PropertyDialog::PlaybackSettingsPage::GetListContent(USHORT id, cfg_rgtype types[4])
 { ListBox lb(GetCtrl(id));
   size_t count = lb.Count();
   for (size_t i = 0; i < 4; ++i)
-    types[i] = i >= count ? CFG_RG_NONE : (cfg_rgtype)lb.QueryHandle(i);
+    types[i] = i >= count ? CFG_RG_NONE : (cfg_rgtype)lb.Handle(i);
 }
 
 
@@ -306,7 +306,7 @@ unsigned PropertyDialog::PlaybackSettingsPage::GetListSelection(USHORT id)
 { unsigned selected = 0;
   ListBox lb(GetCtrl(id));
   int i = LIT_FIRST;
-  while ((i =  lb.QuerySelection(i)) != LIT_NONE)
+  while ((i =  lb.NextSelection(i)) != LIT_NONE)
     selected |= 1 << i;
   return selected;
 }
@@ -355,17 +355,17 @@ MRESULT PropertyDialog::PlaybackSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPA
 
    case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
-      CheckBox(+GetCtrl(CB_RG_ENABLE)).SetCheckState(cfg.replay_gain);
+      CheckBox(+GetCtrl(CB_RG_ENABLE)).CheckState(cfg.replay_gain);
       //EnableRG(cfg.replay_gain);
       SetListContent(cfg.rg_list);
-      SpinButton(+GetCtrl(SB_RG_PREAMP)).SetValue(cfg.rg_preamp);
-      SpinButton(+GetCtrl(SB_RG_PREAMP_OTHER)).SetValue(cfg.rg_preamp_other);
+      SpinButton(+GetCtrl(SB_RG_PREAMP)).Value(cfg.rg_preamp);
+      SpinButton(+GetCtrl(SB_RG_PREAMP_OTHER)).Value(cfg.rg_preamp_other);
       size_t pos;
       binary_search(&cfg.pri_normal, pos, Priorities, 10, &ComparePriority);
-      ComboBox(+GetCtrl(CB_PRI_NORM)).Select(pos);
+      ComboBox(+GetCtrl(CB_PRI_NORM)).NextSelection(pos);
       binary_search(&cfg.pri_high, pos, Priorities+5, 10, &ComparePriority);
-      ComboBox(+GetCtrl(CB_PRI_HIGH)).Select(pos);
-      SpinButton(+GetCtrl(SB_PRI_LIMIT)).SetValue(cfg.pri_limit);
+      ComboBox(+GetCtrl(CB_PRI_HIGH)).NextSelection(pos);
+      SpinButton(+GetCtrl(SB_PRI_LIMIT)).Value(cfg.pri_limit);
       return 0;
     }
 
@@ -467,13 +467,13 @@ MRESULT PropertyDialog::PlaybackSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPA
 
    case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.replay_gain = CheckBox(GetCtrl(CB_RG_ENABLE)).QueryCheckState();
+      cfg.replay_gain = CheckBox(GetCtrl(CB_RG_ENABLE)).CheckState();
       GetListContent(LB_RG_LIST, cfg.rg_list);
-      cfg.rg_preamp = SpinButton(GetCtrl(SB_RG_PREAMP)).QueryValue();
-      cfg.rg_preamp_other = SpinButton(GetCtrl(SB_RG_PREAMP_OTHER)).QueryValue();
-      cfg.pri_normal = Priorities[ComboBox(GetCtrl(CB_PRI_NORM)).QuerySelection()].Priority;
-      cfg.pri_high = Priorities[5+ComboBox(GetCtrl(CB_PRI_HIGH)).QuerySelection()].Priority;
-      cfg.pri_limit = SpinButton(GetCtrl(SB_PRI_LIMIT)).QueryValue();
+      cfg.rg_preamp = SpinButton(GetCtrl(SB_RG_PREAMP)).Value();
+      cfg.rg_preamp_other = SpinButton(GetCtrl(SB_RG_PREAMP_OTHER)).Value();
+      cfg.pri_normal = Priorities[ComboBox(GetCtrl(CB_PRI_NORM)).NextSelection()].Priority;
+      cfg.pri_high = Priorities[5+ComboBox(GetCtrl(CB_PRI_HIGH)).NextSelection()].Priority;
+      cfg.pri_limit = SpinButton(GetCtrl(SB_PRI_LIMIT)).Value();
       return 0;
     }
   }
@@ -498,7 +498,7 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
       const char* cp;
       size_t l;
 
-      EntryField(+GetCtrl(EF_PIPE)).SetText(cfg.pipe_name);
+      EntryField(+GetCtrl(EF_PIPE)).Text(cfg.pipe_name);
 
       // proxy
       cp = strchr(cfg.proxy, ':');
@@ -511,8 +511,8 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
         l = cp - cfg.proxy;
       }
       strlcpy(buffer, cfg.proxy, min(l, sizeof buffer));
-      EntryField(+GetCtrl(EF_PROXY_HOST)).SetText(buffer);
-      EntryField(+GetCtrl(EF_PROXY_PORT)).SetText(cp);
+      EntryField(+GetCtrl(EF_PROXY_HOST)).Text(buffer);
+      EntryField(+GetCtrl(EF_PROXY_PORT)).Text(cp);
       cp = strchr(cfg.auth, ':');
       if (cp == NULL)
       { l = strlen(cfg.auth);
@@ -523,25 +523,25 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
         l = cp - cfg.auth;
       }
       strlcpy(buffer, cfg.auth, min(l, sizeof buffer));
-      EntryField(+GetCtrl(EF_PROXY_USER)).SetText(buffer);
-      EntryField(+GetCtrl(EF_PROXY_PASS)).SetText(cp);
+      EntryField(+GetCtrl(EF_PROXY_USER)).Text(buffer);
+      EntryField(+GetCtrl(EF_PROXY_PASS)).Text(cp);
 
-      CheckBox(+GetCtrl(CB_FILLBUFFER)).SetCheckState(cfg.buff_wait);
+      CheckBox(+GetCtrl(CB_FILLBUFFER)).CheckState(cfg.buff_wait);
 
-      SpinButton(+GetCtrl(SB_TIMEOUT   )).SetValue(cfg.conn_timeout);
-      SpinButton(+GetCtrl(SB_BUFFERSIZE)).SetValue(cfg.buff_size);
-      SpinButton(+GetCtrl(SB_FILLBUFFER)).SetValue(cfg.buff_fill);
+      SpinButton(+GetCtrl(SB_TIMEOUT   )).Value(cfg.conn_timeout);
+      SpinButton(+GetCtrl(SB_BUFFERSIZE)).Value(cfg.buff_size);
+      SpinButton(+GetCtrl(SB_FILLBUFFER)).Value(cfg.buff_fill);
 
-      SpinButton(+GetCtrl(SB_NUMWORKERS)).SetValue(cfg.num_workers);
-      SpinButton(+GetCtrl(SB_DLGWORKERS)).SetValue(cfg.num_dlg_workers);
-      CheckBox(+GetCtrl(CB_LOWPRIWORKERS)).SetCheckState(cfg.low_priority_workers);
+      SpinButton(+GetCtrl(SB_NUMWORKERS)).Value(cfg.num_workers);
+      SpinButton(+GetCtrl(SB_DLGWORKERS)).Value(cfg.num_dlg_workers);
+      CheckBox(+GetCtrl(CB_LOWPRIWORKERS)).CheckState(cfg.low_priority_workers);
       return 0;
     }
 
     case WM_CONTROL:
       if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
         ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
-        EnableCtrl(SB_FILLBUFFER, CheckBox(GetCtrl(CB_FILLBUFFER)).QueryCheckState());
+        EnableCtrl(SB_FILLBUFFER, CheckBox(GetCtrl(CB_FILLBUFFER)).CheckState());
       return 0;
 
     case CFG_SAVE:
@@ -549,10 +549,10 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
 
       cfg.pipe_name = WinQueryDlgItemXText(GetHwnd(), EF_PIPE);
 
-      cfg.buff_size = SpinButton(GetCtrl(SB_BUFFERSIZE)).QueryValue();
-      cfg.buff_fill = SpinButton(GetCtrl(SB_FILLBUFFER)).QueryValue();
-      cfg.buff_wait = CheckBox(GetCtrl(CB_FILLBUFFER)).QueryCheckState();
-      cfg.conn_timeout = SpinButton(GetCtrl(SB_TIMEOUT)).QueryValue();
+      cfg.buff_size = SpinButton(GetCtrl(SB_BUFFERSIZE)).Value();
+      cfg.buff_fill = SpinButton(GetCtrl(SB_FILLBUFFER)).Value();
+      cfg.buff_wait = CheckBox(GetCtrl(CB_FILLBUFFER)).CheckState();
+      cfg.conn_timeout = SpinButton(GetCtrl(SB_TIMEOUT)).Value();
 
       size_t len1 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_HOST);
       size_t len2 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_PORT);
@@ -578,9 +578,9 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
         WinQueryDlgItemText(GetHwnd(), EF_PROXY_PASS, len2, cp);
       }
 
-      cfg.num_workers = SpinButton(GetCtrl(SB_NUMWORKERS)).QueryValue();
-      cfg.num_dlg_workers = SpinButton(GetCtrl(SB_DLGWORKERS)).QueryValue();
-      cfg.low_priority_workers = CheckBox(GetCtrl(CB_LOWPRIWORKERS)).QueryCheckState();
+      cfg.num_workers = SpinButton(GetCtrl(SB_NUMWORKERS)).Value();
+      cfg.num_dlg_workers = SpinButton(GetCtrl(SB_DLGWORKERS)).Value();
+      cfg.low_priority_workers = CheckBox(GetCtrl(CB_LOWPRIWORKERS)).CheckState();
 
       return 0;
     }
@@ -604,23 +604,23 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
     {
       if (mp1)
       { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
-        CheckBox(+GetCtrl(CB_DOCK)).SetCheckState(cfg.dock_windows);
+        CheckBox(+GetCtrl(CB_DOCK)).CheckState(cfg.dock_windows);
         { SpinButton sb(+GetCtrl(SB_DOCK));
-          sb.Enable(cfg.dock_windows);
-          sb.SetValue(cfg.dock_margin);
+          sb.Enabled(cfg.dock_windows);
+          sb.Value(cfg.dock_margin);
         }
-        CheckBox(+GetCtrl(CB_SAVEWNDPOSBYOBJ)).SetCheckState(cfg.win_pos_by_obj);
+        CheckBox(+GetCtrl(CB_SAVEWNDPOSBYOBJ)).CheckState(cfg.win_pos_by_obj);
 
         // load GUI
-        CheckBox(+GetCtrl(RB_DISP_FILENAME+cfg.viewmode)).SetCheckState(true);
-        CheckBox(+GetCtrl(RB_SCROLL_INFINITE+cfg.scroll)).SetCheckState(true);
-        CheckBox(+GetCtrl(CB_SCROLL_AROUND)).SetCheckState(cfg.scroll_around);
-        CheckBox(+GetCtrl(CB_RESTRICT_META)).SetCheckState(cfg.restrict_meta);
+        CheckBox(+GetCtrl(RB_DISP_FILENAME+cfg.viewmode)).CheckState(true);
+        CheckBox(+GetCtrl(RB_SCROLL_INFINITE+cfg.scroll)).CheckState(true);
+        CheckBox(+GetCtrl(CB_SCROLL_AROUND)).CheckState(cfg.scroll_around);
+        CheckBox(+GetCtrl(CB_RESTRICT_META)).CheckState(cfg.restrict_meta);
         { SpinButton sb(+GetCtrl(SB_RESTRICT_META));
-          sb.Enable(cfg.restrict_meta);
-          sb.SetValue(cfg.restrict_length);
+          sb.Enabled(cfg.restrict_meta);
+          sb.Value(cfg.restrict_length);
         }
-        CheckBox(+GetCtrl(CB_USE_SKIN_FONT)).SetCheckState(cfg.font_skinned);
+        CheckBox(+GetCtrl(CB_USE_SKIN_FONT)).CheckState(cfg.font_skinned);
         EnableCtrl(PB_FONT_SELECT, !cfg.font_skinned);
         EnableCtrl(ST_FONT_SAMPLE, !cfg.font_skinned);
 
@@ -629,7 +629,7 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       }
       // change sample font
       xstring font_name  = amp_font_attrs_to_string( font_attrs, font_size );
-      ControlBase(+GetCtrl(ST_FONT_SAMPLE)).SetText(font_name);
+      ControlBase(+GetCtrl(ST_FONT_SAMPLE)).Text(font_name);
       WinSetPresParam(GetCtrl(ST_FONT_SAMPLE), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata());
       return 0;
     }
@@ -663,7 +663,7 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       switch (SHORT1FROMMP(mp1))
       {case CB_USE_SKIN_FONT:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
-        { bool use = !!CheckBox(GetCtrl(CB_USE_SKIN_FONT)).QueryCheckState();
+        { bool use = !!CheckBox(GetCtrl(CB_USE_SKIN_FONT)).CheckState();
           EnableCtrl(PB_FONT_SELECT, !use );
           EnableCtrl(ST_FONT_SAMPLE, !use );
         }
@@ -671,28 +671,28 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
 
        case CB_DOCK:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
-          EnableCtrl(SB_DOCK, !!CheckBox(GetCtrl(CB_DOCK)).QueryCheckState());
+          EnableCtrl(SB_DOCK, !!CheckBox(GetCtrl(CB_DOCK)).CheckState());
         break;
 
        case CB_RESTRICT_META:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
-          EnableCtrl(SB_RESTRICT_META, !!CheckBox(GetCtrl(CB_RESTRICT_META)).QueryCheckState());
+          EnableCtrl(SB_RESTRICT_META, !!CheckBox(GetCtrl(CB_RESTRICT_META)).CheckState());
       }
       return 0;
 
     case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
-      cfg.dock_windows  = !!CheckBox(GetCtrl(CB_DOCK)).QueryCheckState();
-      cfg.dock_margin   = SpinButton(GetCtrl(SB_DOCK)).QueryValue();
-      cfg.win_pos_by_obj= !!CheckBox(GetCtrl(CB_SAVEWNDPOSBYOBJ)).QueryCheckState();
+      cfg.dock_windows  = !!CheckBox(GetCtrl(CB_DOCK)).CheckState();
+      cfg.dock_margin   = SpinButton(GetCtrl(SB_DOCK)).Value();
+      cfg.win_pos_by_obj= !!CheckBox(GetCtrl(CB_SAVEWNDPOSBYOBJ)).CheckState();
 
-      cfg.viewmode      = (cfg_disp)RadioButton(GetCtrl(RB_DISP_FILENAME)).QueryCheckIndex();
-      cfg.restrict_meta = !!CheckBox(GetCtrl(CB_RESTRICT_META)).QueryCheckState();
-      cfg.restrict_length=SpinButton(GetCtrl(SB_RESTRICT_META)).QueryValue();
-      cfg.scroll        = (cfg_scroll)RadioButton(GetCtrl(RB_SCROLL_INFINITE)).QueryCheckIndex();
-      cfg.scroll_around = !!CheckBox(GetCtrl(CB_SCROLL_AROUND)).QueryCheckState();
+      cfg.viewmode      = (cfg_disp)RadioButton(GetCtrl(RB_DISP_FILENAME)).CheckIndex();
+      cfg.restrict_meta = !!CheckBox(GetCtrl(CB_RESTRICT_META)).CheckState();
+      cfg.restrict_length=SpinButton(GetCtrl(SB_RESTRICT_META)).Value();
+      cfg.scroll        = (cfg_scroll)RadioButton(GetCtrl(RB_SCROLL_INFINITE)).CheckIndex();
+      cfg.scroll_around = !!CheckBox(GetCtrl(CB_SCROLL_AROUND)).CheckState();
 
-      cfg.font_skinned  = !!CheckBox(GetCtrl(CB_USE_SKIN_FONT)).QueryCheckState();
+      cfg.font_skinned  = !!CheckBox(GetCtrl(CB_USE_SKIN_FONT)).CheckState();
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
       return 0;
@@ -745,7 +745,7 @@ void PropertyDialog::PluginPage::RefreshList()
     lb.InsertItem(title);
   }
   if (selected != LIT_NONE)
-    lb.Select(selected);
+    lb.NextSelection(selected);
   else
   { Selected.reset();
     RequestInfo();
@@ -758,7 +758,7 @@ void PropertyDialog::PluginPage::RefreshInfo()
     || (List.Type == PLUGIN_VISUAL && ((Visual&)*Selected).GetProperties().skin) )
   { // The following functions give an error if no such buttons. This is ignored.
     if (List.Type != PLUGIN_OUTPUT)
-      ControlBase(+GetCtrl(PB_PLG_ENABLE)).SetText("~Enable");
+      ControlBase(+GetCtrl(PB_PLG_ENABLE)).Text("~Enable");
     EnableCtrl(PB_PLG_UNLOAD, false);
     EnableCtrl(PB_PLG_UP,     false);
     EnableCtrl(PB_PLG_DOWN,   false);
@@ -767,7 +767,7 @@ void PropertyDialog::PluginPage::RefreshInfo()
   { if (List.Type == PLUGIN_OUTPUT)
       EnableCtrl(PB_PLG_ENABLE, !Selected->GetEnabled());
     else
-    { ControlBase(+GetCtrl(PB_PLG_ENABLE)).SetText(Selected->GetEnabled() ? "Disabl~e" : "~Enable");
+    { ControlBase(+GetCtrl(PB_PLG_ENABLE)).Text(Selected->GetEnabled() ? "Disabl~e" : "~Enable");
       EnableCtrl(PB_PLG_ENABLE, true);
     }
     EnableCtrl(PB_PLG_UNLOAD, true);
@@ -775,18 +775,18 @@ void PropertyDialog::PluginPage::RefreshInfo()
     EnableCtrl(PB_PLG_DOWN,   Selected != List[List.size()-1]);
   }
   if (Selected == NULL)
-  { ControlBase(+GetCtrl(ST_PLG_AUTHOR)).SetText("");
-    ControlBase(+GetCtrl(ST_PLG_DESC  )).SetText("");
-    ControlBase(+GetCtrl(ST_PLG_LEVEL )).SetText("");
+  { ControlBase(+GetCtrl(ST_PLG_AUTHOR)).Text("");
+    ControlBase(+GetCtrl(ST_PLG_DESC  )).Text("");
+    ControlBase(+GetCtrl(ST_PLG_LEVEL )).Text("");
     EnableCtrl(PB_PLG_CONFIG, false);
   } else
   { char buffer[64];
     const PLUGIN_QUERYPARAM& params = Selected->ModRef->GetParams();
-    ControlBase(+GetCtrl(ST_PLG_AUTHOR)).SetText(params.author);
-    ControlBase(+GetCtrl(ST_PLG_DESC  )).SetText(params.desc);
+    ControlBase(+GetCtrl(ST_PLG_AUTHOR)).Text(params.author);
+    ControlBase(+GetCtrl(ST_PLG_DESC  )).Text(params.desc);
     snprintf(buffer, sizeof buffer,        "Interface level %i%s",
       params.interface, params.interface >= PLUGIN_INTERFACE_LEVEL ? "" : " (virtualized)");
-    ControlBase(+GetCtrl(ST_PLG_LEVEL )).SetText(buffer);
+    ControlBase(+GetCtrl(ST_PLG_LEVEL )).Text(buffer);
     EnableCtrl(PB_PLG_CONFIG, params.configurable);
   }
 }
@@ -981,14 +981,14 @@ void PropertyDialog::DecoderPage::RefreshInfo()
 { PluginPage::RefreshInfo();
   if (Selected == NULL)
   { MLE ft(GetCtrl(ML_DEC_FILETYPES));
-    ft.SetText("");
-    ft.Enable(false);
+    ft.Text("");
+    ft.Enabled(false);
     CheckBox cb(GetCtrl(CB_DEC_TRYOTHER));
-    cb.SetCheckState(false);
-    cb.Enable(false);
+    cb.CheckState(false);
+    cb.Enabled(false);
     cb = CheckBox(GetCtrl(CB_DEC_SERIALIZE));
-    cb.SetCheckState(false);
-    cb.Enable(false);
+    cb.CheckState(false);
+    cb.Enabled(false);
     EnableCtrl(PB_PLG_SET, false);
   } else
   { stringmap_own sm(20);
@@ -1012,20 +1012,20 @@ void PropertyDialog::DecoderPage::RefreshInfo()
       else
         cp = "";
       MLE ft(GetCtrl(ML_DEC_FILETYPES));
-      ft.SetText(cp);
-      ft.Enable(true);
+      ft.Text(cp);
+      ft.Enabled(true);
     }
     stringmapentry* smp; // = sm.find("filetypes");
     smp = sm.find("tryothers");
     bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
     CheckBox cb(GetCtrl(CB_DEC_TRYOTHER));
-    cb.SetCheckState(b && *b);
-    cb.Enable(!!b);
+    cb.CheckState(b && *b);
+    cb.Enabled(!!b);
     smp = sm.find("serializeinfo");
     b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
     cb = CheckBox(GetCtrl(CB_DEC_SERIALIZE));
-    cb.SetCheckState(b && *b);
-    cb.Enable(!!b);
+    cb.CheckState(b && *b);
+    cb.Enabled(!!b);
     EnableCtrl(PB_PLG_SET, false);
   }
 }
@@ -1047,8 +1047,8 @@ void PropertyDialog::DecoderPage::SetParams(Plugin* pp)
     ++cp2;
   }
   pp->SetParam("filetypes", filetypes);
-  pp->SetParam("tryothers", CheckBox(GetCtrl(CB_DEC_TRYOTHER)).QueryCheckState() ? "1" : "0");
-  pp->SetParam("serializeinfo", CheckBox(GetCtrl(CB_DEC_SERIALIZE)).QueryCheckState() ? "1" : "0");
+  pp->SetParam("tryothers", CheckBox(GetCtrl(CB_DEC_TRYOTHER)).CheckState() ? "1" : "0");
+  pp->SetParam("serializeinfo", CheckBox(GetCtrl(CB_DEC_SERIALIZE)).CheckState() ? "1" : "0");
 }
 
 
@@ -1078,9 +1078,9 @@ void PropertyDialog::AboutPage::OnInit()
   #else
     const char* built = 0;
   #endif
-  ControlBase(+GetCtrl(ST_BUILT)).SetText(built);
-  ControlBase(+GetCtrl(ST_AUTHORS)).SetText(SDG_AUT);
-  ControlBase(+GetCtrl(ST_CREDITS)).SetText(SDG_MSG);
+  ControlBase(+GetCtrl(ST_BUILT)).Text(built);
+  ControlBase(+GetCtrl(ST_AUTHORS)).Text(SDG_AUT);
+  ControlBase(+GetCtrl(ST_CREDITS)).Text(SDG_MSG);
 }
 
 

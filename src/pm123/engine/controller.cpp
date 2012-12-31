@@ -31,10 +31,10 @@
 #include "controller.h"
 #include "../core/dependencyinfo.h"
 #include "../core/songiterator.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "decoder.h"
 #include "glue.h"
-#include "pm123.h"
+#include "../pm123.h"
 #include "../gui/gui.h" // for DefaultPl
 
 #include <inimacro.h>

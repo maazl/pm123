@@ -28,6 +28,7 @@
 
 #include "songiterator.h"
 #include "playable.h"
+#include "dependencyinfo.h"
 #include <stdint.h>
 
 #include <debuglog.h>
@@ -256,23 +257,30 @@ void SongIterator::Leave()
     OffsetCache.set_size(depth);
 }
 
-void SongIterator::PrevNextCore(bool direction)
-{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
+bool SongIterator::PrevNextCore(JobSet& job, bool direction)
+{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(,%u)\n", this, direction));
   const vector<PlayableInstance>& callstack = GetCallstack();
   size_t depth = callstack.size();
   ASSERT(depth);
   APlayable* list = depth > 1 ? callstack[depth-2] : Root;
 
-  // Only play one item of an alternation list.
-  if (callstack[depth-1] && (list->GetInfo().attr->ploptions & PLO_ALTERNATION))
-  { NavigateTo(NULL);
-    return;
+  // Only play one item of an alternation list, and always the (logical) first.
+  if (list->GetInfo().attr->ploptions & PLO_ALTERNATION)
+  { direction = true;
+    APlayable* cur = callstack[depth-1];
+    if (!cur)
+      goto leave;
+    if (job.RequestInfo(*cur, IF_Tech))
+      return false;
+    if ((cur->GetInfo().tech->attributes & TATTR_INVALID) == 0)
+    {leave:
+      NavigateTo(NULL);
+      return true;
+    }
   }
 
   if (!IsShuffle())
-  { Location::PrevNextCore(direction);
-    return;
-  }
+    return Location::PrevNextCore(job, direction);
   // Prev/next in shuffle mode
   DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
   // Shuffle cache lookup
@@ -286,9 +294,8 @@ void SongIterator::PrevNextCore(bool direction)
   // Navigate
   PlayableInstance* pi = callstack[depth];
   pi = direction ? sw->Next(pi) : sw->Prev(pi);
-  // TODO: This function is not the most efficient way.
-  // A simple assignment without any checks would be sufficient.
   NavigateTo(pi);
+  return true;
 }
 
 void SongIterator::SetRoot(Playable* root)

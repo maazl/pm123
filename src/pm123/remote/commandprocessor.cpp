@@ -38,10 +38,10 @@
 #include "../engine/loadhelper.h"
 #include "../gui/dialog.h"
 #include "../gui/gui.h"
-#include "eventhandler.h"
-#include "123_util.h"
-#include "pm123.h"
-#include "copyright.h"
+#include "../eventhandler.h"
+#include "../123_util.h"
+#include "../pm123.h"
+#include "../copyright.h"
 #include <fileutil.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>

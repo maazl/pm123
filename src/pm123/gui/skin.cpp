@@ -35,10 +35,10 @@
 #define  INCL_BITMAPFILEFORMAT
 
 #include "skin.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "../engine/visual.h"
-#include "pm123.h"
-#include "eventhandler.h"
+#include "../pm123.h"
+#include "../eventhandler.h"
 #include "pm123.rc.h"
 #include "button95.h"
 #include "dialog.h"

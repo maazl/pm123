@@ -34,8 +34,8 @@
 #include "decoder.h"
 #include "filter.h"
 #include "output.h"
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 #include <math.h>
 #include <time.h>
 

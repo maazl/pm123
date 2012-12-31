@@ -35,8 +35,8 @@
 #include <stdio.h>
 
 #include "docking.h"
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 #include <utilfct.h>
 #include <cpp/mutex.h>
 

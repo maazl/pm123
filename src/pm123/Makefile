@@ -80,79 +80,79 @@ todo.txt: $(MDUMMY)
 ..\include\format.h:	..\include\plugin.h ..\utils\cpp\xstring.h
 ..\include\plugin.h:	..\include\config.h
 ..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
-..\utils\cpp\xstring.h:	..\utils\cpp\smartptr.h
-..\utils\cpp\smartptr.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
-..\utils\cpp\mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
-..\utils\interlocked.h:	..\include\config.h
-..\utils\debuglog.h:	..\utils\errorstr.h
 ..\include\output_plug.h:	..\include\format.h
-..\utils\cpp\url123.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\stringmap.h
-..\utils\cpp\container\stringmap.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\sorted_vector.h
-..\utils\cpp\container\sorted_vector.h:	..\utils\cpp\smartptr.h ..\utils\cpp\algorithm.h ..\utils\cpp\container\vector.h
-..\utils\cpp\algorithm.h:	..\utils\cpp\container\vector.h
-..\utils\cpp\container\vector.h:	..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h
 configuration.h:	..\include\config.h ..\include\plugin.h ..\utils\cpp\xstring.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\cpp\event.h ..\utils\cpp\container\vector.h
-..\utils\cpp\event.h:	..\include\config.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
 ..\utils\utilfct.h:	..\include\config.h ..\utils\errorstr.h ..\utils\minmax.h ..\utils\strutils.h
-configuration.cpp:	configuration.h eventhandler.h engine/plugman.h engine/visual.h pm123.h ..\utils\inimacro.h
+configuration.cpp:	configuration.h eventhandler.h engine\plugman.h engine\visual.h pm123.h ..\utils\inimacro.h
 eventhandler.h:	..\include\plugin.h ..\utils\cpp\xstring.h ..\utils\cpp\smartptr.h ..\utils\cpp\mutex.h ..\utils\interlocked.h ..\utils\cpp\container\vector.h
-engine/plugman.h:	..\include\plugin.h ..\utils\cpp\event.h ..\utils\cpp\xstring.h ..\utils\cpp\container\vector.h
-engine/visual.h:	..\include\visual_plug.h ..\utils\cpp\smartptr.h
-..\include\visual_plug.h:	..\include\format.h ..\include\output_plug.h
+..\utils\interlocked.h:	..\include\config.h
+engine\visual.h:	engine\plugman.h
 pm123.h:	..\include\config.h ..\utils\cpp\xstring.h
 ..\utils\inimacro.h:	..\include\config.h
 eventhandler.cpp:	eventhandler.h ..\utils\cpp\cpputil.h
-pm123.cpp:	pm123.h eventhandler.h 123_util.h engine/plugman.h engine/controller.h engine/loadhelper.h gui/gui.h gui/dialog.h configuration.h remote/pipe.h remote/acommandprocessor.h ..\xio123\xio.h ..\utils\utilfct.h ..\utils\minmax.h ..\utils\debuglog.h
-engine/controller.h:	..\utils\cpp\queue.h ..\utils\cpp\xstring.h ..\utils\cpp\event.h ..\utils\cpp\cpputil.h ..\utils\debuglog.h
-..\utils\cpp\queue.h:	..\include\config.h ..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\debuglog.h
-engine/loadhelper.h:	..\utils\cpp\smartptr.h
-gui/gui.h:	..\utils\cpp\smartptr.h ..\utils\cpp\event.h ..\utils\cpp\cpputil.h ..\utils\cpp\windowbase.h
-..\utils\cpp\windowbase.h:	..\utils\cpp\smartptr.h ..\utils\cpp\xstring.h ..\utils\cpp\pmutils.h ..\utils\cpp\dlgcontrols.h ..\utils\cpp\container\vector.h ..\utils\debuglog.h
-..\utils\cpp\pmutils.h:	..\utils\debuglog.h ..\utils\cpp\xstring.h ..\include\plugin.h
-..\utils\cpp\dlgcontrols.h:	..\utils\cpp\xstring.h ..\utils\cpp\pmutils.h ..\utils\debuglog.h
-gui/dialog.h:	..\include\plugin.h ..\include\config.h ..\include\decoder_plug.h ..\utils\cpp\url123.h
-remote/acommandprocessor.h:	..\include\config.h ..\utils\cpp\xstring.h
+pm123.cpp:	pm123.h eventhandler.h 123_util.h engine\plugman.h engine\controller.h engine\loadhelper.h gui\gui.h gui\dialog.h configuration.h remote\pipe.h remote\acommandprocessor.h ..\xio123\xio.h ..\utils\utilfct.h ..\utils\minmax.h ..\utils\debuglog.h
+engine\controller.h:	core\aplayable.h
+core\aplayable.h:	core\infostate.h
+core\infostate.h:	core\infobundle.h
+engine\loadhelper.h:	engine\controller.h
+gui\gui.h:	engine\controller.h core\playable.h gui\pm123.rc.h
+core\playable.h:	core\aplayable.h core\playableinstance.h core\collectioninfocache.h
+core\playableinstance.h:	core\playableref.h
+core\playableref.h:	core\aplayable.h core\collectioninfocache.h core\location.h
+core\collectioninfocache.h:	core\aplayable.h core\infobundle.h core\playableset.h
+core\location.h:	core\aplayable.h
+gui\dialog.h:	gui\filedlg.h
 ..\xio123\xio.h:	..\include\config.h
-core\aplayable.cpp:	pm123.h configuration.h ..\utils\utilfct.h ..\utils\debuglog.h
-core\collectioninfocache.cpp:	..\utils\cpp\algorithm.h ..\utils\debuglog.h
-core\dependencyinfo.cpp:	..\utils\debuglog.h
-core\infobundle.cpp:	123_util.h ..\utils\debuglog.h
-core\infostate.cpp:	..\utils\debuglog.h
-core\playable.cpp:	eventhandler.h ..\utils\strutils.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\eautils.h ..\utils\vdelegate.h ..\xio123\xio.h ..\utils\cpp\algorithm.h ..\utils\debuglog.h
-..\utils\fileutil.h:	..\include\config.h
-..\utils\vdelegate.h:	..\include\config.h
-core\playableinstance.cpp:	..\utils\debuglog.h
-core\playableref.cpp:	..\utils\debuglog.h
-core\playableset.cpp:	..\utils\debuglog.h ..\utils\snprintf.h
-core\songiterator.cpp:	..\utils\debuglog.h
-core\waitinfo.cpp:	..\utils\debuglog.h
-engine\controller.cpp:	configuration.h pm123.h ..\utils\inimacro.h ..\utils\minmax.h ..\utils\utilfct.h ..\utils\cpp\mutex.h ..\utils\cpp\xstring.h
-engine\decoder.cpp:	..\xio123\xio.h configuration.h eventhandler.h ..\utils\cpp\cppvdelegate.h ..\utils\charset.h ..\utils\fileutil.h ..\utils\wildcards.h ..\utils\cpp\url123.h pm123.h ..\utils\debuglog.h
-..\utils\cpp\cppvdelegate.h:	..\utils\vdelegate.h
-engine\filter.cpp:	eventhandler.h ..\utils\cpp\cppvdelegate.h ..\utils\debuglog.h
-engine\glue.cpp:	configuration.h eventhandler.h ..\utils\debuglog.h
-engine\loadhelper.cpp:	configuration.h
-engine\output.cpp:	configuration.h pm123.h ..\utils\cpp\cppvdelegate.h ..\utils\debuglog.h
-engine\plugman.cpp:	configuration.h eventhandler.h pm123.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\url123.h ..\utils\cpp\cppvdelegate.h ..\utils\fileutil.h ..\utils\debuglog.h
-..\utils\cpp\container\inst_index.h:	..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h ..\utils\cpp\container\sorted_vector.h
-engine\proxyhelper.cpp:	eventhandler.h copyright.h pm123.h ..\include\filter_plug.h ..\utils\charset.h ..\utils\debuglog.h
-..\include\filter_plug.h:	..\include\format.h ..\include\output_plug.h
-engine\visual.cpp:	eventhandler.h ..\include\decoder_plug.h ..\utils\debuglog.h
-gui\button95.cpp:	..\utils\utilfct.h ..\utils\debuglog.h
-gui\dialog.cpp:	configuration.h 123_util.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\xio123\xio.h ..\utils\debuglog.h
-gui\docking.cpp:	configuration.h eventhandler.h ..\utils\utilfct.h ..\utils\cpp\mutex.h
-gui\filedlg.cpp:	configuration.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\wildcards.h ..\utils\cpp\xstring.h ..\utils\debuglog.h
-gui\gui.cpp:	configuration.h pm123.h 123_util.h copyright.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\utils\cpp\showaccel.h
-..\utils\cpp\showaccel.h:	..\utils\cpp\container\sorted_vector.h
-gui\infodialog.cpp:	pm123.h configuration.h eventhandler.h ..\utils\utilfct.h ..\utils\cpp\container\inst_index.h ..\utils\cpp\pmutils.h ..\utils\cpp\dlgcontrols.h ..\utils\cpp\cppvdelegate.h
-gui\inspector.cpp:	configuration.h pm123.h ..\utils\utilfct.h ..\utils\debuglog.h
-gui\playlistbase.cpp:	pm123.h configuration.h 123_util.h ..\utils\utilfct.h ..\utils\cpp\url123.h ..\utils\cpp\pmutils.h ..\utils\debuglog.h
-gui\playlistmanager.cpp:	configuration.h ..\utils\utilfct.h ..\utils\cpp\smartptr.h ..\utils\cpp\showaccel.h ..\utils\debuglog.h
-gui\playlistmenu.cpp:	pm123.h ..\utils\cpp\cppvdelegate.h ..\utils\utilfct.h ..\utils\debuglog.h
-gui\playlistview.cpp:	..\utils\cpp\showaccel.h ..\utils\utilfct.h ..\utils\debuglog.h
-gui\postmsginfo.cpp:	..\utils\debuglog.h
-gui\properties.cpp:	configuration.h eventhandler.h 123_util.h copyright.h pm123.h ..\utils\utilfct.h ..\utils\cpp\pmutils.h ..\utils\cpp\windowbase.h ..\utils\cpp\dlgcontrols.h
-gui\skin.cpp:	configuration.h pm123.h eventhandler.h ..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h ..\utils\minmax.h ..\utils\strutils.h ..\utils\fileutil.h ..\utils\cpp\pmutils.h ..\utils\cpp\cpputil.h ..\utils\debuglog.h
-..\gbm123\gbm.h:	..\include\config.h
-remote\commandprocessor.cpp:	eventhandler.h 123_util.h pm123.h copyright.h ..\utils\fileutil.h ..\utils\cpp\xstring.h ..\utils\cpp\container\stringmap.h ..\utils\debuglog.h
-remote\pipe.cpp:	configuration.h eventhandler.h
+..\utils\debuglog.h:	..\utils\errorstr.h
+core\aplayable.cpp:	core\aplayable.h core\playable.h core\playableset.h core\waitinfo.h core\dependencyinfo.h core\location.h pm123.h configuration.h
+core\waitinfo.h:	core\aplayable.h
+core\dependencyinfo.h:	core\aplayable.h
+core\collectioninfocache.cpp:	core\collectioninfocache.h core\playable.h
+core\dependencyinfo.cpp:	core\dependencyinfo.h core\playableset.h core\playable.h
+core\infobundle.cpp:	123_util.h core\infobundle.h core\playableset.h core\playable.h
+core\infostate.cpp:	core\infostate.h
+core\location.cpp:	core\location.h core\playable.h core\dependencyinfo.h
+core\playable.cpp:	core\playable.h eventhandler.h engine\decoder.h core\dependencyinfo.h core\location.h core\waitinfo.h
+engine\decoder.h:	engine\plugman.h
+core\playableinstance.cpp:	core\playableinstance.h core\playable.h
+core\playableref.cpp:	core\playableref.h core\playable.h core\location.h core\dependencyinfo.h
+core\playableset.cpp:	core\playableset.h core\playable.h
+core\songiterator.cpp:	core\songiterator.h core\playable.h core\dependencyinfo.h
+core\songiterator.h:	core\location.h core\playable.h
+core\waitinfo.cpp:	core\waitinfo.h
+engine\controller.cpp:	engine\controller.h core\dependencyinfo.h core\songiterator.h configuration.h engine\decoder.h engine\glue.h pm123.h gui\gui.h
+engine\glue.h:	core\playable.h
+engine\decoder.cpp:	engine\decoder.h engine\controller.h engine\glue.h configuration.h eventhandler.h engine\proxyhelper.h pm123.h
+engine\filter.cpp:	engine\filter.h core\infobundle.h eventhandler.h engine\proxyhelper.h
+engine\filter.h:	engine\plugman.h
+engine\glue.cpp:	engine\glue.h engine\decoder.h engine\filter.h engine\output.h configuration.h eventhandler.h
+engine\output.h:	engine\plugman.h
+engine\loadhelper.cpp:	engine\loadhelper.h configuration.h gui\gui.h
+engine\output.cpp:	engine\output.h engine\proxyhelper.h configuration.h pm123.h
+engine\plugman.cpp:	engine\plugman.h engine\decoder.h engine\filter.h engine\output.h engine\visual.h core\playable.h remote\acommandprocessor.h configuration.h eventhandler.h engine\proxyhelper.h pm123.h
+engine\proxyhelper.cpp:	engine\proxyhelper.h eventhandler.h copyright.h pm123.h gui\gui.h gui\skin.h engine\controller.h core\playable.h
+engine\visual.cpp:	engine\visual.h engine\glue.h eventhandler.h engine\controller.h
+gui\button95.cpp:	gui\button95.h
+gui\dialog.cpp:	gui\dialog.h configuration.h gui\gui.h 123_util.h gui\pm123.rc.h
+gui\docking.cpp:	gui\docking.h configuration.h eventhandler.h
+gui\filedlg.cpp:	gui\filedlg.h gui\pm123.rc.h configuration.h gui\dialog.h engine\plugman.h engine\decoder.h
+gui\gui.cpp:	gui\gui.h core\songiterator.h engine\visual.h engine\decoder.h engine\filter.h engine\output.h engine\loadhelper.h gui\dialog.h gui\filedlg.h gui\properties.h configuration.h pm123.h gui\pm123.rc.h 123_util.h gui\skin.h gui\docking.h gui\infodialog.h gui\playlistview.h gui\playlistmanager.h gui\inspector.h gui\postmsginfo.h gui\playlistmenu.h gui\button95.h copyright.h
+gui\infodialog.h:	core\playable.h
+gui\playlistview.h:	gui\playlistbase.h
+gui\playlistbase.h:	core\playableinstance.h core\playable.h engine\controller.h gui\infodialog.h
+gui\playlistmanager.h:	gui\playlistbase.h
+gui\postmsginfo.h:	core\dependencyinfo.h
+gui\playlistmenu.h:	core\aplayable.h core\location.h
+gui\infodialog.cpp:	gui\infodialog.h core\dependencyinfo.h pm123.h gui\gui.h gui\pm123.rc.h gui\dialog.h configuration.h eventhandler.h
+gui\inspector.cpp:	gui\inspector.h gui\pm123.rc.h configuration.h core\playable.h core\dependencyinfo.h engine\controller.h pm123.h
+gui\playlistbase.cpp:	gui\playlistbase.h core\dependencyinfo.h engine\plugman.h engine\loadhelper.h gui\playlistmanager.h gui\playlistview.h gui\playlistmenu.h gui\infodialog.h gui\inspector.h gui\postmsginfo.h pm123.h gui\gui.h gui\dialog.h configuration.h 123_util.h gui\pm123.rc.h gui\docking.h
+gui\playlistmanager.cpp:	gui\playlistmanager.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h configuration.h gui\pm123.rc.h
+gui\playlistmenu.cpp:	pm123.h gui\pm123.rc.h gui\playlistmenu.h core\playable.h core\dependencyinfo.h
+gui\playlistview.cpp:	gui\playlistview.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h gui\dialog.h gui\pm123.rc.h
+gui\postmsginfo.cpp:	gui\postmsginfo.h
+gui\properties.cpp:	gui\properties.h configuration.h gui\pm123.rc.h eventhandler.h gui\dialog.h gui\gui.h 123_util.h copyright.h engine\plugman.h engine\decoder.h engine\visual.h pm123.h
+gui\skin.cpp:	gui\skin.h configuration.h engine\visual.h pm123.h eventhandler.h gui\pm123.rc.h gui\button95.h gui\dialog.h
+remote\acommandprocessor.cpp:	remote\acommandprocessor.h remote\commandprocessor.h
+remote\commandprocessor.h:	remote\acommandprocessor.h configuration.h core\songiterator.h core\dependencyinfo.h engine\controller.h engine\plugman.h
+remote\commandprocessor.cpp:	remote\commandprocessor.h core\location.h core\dependencyinfo.h engine\plugman.h engine\loadhelper.h gui\dialog.h gui\gui.h eventhandler.h 123_util.h pm123.h copyright.h
+remote\pipe.cpp:	remote\pipe.h remote\acommandprocessor.h configuration.h eventhandler.h

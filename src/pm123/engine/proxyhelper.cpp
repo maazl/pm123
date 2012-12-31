@@ -28,9 +28,9 @@
 
 #define  INCL_PM
 #include "proxyhelper.h"
-#include "eventhandler.h"
-#include "copyright.h"
-#include "pm123.h" // for amp_player_hab
+#include "../eventhandler.h"
+#include "../copyright.h"
+#include "../pm123.h" // for amp_player_hab
 #include "../gui/gui.h" // for ConstructTagString
 #include "../gui/skin.h" // for bmp_query_text
 #include "controller.h"

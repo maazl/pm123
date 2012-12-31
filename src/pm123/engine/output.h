@@ -36,9 +36,6 @@
 
 #include "plugman.h"
 #include <output_plug.h>
-#include <filter_plug.h>
-#include <decoder_plug.h>
-#include <visual_plug.h>
 
 #include <cpp/smartptr.h>
 

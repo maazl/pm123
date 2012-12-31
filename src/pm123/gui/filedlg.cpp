@@ -33,7 +33,7 @@
 
 #include "filedlg.h"
 #include "pm123.rc.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "dialog.h"
 #include "../engine/plugman.h"
 #include "../engine/decoder.h"

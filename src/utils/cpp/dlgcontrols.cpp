@@ -38,7 +38,7 @@
 #include <debuglog.h>
 
 
-USHORT RadioButton::QueryCheckID() const
+USHORT RadioButton::CheckID() const
 { HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
   HWND cur = Hwnd;
   HWND prev = cur; // Work around for PM bug
@@ -56,14 +56,14 @@ USHORT RadioButton::QueryCheckID() const
   return 0;
 }
 
-void ListBox::InsertItems(const char*const* items, unsigned count, int where) const
+void ListBox::InsertItems(const char*const* items, unsigned count, int where)
 { LBOXINFO lbi = {0};
   lbi.lItemIndex = where;
   lbi.ulItemCount = count;
   PMXASSERT(WinSendMsg(Hwnd, LM_INSERTMULTITEMS, MPFROMP(&lbi), MPFROMP(items)), == MRFROMLONG(count));
 }
 
-void ComboBox::InsertItems(const char*const* items, unsigned count, int where) const
+void ComboBox::InsertItems(const char*const* items, unsigned count, int where)
 { while (count--)
   { InsertItem(*items++, where);
     if (where >= 0)
@@ -76,7 +76,7 @@ void SpinButton::SetLimits(LONG low, LONG high, USHORT len) const
   PMRASSERT(WinSendMsg(Hwnd, SPBM_SETTEXTLIMIT, MPFROMSHORT(len), 0));
 }
 
-LONG SpinButton::QueryValue() const
+LONG SpinButton::Value() const
 { LONG ret;
   PMRASSERT(WinSendMsg(Hwnd, SPBM_QUERYVALUE, MPFROMP(&ret), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
   return ret;

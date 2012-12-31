@@ -49,7 +49,7 @@ struct CollectionChangeArgs;
  * or used as temporaries.
  * Only const functions of this class are thread-safe.
  */
-class PlayableSlice : public APlayable
+class PlayableRef : public APlayable
 {protected:
   /// Aggregate info cache of \c PlayableSlice in case Start or Stop is not initial.
   struct CICache : public CollectionInfoCache
@@ -75,13 +75,14 @@ class PlayableSlice : public APlayable
           AtomicUnsigned    Overridden;
   mutable INFO_BUNDLE_CV    Info;
           sco_ptr<ItemInfo> Item;
+          sco_ptr<MetaInfo> Meta;
+          sco_ptr<AttrInfo> Attr;
           sco_ptr<CICache>  CIC;
  private: // Working vars
   // StartCache and StopCache MUST have RefTo->GetPlayable() as root.
   volatile mutable int_ptr<Location> StartCache;
   volatile mutable int_ptr<Location> StopCache;
-  class_delegate<PlayableSlice, const PlayableChangeArgs> InfoDeleg;
-  //class_delegate<PlayableSlice, const CollectionChangeArgs> CollectionDeleg;
+  class_delegate<PlayableRef, const PlayableChangeArgs> InfoDeleg;
 
  private:
           void              EnsureCIC()              { if (!CIC) CIC = new CICache(RefTo->GetPlayable()); }
@@ -91,11 +92,11 @@ class PlayableSlice : public APlayable
   /// at the start or the end, depending on \c Location::CO_Reverse.
   /// Otherwise the same as \c Location::CopareTo.
   static  int               CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type);
-                            PlayableSlice();
+                            PlayableRef();
  public:
-  explicit                  PlayableSlice(APlayable& pp);
-                            PlayableSlice(const PlayableSlice& r);
-  virtual                   ~PlayableSlice();
+  explicit                  PlayableRef(APlayable& pp);
+                            PlayableRef(const PlayableRef& r);
+  virtual                   ~PlayableRef();
   // Faster, non-virtual version.
           Playable&         GetPlayable() const      { return RefTo->GetPlayable(); }
   /// Display name
@@ -111,12 +112,22 @@ class PlayableSlice : public APlayable
   /// Return true if the current instance is different from *RefTo.
           bool              IsSlice() const          { return (Overridden & IF_Item) && (Item->start || Item->stop); }
   /// @brief Override the item information.
-  /// @detail If the function is called with NULL the overriding is cancelled.
-  /// Note that since the start and stop locations may not be verified immediately
+  /// @param item New item information. If \c NULL then the overriding is canceled.
+  /// @remarks Note that since the start and stop locations may not be verified immediately
   /// because the underlying playlist may not be loaded so far. You can set
   /// any invalid string here. However, the error may come up later, when
-  /// IF_Slice is requested.
+  /// \c IF_Slice is requested.
           void              OverrideItem(const ITEM_INFO* item);
+  /// Override the meta information.
+  /// @param meta New meta information. If \c NULL the the overriding is canceled.
+  /// @remarks The overriding is \e not canceled if the information is overridden by identical values.
+          void              OverrideMeta(const META_INFO* info);
+  /// Override the attribute information.
+  /// @param attr New attribute information. If \c NULL the the overriding is canceled.
+  /// @remarks The overriding is \e not canceled if the information is overridden by identical values.
+          void              OverrideAttr(const ATTR_INFO* info);
+
+          void              AssignInstanceProperties(const PlayableRef& src);
 
   // This functions are only valid if IF_Slice has already been requested.
   virtual int_ptr<Location> GetStartLoc() const;
@@ -145,14 +156,14 @@ class PlayableSlice : public APlayable
 };
 
 
-/** Reference to a Playable object.
+/* Reference to a Playable object.
  * While the Playable objects are unique per URL the PlayableRef is not.
  * PlayableRef can override the properties Item, Meta and Attr of the underlying APlayable.
  *
  * Calling non-constant methods unsynchronized will not cause the application
  * to have undefined behavior. But it will only cause the PlayableRef to have a
  * non-deterministic but valid state.
- */
+
 class PlayableRef : public PlayableSlice
 {private:
           sco_ptr<MetaInfo> Meta;
@@ -177,10 +188,14 @@ class PlayableRef : public PlayableSlice
 
  private: // Event handler
   virtual void              InfoChangeHandler(const PlayableChangeArgs& args);
-};
+ private: // APlayable interface implementations
+  //virtual InfoFlags         DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel);
+  virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
+  virtual void              DoLoadInfo(JobSet& job);
+};*/
 
 
-inline bool PlayableSlice::CICache::IsMine(const AggregateInfo& ai)
+inline bool PlayableRef::CICache::IsMine(const AggregateInfo& ai)
 { if (&ai == &DefaultInfo)
     return true;
   Mutex::Lock lock(CacheMutex);

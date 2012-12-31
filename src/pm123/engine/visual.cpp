@@ -33,7 +33,7 @@
 
 #include "visual.h"
 #include "glue.h"
-#include "eventhandler.h"
+#include "../eventhandler.h"
 #include "controller.h"
 #include <decoder_plug.h>
 

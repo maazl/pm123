@@ -28,7 +28,7 @@
 
 
 #include "loadhelper.h"
-#include "configuration.h"
+#include "../configuration.h"
 #include "../gui/gui.h" // for DefaultPl
 
 

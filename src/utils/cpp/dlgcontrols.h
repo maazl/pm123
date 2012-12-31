@@ -43,39 +43,40 @@ struct ControlBase
 { HWND        Hwnd;
   ControlBase(HWND hwnd)                            : Hwnd(hwnd) {}
   bool        operator!() const                     { return Hwnd == NULLHANDLE; }
-  void        Enable(bool enable) const             { PMRASSERT(WinEnableWindow(Hwnd, enable)); }
-  void        SetText(const char* text) const       { PMRASSERT(WinSetWindowText(Hwnd, text)); }
-  xstring     QueryText() const                     { return WinQueryWindowXText(Hwnd); }
+  void        Enabled(bool enable)                  { PMRASSERT(WinEnableWindow(Hwnd, enable)); }
+  ULONG       Style() const                         { return WinQueryWindowULong(Hwnd, QWL_STYLE); }
+  void        Text(const char* text)                { PMRASSERT(WinSetWindowText(Hwnd, text)); }
+  xstring     Text() const                          { return WinQueryWindowXText(Hwnd); }
 };
 
 struct CheckBox : ControlBase
 { CheckBox(HWND hwnd)                               : ControlBase(hwnd) {}
-  USHORT      SetCheckState(USHORT checked)         { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
-  USHORT      QueryCheckState() const               { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
+  USHORT      CheckState(USHORT checked)            { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
+  USHORT      CheckState() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
 };
 
 struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
-  SHORT       QueryCheckIndex() const               { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
-  USHORT      QueryCheckID() const;
+  SHORT       CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
+  USHORT      CheckID() const;
 };
 
 struct ListBox : ControlBase
 { ListBox(HWND hwnd)                                : ControlBase(hwnd) {}
-  void        DeleteAll() const                     { PMRASSERT(WinSendMsg(Hwnd, LM_DELETEALL, 0, 0)); }
-  void        InsertItem(const char* item, SHORT where = LIT_END) const { PMXASSERT((SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, LM_INSERTITEM, MPFROMSHORT(where), MPFROMP(item))), >= 0); }
-  void        InsertItems(const char*const* items, unsigned count, int where = LIT_END) const;
-  void        SetHandle(unsigned i, ULONG value) const{ PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
+  void        DeleteAll()                           { PMRASSERT(WinSendMsg(Hwnd, LM_DELETEALL, 0, 0)); }
+  void        InsertItem(const char* item, SHORT where = LIT_END) { PMXASSERT((SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, LM_INSERTITEM, MPFROMSHORT(where), MPFROMP(item))), >= 0); }
+  void        InsertItems(const char*const* items, unsigned count, int where = LIT_END);
   USHORT      Count() const                         { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYITEMCOUNT, 0, 0)); }
-  ULONG       QueryHandle(unsigned i) const         { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
-  SHORT       QuerySelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
-  bool        Select(unsigned i) const              { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
+  void        Handle(unsigned i, ULONG value)       { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
+  ULONG       Handle(unsigned i) const              { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
+  SHORT       NextSelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
+  bool        Select(unsigned i)                    { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
 };
 
 struct ComboBox : ListBox
 { ComboBox(HWND hwnd)                               : ListBox(hwnd) {}
   // Emulate unsupported message
-  void        InsertItems(const char*const* items, unsigned count, int where = LIT_END) const;
+  void        InsertItems(const char*const* items, unsigned count, int where = LIT_END);
 };
 
 struct EntryField : ControlBase
@@ -90,8 +91,8 @@ struct SpinButton : ControlBase
 { SpinButton(HWND hwnd) : ControlBase(hwnd) {}
   void        SetLimits(LONG low, LONG high, USHORT len) const;
   void        SetItems(const char*const* items, unsigned count) { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETARRAY, MPFROMP(items), MPFROMSHORT(count))); }
-  LONG        QueryValue() const;
-  void        SetValue(LONG value) const            { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETCURRENTVALUE, MPFROMLONG(value), 0)); }
+  LONG        Value() const;
+  void        Value(LONG value)                     { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETCURRENTVALUE, MPFROMLONG(value), 0)); }
 };
 
 struct Notebook : ControlBase

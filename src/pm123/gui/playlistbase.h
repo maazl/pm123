@@ -119,7 +119,7 @@ class PlaylistBase
   { PlaylistBase* GUI;
     PlaylistBase::RecordBase* Parent;
     PlaylistBase::RecordBase* Before;
-    vector_int<PlayableRef> Content;
+    vector_int<APlayable> Content;
     UserAddCallbackParams(PlaylistBase* gui, PlaylistBase::RecordBase* parent, PlaylistBase::RecordBase* before)
     : GUI(gui),
       Parent(parent),

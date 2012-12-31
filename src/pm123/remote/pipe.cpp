@@ -33,8 +33,8 @@
 #define INCL_PM
 #include "pipe.h"
 #include "acommandprocessor.h"
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 
 
 #define PIPE_BUFFER_SIZE 65536

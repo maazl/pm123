@@ -31,7 +31,7 @@
 
 #define INCL_WIN
 #define INCL_BASE
-#include "pm123.h" // HAB
+#include "../pm123.h" // HAB
 #include "pm123.rc.h"
 #include "playlistmenu.h"
 #include "../core/playable.h"

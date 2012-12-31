@@ -28,7 +28,7 @@
 
 #include "filter.h"
 #include "../core/infobundle.h"
-#include "eventhandler.h"
+#include "../eventhandler.h"
 #include "proxyhelper.h"
 #include <cpp/cppvdelegate.h>
 

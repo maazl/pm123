@@ -43,11 +43,11 @@
 #include "infodialog.h"
 #include "inspector.h"
 #include "postmsginfo.h"
-#include "pm123.h" // for amp_player_hab
+#include "../pm123.h" // for amp_player_hab
 #include "gui.h"
 #include "dialog.h"
-#include "configuration.h"
-#include "123_util.h" // amp_url_from_file
+#include "../configuration.h"
+#include "../123_util.h" // amp_url_from_file
 #include "pm123.rc.h"
 #include "docking.h"
 
@@ -1127,8 +1127,19 @@ static void DLLENTRY UserAddCallback(void* param,
   int_ptr<Playable> ip = Playable::GetByURL(url123(url));
   ip->SetCachedInfo(*info, (InfoFlags)cached, (InfoFlags)reliable);
   
-  PlayableRef* pr = ucp.Content.append() = new PlayableRef(*ip);
-  pr->OverrideInfo(*info, (InfoFlags)(cached&reliable));
+  int overridden = cached & reliable;
+  if (overridden)
+  { PlayableRef* pr = new PlayableRef(*ip);
+    ucp.Content.append() = pr;
+    if (overridden & IF_Meta)
+      pr->OverrideMeta(info->meta);
+    if (overridden & IF_Attr)
+      pr->OverrideAttr(info->attr);
+    if (overridden & IF_Item)
+      pr->OverrideItem(info->item);
+  } else
+    // Optimization: do not create temporary in case of trivial entries
+    ucp.Content.append() = ip;
 }
 
 void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, RecordBase* before)
@@ -1147,7 +1158,7 @@ void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, Recor
   if (ul == PLUGIN_OK && ucp.Content.size())
   { Playable& list = p.GetPlayable();
     Mutex::Lock lock(list.Mtx);
-    for (const int_ptr<PlayableRef>* pps = ucp.Content.begin(); pps != ucp.Content.end(); ++pps)
+    foreach (const int_ptr<APlayable>,*, pps, ucp.Content)
       list.InsertItem(**pps, before ? before->Data->Content.get() : NULL); 
   }
   // TODO: cfg.listdir obsolete?

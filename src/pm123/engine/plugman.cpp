@@ -39,10 +39,10 @@
 #include "visual.h"
 #include "../core/playable.h"
 #include "../remote/acommandprocessor.h"
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 #include "proxyhelper.h"
-#include "pm123.h" // for startpath
+#include "../pm123.h" // for startpath
 #include <cpp/container/inst_index.h>
 #include <cpp/url123.h>
 #include <cpp/cppvdelegate.h>

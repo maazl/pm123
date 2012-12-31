@@ -156,7 +156,7 @@ void Location::Leave()
   Callstack.erase(Callstack.size()-1);
 }
 
-void Location::PrevNextCore(bool direction)
+bool Location::PrevNextCore(JobSet& job, bool direction)
 { size_t cssize = Callstack.size();
   ASSERT(cssize);
   int_ptr<PlayableInstance>& pi = Callstack[cssize-1];
@@ -165,6 +165,7 @@ void Location::PrevNextCore(bool direction)
     direction, &list, list.DebugName().cdata(), pi.get(), pi.get()->DebugName().cdata()));
   pi = direction ? list.GetNext(pi) : list.GetPrev(pi);
   DEBUGLOG(("Location::PrevNextCore -> %p{%s}\n", pi.get(), pi.get()->DebugName().cdata()));
+  return true;
 }
 
 Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
@@ -199,7 +200,8 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
 
     // TODO: start/stop location
     // Find next item in *cur before/after pi that is not in call stack (recursion check)
-    PrevNextCore(dir);
+    if (!PrevNextCore(job, dir))
+      return xstring::empty;
     // End of list => go to parent
     if (Callstack[Callstack.size()-1] == NULL)
     { if (Callstack.size() == mindepth)

@@ -94,7 +94,7 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       { ComboBox cb(GetCtrl(CB_SERVER));
-        const xstring& server = cb.QueryText();
+        const xstring& server = cb.Text();
         Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
         // update MRU list
         if (server.length())
@@ -224,10 +224,10 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       SpinButton sb(GetCtrl(SB_MINLATENCY));
       sb.SetLimits(0, 5000, 4);
-      sb.SetValue(Configuration.SinkMinLatency);
+      sb.Value(Configuration.SinkMinLatency);
       sb = SpinButton(GetCtrl(SB_MAXLATENCY));
       sb.SetLimits(100, 10000, 4);
-      sb.SetValue(Configuration.SinkMaxLatency);
+      sb.Value(Configuration.SinkMaxLatency);
       return ret;
     }
 
@@ -241,8 +241,8 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
         Configuration.SinkPort = port.length() && !port.startsWithI("default") ? port : xstring();
-        Configuration.SinkMinLatency = SpinButton(GetCtrl(SB_MINLATENCY)).QueryValue();
-        Configuration.SinkMaxLatency = SpinButton(GetCtrl(SB_MAXLATENCY)).QueryValue();
+        Configuration.SinkMinLatency = SpinButton(GetCtrl(SB_MINLATENCY)).Value();
+        Configuration.SinkMaxLatency = SpinButton(GetCtrl(SB_MAXLATENCY)).Value();
       }
       break;
     }
@@ -270,7 +270,7 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
       ComboBox cb(GetCtrl(CB_SINKSRC));
       // save old value
-      const xstring& oldsink = cb.QueryText();
+      const xstring& oldsink = cb.Text();
       // delete old list
       cb.DeleteAll();
       SelectedSink = -1;
@@ -297,7 +297,7 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { DEBUGLOG(("ConfigDialog::DlgProc:UM_UPDATE_PORT %i\n", SelectedSink));
       ComboBox cb(GetCtrl(CB_PORT));
       // save old value
-      const xstring& oldport = cb.QueryText();
+      const xstring& oldport = cb.Text();
       // delete old list
       cb.DeleteAll();
       // insert new list and restore old value if reasonable.
@@ -373,7 +373,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           && ( pos == sizeof SamplingRates/sizeof *SamplingRates
             || (pos && 2*Configuration.SourceRate < atoi(SamplingRates[pos]) + atoi(SamplingRates[pos-1])) ))
           --pos;
-        sb.SetValue(pos);
+        sb.Value(pos);
       }
       WinCheckButton(GetHwnd(), Configuration.SourceChannels == 1 ? RB_MONO : RB_STEREO, TRUE);
       return ret;
@@ -388,7 +388,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Configuration.Source = source.length() && !source.startsWithI("default") ? source : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);
         Configuration.SourcePort = port.length() && !port.startsWithI("default") ? port : xstring();
-        Configuration.SourceRate = atoi(SamplingRates[SpinButton(GetCtrl(SB_RATE)).QueryValue()]);
+        Configuration.SourceRate = atoi(SamplingRates[SpinButton(GetCtrl(SB_RATE)).Value()]);
         Configuration.SourceChannels = WinQueryButtonCheckstate(GetHwnd(), RB_MONO) ? 1 : 2;
       }
       break;
@@ -417,7 +417,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       WinSetDlgItemText(GetHwnd(), ST_STATUS, "Success");
       ComboBox cb(GetCtrl(CB_SINKSRC));
       // save old value
-      const xstring& oldsink = cb.QueryText();
+      const xstring& oldsink = cb.Text();
       // delete old list
       cb.DeleteAll();
       SelectedSource = -1;
@@ -444,7 +444,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { DEBUGLOG(("LoadWizard::DlgProc:UM_UPDATE_PORT %i\n", SelectedSource));
       ComboBox cb(GetCtrl(CB_PORT));
       // save old value
-      const xstring& oldport = cb.QueryText();
+      const xstring& oldport = cb.Text();
       // delete old list
       cb.DeleteAll();
       // insert new list and restore old value if reasonable.

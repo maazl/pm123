@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 M.Mueller
+ * Copyright 2009-2012 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,8 +33,8 @@
 #include "waitinfo.h"
 #include "dependencyinfo.h"
 #include "location.h"
-#include "pm123.h"
-#include "configuration.h"
+#include "../pm123.h"
+#include "../configuration.h"
 #include <utilfct.h>
 
 #include <debuglog.h>

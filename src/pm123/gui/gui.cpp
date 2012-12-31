@@ -40,10 +40,10 @@
 #include "dialog.h"
 #include "filedlg.h"
 #include "properties.h"
-#include "configuration.h"
-#include "pm123.h"
+#include "../configuration.h"
+#include "../pm123.h"
 #include "pm123.rc.h"
-#include "123_util.h"
+#include "../123_util.h"
 #include "skin.h"
 #include "docking.h"
 #include "infodialog.h"
@@ -53,7 +53,7 @@
 #include "postmsginfo.h"
 #include "playlistmenu.h"
 #include "button95.h"
-#include "copyright.h"
+#include "../copyright.h"
 
 #include <utilfct.h>
 #include <fileutil.h>
@@ -1638,23 +1638,31 @@ void GUIImp::PrepareText()
 
   const volatile amp_cfg& cfg = Cfg::Get();
   xstring text;
+  InfoFlags invalid = cur->RequestInfo(IF_Tech|IF_Meta|IF_Item, PRI_Normal);
   const INFO_BUNDLE_CV& info = cur->GetInfo();
   switch (cfg.viewmode)
   {case CFG_DISP_ID3TAG:
-    text = ConstructTagString(&info);
-    if (text.length())
-      break;
+    if (!(invalid & IF_Meta))
+    { text = ConstructTagString(&info);
+      if (text.length())
+        break;
+      text.reset();
+    }
     // if tag is empty - use filename instead of it.
    case CFG_DISP_FILENAME:
     { // Give Priority to an alias name if any
-      text = info.item->alias;
+      if (!(invalid & IF_Item))
+        text = info.item->alias;
       if (!text)
       { text = cur->GetPlayable().URL.getShortName();
         if (cfg.restrict_meta && text.length() > cfg.restrict_length)
           text = xstring(text, 0, cfg.restrict_length) + "...";
       }
+      // In case the information is pending display a message
+      if (invalid & IF_Tech)
+        text = text + " - loading...";
       // In case of an invalid item display an error message.
-      if (info.tech->attributes & TATTR_INVALID)
+      else if (info.tech->attributes & TATTR_INVALID)
         text = text + " - " + xstring(info.tech->info);
       break;
     }

@@ -32,15 +32,15 @@
 #include "decoder.h"
 #include "controller.h" // for starting position work around
 #include "glue.h" // out_playing_pos
-#include "configuration.h"
-#include "eventhandler.h"
+#include "../configuration.h"
+#include "../eventhandler.h"
 #include "proxyhelper.h"
 #include <cpp/cppvdelegate.h>
 #include <charset.h>
 #include <fileutil.h>
 #include <wildcards.h>
 #include <cpp/url123.h>
-#include "pm123.h" // for hab
+#include "../pm123.h" // for hab
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>

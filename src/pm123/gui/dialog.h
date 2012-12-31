@@ -34,8 +34,6 @@
 
 #define INCL_WIN
 #include "filedlg.h"
-#include <plugin.h>
-#include <config.h>
 #include <decoder_plug.h>
 #include <cpp/url123.h>
 #include <os2.h>

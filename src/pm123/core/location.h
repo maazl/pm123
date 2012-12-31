@@ -106,9 +106,12 @@ class Location : public Iref_count
   /// @pre \c Callstack.size() is at least 1.
   virtual void                Leave();
   /// Advance current item to the previous or next one. This takes care of shuffle mode.
+  /// @param job Priority and \c DependencySet of asynchronous requests if the navigation command could not be completed
+  /// because of missing informations on sub items. (Tech info and slice info is required.)
   /// @param direction \c true := forward, \c false := backward.
+  /// @return false: failed because of job dependencies.
   /// @pre \c Callstack.size() is at least 1. Child information of \c GetPlaylist() is available.
-  virtual void                PrevNextCore(bool direction);
+  virtual bool                PrevNextCore(JobSet& job, bool direction);
   /// Navigate to the next or previous matching item.
   /// @param dir \c true := forward, \c false := backward.
   /// @param stopat Only stop at items that have at least one bit of this parameter set.
@@ -254,7 +257,7 @@ class Location : public Iref_count
   NavigationResult            NavigateUp(unsigned count = 1);
   /// @brief Navigate into a (nested) playlist
   /// @details The function enters a playlist but does not advance to it's first item.
-  /// This results in a NULL entry at the end of the call stack.
+  /// This results in a \c NULL entry at the end of the call stack.
   /// You can't enter sons or invalid items.
   /// @return See \c NavigationResult.
   NavigationResult            NavigateInto(JobSet& job);
