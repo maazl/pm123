@@ -50,7 +50,7 @@ void debuglog( const char* fmt, ... )
 { va_list va;
   PTIB ptib;
   PPIB ppib;
-  char buffer[28+1024+1];
+  char buffer[28+512+1];
   memset(buffer, 0x99, sizeof buffer);
   ULONG dummy;
 
@@ -79,8 +79,8 @@ void debuglog( const char* fmt, ... )
   //                 8+  1+4+  1+4+  1+8+  1 = 28
   sprintf(buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   //sprintf( buffer, "%08ld %03hx%hx%c%04ld %08lx ", clock(), (unsigned short)ptib->tib_ptib2->tib2_ulpri, ptib->tib_ptib2->tib2_usMCCount, ptib->tib_ptib2->tib2_fMCForceFlag ? '!' : ':', ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
-  vsnprintf(buffer+28, 1024, fmt, va );
-  DosWrite(2, buffer, 28 + strnlen(buffer+28, 1024), &dummy);
+  vsnprintf(buffer+28, 512, fmt, va );
+  DosWrite(2, buffer, 28 + strnlen(buffer+28, 512), &dummy);
   va_end(va);
   #ifdef DEBUG_MEM
   ASSERT(_heapchk() == _HEAPOK);
