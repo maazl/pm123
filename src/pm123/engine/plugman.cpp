@@ -640,13 +640,14 @@ int_ptr<Plugin> Plugin::Deserialize(const char* str, PLUGIN_TYPE type)
 void Plugin::AppendPlugin(Plugin* plugin)
 { volatile int_ptr<PluginList>& list = AccessPluginList(plugin->PluginType);
   Mutex::Lock lock(Module::Mtx);
-  PluginList target = *int_ptr<PluginList>(list);
-  if (target.contains(plugin))
+  int_ptr<PluginList> target(list);
+  if (target->contains(plugin))
     throw ModuleException("Tried to load the plug-in %s twice.", plugin->ModRef->Key.cdata());
   plugin->RaisePluginChange(PluginEventArgs::Load);
-  target.append() = plugin;
+  target = new PluginList(*target);
+  target->append() = plugin;
   // atomic assign
-  list = &target;
+  list = target;
 }
 
 void Plugin::SetPluginList(PluginList* source)
