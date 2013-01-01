@@ -64,6 +64,11 @@ PlayableRef::PlayableRef(const PlayableRef& r)
 PlayableRef::~PlayableRef()
 { DEBUGLOG(("PlayableRef(%p)::~PlayableRef() - %p\n", this, RefTo.get()));
   InfoDeleg.detach();
+  PlayableChangeArgs args(*this);
+  RaiseInfoChange(args);
+  // No more events.
+  GetInfoChange().reset();
+  GetInfoChange().sync();
 };
 
 int PlayableRef::CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type)

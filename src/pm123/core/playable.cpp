@@ -436,7 +436,8 @@ void Playable::DoLoadInfo(JobSet& job)
     }
     // Raise the first bunch of change events.
     args.Loaded = upd.Commit(what2);
-    RaiseInfoChange(args);
+    if (!args.IsInitial())
+      RaiseInfoChange(args);
   }
   // Now only aggregate information should be incomplete.
   ASSERT((upd & ~IF_Aggreg) == IF_None);
@@ -525,7 +526,8 @@ void Playable::DoLoadInfo(JobSet& job)
   InfoFlags changed = UpdateInfo(info, upd);
   // Raise event
   CollectionChangeArgs args(*this, upd.Commit(), changed);
-  RaiseInfoChange(args);
+  if (!args.IsInitial())
+    RaiseInfoChange(args);
 }
 
 struct StreamHelper
