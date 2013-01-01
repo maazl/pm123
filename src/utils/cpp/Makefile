@@ -29,14 +29,14 @@ cpputil_plugin$(LBO) : $(OBJECTS) $(OBJECTS3) debugmem$(CO)
 clean: $(MDUMMY)
 	-@del cpputil$(LBO) xstring$(LBO) $(OBJECTS) $(OBJECTS2) $(OBJECTS3) 2> nul
 
-OBJECTS4 = unittest$(CO)
-LIBS4    = cpputil$(LBO)
+OBJTEST = test\test_int_ptr$(CO)
+LIBTEST = cpputil$(LBO) ..\utilfct$(LBO)
 
-test: unittest.exe
-	unittest.exe
+test: test\test_int_ptr.exe
+	test\test_int_ptr.exe
 
-unittest.exe: $(OBJECTS4) $(LIBS3)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS4) $(LIBS3) $(STDLIBS)$(LOBJ_SUFFX)
+test\test_int_ptr.exe: $(OBJTEST) $(LIBTEST)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJTEST) $(LIBTEST) $(STDLIBS)$(LOBJ_SUFFX)
 	$(POSTLINKCMD)
 
 algorithm.cpp:	algorithm.h ..\debuglog.h
