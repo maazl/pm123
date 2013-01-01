@@ -216,7 +216,9 @@ SongIterator::SongIterator(const SongIterator& r)
 {}
 
 SongIterator::~SongIterator()
-{}
+{ // Discard Root of Location before Playable might die.
+  Location::SetRoot(NULL);
+}
 
 void SongIterator::ShuffleWorkerCacheCleanup()
 { DEBUGLOG(("SongIterator(%p)::ShuffleWorkerCacheCleanup() - %u, %u\n", this, GetCallstack().size(), ShuffleWorkerCache.size()));
