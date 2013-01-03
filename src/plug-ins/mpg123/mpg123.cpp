@@ -780,7 +780,7 @@ PLUGIN_RC Decoder::SetFast(DECFASTMODE fast)
     return PLUGIN_GO_ALREADY;
 
   Mutex::Lock lock(DecMutex);
-  if (xio_can_seek(XFile)) // Support fast forward for unseekable streams?
+  if (!xio_can_seek(XFile)) // Support fast forward for unseekable streams?
     return PLUGIN_UNSUPPORTED;
   Fast = fast;
   return PLUGIN_OK;
