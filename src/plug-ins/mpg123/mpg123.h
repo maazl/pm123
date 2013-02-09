@@ -202,6 +202,8 @@ typedef struct DECODER_STRUCT : public MPG123
   /// absolute positioning in seconds
   PM123_TIME    JumpTo;
   DECFASTMODE   Fast;
+  /// Count through zero if the next skip should take place.
+  int           NextFast;
 
  private:
   bool          UpdateMeta;

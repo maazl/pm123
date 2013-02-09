@@ -693,11 +693,11 @@ void CommandProcessor::XForward()
 void CommandProcessor::XJump()
 { CommandType = true;
   PM123_TIME pos = ParseTime(Request);
-  SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
+  SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, Ctrl::NT_None));
 }
 
 void CommandProcessor::XNavigate()
-{ SendCtrlCommand(Ctrl::MkNavigate(Request, 0, false, false));
+{ SendCtrlCommand(Ctrl::MkNavigate(Request, 0, Ctrl::NT_None));
 }
 
 void CommandProcessor::XSavestream()
@@ -792,18 +792,22 @@ void CommandProcessor::XStatus()
 }
 
 void CommandProcessor::XTime()
-{ Location loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false));
+{ int_ptr<SongIterator> loc;
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(Ctrl::LM_ReturnPos));
   if (cmd->Flags == Ctrl::RC_OK)
-    Reply.appendf("%f", loc.GetTime());
+  { loc.fromCptr((SongIterator*)cmd->PtrArg);
+    Reply.appendf("%f", loc->GetTime());
+  }
   cmd->Destroy();
 }
 
 void CommandProcessor::XLocation()
-{ Location loc;
-  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, false));
+{ int_ptr<SongIterator> loc;
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(Ctrl::LM_ReturnPos));
   if (cmd->Flags == Ctrl::RC_OK)
-    Reply.append(loc.Serialize());
+  { loc.fromCptr((SongIterator*)cmd->PtrArg);
+    Reply.append(loc->Serialize());
+  }
   cmd->Destroy();
 }
 

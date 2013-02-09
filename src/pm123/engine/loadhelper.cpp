@@ -70,6 +70,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
   // TODO: LoadKeepPlaylist
   Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, true);
   Ctrl::ControlCommand* tail = cmd;
+  tail = tail->Link = Ctrl::MkSkip(0, true);
   if (Opt & LoadPlay)
     // Start playback immediately after loading has completed
     tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);

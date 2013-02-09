@@ -53,8 +53,8 @@ typedef struct
 /** Physical file attributes */
 typedef enum
 { PATTR_NONE     = 0x00U /**< No special attributes */
+, PATTR_INVALID  = 0x08U /**< The item is physically invalid. (Should not be set by a decoder.) */
 , PATTR_WRITABLE = 0x10U /**< Flag whether the file/URL is writable in place */
-, PATTR_INVALID  = 0x80U /**< The item is physically invalid. (Should not be set by a decoder.) */
 } PHYS_ATTRIBUTES;
 /** Physical info about the item */
 typedef struct
@@ -69,9 +69,11 @@ typedef enum
 { TATTR_NONE     = 0x00U
 , TATTR_SONG     = 0x01U /**< The item is playable by this decoder. */
 , TATTR_PLAYLIST = 0x02U /**< The item can have sub entries. */
+, TATTR_INVALID  = 0x08U /**< The item is logically invalid. (Should not be set by a decoder.) */
 , TATTR_WRITABLE = 0x10U /**< This format is writable (decoder_saveinfo). */
 , TATTR_STORABLE = 0x20U /**< This stream is saveable (DECODER_SAVEDATA). */
-, TATTR_INVALID  = 0x80U /**< The item is logically invalid. (Should not be set by a decoder.) */
+/*, TATTR_FASTSCAN = 0x40U **< Decoder can do fast forward on this stream *
+, TATTR_SEEK     = 0x80U **< Decoder can seek within this stream */
 } TECH_ATTRIBUTES;
 /** Technical format structure for level 2 plug-in interfaces */
 typedef struct

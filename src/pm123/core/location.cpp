@@ -221,17 +221,26 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
 
 Location::NavigationResult Location::NavigateCount(JobSet& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
 { Location::NavigationResult ret;
-  if (count)
-  { bool dir = count > 0;
-    if (!dir)
-      count = -count;
-    // TODO: we could skip entire playlists here if < count.
-    do
-    { ret = NavigateCountCore(job, dir, stopat, mindepth, maxdepth);
-      if (ret)
-        break;
-    } while (--count);
+  if (!count)
+  { // adjust next
+    APlayable* cur = GetCurrent();
+    if (cur)
+    { if (job.RequestInfo(*cur, IF_Tech))
+        return xstring::empty;
+      if (cur->GetInfo().tech->attributes & stopat)
+        // no-op, we are at the right place
+        return ret;
+    }
   }
+  bool dir = count >= 0;
+  if (!dir)
+    count = -count;
+  // TODO: we could skip entire playlists here if < count.
+  do
+  { ret = NavigateCountCore(job, dir, stopat, mindepth, maxdepth);
+    if (ret)
+      break;
+  } while (--count > 0);
   return ret;
 }
 

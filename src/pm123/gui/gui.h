@@ -92,8 +92,6 @@ class GUI
   static HWND              HFrame;        ///< Frame window
   static HWND              HPlayer;       ///< Player window
   static HWND              HHelp;         ///< Help instance
-  static SongIterator      IterBuffer[2]; ///< Two SongIterators. CurrentIter points to one of them.
-  static SongIterator*     CurrentIter;   ///< current SongIterator. NOT NULL!
 
  public: // Utility functions
   static HWND      GetFrameWindow()       { return HFrame; }

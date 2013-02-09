@@ -38,81 +38,49 @@ int  DLLENTRY decoder_init  (struct DECODER_STRUCT** w);
  * @return TRUE: success */
 BOOL DLLENTRY decoder_uninit(struct DECODER_STRUCT*  w);
 
-/** Decoder flags, valued can be ored. */
+/** Decoder flags, values can be ored. */
 typedef enum
-{ /** Decoder can play a regular file. (file:) */
-  DECODER_FILENAME = 0x0001,
-  /** Decoder can play a Internet stream or file. (http:, https:, ftp:) */
-  DECODER_URL      = 0x0002,
-  /** Decoder can play a CD track. (cd: cdda:) */
-  DECODER_TRACK    = 0x0004,
-  /** Decoder can play something else. */
-  DECODER_OTHER    = 0x0008,
-  /** Decoder can play songs with this file type. */
-  DECODER_SONG     = 0x0100,
-  /** Decoder can play playlists with this file type. */
-  DECODER_PLAYLIST = 0x0200,
-  /** Decoder can save items of this type. */
-  DECODER_WRITABLE = 0x1000,
-  /** Decoder can save a meta info. */
-  DECODER_METAINFO = 0x2000
+{ DECODER_FILENAME = 0x0001,/**< Decoder can play a regular file. (file:) */
+  DECODER_URL      = 0x0002,/**< Decoder can play a Internet stream or file. (http:, https:, ftp:) */
+  DECODER_TRACK    = 0x0004,/**< Decoder can play a CD track. (cd: cdda:) */
+  DECODER_OTHER    = 0x0008,/**< Decoder can play something else. */
+  DECODER_SONG     = 0x0100,/**< Decoder can play songs with this file type. */
+  DECODER_PLAYLIST = 0x0200,/**< Decoder can play playlists with this file type. */
+  DECODER_WRITABLE = 0x1000,/**< Decoder can save items of this type. */
+  DECODER_METAINFO = 0x2000,/**< Decoder can save a meta info. */
 } DECODER_TYPE;
 
 /** Decoder commands */
 typedef enum
-{ /** Start decoding, returns 101 -> already playing, 102 -> error, decoder killed and restarted */
-  DECODER_PLAY     = 1,
-  /** Stop decoding, returns 101 -> already stopped, 102 -> error, decoder killed (and stopped) */
-  DECODER_STOP     = 2,
-  /** Fast forward and rewind */
-  DECODER_FFWD     = 3,
-  /** Rewind for Level 1 plug-ins
-   * @deprecated Level 2 and above plug-ins always send \c DECODER_FFWD */
-  DECODER_REW      = 4,
-  /** Jump to a certain location within a song. */
-  DECODER_JUMPTO   = 5,
-  /** Initialize decoder instance to decode a new song. */
-  DECODER_SETUP    = 6,
-  /** Set equalizer parameters.
-   * @deprecated Obsolete, no longer suppoerted since PM123 1.40b */
-  DECODER_EQ       = 7,
-  /** @deprecated Obsolete, don't used anymore */
-  DECODER_BUFFER   = 8,
-  /** Save the raw stream into a file. */
-  DECODER_SAVEDATA = 9
+{ DECODER_PLAY     = 1,     /**< Start decoding, returns 101 -> already playing, 102 -> error, decoder killed and restarted */
+  DECODER_STOP     = 2,     /**< Stop decoding, returns 101 -> already stopped, 102 -> error, decoder killed (and stopped) */
+  DECODER_FFWD     = 3,     /**< Fast forward and rewind */
+  DECODER_REW      = 4,     /**< Rewind for Level 1 plug-ins @deprecated Level 2 and above plug-ins always send \c DECODER_FFWD */
+  DECODER_JUMPTO   = 5,     /**< Jump to a certain location within a song. */
+  DECODER_SETUP    = 6,     /**< Initialize decoder instance to decode a new song. */
+  DECODER_EQ       = 7,     /**< Set equalizer parameters. @deprecated Obsolete, no longer supported since PM123 1.40b */
+  DECODER_BUFFER   = 8,     /**< @deprecated Obsolete, not used anymore */
+  DECODER_SAVEDATA = 9      /**< Save the raw stream into a file. */
 } DECMSGTYPE;
 
 /** Decoder events */
 typedef enum
-{ /** The decoder finished decoding, either because the end of the file is reached
-   * or because of a \c DECODER_STOP command. */
-  DECEVENT_PLAYSTOP   = 1,
-  /** A decoder error occurred so that PM123 should know to stop immediately */
-  DECEVENT_PLAYERROR  = 2,
-  /** \c DECODER_JUMPTO operation has completed */
-  DECEVENT_SEEKSTOP   = 3,
-  /** On the fly change of samplingrate, param points to TECH_INFO structure */
-  DECEVENT_CHANGETECH = 4,
-  /** On the fly change of song length, param points to OBJ_INFO structure */
-  DECEVENT_CHANGEOBJ  = 5,
-  /** On the fly change of metadata, param points to META_INFO structure */
-  DECEVENT_CHANGEMETA = 6
+{ DECEVENT_PLAYSTOP   = 1,  /**< The decoder finished decoding, either because the end of the file is reached or because of a \c DECODER_STOP command. */
+  DECEVENT_PLAYERROR  = 2,  /**< A decoder error occurred so that PM123 should know to stop immediately */
+  DECEVENT_SEEKSTOP   = 3,  /**< \c DECODER_JUMPTO operation has completed */
+  DECEVENT_CHANGETECH = 4,  /**< On the fly change of sampling rate, param points to TECH_INFO structure */
+  DECEVENT_CHANGEOBJ  = 5,  /**< On the fly change of song length, param points to OBJ_INFO structure */
+  DECEVENT_CHANGEMETA = 6   /**< On the fly change of meta data, param points to META_INFO structure */
 } DECEVENTTYPE;
 
 /** Decoder states */
 typedef enum
-{ /** Decoder instance is idle. */
-  DECODER_STOPPED  = 0,
-  /** Decoder instance is decoding. */
-  DECODER_PLAYING  = 1,
-  /** Decoder instance has received a \c DECODER_PLAY command, but has not yet started decoding. */
-  DECODER_STARTING = 2,
-  /** Decoder instance has been suspended */
-  DECODER_PAUSED   = 3,
-  /** Decoder instance has received a \c DECODER_STOP command, but the decoder thread has not terminated so far. */
-  DECODER_STOPPING = 4,
-  /** The decoder instance is in an invalid state and should be destroyed with \c decoder_uninit. */
-  DECODER_ERROR    = 9
+{ DECODER_STOPPED  = 0,     /**< Decoder instance is idle. */
+  DECODER_PLAYING  = 1,     /**< Decoder instance is decoding. */
+  DECODER_STARTING = 2,     /**< Decoder instance has received a \c DECODER_PLAY command, but has not yet started decoding. */
+  DECODER_PAUSED   = 3,     /**< Decoder instance has been suspended */
+  DECODER_STOPPING = 4,     /**< Decoder instance has received a \c DECODER_STOP command, but the decoder thread has not terminated so far. */
+  DECODER_ERROR    = 9      /**< The decoder instance is in an invalid state and should be destroyed with \c decoder_uninit. */
 } DECODERSTATE;
 
 /** Query the current state of a decoder instance */
@@ -152,17 +120,12 @@ typedef ULONG DLLENTRYP(DECODER_WIZARD_FUNC)(HWND owner, const char* title,
                                              DECODER_INFO_ENUMERATION_CB callback, void* param);
 
 typedef struct _DECODER_WIZARD
-{ /** linked list */
-  struct _DECODER_WIZARD* link;
-  /** String to be displayed in the context menu */
-  const char*             prompt;
-  /** Procedure to be called when the specified item is selected */
-  DECODER_WIZARD_FUNC     wizard;
-  /** Acceleration Table entries for normal invocation */
-  USHORT                  accel_key;
+{ struct _DECODER_WIZARD* link;         /**< linked list */
+  const char*             prompt;       /**< String to be displayed in the context menu */
+  DECODER_WIZARD_FUNC     wizard;       /**< Procedure to be called when the specified item is selected */
+  USHORT                  accel_key;    /**< Acceleration Table entries for normal invocation */
   USHORT                  accel_opt;
-  /** Acceleration Table entries for direct playlist manipulation in playlist manager */
-  USHORT                  accel_key2;
+  USHORT                  accel_key2;   /**< Acceleration Table entries for direct playlist manipulation in playlist manager */
   USHORT                  accel_opt2;
 } DECODER_WIZARD;
 
@@ -362,18 +325,18 @@ ULONG DLLENTRY decoder_saveinfo (const char* filename, const DECODER_INFO* info)
 #if PLUGIN_INTERFACE_LEVEL >= 3
 
 typedef struct
-{ const char* category;  /**< File type category, e.g. "Playlist file" */
-  const char* eatype;    /**< File type, e.g. "PM123 playlist file" */
-  const char* extension; /**< File extension, e.g. "*.lst;*.m3u" */
-  unsigned    flags;     /**< Bit vector of DECODER_TYPE */
+{ const char* category;     /**< File type category, e.g. "Playlist file" */
+  const char* eatype;       /**< File type, e.g. "PM123 playlist file" */
+  const char* extension;    /**< File extension, e.g. "*.lst;*.m3u" */
+  unsigned    flags;        /**< Bit vector of DECODER_TYPE */
 } DECODER_FILETYPE;
 
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count);
 
 typedef enum
-{ DECFAST_NORMAL_PLAY = 0,
-  DECFAST_FORWARD     = 1,
-  DECFAST_REWIND      = 2
+{ DECFAST_NORMAL_PLAY = 0
+, DECFAST_FORWARD     = 1
+, DECFAST_REWIND      = 2
 } DECFASTMODE;
 
 typedef struct _DECODER_PARAMS2

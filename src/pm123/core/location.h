@@ -234,11 +234,12 @@ class Location : public Iref_count
   /// @param level reset up to
   void                        Reset();
   /// Navigate \a count items forward or backward.
-  /// @param count Number of items to skip. >&nbsp;0 => forward <&nbsp;0 => backward, =&nbsp;0 => no-op.
+  /// @param count Number of items to skip.
+  /// - >&nbsp;0 => forward
+  /// - <&nbsp;0 => backward
+  /// - =&nbsp;0 => adjust to the next item that matches \a stopat.
   /// @param stopat only count items with at least one bit in \a stopat set in \c TECH_INFO::attributes.
   /// E.g. if you pass TATTR_SONG, playlist items and invalid items will be skipped.
-  /// @param pri Priority and \c DependencySet of asynchronous requests if the navigation command could not be completed
-  /// because of missing informations on sub items. (Tech info and slice info is required.)
   /// @param mindepth Do not ascend beyond depth \a mindepth in the call stack.
   /// If we are currently at depth 2 and the end of the list is reached and \a mindepth is also 2
   /// PrevNextCore will return an error ("END") instead of applying \a dirfunc to the call stack

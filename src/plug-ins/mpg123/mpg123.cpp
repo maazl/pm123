@@ -645,15 +645,32 @@ void Decoder::ThreadFunc()
 
   // Handle seek command
   if (JumpTo >= 0)
-  { mpg123_seek(MPEG, Time2Sample(JumpTo), SEEK_SET);
+  { if (mpg123_seek(MPEG, Time2Sample(JumpTo), SEEK_SET) < 0)
+    {error:
+      LastError = mpg123_strerror(MPEG);
+      state = ST_ERROR;
+      DecMutex.Release();
+      (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
+      goto start;
+    }
     JumpTo = -1;
     (*OutEvent)(OutParam, DECEVENT_SEEKSTOP, NULL);
-  } else if (Fast == DECFAST_FORWARD)
-    mpg123_seek(MPEG, Time2Sample(.25), SEEK_CUR);
-  else if (state == ST_EOF)
-    goto wait;
-  else if (Fast == DECFAST_REWIND)
-    mpg123_seek(MPEG, Time2Sample(-.3), SEEK_CUR);
+  } else if (NextFast <= 0 && Fast == DECFAST_FORWARD)
+  { if (mpg123_seek(MPEG, Time2Sample(.3), SEEK_CUR) < 0)
+    {fastend:
+      state = ST_EOF;
+      DecMutex.Release();
+      (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
+      goto start;
+    }
+    NextFast = Time2Sample(.1);
+  } else if (state == ST_EOF)
+  { goto wait;
+  } else if (NextFast <= 0 && Fast == DECFAST_REWIND)
+  { if (mpg123_seek(MPEG, Time2Sample(-.5), SEEK_CUR) <= 0)
+      goto fastend;
+    NextFast = Time2Sample(.1);
+  }
   state = ST_READY; // Recover from ST_EOF in case of seek
 
   float* buffer;
@@ -676,6 +693,7 @@ void Decoder::ThreadFunc()
   DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
   bool upd_len = UpdateStreamLength(); // Update stream length before ReadTechInfo
   done /= Channels * sizeof *buffer;
+  NextFast -= done;
   switch (rc)
   {case MPG123_DONE:
     state = ST_EOF;
@@ -688,11 +706,7 @@ void Decoder::ThreadFunc()
     (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
     goto start;
    default:
-    LastError = mpg123_strerror(MPEG);
-    state = ST_ERROR;
-    DecMutex.Release();
-    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
-    goto start;
+    goto error;
    case MPG123_NEW_FORMAT:
     // fetch format
     ReadFrameInfo();
@@ -748,6 +762,7 @@ PLUGIN_RC Decoder::Play(PM123_TIME start, DECFASTMODE fast)
     return PLUGIN_GO_ALREADY;
 
   JumpTo = start <= 0 ? -1 : start; // After opening a new file we so are in its beginning.
+  NextFast = 0;
   Fast = fast;
   Status = DECODER_STARTING;
   Terminate = false;
@@ -782,6 +797,7 @@ PLUGIN_RC Decoder::SetFast(DECFASTMODE fast)
   Mutex::Lock lock(DecMutex);
   if (!xio_can_seek(XFile)) // Support fast forward for unseekable streams?
     return PLUGIN_UNSUPPORTED;
+  NextFast = 0;
   Fast = fast;
   return PLUGIN_OK;
 }
@@ -881,7 +897,7 @@ ULONG DLLENTRY decoder_command(Decoder* w, DECMSGTYPE msg, const DECODER_PARAMS2
 
 void DLLENTRY decoder_event(Decoder* w, OUTEVENTTYPE event)
 {
-  // TODO:
+  // nothing to do. Priority is managed by PM123.
 }
 
 /// Returns current status of the decoder.

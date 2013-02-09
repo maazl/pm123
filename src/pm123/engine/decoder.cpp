@@ -143,7 +143,7 @@ bool Decoder::UninitPlugin()
   return true;
 }
 
-DECODER_TYPE Decoder:: GetURLType(const char* url)
+DECODER_TYPE Decoder::GetURLType(const char* url)
 { switch (xio_urlprotocol(url))
   {case XIO_PROTOCOL_FILE:
     return DECODER_FILENAME;
@@ -403,7 +403,7 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
         if (op->juststarted == 2)
         { // Set the status before the navigate command, because the callback may immediately reset the stats to 0.
           op->juststarted = 1;
-          Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false), &DecoderProxy1::CommandCallback, op);
+          Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, Ctrl::NT_None), &DecoderProxy1::CommandCallback, op);
         }
         return len * bps;
       } else

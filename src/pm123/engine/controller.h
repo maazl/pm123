@@ -82,6 +82,25 @@ class Ctrl
     Op_Rewind = 4  // PM123_Scan only
   };
 
+  /// Navigation type for Navigate Command
+  enum NavType
+  { NT_None     = 0x00,
+    /// Location is relative from the current location.
+    /// Otherwise it starts from the outside the current song.
+    NT_Relative = 0x01,
+    /// Navigate in global playlist scope.
+    NT_Global   = 0x02,
+    /// Ignore syntax errors. Parse as far as possible.
+    NT_Partial  = 0x04
+  };
+
+  /// Mode parameter for Location message.
+  enum LocMode
+  { LM_ReturnPos,           ///< Return the current playing position in \c PtrArg.
+    LM_ReturnSong,          ///< Return the current song in \c PtrArg but do not update the playing position.
+    LM_UpdatePos            ///< Update the current playing position in \c CurLoc.
+  };
+
   /// return codes in Flags
   enum RC
   { RC_OK,                  ///< Everything OK.
@@ -133,8 +152,7 @@ class Ctrl
   { EV_None     = 0x00000000, ///< nothing
     EV_PlayStop = 0x00000001, ///< The play/stop status has changed.
     EV_Pause    = 0x00000002, ///< The pause status has changed.
-    EV_Forward  = 0x00000004, ///< The fast forward status has changed.
-    EV_Rewind   = 0x00000008, ///< The rewind status has changed.
+    EV_Scan     = 0x00000004, ///< The fast forward/rewind status has changed.
     EV_Shuffle  = 0x00000010, ///< The shuffle flag has changed.
     EV_Repeat   = 0x00000020, ///< The repeat flag has changed.
     EV_Volume   = 0x00000040, ///< The volume has changed.
@@ -151,7 +169,6 @@ class Ctrl
   };
 
  protected: // working set
-  static bool          Playing;               ///< True if a song is currently playing (not decoding)
   static bool          Paused;                ///< True if the current song is paused
   static DECFASTMODE   Scan;                  ///< Current scan mode
   static double        Volume;                ///< Current volume setting
@@ -162,6 +179,10 @@ class Ctrl
   static queue<QEntry> Queue;                 ///< Command queue of the controller (all messages pass this queue)
 
   static event<const EventFlags> ChangeEvent;
+
+  /// Last location returned by Cmd_Location. Never \c NULL.
+  /// Immutable and therefore implicitly thread safe.
+  static volatile int_ptr<SongIterator> CurLoc;
 
  public: // management interface, not thread safe
   /// initialize controller
@@ -174,7 +195,7 @@ class Ctrl
   // So be careful.
 
   /// Check whether we are currently playing.
-  static bool          IsPlaying()            { return Playing; }
+  static bool          IsPlaying();           //{ return Glue::OutInitialized(); } Dependencies!!
   /// Check whether the current play status is paused.
   static bool          IsPaused()             { return Paused; }
   /// Return the current scanmode.
@@ -187,6 +208,9 @@ class Ctrl
   static bool          IsRepeat()             { return Repeat; }
   /// Return the current savefile name.
   static xstring       GetSavename()          { return Savename; }
+  /// Last location returned by Cmd_Location. Never \c NULL.
+  /// Immutable and therefore implicitly thread safe.
+  static const volatile int_ptr<SongIterator>& GetLoc() { return CurLoc; }
   /// Return the current song (whether playing or not).
   /// If nothing is attached or if a playlist recently completed the function returns NULL.
   static int_ptr<APlayable> GetCurrentSong();
@@ -238,12 +262,9 @@ class Ctrl
   /// @details This will change the Song and/or the playing position.
   /// @param iter Serialized iterator (optional)
   /// @param start Location in seconds
-  /// @param relative Location is relative from the current location.
-  /// Otherwise it starts from the outside the current song.
-  /// @param global Navigate in global playlist scope.
-  /// @param ignoreerror Ignore syntax errors. Parse as far as possible.
-  static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, bool relative, bool global, bool ignoreerror = false)
-  { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1) | (ignoreerror<<2)); }
+  /// @param type Navigation type. See \see NavType.
+  static ControlCommand* MkNavigate(const xstring& iter, PM123_TIME start, NavType type)
+  { return new ControlCommand(Cmd_Navigate, iter, start, type); }
   /// @brief Jump to location
   /// @details This will change the Song and/or the playing position.
   /// The old position is returned in place.
@@ -287,10 +308,13 @@ class Ctrl
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
   /// Query the current location.
-  /// @param loc [out after completion] Location object where to store the current location.
-  /// @param notime Return only the current song without the time offset (faster).
-  static ControlCommand* MkLocation(Location* loc, bool notime)
-  { return new ControlCommand(Cmd_Location, xstring(), loc, notime); }
+  /// @param mode Query type.
+  /// @remarks If the query type is one of \c LM_ReturnPos or \c LM_ReturnSong
+  /// then you must track the response and convert the result in \c PtrArg
+  /// to \c int_ptr<SongIterator> using the \c fromCptr method. Everything else
+  /// will cause a memory leak.
+  static ControlCommand* MkLocation(LocMode mode)
+  { return new ControlCommand(Cmd_Location, xstring(), (void*)NULL, mode); }
  protected: // internal messages
   /// The current decoder finished it's work.
   static ControlCommand* MkDecStop()
@@ -311,5 +335,6 @@ class Ctrl
   static bool QueueTraverse(bool (*action)(const ControlCommand& cmd, void* arg), void* arg);
 };
 FLAGSATTRIBUTE(Ctrl::EventFlags);
+FLAGSATTRIBUTE(Ctrl::NavType);
 
 #endif

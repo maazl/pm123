@@ -144,6 +144,8 @@ class GUIImp : private GUI, private DialogBase
   static bool              IsAccelChanged;// Flag whether the accelerators have changed since the last context menu invocation.
   static bool              IsPluginChanged;// Flag whether the plug-in list has changed since the last context menu invocation.
 
+  static int_ptr<SongIterator> CurrentIter;
+
   static delegate<const void, const PluginEventArgs>    PluginDeleg;
   static delegate<const void, const Ctrl::EventFlags>   ControllerDeleg;
   static delegate<const void, const PlayableChangeArgs> RootDeleg;
@@ -168,9 +170,6 @@ class GUIImp : private GUI, private DialogBase
   static void      PlayableNotification(const void*, const PlayableChangeArgs& args);
   static void      PluginNotification(const void*, const PluginEventArgs& args);
   static void      ConfigNotification(const void*, const CfgChangeArgs& args);
-
-  static APlayable* CurrentRoot()            { return CurrentIter ? CurrentIter->GetRoot() : NULL; }
-  static APlayable* CurrentSong()            { return CurrentIter ? CurrentIter->GetCurrent() : NULL; }
 
   static void      PostCtrlCommand(Ctrl::ControlCommand* cmd) { Ctrl::PostCommand(cmd, &GUIImp::ControllerEventCB); }
 
@@ -225,6 +224,8 @@ bool                GUIImp::IsSliderDrag    = false;
 bool                GUIImp::IsAltSlider     = false;
 bool                GUIImp::IsAccelChanged  = false;
 bool                GUIImp::IsPluginChanged = false;
+
+int_ptr<SongIterator> GUIImp::CurrentIter;
 
 delegate<const void, const PluginEventArgs>    GUIImp::PluginDeleg    (&GUIImp::PluginNotification);
 delegate<const void, const Ctrl::EventFlags>   GUIImp::ControllerDeleg(&GUIImp::ControllerNotification);
@@ -488,7 +489,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             break;
           // Update CurrentIter
           if (cmd->Flags == Ctrl::RC_OK)
-            CurrentIter = (SongIterator*)cmd->PtrArg;
+            CurrentIter = Ctrl::GetLoc();
           // Redraws
           UpdateFlags upd = UpdAtLocMsg;
           UpdAtLocMsg = UPD_NONE;
@@ -524,20 +525,22 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       if (flags & Ctrl::EV_Pause)
         WinSendDlgItemMsg(HPlayer, BMP_PAUSE,   Ctrl::IsPaused() ? WM_PRESS : WM_DEPRESS, 0, 0);
-      if (flags & Ctrl::EV_Forward)
-        WinSendDlgItemMsg(HPlayer, BMP_FWD,     Ctrl::GetScan() & DECFAST_FORWARD ? WM_PRESS : WM_DEPRESS, 0, 0);
-      if (flags & Ctrl::EV_Rewind)
-        WinSendDlgItemMsg(HPlayer, BMP_REW,     Ctrl::GetScan() & DECFAST_REWIND  ? WM_PRESS : WM_DEPRESS, 0, 0);
+      if (flags & Ctrl::EV_Scan)
+      { DECFASTMODE mode = Ctrl::GetScan();
+        WinSendDlgItemMsg(HPlayer, BMP_FWD,     mode & DECFAST_FORWARD ? WM_PRESS : WM_DEPRESS, 0, 0);
+        WinSendDlgItemMsg(HPlayer, BMP_REW,     mode & DECFAST_REWIND  ? WM_PRESS : WM_DEPRESS, 0, 0);
+      }
       if (flags & Ctrl::EV_Shuffle)
         WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & Ctrl::EV_Repeat)
         WinSendDlgItemMsg(HPlayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & (Ctrl::EV_Root|Ctrl::EV_Song))
-      { int_ptr<APlayable> root = Ctrl::GetRoot();
+      { CurrentIter = Ctrl::GetLoc();
+        APlayable* root = CurrentIter->GetRoot();
         if (flags & Ctrl::EV_Root)
         { // New root => attach observer
           RootDeleg.detach();
-          DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root.get()));
+          DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root));
           if (root)
             root->GetInfoChange() += RootDeleg;
           UpdAtLocMsg |= UPD_TIMERS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
@@ -565,7 +568,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
     
    case WMP_PLAYABLE_EVENT:
-    { APlayable* root = CurrentRoot();
+    { APlayable* root = CurrentIter->GetRoot();
       DEBUGLOG(("GUIImp::DlgProc: WMP_PLAYABLE_EVENT %p %x\n", mp1, SHORT1FROMMP(mp2)));
       if (!root)
         return 0;
@@ -595,7 +598,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (changed & IF_Tech)
           upd |= UPD_PLMODE;
       }
-      if (CurrentSong() == ap)
+      if (CurrentIter->GetCurrent() == ap)
       { // Current change event
         if (changed & IF_Obj)
           upd |= UPD_RATE;
@@ -646,12 +649,12 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_INITMENU:
     if (SHORT1FROMMP(mp1) == IDM_M_PLAYBACK)
     { HWND menu = HWNDFROMMP(mp2);
-      mn_check_item(menu, BMP_PLAY,    Ctrl::IsPlaying() );
-      mn_check_item(menu, BMP_PAUSE,   Ctrl::IsPaused()  );
-      mn_check_item(menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND  );
-      mn_check_item(menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD );
-      mn_check_item(menu, BMP_SHUFFLE, Ctrl::IsShuffle() );
-      mn_check_item(menu, BMP_REPEAT,  Ctrl::IsRepeat()  );
+      mn_check_item(menu, BMP_PLAY,    Ctrl::IsPlaying());
+      mn_check_item(menu, BMP_PAUSE,   Ctrl::IsPaused() );
+      mn_check_item(menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND );
+      mn_check_item(menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD);
+      mn_check_item(menu, BMP_SHUFFLE, Ctrl::IsShuffle());
+      mn_check_item(menu, BMP_REPEAT,  Ctrl::IsRepeat() );
     }
     break;
 
@@ -729,13 +732,13 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       switch( cmd )
       {case IDM_M_ADDBOOK:
-        { APlayable* cur = CurrentSong();
+        { APlayable* cur = CurrentIter->GetCurrent();
           if (cur)
             amp_add_bookmark(HPlayer, *cur);
           break;
         }
        case IDM_M_ADDBOOK_TIME:
-        { APlayable* cur = CurrentSong();
+        { APlayable* cur = CurrentIter->GetCurrent();
           if (cur)
           { PlayableRef ps(*cur);
             // Use the time index from last_status here.
@@ -749,13 +752,13 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
        case IDM_M_ADDPLBOOK:
-        { APlayable* ap = CurrentRoot();
+        { APlayable* ap = CurrentIter->GetRoot();
           if (ap)
             amp_add_bookmark(HPlayer, *ap);
           break;
         }
        case IDM_M_ADDPLBOOK_TIME:
-        { APlayable* ap = CurrentRoot();
+        { APlayable* ap = CurrentIter->GetRoot();
           if (ap)
           { PlayableRef ps(*ap);
             AttrInfo attr(*ps.GetInfo().attr);
@@ -774,49 +777,49 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_M_INFO:
-        { APlayable* cur = CurrentSong();
+        { APlayable* cur = CurrentIter->GetCurrent();
           if (cur)
             ShowDialog(cur->GetPlayable(), DLT_METAINFO);
           break;
         }
        case IDM_M_PLINFO:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if (root)
             ShowDialog(*root, root->GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
           break;
         }
        case IDM_M_TAG:
-        { APlayable* cur = CurrentSong();
+        { APlayable* cur = CurrentIter->GetCurrent();
           if (cur)
             ShowDialog(cur->GetPlayable(), DLT_INFOEDIT);
           break;
         }
        case IDM_M_RELOAD:
-        { APlayable* cur = CurrentSong();
+        { APlayable* cur = CurrentIter->GetCurrent();
           if (cur)
             cur->RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
           break;
         }
        case IDM_M_DETAILED:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if (root && root->IsPlaylist())
             ShowDialog(*root, DLT_PLAYLIST);
           break;
         }
        case IDM_M_TREEVIEW:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if (root && root->IsPlaylist())
             ShowDialog(*root, DLT_PLAYLISTTREE);
           break;
         }
        case IDM_M_ADDPMBOOK:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if (root)
             DefaultPM->InsertItem(*root);
           break;
         }
        case IDM_M_PLRELOAD:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if ( root && root->IsPlaylist()
             && (root->GetPlayable().IsModified() || amp_query(HPlayer, "The current list is modified. Discard changes?")) )
             root->RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
@@ -824,7 +827,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_M_PLSAVE:
        case IDM_M_PLSAVEAS:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           if (root && root->IsPlaylist())
             amp_save_playlist(HPlayer, root->GetPlayable(), cmd == IDM_M_PLSAVEAS);
           break;
@@ -906,7 +909,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case BMP_PL:
-        { APlayable* root = CurrentRoot();
+        { APlayable* root = CurrentIter->GetRoot();
           int_ptr<PlaylistView> pv(PlaylistView::GetByKey(root && root->IsPlaylist() ? root->GetPlayable() : *DefaultPL));
           ShowHidePlaylist(pv, pv->GetVisible() ? DLA_CLOSE : DLA_SHOW);
           break;
@@ -994,7 +997,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       if (bmp_pt_in_volume(pos))
         Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
-      else if (CurrentRoot() && bmp_pt_in_text(pos) && msg == WM_BUTTON1DBLCLK)
+      else if (CurrentIter->GetRoot() && bmp_pt_in_text(pos) && msg == WM_BUTTON1DBLCLK)
         WinPostMsg(HPlayer, WMP_DISPLAY_MODE, 0, 0);
       return 0;
     }
@@ -1021,9 +1024,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { IsVolumeDrag = true;
         WinSetCapture(HWND_DESKTOP, HPlayer);
       } else if (bmp_pt_in_slider(pos))
-      { if (CurrentRoot() && (IsAltSlider
-          ? CurrentRoot()->GetInfo().rpl->songs > 0
-          : CurrentSong()->GetInfo().drpl->totallength > 0 ))
+      { APlayable* root = CurrentIter->GetRoot();
+        if (root && (IsAltSlider
+          ? root->GetInfo().rpl->songs > 0
+          : CurrentIter->GetCurrent()->GetInfo().drpl->totallength > 0 ))
         { IsSliderDrag = true;
           WinSetCapture(HWND_DESKTOP, HPlayer);
         }
@@ -1093,7 +1097,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             if (Cfg::Get().altbutton != CFG_BUT_SHIFT)
               break;
            setanav:
-            SetAltSlider(!(fsflags & KC_KEYUP) && CurrentRoot() && CurrentRoot()->IsPlaylist());
+            APlayable* root = CurrentIter->GetRoot();
+            SetAltSlider(!(fsflags & KC_KEYUP) && root && root->IsPlaylist());
           }
         }
       }
@@ -1111,7 +1116,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         DelayedAltSliderDragWorker.Start(job.AllDepends, HPlayer, WMP_SLIDERDRAG, mp1, mp2);
       } else if (SHORT1FROMMP(mp2))
       { // Set new position
-        PostCtrlCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)));
+        PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
         IsSliderDrag = false;
       } else
         // Show new position
@@ -1167,7 +1172,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
   // Cancel delayed slider drag if any
   DelayedAltSliderDragWorker.Cancel();
 
-  APlayable* root = CurrentRoot();
+  APlayable* root = CurrentIter->GetRoot();
   if (!root)
     return;
   // get position
@@ -1182,7 +1187,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
 
   // adjust CurrentIter from pos
   if (!IsAltSlider)
-  { const PM123_TIME songlength = CurrentSong()->GetInfo().drpl->totallength;
+  { const PM123_TIME songlength = CurrentIter->GetCurrent()->GetInfo().drpl->totallength;
     // navigation within the current song
     if (songlength <= 0)
       return;
@@ -1213,7 +1218,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
         bool r = CurrentIter->NavigateCount(job, (int)floor(relpos), TATTR_SONG);
         DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
         // navigate within the song
-        const PM123_TIME songlength = CurrentSong()->GetInfo().drpl->totallength;
+        const PM123_TIME songlength = CurrentIter->GetCurrent()->GetInfo().drpl->totallength;
         if (Cfg::Get().altnavig != CFG_ANAV_SONG && songlength > 0)
         { relpos -= floor(relpos);
           CurrentIter->NavigateRewindSong();
@@ -1226,9 +1231,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
 void GUIImp::ForceLocationMsg()
 { if (!IsLocMsg)
   { IsLocMsg = true;
-    // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
-    // to avoid threading problems.
-    PostCtrlCommand(Ctrl::MkLocation(&IterBuffer[CurrentIter == IterBuffer], false));
+    PostCtrlCommand(Ctrl::MkLocation(Ctrl::LM_UpdatePos));
   }
 }
 
@@ -1486,8 +1489,8 @@ void GUIImp::ShowContextMenu()
   }
 
   // Update status
-  APlayable* const cur = CurrentSong();
-  APlayable* const root = CurrentRoot();
+  APlayable* const cur = CurrentIter->GetCurrent();
+  APlayable* const root = CurrentIter->GetRoot();
   mn_enable_item(ContextMenu, IDM_M_TAG,     cur && (cur->GetInfo().phys->attributes & PATTR_WRITABLE) && (cur->GetInfo().tech->attributes & TATTR_WRITABLE));
   mn_enable_item(ContextMenu, IDM_M_SAVE,    cur && (cur->GetInfo().tech->attributes & TATTR_STORABLE));
   mn_enable_item(ContextMenu, IDM_M_CURRENT_SONG, cur != NULL);
@@ -1557,7 +1560,7 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
 void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
 { DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, index, offset, Cfg::Get().mode));
 
-  APlayable* root = CurrentRoot();
+  APlayable* root = CurrentIter->GetRoot();
   if (!root)
   { bmp_draw_slider(hps, -1, IsAltSlider);
     bmp_draw_timer(hps, -1);
@@ -1565,7 +1568,7 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
     bmp_draw_tiny_timer(hps, POS_PL_LEFT,   -1);
     return;
   }
-  APlayable* cur = CurrentSong();
+  APlayable* cur = CurrentIter->GetCurrent();
 
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
   PM123_TIME total_song = cur ? cur->GetInfo().drpl->totallength : -1;
@@ -1625,9 +1628,9 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
    and selects it for displaying. */
 void GUIImp::PrepareText()
 {
-  APlayable* cur = CurrentSong();
+  APlayable* cur = CurrentIter->GetCurrent();
   if (!cur)
-  { cur = CurrentRoot();
+  { cur = CurrentIter->GetRoot();
     if (!cur)
     { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
       bmp_set_text("- no file loaded -");
@@ -1679,8 +1682,8 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
 { DEBUGLOG(("GuiImp::Paint(,%x) - %x\n", mask, UpdFlags));
   if (mask & UPD_BACKGROUND)
     bmp_draw_background(hps, HPlayer);
-  APlayable* root = CurrentRoot();
-  APlayable* cur = CurrentSong();
+  APlayable* root = CurrentIter->GetRoot();
+  APlayable* cur = CurrentIter->GetCurrent();
 
   if (mask & (UPD_TIMERS|UPD_PLINDEX))
   { int index = -1;
@@ -1940,6 +1943,9 @@ BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopi
 void GUIImp::Init()
 { DEBUGLOG(("GUIImp::Init()\n"));
 
+  CurrentIter = Ctrl::GetLoc();
+  ASSERT(CurrentIter);
+
   InitButton(amp_player_hab);
 
   // these two are always constant
@@ -2046,10 +2052,6 @@ void GUIImp::Uninit()
   QMSG   qmsg;
   while (WinPeekMsg(amp_player_hab, &qmsg, HFrame, WM_USER, 0xbfff, PM_REMOVE));
 
-  // Clear iterators to avoid dead references.
-  IterBuffer[0].SetRoot((APlayable*)NULL);
-  IterBuffer[1].SetRoot((APlayable*)NULL);
-
   AutoSave();
 
   dk_term();
@@ -2078,8 +2080,6 @@ int_ptr<Playable> GUI::UrlMRU;
 HWND              GUI::HFrame  = NULLHANDLE;
 HWND              GUI::HPlayer = NULLHANDLE;
 HWND              GUI::HHelp   = NULLHANDLE;
-SongIterator      GUI::IterBuffer[2];
-SongIterator*     GUI::CurrentIter = GUI::IterBuffer;
 
 
 /* Constructs a string of the displayable text from the file information. */

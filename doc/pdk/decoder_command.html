@@ -63,8 +63,8 @@ as their content is undefined.</p>
 <h2><tt><a name="DECODER_PLAY"></a>DECODER_PLAY</tt></h2>
 <p>This command kicks off the decoder thread to start decoding of an
 URL. The command implicitly implies the <a href="#DECODER_JUMPTO"><tt>DECODER_JUMPTO</tt></a>
-command if the appropriate fields in <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
-is not initial.
+command if the <tt>JumpTo</tt> field in <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
+is grater than zero.
 </p>
 <h4>Parameters</h4>
 <p>The following fields of the <tt><a
@@ -85,7 +85,8 @@ of the target rather than the beginning of the song. In this case <tt>JumpTo</tt
 is set to the starting position. Otherwise it is <tt>0</tt>.<br>
 If a start position makes no sense e.g. because the source is an
 internet radio stream, the decoder should ignore this and just start
-decoding. This is not an error.
+decoding. It is not an error that <tt>JumpTo</tt> is greater than zero
+in this case.
 </p>
 <h4>Return value</h4>
 <dl>
@@ -148,8 +149,8 @@ shortly. </dd>
  href="#DECODER_PLAY"><tt>DECODER_PLAY</tt></a> if playback should
 immediately start in scan mode. In case decoding should start in rewind
 mode the following <tt>DECODER_PLAY</tt> command will always set the <tt>JumpTo</tt>
-filed to a location at the end of the current URL.</p>
-<p>A DECODER_FFWD command is usually followed by <a
+filed to a location close to the end of the current URL.</p>
+<p>A DECODER_FFWD command is usually preceded by <a
  href="#DECODER_JUMPTO">DECODER_JUMPTO</a> to reset the decoding
 position to the current playing position.</p>
 <h4>Parameters</h4>

@@ -43,10 +43,12 @@
 #include <debuglog.h>
 
 
+int_ptr<Decoder>  Glue::DecPlug;
 PM123_TIME Glue::MinPos;
 PM123_TIME Glue::MaxPos;
-
 event<const Glue::DecEventArgs> Glue::DecEvent;
+
+bool Glue::Initialized = false;
 event<const OUTEVENTTYPE> Glue::OutEvent;
 
 
@@ -64,7 +66,6 @@ class GlueImp : private Glue
 
   static const DecEventArgs CEVPlayStop;
 
-  static bool              Initialized;       ///< whether the following vars are valid
   static AtomicUnsigned    Flags;
   static volatile int_ptr<APlayable> Song;    ///< currently decoding song
   static PM123_TIME        StopTime;          ///< time index where to stop the current playback
@@ -76,7 +77,6 @@ class GlueImp : private Glue
   static TID               DecTID;            ///< Thread ID of the decoder thread
   static int_ptr<Output>   OutPlug;           ///< currently initialized output plug-in.
   static PluginList        FilterPlugs;       ///< List of initialized visual plug-ins.
-  static int_ptr<Decoder>  DecPlug;           ///< currently active decoder plug-in.
   static OutputProcs       Procs;             ///< entry points of the filter chain
   static OUTPUT_PARAMS2    OParams;           ///< parameters for output_command
   static DECODER_PARAMS2   DParams;           ///< parameters for decoder_command
@@ -113,7 +113,6 @@ class GlueImp : private Glue
 // statics
 const GlueImp::DecEventArgs GlueImp::CEVPlayStop = { DECEVENT_PLAYSTOP, NULL };
 
-bool              GlueImp::Initialized = false;
 AtomicUnsigned    GlueImp::Flags(0);
 volatile int_ptr<APlayable> GlueImp::Song;
 PM123_TIME        GlueImp::StopTime;
@@ -125,7 +124,6 @@ time_t            GlueImp::LowWaterLimit;
 TID               GlueImp::DecTID;
 int_ptr<Output>   GlueImp::OutPlug;
 PluginList        GlueImp::FilterPlugs(PLUGIN_FILTER);
-int_ptr<Decoder>  GlueImp::DecPlug;
 OutputProcs       GlueImp::Procs;
 OUTPUT_PARAMS2    GlueImp::OParams = {0};
 DECODER_PARAMS2   GlueImp::DParams = {(const char*)NULL};
@@ -192,7 +190,7 @@ ULONG GlueImp::Init()
   Plugin::GetChangeEvent() += PluginDeleg;
 
   // setup callback handlers
-  OParams.OutEvent  = &OutEventHandler;
+  OParams.OutEvent = &OutEventHandler;
   //params.W         = NULL; // not required
 
   // setup callback handlers
@@ -253,21 +251,21 @@ void GlueImp::Uninit()
   // Uninitialize output
   OutPlug->UninitPlugin();
   OutPlug.reset();
+  Procs.A = NULL;
 }
 
 ULONG GlueImp::DecCommand(DECMSGTYPE msg)
-{ DEBUGLOG(("DecCommand(%d)\n", msg));
+{ DEBUGLOG(("GlueImp::DecCommand(%d)\n", msg));
   if (DecPlug == NULL)
     return 3; // no DecPlug active
   ULONG ret = DecPlug->DecoderCommand(msg, &DParams);
-  DEBUGLOG(("DecCommand: %lu\n", ret));
+  DEBUGLOG(("GlueImp::DecCommand: %lu\n", ret));
   return ret;
 }
 
 /* invoke decoder to play an URL */
 ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
-{
-  DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%f)\n", &song, song.DebugName().cdata(), offset, start, stop));
+{ DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%f)\n", &song, song.DebugName().cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
   // Uninit current DecPlug if any
   DecClose();
@@ -281,7 +279,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
     return (ULONG)-2;
   }
 
-  GlueImp::StopTime     = stop;
+  GlueImp::StopTime     = stop ? stop : 1E99;
   GlueImp::Flags.bitrst(GlueImp::FLG_PlaystopSent);
   GlueImp::PosOffset    = offset;
   GlueImp::MinPos       = 1E99;
@@ -290,6 +288,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
   GlueImp::DParams.URL              = song.GetPlayable().URL;
   GlueImp::DParams.Info             = &song.GetInfo();
   GlueImp::DParams.JumpTo           = start;
+  GlueImp::DParams.Fast             = DECFAST_NORMAL_PLAY;
   GlueImp::DParams.OutRequestBuffer = &PROXYFUNCREF(GlueImp)GlueRequestBuffer;
   GlueImp::DParams.OutCommitBuffer  = &PROXYFUNCREF(GlueImp)GlueCommitBuffer;
   GlueImp::DParams.A                = GlueImp::Procs.A;
@@ -326,7 +325,8 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
 
 /* stop the current DecPlug immediately */
 ULONG Glue::DecStop()
-{ GlueImp::SongDeleg.detach();
+{ DEBUGLOG(("Glue::DecStop() - %p\n", GlueImp::DecPlug.get()));
+  GlueImp::SongDeleg.detach();
   GlueImp::Song.reset();
   if (!GlueImp::DecPlug)
     return PLUGIN_GO_FAILED;
@@ -335,7 +335,7 @@ ULONG Glue::DecStop()
 }
 
 void Glue::DecClose()
-{
+{ DEBUGLOG(("Glue::DecClose() - %p\n", GlueImp::DecPlug.get()));
   int_ptr<Decoder> dp;
   dp.swap(GlueImp::DecPlug);
   if (dp && dp->IsInitialized())
@@ -380,7 +380,8 @@ ULONG Glue::DecJump(PM123_TIME location)
 
 /* set savefilename to save the raw stream data */
 ULONG Glue::DecSave(const char* file)
-{ if (file != NULL && *file == 0)
+{ DEBUGLOG(("Glue::DecSave(%s)\n", file));
+  if (file != NULL && *file == 0)
     file = NULL;
   GlueImp::DParams.SaveFilename = file;
   ULONG status = GlueImp::DecPlug ? GlueImp::DecPlug->DecoderStatus() : 0;
@@ -598,6 +599,9 @@ GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
 DecEventHandler(void* a, DECEVENTTYPE event, void* param)
 { DEBUGLOG(("GlueImp::DecEventHandler(%p, %d, %p)\n", a, event, param));
+  // Discard bad events.
+  if (a != GlueImp::Procs.A)
+    return;
   // We handle some event here immediately.
   switch (event)
   {case DECEVENT_CHANGEOBJ:

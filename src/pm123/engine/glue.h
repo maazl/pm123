@@ -40,6 +40,8 @@
 #include <os2.h>
 
 
+class Decoder;
+
 /****************************************************************************
 *
 * virtual output interface, including filter plug-ins
@@ -55,21 +57,31 @@ class Glue
   } DecEventArgs;
 
  protected:
-  static PM123_TIME MinPos;            ///< Minimum sample position of a block from the decoder since the last DecPlay
-  static PM123_TIME MaxPos;            ///< Maximum sample position of a block from the decoder since the last DecPlay
+  static int_ptr<Decoder> DecPlug; ///< currently active decoder plug-in.
+  static PM123_TIME MinPos;        ///< Minimum sample position of a block from the decoder since the last DecPlay
+  static PM123_TIME MaxPos;        ///< Maximum sample position of a block from the decoder since the last DecPlay
   /// Decoder events
   static event<const DecEventArgs> DecEvent;
+  static bool Initialized;         ///< Whether the output chain is initialized
   /// Output events
   static event<const OUTEVENTTYPE> OutEvent;
 
  public: // Control interface for the decoder engine, not thread safe
   /// Invoke decoder to play an URL
+  /// @param song to play
+  /// @param time offset when reporting playing time.
+  /// I.e. the time index of the first sample of this song, regardless of \a start.
+  /// @param start Start decoding of the song at time index \a start.
+  /// @param stop If &gt; 0 then stop decoding at time index \a stop and send \c DECEVENT_PLAYSTOP.
   static ULONG DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
   /// Stop the current decoder immediately
   static ULONG DecStop();
   /// Close decoder plug-in. This may block until the decoder thread has ended.
   /// @pre DecStop must have been sent if the decoder has been started.
   static void  DecClose();
+  /// Check whether a decoder is currently active and awaiting commands.
+  /// @details This does not imply that the decoder is currently decoding data.
+  static bool  DecInitialized() { return !!DecPlug; }
   /// Set fast forward/rewind mode
   static ULONG DecFast(DECFASTMODE mode);
   /// Jump to absolute position
@@ -95,6 +107,8 @@ class Glue
   /// \c OutClose must release all semaphores in the \c output_request_buffer and \c output_commit_buffer callbacks.
   /// The function may return an error in this case.
   static ULONG OutClose();
+  /// Check whether the output chain is currently initialized.
+  static bool  OutInitialized() { return Initialized; }
   /// Adjust output volume.
   static void  OutSetVolume(double volume); // volume: [0,1]
   /// Pause output.
