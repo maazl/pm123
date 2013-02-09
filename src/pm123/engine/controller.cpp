@@ -317,7 +317,6 @@ void CtrlImp::SetVolume()
 
 ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
 { DEBUGLOG(("Ctrl::DecoderStart(&%p{%f, {%p, %s}}, %u)\n", &pe, pe.Offset, pe.Loc.GetRoot(), pe.Loc.Serialize().cdata(), reverse));
-  SetVolume();
 
   APlayable& song = *pe.Loc.GetCurrent();
   ASSERT(&song);
@@ -375,6 +374,7 @@ ULONG CtrlImp::OutputStart(APlayable& pp)
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   if (rc != PLUGIN_OK)
     Glue::OutClose();
+  SetVolume();
   return rc;
 }
 
@@ -529,40 +529,36 @@ void CtrlImp::CheckPrefetch(double pos)
     while (n < PrefetchList.size() && pos >= PrefetchList[n]->Offset)
       ++n;
     --n;
+    // now n contains the number of items to remove
     DEBUGLOG(("Ctrl::CheckPrefetch %g, %g -> %u\n", pos, Current()->Offset, n));
     if (n)
     { // At least one prefetched item has been played completely.
-      //CurrentSongDelegate.detach();
-      UpdateStackUsage(Current()->Loc.GetCallstack(), PrefetchList[n]->Loc.GetCallstack());
+      PrefetchEntry* keep = PrefetchList[n];
+      UpdateStackUsage(Current()->Loc.GetCallstack(), keep->Loc.GetCallstack());
       // Set events
       Pending |= EV_Song;
+
+      // delete played items from default playlist in queue mode.
+      Playable& default_pl = GUI::GetDefaultPL();
+      if (Cfg::Get().queue_mode && Current()->Loc.GetRoot() == &default_pl)
+      { ASSERT(Current()->Loc.GetCallstack().size());
+        ASSERT(keep->Loc.GetCallstack().size());
+        PlayableInstance* item = Current()->Loc.GetCallstack()[0];
+        PlayableInstance* stop = keep->Loc.GetCallstack()[0];
+        while (item != stop)
+        { default_pl.RemoveItem(*item);
+          item = default_pl.GetNext(item);
+        }
+      }
+
       // Cleanup prefetch list
       vector<PrefetchEntry> ped(n);
       do
-        ped.append() = PrefetchList.erase(--n);
+        delete PrefetchList.erase(--n);
       while (n);
+
       // Now keep track of the next entry
       AttachCurrentSong();
-
-      // delete iterators and remove from play queue (if desired)
-      Playable* plp = NULL;
-      if (Cfg::Get().queue_mode)
-      { plp = &Current()->Loc.GetRoot()->GetPlayable();
-        if (plp != &GUI::GetDefaultPL())
-          plp = NULL;
-      }
-      DEBUGLOG(("Ctrl::CheckPrefetch: queue mode %p\n", plp));
-      // plp != NULL -> remove items
-      n = ped.size();
-      do
-      { PrefetchEntry& pe = *ped[--n]; 
-        if (plp && pe.Loc.GetCallstack().size() >= 1)
-        { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
-          if (pip && pe.Loc.NavigateCount(SyncJob, 1, TATTR_SONG, 1))// we played the last item of a top level entry
-            plp->RemoveItem(*pip);
-        }
-        delete &pe;
-      } while (n);
     }
   }
 }
