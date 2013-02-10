@@ -129,7 +129,7 @@ class CtrlImp
   static ULONG DecoderStart(PrefetchEntry& pe, bool reverse);
   /// Initializes the output for playing pp.
   /// The playable object is needed for naming purposes.
-  static ULONG OutputStart(APlayable& pp);
+  static ULONG OutputStart(APlayable& pp, PM123_TIME offset);
   /// Stops playback and clears the prefetch list.
   /// This also stops the decoder.
   static void  OutputStop();
@@ -254,10 +254,6 @@ int_ptr<APlayable> Ctrl::GetRoot()
 { return int_ptr<SongIterator>(CurLoc)->GetRoot();
 }
 
-/*bool Ctrl::IsEnumerable()
-{ return PrefetchList.size() && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Enumerable);
-}*/
-
 void CtrlImp::RaiseControlEvents()
 { EventFlags events = (EventFlags)Pending.swap(EV_None);
   DEBUGLOG(("Ctrl::RaiseControlEvents: %x\n", events));
@@ -368,9 +364,9 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
   return 0;
 }
 
-ULONG CtrlImp::OutputStart(APlayable& pp)
+ULONG CtrlImp::OutputStart(APlayable& pp, PM123_TIME offset)
 { DEBUGLOG(("Ctrl::OutputStart(&%p)\n", &pp));
-  ULONG rc = Glue::OutSetup(pp, 0);
+  ULONG rc = Glue::OutSetup(pp, offset);
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   if (rc != PLUGIN_OK)
     Glue::OutClose();
@@ -428,7 +424,7 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, unsigned newscan)
   DEBUGLOG(("Ctrl::NavigateCore - %i\n", level));
   ASSERT(level != INT_MIN);
   level = abs(level);
-  if (level > si.GetCallstack().size() && level > curloc.GetCallstack().size())
+  if (level > (int)si.GetCallstack().size() && level > (int)curloc.GetCallstack().size())
   { // only location is different => seek only
     DEBUGLOG(("Ctrl::NavigateCore - seek to %f\n", si.GetPosition()));
     Pending |= EV_Location;
@@ -724,7 +720,7 @@ void CtrlImp::MsgPlayStop()
       return;
     }
 
-    ULONG rc = OutputStart(*pp);
+    ULONG rc = OutputStart(*pp, 0);
     if (rc)
     { ReplyOutputError(rc);
       return;
@@ -1080,6 +1076,8 @@ void CtrlImp::MsgDecStop()
 
   // store result
   PrefetchList.append() = pep;
+  // Tell the output chain what we are going to play.
+  OutputStart(*pep->Loc.GetCurrent(), pep->Offset);
   // start decoder for the prefetched item
   ULONG rc = DecoderStart(*pep, true);
   if (rc)

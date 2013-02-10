@@ -121,18 +121,21 @@ class OutputProxy1 : public Output, protected ProxyHelper
   int          DLLENTRYP(voutput_play_samples   )(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker);
   ULONG        DLLENTRYP(voutput_playing_pos    )(void* a);
   ULONG        DLLENTRYP(voutput_playing_samples)(void* a, FORMAT_INFO* info, char* buf, int len);
+
+  bool         voutput_trash_buffer;
+  bool         voutput_flush_request;       ///< flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
+  bool         voutput_always_hungry;
+  bool         voutput_opened;              ///< Flag whether the current output is already open.
+  HWND         voutput_hwnd;                ///< Window handle for catching event messages
+  PM123_TIME   voutput_posmarker;
+  FORMAT_INFO  voutput_format;
+  int          voutput_bufsamples;
+  int          voutput_buffer_level;        ///< current level of voutput_buffer
   union
   { float      fbuf[BUFSIZE/2];
     short      sbuf[BUFSIZE/2];
   }            voutput_buffer;
-  int          voutput_buffer_level;         // current level of voutput_buffer
-  BOOL         voutput_trash_buffer;
-  BOOL         voutput_flush_request;        // flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
-  HWND         voutput_hwnd;                 // Window handle for catching event messages
-  PM123_TIME   voutput_posmarker;
-  FORMAT_INFO  voutput_format;
-  int          voutput_bufsamples;
-  BOOL         voutput_always_hungry;
+
   void         DLLENTRYP(voutput_event)(void* w, OUTEVENTTYPE event);
   void*        voutput_w;
   VDELEGATE    vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos, vd_output_playing_samples;
@@ -199,7 +202,7 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
   // preprocessing
   switch (msg)
   {case OUTPUT_TRASH_BUFFERS:
-    op->voutput_trash_buffer   = TRUE;
+    op->voutput_trash_buffer   = true;
     break;
 
    case OUTPUT_SETUP:
@@ -242,18 +245,27 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
   switch (msg)
   {case OUTPUT_SETUP:
     op->voutput_buffer_level   = 0;
-    op->voutput_trash_buffer   = FALSE;
-    op->voutput_flush_request  = FALSE;
+    op->voutput_trash_buffer   = false;
+    op->voutput_flush_request  = false;
     op->voutput_always_hungry  = params.always_hungry;
+    op->voutput_opened         = false;
     op->voutput_event          = info->OutEvent;
     op->voutput_w              = info->W;
     op->voutput_format.bits    = 16;
     op->voutput_format.format  = WAVE_FORMAT_PCM;
     break;
 
+   case OUTPUT_OPEN:
+    if (r && op->voutput_opened)
+      r = 0;
+    op->voutput_opened = true;
+    break;
+
    case OUTPUT_CLOSE:
     OutputProxy1::DestroyProxyWindow(op->voutput_hwnd);
     op->voutput_hwnd = NULLHANDLE;
+    op->voutput_opened = false;
+    break;
   }
   DEBUGLOG(("proxy_1_output_command: %d\n", r));
   return r;
@@ -272,7 +284,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* fo
 
   if (op->voutput_trash_buffer)
   { op->voutput_buffer_level = 0;
-    op->voutput_trash_buffer = FALSE;
+    op->voutput_trash_buffer = false;
   }
 
   if ( op->voutput_buffer_level != 0
@@ -283,7 +295,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* fo
   { if (op->voutput_always_hungry)
       (*op->voutput_event)(op->voutput_w, OUTEVENT_END_OF_DATA);
      else
-      op->voutput_flush_request = TRUE; // wait for WM_OUTPUT_OUTOFDATA
+      op->voutput_flush_request = true; // wait for WM_OUTPUT_OUTOFDATA
     return 0;
   }
 
@@ -323,7 +335,7 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
     return 0;
    case WM_OUTPUT_OUTOFDATA:
     if (op->voutput_flush_request) // don't care unless we have a flush_request condition
-    { op->voutput_flush_request = FALSE;
+    { op->voutput_flush_request = false;
       (*op->voutput_event)(op->A, OUTEVENT_END_OF_DATA);
     }
     return 0;
