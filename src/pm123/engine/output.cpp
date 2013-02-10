@@ -256,9 +256,10 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
     break;
 
    case OUTPUT_OPEN:
-    if (r && op->voutput_opened)
+    if (!r)
+      op->voutput_opened = true;
+    else if (op->voutput_opened)
       r = 0;
-    op->voutput_opened = true;
     break;
 
    case OUTPUT_CLOSE:
