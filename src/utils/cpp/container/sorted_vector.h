@@ -51,35 +51,39 @@ int ComparePtr(T*const& l, T*const& r)
 }
 
 /** Sorted variant of vector using the logical key type \a K.
+ * @tparam T Element type. Only pointers to \a T are stored in this container.
+ * @tparam K Key type. This might be the same than the element type T if the collection has the semantics of a set.
+ * In fact it is only the first argument to the comparer \a C.
+ * @tparam C Comparer. Compares a given key reference to an element reference and returns the result.
  */
 template <class T, class K, sort_comparer>
 class sorted_vector : public vector<T>
 {public:
-  // Create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// Create a new vector with a given initial capacity.
+  /// If capacity is 0 the vector is initially created empty
+  /// and allocated with the default capacity when the first item is inserted.
   sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
-  // Copy constructor.
+  /// Copy constructor, O(n).
   sorted_vector(const sorted_vector<T,K,C>& r, size_t spare = 0) : vector<T>(r, spare) {}
-  // Search for a given key.
-  // The function returns whether you got an exact match or not.
-  // The index of the first element >= key is always returned in the output parameter pos.
-  // Precondition: none, Performance: O(log(n))
+  /// @brief Search for a given key.
+  /// @return The function returns an index whether you got an exact match or not.
+  /// The index of the first element >= key is always returned in the output parameter pos.
+  /// @details Complexity: O(log(n))
   bool               binary_search(const K& key, size_t& pos) const
                      { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
-  // Find an element by it's key.
-  // The function will return NULL if no such element is in the container.
-  // Precondition: none, Performance: O(log(n))
+  /// @brief Find an element by it's key.
+  /// @return The function will return \c NULL if no such element is in the container.
+  /// @details Complexity: O(log(n))
   T*                 find(const K& key) const;
-  /// Ensure an element with a particular key.
-  /// This will either return a reference to a pointer to an existing object which equals to key
-  /// or a reference to a NULL pointer which is automatically created at the location in the container
-  /// where a new object with key should be inserted. So you can store the Pointer to this object after the function returned.
-  /// Precondition: none, Performance: O(log(n))
+  /// @brief Ensure an element with a particular key.
+  /// @return This will either return a reference to a pointer to an existing object which equals \a key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// @details Complexity: O(log(n))
   T*&                get(const K& key);
-  // Erase the element which equals key and return the removed pointer.
-  // If no such element exists the function returns NULL.
-  // Precondition: none, Performance: O(log(n))
+  /// Erase the element which equals key and return the removed pointer.
+  /// If no such element exists the function returns NULL.
+  /// @details Complexity: O(log(n))
   T*                 erase(const K& key);
   // IBM VAC++ can't parse using...
   T*                 erase(T*const*& where)         { return vector<T>::erase(where); }
