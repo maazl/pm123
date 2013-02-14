@@ -144,7 +144,7 @@ typedef struct _OUTPUT_PARAMS2
   PM123_TIME  PlayingPos;
 
   /** Filename, URL or track now being played, useful for disk output.
-   * Related commands: \c OUTPUT_SETUP and \c OUTPUT_OPEN */
+   * Related command \c OUTPUT_OPEN */
   xstring URL;
 
   /** Information on the object to play. */
