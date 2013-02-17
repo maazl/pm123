@@ -5,13 +5,14 @@ dnl Initialization and Versioning
 dnl ------------------------------------------------
 
 
-AC_INIT([libvorbis],[1.2.2],[vorbis-dev@xiph.org])
+AC_INIT([libvorbis],[1.3.3],[vorbis-dev@xiph.org])
 
 AC_CONFIG_SRCDIR([lib/mdct.c])
 
 AC_CANONICAL_TARGET([])
 
 AM_INIT_AUTOMAKE($PACKAGE_NAME,$PACKAGE_VERSION)
+AM_MAINTAINER_MODE
 AM_CONFIG_HEADER([config.h])
 
 dnl Add parameters for aclocal
@@ -24,14 +25,17 @@ dnl - interfaces added -> increment AGE
 dnl - interfaces removed -> AGE = 0
 
 V_LIB_CURRENT=4
-V_LIB_REVISION=1
+V_LIB_REVISION=6
 V_LIB_AGE=4
+
 VF_LIB_CURRENT=6
-VF_LIB_REVISION=0
+VF_LIB_REVISION=5
 VF_LIB_AGE=3
+
 VE_LIB_CURRENT=2
-VE_LIB_REVISION=4
+VE_LIB_REVISION=9
 VE_LIB_AGE=0
+
 AC_SUBST(V_LIB_CURRENT)
 AC_SUBST(V_LIB_REVISION)
 AC_SUBST(V_LIB_AGE)
@@ -59,26 +63,36 @@ AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
 
-dnl docbook xml transform and processing tools
-AC_ARG_ENABLE(docs,
-  [  --enable-docs           build the documentation],
-  [case "${enableval}" in
-    yes) build_docs=true;;
-    no)  build_docs=false;;
-    *)   AC_MSG_ERROR(unknown value ${enableval} for --enable-docs);;
-  esac],[build_docs=false])
+dnl Check for doxygen
+if test "x$enable_docs" = xyes; then
+  AC_CHECK_PROG(HAVE_DOXYGEN, doxygen, true, false)
+  if test $HAVE_DOXYGEN = "false"; then
+    AC_MSG_WARN([*** doxygen not found, API documentation will not be built])
+  fi
+else
+  HAVE_DOXYGEN=false
+fi
+AM_CONDITIONAL(HAVE_DOXYGEN,$HAVE_DOXYGEN)
 
-dnl ideally we'd look for other tools and support them
-if test x$build_docs = xtrue; then
-  AC_CHECK_PROGS([XSLTPROC], xsltproc, [/bin/false])
-  AC_CHECK_PROGS([PDFXMLTEX], pdfxmltex, [/bin/false])
-  if test "x$XSLTPROC" = "x/bin/false" || test "x$PDFXMLTEX" = "x/bin/false"; then
-    build_docs=false
+dnl latex tools for the specification document
+AC_ARG_ENABLE(docs,
+	AC_HELP_STRING([--enable-docs], [build the documentation]))
+
+if test "x$enable_docs" = xyes; then
+  AC_CHECK_PROGS([PDFLATEX], pdflatex, [/bin/false])
+  AC_CHECK_PROGS([HTLATEX], htlatex, [/bin/false])
+  if test "x$PDFLATEX" = x/bin/false || test "x$HTLATEX" = x/bin/false; then
+    enable_docs=no
     AC_MSG_WARN([Documentation will not be built!])
   fi
 fi
 
-AM_CONDITIONAL(BUILD_DOCS, [test x$build_docs = xtrue])
+AM_CONDITIONAL(BUILD_DOCS, [test "x$enable_docs" = xyes])
+
+AC_ARG_ENABLE(examples, 
+  AS_HELP_STRING([--enable-examples], [build the examples])) 
+ 	
+AM_CONDITIONAL(BUILD_EXAMPLES, [test "x$enable_examples" = xyes]) 
 
 dnl --------------------------------------------------
 dnl Set build flags based on environment
@@ -158,6 +172,10 @@ else
   		CFLAGS=${OPT}" -D__NO_MATH_INLINES"
   		PROFILE=${PROFILE}" -D__NO_MATH_INLINES"
   		fi;;
+        powerpc-*-linux*spe) 
+ 	        DEBUG="-g -Wall -Wextra -D_REENTRANT -D__NO_MATH_INLINES" 
+ 	        CFLAGS="-O3 -Wall -Wextra -ffast-math -mfused-madd -D_REENTRANT" 
+ 	        PROFILE="-pg -g -O3 -ffast-math -mfused-madd -D_REENTRANT";; 
 	powerpc-*-linux*)
 		DEBUG="-g -Wall -Wextra -D_REENTRANT -D__NO_MATH_INLINES"
 		CFLAGS="-O3 -Wall -Wextra -ffast-math -mfused-madd -mcpu=750 -D_REENTRANT"
@@ -167,9 +185,18 @@ else
 		CFLAGS="-O20 -Wall -Wextra -ffast-math -D_REENTRANT -fsigned-char"
 		PROFILE="-pg -g -O20 -ffast-math -D_REENTRANT -fsigned-char";;
 	sparc-sun-*)
-		DEBUG="-g -Wall -Wextra -D__NO_MATH_INLINES -fsigned-char -mv8"
-		CFLAGS="-O20 -Wall -Wextra -ffast-math -D__NO_MATH_INLINES -fsigned-char -mv8"
-		PROFILE="-pg -g -O20 -D__NO_MATH_INLINES -fsigned-char -mv8" ;;
+		sparc_cpu=""
+		AC_MSG_CHECKING([if gcc supports -mv8])
+		old_cflags="$CFLAGS"
+		CFLAGS="$CFLAGS -mv8"
+		AC_TRY_COMPILE(, [return 0;], [
+			AC_MSG_RESULT([yes])
+			sparc_cpu="-mv8"
+		])
+		CFLAGS="$old_cflags"
+		DEBUG="-g -Wall -Wextra -D__NO_MATH_INLINES -fsigned-char $sparc_cpu"
+		CFLAGS="-O20 -Wall -Wextra -ffast-math -D__NO_MATH_INLINES -fsigned-char $sparc_cpu"
+		PROFILE="-pg -g -O20 -D__NO_MATH_INLINES -fsigned-char $sparc_cpu" ;;
 	*-*-darwin*)
 		DEBUG="-DDARWIN -fno-common -force_cpusubtype_ALL -Wall -g -O0 -fsigned-char"
 		CFLAGS="-DDARWIN -fno-common -force_cpusubtype_ALL -Wall -g -O4 -ffast-math -fsigned-char"
@@ -208,8 +235,13 @@ dnl --------------------------------------------------
 AC_CHECK_LIB(m, cos, VORBIS_LIBS="-lm", VORBIS_LIBS="")
 AC_CHECK_LIB(pthread, pthread_create, pthread_lib="-lpthread", :)
 
+PKG_PROG_PKG_CONFIG
+
 HAVE_OGG=no
-PKG_CHECK_MODULES(OGG, ogg >= 1.0, HAVE_OGG=yes, HAVE_OGG=no)
+if test "x$PKG_CONFIG" != "x"
+then
+  PKG_CHECK_MODULES(OGG, ogg >= 1.0, HAVE_OGG=yes, HAVE_OGG=no)
+fi
 if test "x$HAVE_OGG" = "xno"
 then
   dnl fall back to the old school test
@@ -249,7 +281,8 @@ lib/books/Makefile
 lib/books/coupled/Makefile
 lib/books/uncoupled/Makefile
 lib/books/floor/Makefile
-doc/Makefile doc/vorbisfile/Makefile doc/vorbisenc/Makefile
+doc/Makefile doc/vorbisfile/Makefile doc/vorbisenc/Makefile doc/libvorbis/Makefile
+doc/Doxyfile
 include/Makefile include/vorbis/Makefile
 examples/Makefile
 test/Makefile

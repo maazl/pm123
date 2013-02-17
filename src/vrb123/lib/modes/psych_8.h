@@ -5,13 +5,13 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2009             *
  * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
- function: 8kHz psychoacoustic settings 
- last mod: $Id: psych_8.h 15531 2008-11-24 23:50:06Z xiphmont $
+ function: 8kHz psychoacoustic settings
+ last mod: $Id: psych_8.h 16227 2009-07-08 06:58:46Z xiphmont $
 
  ********************************************************************/
 
@@ -99,4 +99,3 @@ static const int _psy_ath_floater_8[3]={
 static const int _psy_ath_abs_8[3]={
   -130,-130,-140,
 };
-

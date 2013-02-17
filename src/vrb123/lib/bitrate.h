@@ -18,8 +18,8 @@
 #ifndef _V_BITRATE_H_
 #define _V_BITRATE_H_
 
-#include <vorbis/codec.h>
-//#include "codec_internal.h"
+#include "vorbis/codec.h"
+#include "codec_internal.h"
 #include "os.h"
 
 /* encode side bitrate tracking */

@@ -5,13 +5,13 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2009             *
  * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
  function: toplevel settings for 32kHz
- last mod: $Id: setup_32.h 15531 2008-11-24 23:50:06Z xiphmont $
+ last mod: $Id: setup_32.h 16894 2010-02-12 20:32:12Z xiphmont $
 
  ********************************************************************/
 
@@ -36,7 +36,7 @@ static const ve_setup_data_template ve_setup_32_stereo={
   2,
   26000,
   40000,
-  
+
   blocksize_short_44,
   blocksize_long_44,
 
@@ -54,7 +54,7 @@ static const ve_setup_data_template ve_setup_32_stereo={
   _psy_noisebias_trans,
   _psy_noisebias_long,
   _psy_noise_suppress,
-  
+
   _psy_compand_44,
   _psy_compand_short_mapping,
   _psy_compand_long_mapping,
@@ -65,7 +65,7 @@ static const ve_setup_data_template ve_setup_32_stereo={
 
   _psy_ath_floater,
   _psy_ath_abs,
-  
+
   _psy_lowpass_32,
 
   _psy_global_44,
@@ -74,8 +74,8 @@ static const ve_setup_data_template ve_setup_32_stereo={
 
   _floor_books,
   _floor,
-  _floor_short_mapping_44,
-  _floor_long_mapping_44,
+  2,
+  _floor_mapping_44,
 
   _mapres_template_44_stereo
 };
@@ -87,7 +87,7 @@ static const ve_setup_data_template ve_setup_32_uncoupled={
   -1,
   26000,
   40000,
-  
+
   blocksize_short_44,
   blocksize_long_44,
 
@@ -105,7 +105,7 @@ static const ve_setup_data_template ve_setup_32_uncoupled={
   _psy_noisebias_trans,
   _psy_noisebias_long,
   _psy_noise_suppress,
-  
+
   _psy_compand_44,
   _psy_compand_short_mapping,
   _psy_compand_long_mapping,
@@ -116,7 +116,7 @@ static const ve_setup_data_template ve_setup_32_uncoupled={
 
   _psy_ath_floater,
   _psy_ath_abs,
-  
+
   _psy_lowpass_32,
 
   _psy_global_44,
@@ -125,8 +125,8 @@ static const ve_setup_data_template ve_setup_32_uncoupled={
 
   _floor_books,
   _floor,
-  _floor_short_mapping_44,
-  _floor_long_mapping_44,
+  2,
+  _floor_mapping_44,
 
   _mapres_template_44_uncoupled
 };
