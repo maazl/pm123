@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2010 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,14 +49,14 @@
 
 
 /* Advances a buffer pointer. */
-inline char* XIOasyncbuffer::advance( char* begin, unsigned distance ) const
+inline char* XIOasyncbuffer::advance(char* begin, unsigned distance) const
 { begin += distance;
   if (begin >= tail)
     begin -= size;
   return begin;
 }
 /* Advances a buffer pointer. */
-inline char* XIOasyncbuffer::move( char* begin, int distance ) const
+inline char* XIOasyncbuffer::move(char* begin, int distance) const
 { begin += distance;
   if (begin >= tail)
     begin -= size;
@@ -67,20 +67,18 @@ inline char* XIOasyncbuffer::move( char* begin, int distance ) const
 
 /* Boosts a priority of the read-ahead thread. */
 void XIOasyncbuffer::boost_priority()
-{
-  if( !boosted ) {
-    DEBUGLOG(( "xio123:XIOasyncbuffer(%p)::boost_priority() - thread %d (buffer is %d bytes).\n", this, tid, data_rest ));
-    DosSetPriority( PRTYS_THREAD, PRTYC_FOREGROUNDSERVER, +19, tid );
+{ if (!boosted)
+  { DEBUGLOG(("xio123:XIOasyncbuffer(%p)::boost_priority() - thread %d (buffer is %d bytes).\n", this, tid, data_rest));
+    DosSetPriority(PRTYS_THREAD, PRTYC_FOREGROUNDSERVER, +19, tid);
     boosted = 1;
   }
 }
 
 /* Normalizes a priority of the read-ahead thread. */
 void XIOasyncbuffer::normal_priority()
-{
-  if( boosted ) {
-    DEBUGLOG(( "xio123:XIOasyncbuffer(%p)::normal_priority() - thread %d (buffer is %d bytes).\n", this, tid, data_rest ));
-    DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, -19, tid );
+{ if (boosted)
+  { DEBUGLOG(("xio123:XIOasyncbuffer(%p)::normal_priority() - thread %d (buffer is %d bytes).\n", this, tid, data_rest));
+    DosSetPriority(PRTYS_THREAD, PRTYC_REGULAR, -19, tid);
     boosted = 0;
   }
 }
@@ -88,16 +86,16 @@ void XIOasyncbuffer::normal_priority()
 /* Read-ahead thread. */
 void XIOasyncbuffer::read_ahead()
 {
-  while( evt_read_data.Wait() && !end )
+  while (evt_read_data.Wait() && !end)
   {
     Mutex::Lock lock(mtx_access);
 
     if (seekto != -1L)
     { // Seek command (implies trashing the buffer)
-      long do_seek_to = seekto;
+      int64_t do_seek_to = seekto;
 
       lock.Release();
-      long rc = chain->seek( do_seek_to, XIO_SEEK_SET );
+      int64_t rc = chain->seek(do_seek_to, XIO_SEEK_SET);
       DEBUGLOG(("XIOasyncbuffer::read_ahead: seek to %li -> %li\n", do_seek_to, rc));
       lock.Request();
       
@@ -135,7 +133,7 @@ void XIOasyncbuffer::read_ahead()
         if (seekto != -1L)
         { // Seek arrived meanwhile
           // Check whether the target is within the new buffer.
-          long file_pos = read_pos - (data_size - data_rest);
+          int64_t file_pos = read_pos - (data_size - data_rest);
           if (seekto >= file_pos && seekto <= file_pos + data_size)
           { // Buffer seek
             DEBUGLOG(("XIOasyncbuffer::read_ahead: seek buffer %li \n", seekto));
@@ -169,10 +167,8 @@ void XIOasyncbuffer::read_ahead()
 }
 
 /* Read-ahead thread stub. */
-void TFNENTRY
-buffer_read_ahead_stub( void* arg )
-{
-  ((XIOasyncbuffer*)arg)->read_ahead();
+void TFNENTRY buffer_read_ahead_stub(void* arg)
+{ ((XIOasyncbuffer*)arg)->read_ahead();
 }
 
 /* Allocates and initializes the buffer. */
@@ -216,15 +212,14 @@ bool XIOasyncbuffer::init()
     }
   }*/
 
-  if(( tid = _beginthread( buffer_read_ahead_stub, NULL, 65535, this )) == -1 ) {
+  if ((tid = _beginthread(buffer_read_ahead_stub, NULL, 65535, this)) == -1)
     return false;
-  }
 
-  if( data_size < size && !eof )
+  if (data_size < size && !eof)
     // If buffer is not filled up, posts a notify to the read-ahead thread.
     evt_read_data.Set();
 
-  if( data_size == 0 )
+  if (data_size == 0)
     // If buffer is empty, boosts of the priority of the read-ahead thread.
     boost_priority();
 
@@ -233,14 +228,13 @@ bool XIOasyncbuffer::init()
 
 /* Cleanups the buffer. */
 XIOasyncbuffer::~XIOasyncbuffer()
-{
-  // If the thread is started, set request about its termination.
-  if( tid != -1 ) {
-    { Mutex::Lock lock(mtx_access);
+{ // If the thread is started, set request about its termination.
+  if (tid != -1)
+  { { Mutex::Lock lock(mtx_access);
       end = true;
       evt_read_data.Set();
     }
-    DosWaitThread((PULONG)&tid, DCWW_WAIT );
+    DosWaitThread((PULONG)&tid, DCWW_WAIT);
     tid = -1;
   }
 }
@@ -248,7 +242,7 @@ XIOasyncbuffer::~XIOasyncbuffer()
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error. */
-int XIOasyncbuffer::read( void* result, unsigned int count )
+int XIOasyncbuffer::read(void* result, unsigned int count)
 {
   int read_done = 0;
   { Mutex::Lock lock(mtx_access);
@@ -321,17 +315,15 @@ int XIOasyncbuffer::read( void* result, unsigned int count )
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 int XIOasyncbuffer::close()
-{
-  // Stop Read-Ahead thread
-  if( tid != -1 ) {
-    { Mutex::Lock lock(mtx_access);
+{ // Stop Read-Ahead thread
+  if (tid != -1)
+  { { Mutex::Lock lock(mtx_access);
       end = true;
       evt_read_data.Set();
     }
-    DosWaitThread((PULONG)&tid, DCWW_WAIT );
+    DosWaitThread((PULONG)&tid, DCWW_WAIT);
     tid = -1;
   }
-
   return XIObuffer::close();
 }
 
@@ -339,14 +331,14 @@ int XIOasyncbuffer::close()
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOasyncbuffer::do_seek( long offset, long* offset64 )
+int64_t XIOasyncbuffer::do_seek(int64_t offset)
 {
   Mutex::Lock lock(mtx_access);
   // reset errors
   eof    = false;
   error  = 0;
 
-  long file_pos = read_pos - (data_size - data_rest);
+  int64_t file_pos = read_pos - (data_size - data_rest);
   DEBUGLOG(("XIOasyncbuffer::do_seek: %li, [%li, %li), %i\n", offset, file_pos, file_pos + data_size, data_rest));
   if (offset >= file_pos && offset <= file_pos + data_size)
   { int moveto = offset - file_pos;
@@ -386,9 +378,8 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
   return read_pos = offset;
 }
 
-long XIOasyncbuffer::getsize( long* offset64 )
-{ long ret = chain->getsize(offset64);
-  // TODO 64 bit
+int64_t XIOasyncbuffer::getsize()
+{ int64_t ret = chain->getsize();
   if (eof && ret > read_pos)
   { Mutex::Lock lock(mtx_access);
     if (eof && ret > read_pos)
@@ -403,13 +394,12 @@ long XIOasyncbuffer::getsize( long* offset64 )
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
    of the original file. */
-int XIOasyncbuffer::chsize( long size, long offset64 )
+int XIOasyncbuffer::chsize(int64_t size)
 {
   Mutex::Lock lock(mtx_access);
   
-  int rc = XIObuffer::chsize( size, offset64 );
-
-  if (rc != -1L)
+  int rc = XIObuffer::chsize(size);
+  if (rc != -1)
     // TODO: we should operate smarter here.
     // Trash buffer   
     seekto = read_pos;
@@ -417,8 +407,8 @@ int XIOasyncbuffer::chsize( long size, long offset64 )
   return rc;
 }
 
-void XIOasyncbuffer::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
+void XIOasyncbuffer::metacallback(XIO_META type, const char* metabuff, int64_t pos)
 { Mutex::Lock lock(mtx_access);
-  XIObuffer::metacallback(type, metabuff, pos, pos64);
+  XIObuffer::metacallback(type, metabuff, pos);
 };
 

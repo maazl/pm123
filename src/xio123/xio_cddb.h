@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,50 +60,53 @@
 #define CDDBBASEERR 23000
 #endif
 
-#define CDDB_OK             200 /* OK, read/write allowed.                       */
-#define CDDB_OK_READONLY    201 /* OK, read only.                                */
-#define CDDB_PROTO_OK       201 /* OK, protocol version now: cur_level.          */
-#define CDDB_NO_MATCH       202 /* No match found.                               */
-#define CDDB_FOUND_EXACT    210 /* Found exact matches, list follows.            */
-#define CDDB_FOUND_INEXACT  211 /* Found inexact matches, list follows.          */
-#define CDDB_SITES_OK       210 /* Ok, site information follows.                 */
-#define CDDB_SITES_ERROR    401 /* No site information available.                */
-#define CDDB_SHOOK_ALREADY  402 /* Already shook hands.                          */
-#define CDDB_CORRUPT        403 /* Database entry is corrupt.                    */
-#define CDDB_NO_HANDSHAKE   409 /* No handshake.                                 */
-#define CDDB_BAD_HANDSHAKE  431 /* Handshake not successful, closing connection. */
-#define CDDB_DENIED         432 /* No connections allowed: permission denied.    */
-#define CDDB_TOO_MANY_USERS 433 /* No connections allowed: too many users.       */
-#define CDDB_OVERLOAD       434 /* No connections allowed: system load too high. */
-#define CDDB_PROTO_ILLEGAL  501 /* Illegal protocol level.                       */
-#define CDDB_PROTO_ALREADY  502 /* Protocol level already cur_level.             */
-#define CDDB_PROTOCOL_ERROR 999
 
 class XIOcddb : public XIOreadonly
 {private:
-  XIOsocket     s_socket;   /* Connection.                                   */
-  unsigned long s_pos;      /* Current position of the stream pointer.       */
+  enum
+  { CDDB_OK             = 200 ///< OK, read/write allowed
+  , CDDB_OK_READONLY    = 201 ///< OK, read only
+  , CDDB_PROTO_OK       = 201 ///< OK, protocol version now: cur_level
+  , CDDB_NO_MATCH       = 202 ///< No match found
+  , CDDB_FOUND_EXACT    = 210 ///< Found exact matches, list follows
+  , CDDB_FOUND_INEXACT  = 211 ///< Found inexact matches, list follows
+  , CDDB_SITES_OK       = 210 ///< Ok, site information follows
+  , CDDB_SITES_ERROR    = 401 ///< No site information available
+  , CDDB_SHOOK_ALREADY  = 402 ///< Already shook hands
+  , CDDB_CORRUPT        = 403 ///< Database entry is corrupt
+  , CDDB_NO_HANDSHAKE   = 409 ///< No handshake
+  , CDDB_BAD_HANDSHAKE  = 431 ///< Handshake not successful, closing connection
+  , CDDB_DENIED         = 432 ///< No connections allowed: permission denied
+  , CDDB_TOO_MANY_USERS = 433 ///< No connections allowed: too many users
+  , CDDB_OVERLOAD       = 434 ///< No connections allowed: system load too high
+  , CDDB_PROTO_ILLEGAL  = 501 ///< Illegal protocol level
+  , CDDB_PROTO_ALREADY  = 502 ///< Protocol level already cur_level
+  , CDDB_PROTOCOL_ERROR = 999
+  };
+ private:
+  XIOsocket s_socket;   ///< Connection
+  unsigned  s_pos;      ///< Current position of the stream pointer
 
  private:
   int read_reply();
-  int send_command( const char* format, ... );
+  int send_command(const char* format, ...);
 
  public:
   /* Initializes the cddb protocol. */
   XIOcddb::XIOcddb();
   virtual ~XIOcddb();
-  virtual int open( const char* filename, XOFLAGS oflags );
-  virtual int read( void* result, unsigned int count );
+  virtual int open(const char* filename, XOFLAGS oflags);
+  virtual int read(void* result, unsigned int count);
   virtual int close();
-  virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
-  virtual long getsize( long* offset64 = NULL );
-  virtual int getstat( XSTAT* st );
+  virtual int64_t tell();
+  virtual int64_t seek(int64_t offset, XIO_SEEK origin);
+  virtual int64_t getsize();
+  virtual int getstat(XSTATL* st);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;
 
   /* Maps the error number in errnum to an error message string. */
-  static const char* strerror( int errnum );
+  static const char* strerror(int errnum);
 };
 
 #endif /* XIO_CDDB_H */

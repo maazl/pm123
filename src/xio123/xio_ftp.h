@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 #endif
 
 #define FTP_ANONYMOUS_USER  "anonymous"
-#define FTP_ANONYMOUS_PASS  "xio123@"
+#define FTP_ANONYMOUS_PASS  "xio123@dom.pm123"
 
 #define FTP_CONNECTION_ALREADY_OPEN 125
 #define FTP_OPEN_DATA_CONNECTION    150
@@ -78,29 +78,29 @@ class XIOftp : public XIOreadonly
   char          s_reply[512];
 
  private:
-  /* Get and parse a FTP server response. */
+  /// Get and parse a FTP server response.
   int read_reply();
-  /* Sends a command to a FTP server and checks response. */
-  int send_command( const char* command, const char* params );
-  /* Initiates the transfer of the file specified by filename. */
-  int transfer_file( const char* filename, unsigned long range );
+  /// Sends a command to a FTP server and checks response.
+  int send_command(const char* command, const char* params);
+  /// Initiates the transfer of the file specified by filename.
+  int transfer_file(const char* filename, int64_t range);
 
  public:
-  /* Initializes the ftp protocol. */
+  /// Initializes the ftp protocol.
   XIOftp();
   virtual ~XIOftp();
-  virtual int open( const char* filename, XOFLAGS oflags );
-  virtual int read( void* result, unsigned int count );
+  virtual int open(const char* filename, XOFLAGS oflags);
+  virtual int read(void* result, unsigned int count);
   virtual int close();
-  virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
-  virtual long getsize( long* offset64 = NULL );
-  virtual int getstat( XSTAT* st );
+  virtual int64_t tell();
+  virtual int64_t seek(int64_t offset, XIO_SEEK origin);
+  virtual int64_t getsize();
+  virtual int getstat(XSTATL* st);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;
 
-  /* Maps the error number in errnum to an error message string. */
-  static const char* strerror( int errnum );
+  /// Maps the error number in errnum to an error message string.
+  static const char* strerror(int errnum);
 };
 
 #endif /* XIO_FTP_H */

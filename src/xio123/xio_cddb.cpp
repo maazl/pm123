@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,39 +48,34 @@ int XIOcddb::read_reply()
 {
   char buffer[1024];
 
-  if( !s_socket.gets( buffer, sizeof( buffer ))) {
+  if (!s_socket.gets(buffer, sizeof(buffer)))
     return CDDB_PROTOCOL_ERROR;
-  }
 
-  if( !isdigit( buffer[0] ) || !isdigit( buffer[1] ) || !isdigit( buffer[2] )) {
+  if (!isdigit(buffer[0]) || !isdigit(buffer[1]) || !isdigit(buffer[2]))
     return CDDB_PROTOCOL_ERROR;
-  }
 
-  return ( buffer[0] - '0' ) * 100 +
-         ( buffer[1] - '0' ) * 10  +
-         ( buffer[2] - '0' );
+  return (buffer[0] - '0') * 100 +
+         (buffer[1] - '0') * 10  +
+         (buffer[2] - '0');
 }
 
 /* Sends a command to a CDDB server and checks response. */
-int XIOcddb::send_command( const char* format, ... )
+int XIOcddb::send_command(const char* format, ...)
 {
   char buffer[1024];
   va_list args;
 
-  va_start ( args, format );
-  vsnprintf( buffer, sizeof( buffer ), format, args );
+  va_start (args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
 
-  if( s_socket.write( buffer, strlen( buffer )) == -1 ) {
+  if (s_socket.write( buffer, strlen(buffer)) == -1 )
     return CDDB_PROTOCOL_ERROR;
-  }
 
   return read_reply();
 }
 
 /* Returns the specified part of the CDDB request. */
-static char*
-part_of_request( const char* request,
-                      const char* part, char* result, int size )
+static char* part_of_request(const char* request, const char* part, char* result, int size)
 {
   const char* p;
   int partsize  = strlen( part );
@@ -114,9 +109,9 @@ part_of_request( const char* request,
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-int XIOcddb::open( const char* filename, XOFLAGS oflags )
+int XIOcddb::open(const char* filename, XOFLAGS oflags)
 {
-  XURL* url = url_allocate( filename );
+  XURL* url = url_allocate(filename);
   int   rc  = CDDB_OK;
 
   char  buffer[2048];
@@ -195,7 +190,7 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-int XIOcddb::read( void* result, unsigned int count )
+int XIOcddb::read(void* result, unsigned int count)
 {
   int done = s_socket.read( result, count );
 
@@ -213,46 +208,33 @@ int XIOcddb::read( void* result, unsigned int count )
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 int XIOcddb::close()
-{
-  return s_socket.close();
+{ return s_socket.close();
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-long XIOcddb::tell( long* offset64 )
-{
-  long pos;
-
-  // For now this is atomic
-  pos = s_pos;
-  // TODO: 64 bit
-  if (offset64)
-    *offset64 = 0;
-  return pos;
+int64_t XIOcddb::tell()
+{ // For now this is atomic
+  return (int)s_pos;
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOcddb::seek( long offset, XIO_SEEK origin, long* offset64 )
-{
-  errno = EINVAL;
-  if (offset64)
-    *offset64 = -1;
+int64_t XIOcddb::seek(int64_t offset, XIO_SEEK origin)
+{ errno = EINVAL;
   return -1;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long XIOcddb::getsize( long* offset64 ) {
-  if (offset64)
-    *offset64 = -1;
-  return -1;
+int64_t XIOcddb::getsize()
+{ return -1;
 }
 
-int XIOcddb::getstat( XSTAT* st )
+int XIOcddb::getstat(XSTATL* st)
 { errno = EINVAL;
   return -1;
 }
@@ -268,8 +250,7 @@ XIO_PROTOCOL XIOcddb::protocol() const
 
 /* Cleanups the cddb protocol. */
 XIOcddb::~XIOcddb()
-{
-  close();
+{ close();
 }
 
 /* Initializes the cddb protocol. */
@@ -279,11 +260,10 @@ XIOcddb::XIOcddb()
 }
 
 /* Maps the error number in errnum to an error message string. */
-const char* XIOcddb::strerror( int errnum )
+const char* XIOcddb::strerror(int errnum)
 {
-  switch( errnum - CDDBBASEERR )
-  {
-    case CDDB_OK             : return "Command okay.";
+  switch(errnum - CDDBBASEERR)
+  { case CDDB_OK             : return "Command okay.";
     case CDDB_OK_READONLY    : return "Command okay.";
     case CDDB_NO_MATCH       : return "No match found.";
     case CDDB_FOUND_INEXACT  : return "Found inexact matches, list follows.";
@@ -298,7 +278,6 @@ const char* XIOcddb::strerror( int errnum )
     case CDDB_OVERLOAD       : return "No connections allowed: system load too high.";
     case CDDB_PROTO_ILLEGAL  : return "Illegal protocol level.";
     case CDDB_PROTO_ALREADY  : return "Already have protocol level.";
-
     default:
       return "Unexpected CDDB protocol error.";
   }

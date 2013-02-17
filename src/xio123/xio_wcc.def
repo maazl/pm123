@@ -47,3 +47,9 @@ EXPORT xio_feof                 .54
 EXPORT xio_ferror               .55
 EXPORT xio_clearerr             .56
 EXPORT xio_fstat                .57
+
+EXPORT xio_ftelll               .60
+EXPORT xio_fseekl               .61
+EXPORT xio_fsizel               .62
+EXPORT xio_ftruncatel           .63
+EXPORT xio_fstatl               .64

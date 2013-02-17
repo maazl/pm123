@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,13 @@
 
 #define  INCL_DOS
 #define  INCL_ERRORS
+#include "xio_http.h"
+#include "xio_url.h"
+#include "xio_socket.h"
+#include "xio.h"
+#include <cpp/xstring.h>
 #include <os2.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -39,10 +45,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "xio_http.h"
-#include "xio_url.h"
-#include "xio_socket.h"
-#include "xio.h"
 #include <utilfct.h>
 
 /* Get and parse HTTP reply. */
@@ -51,9 +53,8 @@ int XIOhttp::http_read_reply( )
   char* p;
   char  buffer[64];
 
-  if( !s_socket.gets( buffer, sizeof( buffer ))) {
+  if (!s_socket.gets( buffer, sizeof(buffer)))
     return HTTP_PROTOCOL_ERROR;
-  }
 
   // A valid status line looks like "HTTP/m.n xyz reason" where m
   // and n are the major and minor protocol version numbers and xyz
@@ -64,74 +65,62 @@ int XIOhttp::http_read_reply( )
   // on finding one, but if we do, insist on it being 1.0 or 1.1.
   // We don't care about the reason phrase.
 
-  if( strnicmp( buffer, "HTTP", 4 ) == 0 ) {
+  if (strnicmp(buffer, "HTTP", 4) == 0)
     p = buffer + 4;
-  } else if( strnicmp( buffer, "ICY", 3 ) == 0 ) {
+  else if(strnicmp(buffer, "ICY", 3) == 0)
     p = buffer + 3;
-  } else {
+  else
     return HTTP_PROTOCOL_ERROR;
-  }
 
-  if( *p == '/' ) {
-    if( p[1] != '1' || p[2] != '.' || ( p[3] != '0' && p[3] != '1' )) {
+  if (*p == '/')
+  { if (p[1] != '1' || p[2] != '.' || (p[3] != '0' && p[3] != '1'))
       return HTTP_PROTOCOL_ERROR;
-    }
     p += 4;
   }
-  if( *p != ' ' || !isdigit( p[1] ) || !isdigit( p[2] ) || !isdigit( p[3] )) {
+  if (*p != ' ' || !isdigit(p[1]) || !isdigit(p[2]) || !isdigit(p[3]))
     return HTTP_PROTOCOL_ERROR;
-  }
 
   DEBUGLOG(("XIOhttp::http_read_reply: RC = %.4s\n", p));
-
-  return ( p[1] - '0' ) * 100 +
-         ( p[2] - '0' ) * 10  +
-         ( p[3] - '0' );
+  return (p[1] - '0') * 100 +
+         (p[2] - '0') * 10  +
+         (p[3] - '0');
 }
 
 /* Appends basic authorization string of the specified type
    to the request. */
-char* XIOhttp::http_basic_auth_to( char* result, const char* typname,
-                                   const char* username,
-                                   const char* password, int size )
+void XIOhttp::http_basic_auth_to(xstringbuilder& result, const char* typname,
+  const char* username, const char* password)
 {
-  char  auth_string[ XIO_MAX_USERNAME + XIO_MAX_PASSWORD ];
+  char  auth_string[XIO_MAX_USERNAME + XIO_MAX_PASSWORD];
   char* auth_encode;
 
-  if( username ) {
-    strlcpy( auth_string, username, sizeof( auth_string ));
+  if (username)
+    strlcpy(auth_string, username, sizeof(auth_string));
+
+  strlcat(auth_string, ":", sizeof(auth_string));
+
+  if (password)
+    strlcat(auth_string, password, sizeof(auth_string));
+
+  auth_encode = base64_encode(auth_string);
+
+  if (auth_encode)
+  { result.append(typname);
+    result.append(": Basic ");
+    result.append(auth_encode);
+    result.append("\r\n");
+    free(auth_encode);
   }
-
-  strlcat( auth_string, ":", sizeof( auth_string ));
-
-  if( password ) {
-    strlcat( auth_string, password, sizeof( auth_string ));
-  }
-
-  auth_encode = base64_encode( auth_string );
-
-  if( auth_encode ) {
-    strlcat( result, typname, size );
-    strlcat( result, ": Basic ", size );
-    strlcat( result, auth_encode, size );
-    strlcat( result, "\r\n", size );
-    free( auth_encode );
-  }
-
-  return result;
 }
 
 /* Skips leading spaces. */
-static char*
-skip_space( char* p )
-{
-  while( *p && isspace(*p)) {
+static char* skip_space(const char* p)
+{ while (*p && isspace(*p))
     ++p;
-  }
-  return p;
+  return (char*)p;
 }
 
-static time_t parse_datetime( const char* cp )
+static time_t parse_datetime(const char* cp)
 { size_t len;
   char buffer[32];
   // Skip weekday
@@ -150,158 +139,142 @@ static time_t parse_datetime( const char* cp )
 
 /* Opens the file specified by filename for reading. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-int XIOhttp::read_file( const char* filename, unsigned long range )
+int XIOhttp::read_file(const char* filename, int64_t range)
 {
-  int    reqsize = 16384;
-  char*  request = (char*)malloc( reqsize  );
+  xstringbuilder request(1024);
+
   int    rc;
   char*  get;
   int    redirect;
-  char   string[64];
 
-  XURL*  url = url_allocate( filename );
+  XURL*  url = url_allocate(filename);
 
-  char   proxy_user[ XIO_MAX_USERNAME ];
-  char   proxy_pass[ XIO_MAX_PASSWORD ];
+  char   proxy_user[XIO_MAX_USERNAME];
+  char   proxy_pass[XIO_MAX_PASSWORD];
   int    proxy_port = xio_http_proxy_port();
   u_long proxy_addr = xio_http_proxy_addr();
 
-  xio_http_proxy_user( proxy_user, sizeof( proxy_user ));
-  xio_http_proxy_pass( proxy_pass, sizeof( proxy_pass ));
+  xio_http_proxy_user(proxy_user, sizeof(proxy_user));
+  xio_http_proxy_pass(proxy_pass, sizeof(proxy_pass));
 
-  if( !request || !url || proxy_addr == (u_long)-1 ) {
-    free( request );
-    url_free( url );
+  if (!url || proxy_addr == (u_long)-1)
+  { url_free(url);
     errno = error = HTTP_PROTOCOL_ERROR;
     return -1;
   }
 
-  for( redirect = 0; redirect < HTTP_MAX_REDIRECT; redirect++ )
+  for (redirect = 0; redirect < HTTP_MAX_REDIRECT; redirect++)
   {
-    unsigned long r_size     = (unsigned long)-1;
-    time_t        r_mtime    = -1;
-    int           r_metaint  = 0;
-    XSFLAGS       r_supports = support & ~XS_CAN_SEEK;
-    unsigned long r_pos      = 0;
+    int64_t r_size     = (unsigned long)-1;
+    time_t  r_mtime    = -1;
+    int     r_metaint  = 0;
+    XSFLAGS r_supports = support & ~XS_CAN_SEEK;
+    int64_t r_pos      = 0;
 
-    char  r_genre[ sizeof( s_genre )] = "";
-    char  r_name [ sizeof( s_name  )] = "";
-    char  r_title[ sizeof( s_title )] = "";
-    char  r_type [ sizeof( s_type  )] = "";
+    char  r_genre[sizeof(s_genre)] = "";
+    char  r_name [sizeof(s_name )] = "";
+    char  r_title[sizeof(s_title)] = "";
+    char  r_type [sizeof(s_type )] = "";
 
-    if( !proxy_addr ) {
-      get = url_string( url, XURL_STR_ENCODE | XURL_STR_REQUEST );
-    } else {
-      if( stricmp( url->scheme, "ftp" ) == 0 ) {
-        get = url_string( url, XURL_STR_ENCODE | XURL_STR_FULLAUTH );
-      } else {
-        get = url_string( url, XURL_STR_ENCODE | XURL_STR_FULL );
-      }
-    }
-
+    if (!proxy_addr)
+      get = url_string(url, XURL_STR_ENCODE | XURL_STR_REQUEST);
+    else if (stricmp(url->scheme, "ftp") == 0)
+      get = url_string(url, XURL_STR_ENCODE | XURL_STR_FULLAUTH);
+    else
+      get = url_string(url, XURL_STR_ENCODE | XURL_STR_FULL);
     DEBUGLOG2(("XIOhttp::read_file: GET %s\n", get));
-
-    if( !get ) {
-      rc = HTTP_PROTOCOL_ERROR;
+    if (!get)
+    { rc = HTTP_PROTOCOL_ERROR;
       break;
     }
 
-    strlcpy( request, "GET ", reqsize );
-    strlcat( request, get, reqsize );
-    strlcat( request, " HTTP/1.0\r\nUser-Agent: XIO123/1.0 (OS/2)\r\n", reqsize );
-    strlcat( request, "Accept: audio/mpeg, audio/x-mpegurl, */*\r\n", reqsize );
-    free( get );
+    request.append("GET ");
+    request.append(get);
+    request.append(" HTTP/1.0\r\n"
+      "User-Agent: XIO123/1.0 (OS/2)\r\n"
+      "Accept: audio/mpeg, audio/x-mpegurl, */*\r\n");
+    free(get);
 
-    if( url->host ) {
-      strlcat( request, "Host: ", reqsize );
-      strlcat( request, url->host, reqsize );
-      strlcat( request, "\r\n", reqsize );
+    if (url->host)
+    { request.append("Host: ");
+      request.append(url->host);
+      request.append("\r\n");
     }
 
-    if( proxy_addr && ( *proxy_user || *proxy_pass )) {
-      http_basic_auth_to( request, "Proxy-Authorization", proxy_user, proxy_pass, reqsize );
-    }
-    if( url->username || url->password ) {
-      http_basic_auth_to( request, "Authorization", url->username, url->password, reqsize );
-    }
+    if (proxy_addr && (*proxy_user || *proxy_pass))
+      http_basic_auth_to(request, "Proxy-Authorization", proxy_user, proxy_pass);
+    if (url->username || url->password)
+      http_basic_auth_to(request, "Authorization", url->username, url->password);
 
-    if( support & XS_CAN_SEEK ) {
-      strlcat( request, "Range: bytes=", reqsize );
-      strlcat( request, ltoa( range, string, 10 ), reqsize );
-      strlcat( request, "-\r\n", reqsize );
-    }
+    if (support & XS_CAN_SEEK)
+      request.appendf("Range: bytes=%lli-\r\n", range);
 
-    strlcat( request, "Icy-MetaData: 1\r\n", reqsize );
-    strlcat( request, "\r\n", reqsize );
+    request.append("Icy-MetaData: 1\r\n"
+                   "\r\n");
 
-    if( proxy_addr ) {
-      rc = s_socket.open( proxy_addr, proxy_port );
-    } else {
-      rc = s_socket.open( XIOsocket::get_address( url->host ), url->port ? url->port : 80 );
-    }
+    if (proxy_addr)
+      rc = s_socket.open(proxy_addr, proxy_port);
+    else
+      rc = s_socket.open(XIOsocket::get_address(url->host), url->port ? url->port : 80);
 
-    if( rc == -1 ) {
-      rc = HTTP_PROTOCOL_ERROR;
+    if (rc == -1)
+    { rc = HTTP_PROTOCOL_ERROR;
       break;
     }
 
-    DEBUGLOG(("XIOhttp::read_file: request %s\n", request));
-    if( s_socket.write( request, strlen( request )) == -1 ) {
-      rc = HTTP_PROTOCOL_ERROR;
+    DEBUGLOG(("XIOhttp::read_file: request %s\n", request.cdata()));
+    if (s_socket.write(request.cdata(), request.length()) == -1)
+    { rc = HTTP_PROTOCOL_ERROR;
       break;
     }
 
-    rc = http_read_reply( );
+    rc = http_read_reply();
 
-    while( s_socket.gets( request, reqsize ) && *request ) {
-      if( strnicmp( request, "Location:", 9 ) == 0 ) {
-        // Have new resource location.
-        if( rc == HTTP_MOVED_PERM ||
-            rc == HTTP_MOVED_TEMP ||
-            rc == HTTP_SEE_OTHER   )
-        {
-          url_free( url );
-          if(!( url = url_allocate( skip_space( request + 9 )))) {
+    while (s_socket.gets(request.cdata(), request.capacity()) && *request)
+    { if (strnicmp( request, "Location:", 9 ) == 0)
+      { // Have new resource location.
+        if ( rc == HTTP_MOVED_PERM ||
+             rc == HTTP_MOVED_TEMP ||
+             rc == HTTP_SEE_OTHER )
+        { url_free(url);
+          if (!(url = url_allocate(skip_space(request + 9))))
             rc = HTTP_PROTOCOL_ERROR;
-          }
         }
-      } else if( strnicmp( request, "Content-Length:", 15 ) == 0 ) {
-        // Content-Length is used only if we don't have Content-Range.
-        if( r_size < 0 )
-          r_size = atol( skip_space( request + 15 ));
-      } else if( strnicmp( request, "Accept-Ranges: bytes", 20 ) == 0 ) {
+      } else if (strnicmp(request, "Content-Length:", 15) == 0)
+      { // Content-Length is used only if we don't have Content-Range.
+        if (r_size < 0)
+          r_size = atoll(skip_space(request + 15));
+      } else if (strnicmp( request, "Accept-Ranges: bytes", 20) == 0)
+      { r_supports |= XS_CAN_SEEK;
+      } else if (strnicmp( request, "Content-Range: bytes", 20) == 0)
+      { char* p = skip_space(request + 20);
+        r_pos   = strtoull(p, &p, 10); ++p;
+        r_size  = strtoull(p, &p, 10); ++p;
+        r_size  = strtoull(p, &p, 10);
         r_supports |= XS_CAN_SEEK;
-      } else if( strnicmp( request, "Content-Range: bytes", 20 ) == 0 ) {
-        char* p = skip_space( request + 20 );
-        r_pos   = strtoul( p, &p, 10 ); ++p;
-        r_size  = strtoul( p, &p, 10 ); ++p;
-        r_size  = strtoul( p, &p, 10 );
-        r_supports |= XS_CAN_SEEK;
-      } else if( strnicmp( request, "Content-Type:", 13 ) == 0 ) {
-        strlcpy( r_type, skip_space( request + 13 ), sizeof( s_type ));
-      } else if( strnicmp( request, "Last-Modified:", 14 ) == 0 ) {
-        r_mtime = parse_datetime( request + 14 );
-      } else if( strnicmp( request, "icy-metaint:", 12 ) == 0 ) {
-        r_metaint = atol( skip_space( request + 12 ));
-      } else if( strnicmp( request, "x-audiocast-name:", 17 ) == 0 ) {
-        strlcpy( r_name, skip_space( request + 17 ), sizeof( s_name ));
-      } else if( strnicmp( request, "x-audiocast-genre:", 18 ) == 0 ) {
-        strlcpy( r_genre, skip_space( request + 18 ), sizeof( s_genre ));
-      } else if( strnicmp( request, "icy-name:", 9 ) == 0 ) {
-        strlcpy( r_name, skip_space( request + 9 ), sizeof( s_name ));
-      } else if( strnicmp( request, "icy-genre:", 10 ) == 0 ) {
-        strlcpy( r_genre, skip_space( request + 10 ), sizeof( s_genre ));
+      } else if (strnicmp(request, "Content-Type:", 13) == 0)
+      { strlcpy(r_type, skip_space(request + 13), sizeof(r_type));
+      } else if (strnicmp(request, "Last-Modified:", 14) == 0)
+      { r_mtime = parse_datetime(request + 14 );
+      } else if (strnicmp(request, "icy-metaint:", 12) == 0)
+      { r_metaint = atol( skip_space(request + 12));
+      } else if (strnicmp(request, "x-audiocast-name:", 17) == 0)
+      { strlcpy(r_name, skip_space(request + 17), sizeof(s_name));
+      } else if (strnicmp(request, "x-audiocast-genre:", 18) == 0)
+      { strlcpy(r_genre, skip_space(request + 18), sizeof(s_genre));
+      } else if (strnicmp(request, "icy-name:", 9) == 0)
+      { strlcpy(r_name, skip_space(request + 9), sizeof(s_name));
+      } else if (strnicmp(request, "icy-genre:", 10) == 0)
+      { strlcpy(r_genre, skip_space(request + 10), sizeof(s_genre));
       }
     }
 
-    if( rc == HTTP_MOVED_PERM ||
+    if (rc == HTTP_MOVED_PERM ||
         rc == HTTP_MOVED_TEMP ||
         rc == HTTP_SEE_OTHER  )
-    {
       continue; // Redirect
-    }
 
-    if( rc == HTTP_OK     ||
+    if (rc == HTTP_OK     ||
         rc == HTTP_PARTIAL )
     {
       if (r_metaint)
@@ -309,10 +282,9 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
 
       Mutex::Lock lock(mtx_access);
 
-      free( s_location );
-      if(!( s_location = url_string( url, XURL_STR_FULLAUTH | XURL_STR_ENCODE ))) {
+      free(s_location);
+      if(!(s_location = url_string(url, XURL_STR_FULLAUTH | XURL_STR_ENCODE)))
         rc = HTTP_PROTOCOL_ERROR;
-      }
 
       support   = r_supports;
       s_pos     = r_pos;
@@ -332,8 +304,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
     break;
   }
 
-  url_free( url );
-  free( request );
+  url_free(url);
 
   if( rc == HTTP_OK     ||
       rc == HTTP_PARTIAL )
@@ -358,15 +329,15 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-int XIOhttp::open( const char* filename, XOFLAGS oflags ) {
-  return read_file( filename, 0 );
+int XIOhttp::open(const char* filename, XOFLAGS oflags)
+{ return read_file(filename, 0);
 }
 
 /* Reads specified chunk of the data and notifies an attached
    observer about streaming metadata. Returns the number of
    bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error. */
-int XIOhttp::read_and_notify( void* result, unsigned int count )
+int XIOhttp::read_and_notify(void* result, unsigned int count)
 {
   int read_size;
   unsigned int read_done;
@@ -380,7 +351,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
   DEBUGLOG2(("XIOhttp::read_and_notify(%p, %u) - %i, %i\n", result, count, s_metaint, s_metapos));
 
   if( !s_metaint ) {
-    done = s_socket.read( result, count );
+    done = s_socket.read(result, count);
     if (done == -1)
       errno = error = s_socket.error;
     else if( done == 0 )
@@ -390,12 +361,13 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
 
   read_done = 0;
 
-  while( read_done < count ) {
+  while(read_done < count)
+  {
     if( s_metapos == 0 )
     {
       // Time to read metadata from a input stream.
       metahead = 0;
-      done = s_socket.read( &metahead, 1 );
+      done = s_socket.read(&metahead, 1);
 
       if( done > 0 ) {
         if( metahead ) {
@@ -425,9 +397,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
             titlepos += 13;
             for( i = 0; i < sizeof( s_title ) - 1 && *titlepos
                         && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-            {
               s_title[i] = *titlepos++;
-            }
 
             s_title[i] = 0;
           }
@@ -435,10 +405,8 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
           s_pos -= ( metasize + 1 );
 
           DEBUGLOG(("XIOhttp::read_and_notify: Callback! 2, %s, %li, 0, %p\n", metabuff, s_pos, observer));
-          if( observer )
-          {
-            observer->metacallback( XIO_META_TITLE, metabuff, s_pos, 0 );
-          }
+          if (observer)
+            observer->metacallback(XIO_META_TITLE, metabuff, s_pos);
           free(metabuff);
         }
         s_metapos = s_metaint;
@@ -447,14 +415,14 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
 
     // Determines the maximum size of the data chunk for reading.
     read_size = count - read_done;
-    read_size = min( read_size, s_metapos );
+    read_size = min(read_size, s_metapos);
 
-    done = s_socket.read( (char*)result + read_done, read_size );
+    done = s_socket.read((char*)result + read_done, read_size);
     if (done == -1)
     { errno = error = s_socket.error;
       return -1;
-    } else if( done == 0 ) {
-      eof = true;
+    } else if( done == 0 )
+    { eof = true;
       break;
     }
 
@@ -467,11 +435,11 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-int XIOhttp::read( void* result, unsigned int count )
+int XIOhttp::read(void* result, unsigned int count)
 {
-  int done = read_and_notify( result, count );
+  int done = read_and_notify(result, count);
 
-  if( done > 0 )
+  if (done > 0)
     InterlockedAdd(&(volatile unsigned&)s_pos, done);
 
   return done;
@@ -481,8 +449,8 @@ int XIOhttp::read( void* result, unsigned int count )
    return value of -1 shows an error. */
 int XIOhttp::close()
 {
-  s_pos     = (unsigned long)-1;
-  s_size    = (unsigned long)-1;
+  s_pos     = -1;
+  s_size    = -1;
   s_mtime   = -1;
   return s_socket.close();
 }
@@ -490,66 +458,54 @@ int XIOhttp::close()
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-long XIOhttp::tell( long* offset64 )
-{
-  long pos;
-
-  // For now this is atomic
+int64_t XIOhttp::tell()
+{ // For now this is atomic
   // DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  pos = s_pos;
+  return s_pos;
   // DosReleaseMutexSem( x->protocol->mtx_access );
-  // TODO: 64 bit
-  if (offset64)
-    *offset64 = 0;
-  return pos;
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOhttp::seek( long offset, XIO_SEEK origin, long* offset64 )
+int64_t XIOhttp::seek(int64_t offset, XIO_SEEK origin)
 {
-  if(!( support & XS_CAN_SEEK ) || s_metaint ) {
-    errno = error = EINVAL;
-  } else {
-    unsigned long range;
+  if(!(support & XS_CAN_SEEK) || s_metaint)
+  { errno = error = EINVAL;
+    return -1;
+  }
+  int64_t range;
 
-    switch( origin ) {
-      case XIO_SEEK_SET:
-        range = offset;
+  switch (origin)
+  { case XIO_SEEK_SET:
+      range = offset;
+      break;
+    case XIO_SEEK_CUR:
+      range = s_pos  + offset;
+      break;
+    case XIO_SEEK_END:
+      if (s_size >= 0)
+      { range = s_size + offset;
         break;
-      case XIO_SEEK_CUR:
-        range = s_pos  + offset;
-        break;
-      case XIO_SEEK_END:
-        if (s_size >= 0)
-        { range = s_size + offset;
-          break;
-        }
-      default:
-        errno = EINVAL;
-        return -1;
-    }
-
-    if( (s_size < 0 || range <= s_size) && s_location )
-    {
-      s_socket.close();
-      // TODO: 64 bit
-      if (offset64)
-        *offset64 = 0;
-      errno = error = 0;
-      eof   = false;
-
-      if( range == s_size ) {
-        s_pos = range;
-        error = 0;
-        eof = true;
-        return s_pos;
-      } else if( read_file( s_location, range ) == 0 ) {
-        return s_pos;
       }
-    }
+    default:
+      errno = EINVAL;
+      return -1;
+  }
+
+  if ((s_size < 0 || range <= s_size) && s_location)
+  { s_socket.close();
+    errno = error = 0;
+    eof   = false;
+
+    if (range == s_size)
+    { s_pos = range;
+      error = 0;
+      eof = true;
+      return s_pos;
+    } else if (read_file(s_location, range) == 0)
+      return s_pos;
   }
   error = errno;
   return -1;
@@ -557,34 +513,26 @@ long XIOhttp::seek( long offset, XIO_SEEK origin, long* offset64 )
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long XIOhttp::getsize( long* offset64 )
-{
-  long size;
-
-  // For now this is atomic
+int64_t XIOhttp::getsize()
+{ // For now this is atomic
   // DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  size = s_size;
+  return s_size;
   // DosReleaseMutexSem( x->protocol->mtx_access );
-  // TODO: 64 bit
-  if (offset64)
-    *offset64 = 0;
-  return size;
 }
 
-int XIOhttp::getstat( XSTAT* st )
+int XIOhttp::getstat( XSTATL* st )
 { // TODO: support file meta infos, modification time
   st->size = s_size;
   st->atime = -1;
   st->mtime = s_mtime;
   st->ctime = -1;
   st->attr = S_IAREAD; // The http client is always read only
-  strlcpy(st->type, s_type, sizeof(st->type));
+  strlcpy(st->type, s_type, sizeof st->type);
   return 0;
 }
 
-char* XIOhttp::get_metainfo( XIO_META type, char* result, int size )
-{
-  Mutex::Lock lock(mtx_access);
+char* XIOhttp::get_metainfo(XIO_META type, char* result, int size)
+{ Mutex::Lock lock(mtx_access);
   switch( type ) {
     case XIO_META_GENRE : strlcpy( result, s_genre, size ); break;
     case XIO_META_NAME  : strlcpy( result, s_name , size ); break;
@@ -611,15 +559,14 @@ XIO_PROTOCOL XIOhttp::protocol() const
 
 /* Cleanups the http protocol. */
 XIOhttp::~XIOhttp()
-{
-  free( s_location );
+{ free(s_location);
 }
 
 /* Initializes the http protocol. */
 XIOhttp::XIOhttp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
-  s_pos((unsigned long)-1),
-  s_size((unsigned long)-1),
+  s_pos(-1),
+  s_size(-1),
   s_mtime(-1),
   s_metaint(0),
   s_metapos(0),
@@ -664,14 +611,13 @@ const char* XIOhttp::strerror( int errnum )
   }
 }
 
+static const char base64[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
 /* Base64 encoding. */
-char* XIOhttp::base64_encode( const char* src )
+char* XIOhttp::base64_encode(const char* src)
 {
-  static const char base64[] =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      "abcdefghijklmnopqrstuvwxyz"
-      "0123456789+/";
-
   char*  str;
   char*  dst;
   size_t l;

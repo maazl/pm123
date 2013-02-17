@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ XIObuffer::~XIObuffer()
 }
 
 /* open must be called BEFORE the buffer is set up, so any call to XIObuffer::open is an error! */
-int XIObuffer::open( const char* filename, XOFLAGS oflags )
+int XIObuffer::open(const char* filename, XOFLAGS oflags)
 {
   DEBUGLOG(("xio:XIObuffer::open - invalid call!!!\n"));
   errno = error = EINVAL;
@@ -98,27 +98,22 @@ int XIObuffer::close()
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-long XIObuffer::tell( long* offset64 )
-{
-  // TODO: 64 bit
-  if (offset64)
-    *offset64 = 0;
-  return read_pos;
+int64_t XIObuffer::tell()
+{ return read_pos;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long XIObuffer::getsize( long* offset64 )
+int64_t XIObuffer::getsize()
 {
-  long ret = chain->getsize(offset64);
-  // TODO 64 bit
+  int64_t ret = chain->getsize();
   if (ret > read_pos && eof)
   { eof = false;
   }
   return ret;
 }
 
-int XIObuffer::getstat( XSTAT* st )
+int XIObuffer::getstat(XSTATL* st)
 { return chain->getstat(st);
 }
 
@@ -126,13 +121,11 @@ int XIObuffer::getstat( XSTAT* st )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIObuffer::seek( long offset, XIO_SEEK origin, long* offset64 )
+int64_t XIObuffer::seek(int64_t offset, XIO_SEEK origin)
 {
-  long result;
-
-  // TODO: 64 bit!!!
-  switch( origin ) {
-    case XIO_SEEK_SET:
+  int64_t result;
+  switch (origin)
+  { case XIO_SEEK_SET:
       result = offset;
       break;
     case XIO_SEEK_CUR:
@@ -148,8 +141,7 @@ long XIObuffer::seek( long offset, XIO_SEEK origin, long* offset64 )
       errno = EINVAL;
       return -1;
   }
-
-  return do_seek( result, offset64 );
+  return do_seek(result);
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
@@ -159,16 +151,15 @@ long XIObuffer::seek( long offset, XIO_SEEK origin, long* offset64 )
    of the original file. Returns the value 0 if it successfully
    changes the file size. A return value of -1 shows an error.
    Precondition: XO_WRITE */
-int XIObuffer::chsize( long size, long size64 )
-{
-  return chain->chsize( size, size64 );
+int XIObuffer::chsize(int64_t size)
+{ return chain->chsize(size);
 }
 
-char* XIObuffer::get_metainfo( XIO_META type, char* result, int size )
-{ if ( type == XIO_META_TITLE && *s_title )
+char* XIObuffer::get_metainfo(XIO_META type, char* result, int size)
+{ if (type == XIO_META_TITLE && *s_title)
   { CritSect cs;
     if (s_title)
-      strlcpy( result, s_title, size );
+      strlcpy(result, s_title, size);
     else
       *result = 0;
     return result;
@@ -207,8 +198,8 @@ void XIObuffer::obs_execute()
     s_obs_head = entry->link;
     if (observer)
     { // set new title
-      if( entry->metabuff ) {
-        // TODO: Well, it should be up to xio_http to decode Streaming metadata.
+      if (entry->metabuff)
+      { // TODO: Well, it should be up to xio_http to decode Streaming metadata.
         const char* titlepos = strstr( entry->metabuff, "StreamTitle='" );
         if ( titlepos )
         { titlepos += 13;
@@ -220,15 +211,15 @@ void XIObuffer::obs_execute()
         }
       }
       // execute the observer
-      observer->metacallback(entry->type, entry->metabuff, entry->pos, entry->pos64);
+      observer->metacallback(entry->type, entry->metabuff, entry->pos);
     }
     delete entry;
   }
   s_obs_tail = NULL;
 }
 
-void XIObuffer::metacallback(XIO_META type, const char* metabuff, long pos, long pos64)
-{ obs_entry* entry = new obs_entry(type, metabuff, pos, pos64);
+void XIObuffer::metacallback(XIO_META type, const char* metabuff, int64_t pos)
+{ obs_entry* entry = new obs_entry(type, metabuff, pos);
   if (s_obs_tail)
     s_obs_tail->link = entry;
   else
@@ -243,7 +234,7 @@ void XIObuffer::metacallback(XIO_META type, const char* metabuff, long pos, long
 void XIObuffer::obs_dump() const
 { const obs_entry* op = s_obs_head;
   while (op)
-  { DEBUGLOG(("XIObuffer(%p)::obs_dump %08lx %08lx %s\n", this, op->pos64, op->pos, op->metabuff));
+  { DEBUGLOG(("XIObuffer(%p)::obs_dump %lli %s\n", this, op->pos, op->metabuff));
     op = op->link;
   }
 }

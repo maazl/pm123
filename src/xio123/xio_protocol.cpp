@@ -92,28 +92,23 @@ XPROTOCOL::XPROTOCOL()
 /* Reads up to n-1 characters from the stream or stop at the first
    new line. CR characters (\r) are discarded.
    Precondition: n > 1 && !error && !eof && XO_READ */
-char* XPROTOCOL::gets( char* string, unsigned int n )
+char* XPROTOCOL::gets(char* string, unsigned int n)
 {
   char* string_bak = string;
 
-  while( n > 1 && !eof ) { // save space for \0
-    int len;
-    if(( len = read( string, 1 )) == 1 ) {
-      if( *string == '\r' ) {
+  while (n > 1 && !eof) // save space for \0
+  { int len;
+    if ((len = read(string, 1)) == 1)
+    { if (*string == '\r')
         continue;
-      } else if( *string == '\n' ) {
-        ++string;
-        --n;
+      --n;
+      if (*string++ == '\n')
         break;
-      } else {
-        ++string;
-        --n;
-      }
-    } else if( len == 0 ) {
-      eof   = 1;
+    } else if (len == 0)
+    { eof = true;
       break;
-    } else {
-      error = errno;
+    } else
+    { error = errno;
       break;
     }
   }
@@ -126,7 +121,7 @@ char* XPROTOCOL::gets( char* string, unsigned int n )
    Returns -1 if an error occurs; otherwise, it returns a non-negative
    value.
    Precondition: !error && XO_WRITE */
-int XPROTOCOL::puts( const char* string )
+int XPROTOCOL::puts(const char* string)
 { int rc = 0;
   while (*string) {
     // Find next \n.
@@ -142,8 +137,8 @@ int XPROTOCOL::puts( const char* string )
     }
     // write leading part before \n and \r\n
     int len = cp - string;
-    if ( write( string, len ) != len
-      || write( "\r\n", 2 ) != 2 )
+    if ( write(string, len) != len
+      || write("\r\n", 2) != 2 )
     { rc = -1;
       break;
     }
@@ -154,26 +149,25 @@ int XPROTOCOL::puts( const char* string )
   return rc;
 }
 
-char* XPROTOCOL::get_metainfo( XIO_META type, char* result, int size )
+char* XPROTOCOL::get_metainfo(XIO_META type, char* result, int size)
 { *result = 0;
   return result;
 }
 
-XPROTOCOL::Iobserver* XPROTOCOL::set_observer( Iobserver* obs )
+XPROTOCOL::Iobserver* XPROTOCOL::set_observer(Iobserver* obs)
 { Iobserver* ret = observer;
   observer = obs;
   return ret;
 }
 
-int XIOreadonly::write( const void* source, unsigned int count )
-{
-  errno = EACCES;
+
+int XIOreadonly::write(const void* source, unsigned int count)
+{ errno = EACCES;
   return -1;
 }
 
-int XIOreadonly::chsize( long size, long offset64 )
-{
-  errno = EINVAL;
+int XIOreadonly::chsize(int64_t size)
+{ errno = EINVAL;
   return -1;
 }
 

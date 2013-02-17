@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,17 +74,17 @@ bool XIOsyncbuffer::fill_buffer()
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.
    Precondition: count > 0 && !eof && XO_READ */
-int XIOsyncbuffer::read( void* result, unsigned int count )
+int XIOsyncbuffer::read(void* result, unsigned int count)
 {
   DEBUGLOG(("XIOsyncbuffer(%p)::read(%p, %u) - %u, %u\n", this, result, count, data_size, data_read));
   unsigned int read_done = 0;
 
  again:
-  if( data_size > data_read )
+  if (data_size > data_read)
   { // Something is in the buffer
-    unsigned int read_size = min( data_size - data_read, count - read_done );
+    unsigned int read_size = min(data_size - data_read, count - read_done);
     // Copy a next chunk of data in the result buffer.
-    memcpy( (char*)result + read_done, head + data_read, read_size );
+    memcpy((char*)result + read_done, head + data_read, read_size);
 
     read_done += read_size;
     data_read += read_size;
@@ -104,7 +105,7 @@ int XIOsyncbuffer::read( void* result, unsigned int count )
     { eof = true;
     } else if (count - read_done >= size)
     { // Buffer bypass for large requests
-      unsigned int read_size = chain->read( (char*)result + read_done, count - read_done );
+      unsigned int read_size = chain->read((char*)result + read_done, count - read_done);
       if (read_size == (unsigned int)-1)
       { error = chain->error;
       } else
@@ -158,8 +159,7 @@ char* XIOsyncbuffer::gets(char* string, unsigned int n)
     data_size = 0;
     data_read = 0;
     if (!fill_buffer())
-    { break;
-    }
+      break;
     if (data_size == 0)
     { eof = true;
       break;
@@ -188,20 +188,17 @@ int XIOsyncbuffer::close()
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long XIOsyncbuffer::do_seek( long offset, long* offset64 )
+int64_t XIOsyncbuffer::do_seek(int64_t offset)
 {
-  // TODO: 64 bit
   // Does result lie within the buffer?
-  long buf_start_pos = read_pos - data_read;
-  if( offset >= buf_start_pos && offset <= buf_start_pos + data_size && !error )
-  {
-    data_read = offset - buf_start_pos;
+  int64_t buf_start_pos = read_pos - data_read;
+  if (offset >= buf_start_pos && offset <= buf_start_pos + data_size && !error)
+  { data_read = offset - buf_start_pos;
     // TODO: When turning the pointer backwards in the buffer the observer events are not fired again. 
     obs_discard();
-  }
-  else {
-    if( chain->seek( offset, XIO_SEEK_SET ) != -1L ) {
-      obs_clear();
+  } else
+  { if (chain->seek(offset, XIO_SEEK_SET) != -1)
+    { obs_clear();
       // Discard the buffer
       data_size = 0;
       data_read = 0;
@@ -210,7 +207,7 @@ long XIOsyncbuffer::do_seek( long offset, long* offset64 )
       eof   = chain->eof;
     } else
     { error = chain->error;
-      return -1L;
+      return -1;
     }
   }
 
@@ -222,9 +219,9 @@ long XIOsyncbuffer::do_seek( long offset, long* offset64 )
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
    of the original file. */
-int XIOsyncbuffer::chsize( long size, long size64 )
+int XIOsyncbuffer::chsize(int64_t size)
 {
-  int rc = XIObuffer::chsize( size, size64 );
+  int rc = XIObuffer::chsize(size);
   if (rc >= 0)
   { // TODO: 64 bit
     long buf_start_pos = read_pos - data_read;

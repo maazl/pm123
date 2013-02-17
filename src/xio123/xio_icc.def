@@ -48,3 +48,9 @@ EXPORTS
   xio_ferror               @55
   xio_clearerr             @56
   xio_fstat                @57
+
+  xio_ftelll               @60
+  xio_fseekl               @61
+  xio_fsizel               @62
+  xio_ftruncatel           @63
+  xio_fstatl               @64

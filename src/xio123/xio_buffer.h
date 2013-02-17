@@ -40,10 +40,9 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   struct obs_entry
   { XIO_META    type;
     char*       metabuff;
-    const long  pos;
-    const long  pos64;
+    const int64_t pos;
     obs_entry*  link;
-    obs_entry(XIO_META type, const char* metabuff, long pos, long pos64);
+    obs_entry(XIO_META type, const char* metabuff, int64_t pos);
     ~obs_entry() { free(metabuff); }
     char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
   };
@@ -53,7 +52,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   char* head;              ///< C  Pointer to the first byte of the buffer.
   const unsigned int size; ///< C  Current size of the buffer.
 
-  long  read_pos;          ///< M  Position of the logical read pointer in the associated file.
+  int64_t read_pos;        ///< M  Position of the logical read pointer in the associated file.
 
   // Entries for the observer
   obs_entry*   s_obs_head;
@@ -68,36 +67,35 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   // Execute the observer entries up to file_pos
   void         obs_execute();
   // Observer callback. Called from the function chain->read(). 
-  virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64);
+  virtual void metacallback(XIO_META type, const char* metabuff, int64_t pos);
   #ifdef DEBUG_LOG
   void         obs_dump() const;
   #endif
 
   // Core logic of seek. Supports only SEEK_SET.
-  virtual long do_seek( long offset, long* offset64 ) = 0;
+  virtual int64_t do_seek(int64_t offset) = 0;
   
  public:
   XIObuffer(XPROTOCOL* chain, unsigned int buf_size);
   virtual bool init();
   virtual ~XIObuffer();
-  virtual int open( const char* filename, XOFLAGS oflags );
+  virtual int open(const char* filename, XOFLAGS oflags);
   virtual int close();
-  virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
-  virtual long getsize( long* offset64 = NULL );
-  virtual int getstat( _XSTAT* st );
-  virtual int chsize( long size, long offset64 = 0 ) = 0;
-  virtual char* get_metainfo( XIO_META type, char* result, int size );
+  virtual int64_t tell();
+  virtual int64_t seek(int64_t offset, XIO_SEEK origin);
+  virtual int64_t getsize();
+  virtual int getstat(XSTATL* st);
+  virtual int chsize(int64_t size) = 0;
+  virtual char* get_metainfo(XIO_META type, char* result, int size);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;
 };
 
 
-inline XIObuffer::obs_entry::obs_entry(XIO_META type, const char* metabuff, long pos, long pos64)
+inline XIObuffer::obs_entry::obs_entry(XIO_META type, const char* metabuff, int64_t pos)
 : type(type),
   metabuff(strdup(metabuff)),
   pos(pos),
-  pos64(pos64),
   link(NULL)
 {}
 

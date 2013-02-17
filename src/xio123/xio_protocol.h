@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ enum XOFLAGS
 { XO_NONE          = 0x0000,
   XO_WRITE         = 0x0001,
   XO_READ          = 0x0002,
+  XO_READWRITE     = 0x0003,
   XO_CREATE        = 0x0004,
   XO_APPEND        = 0x0008,
   XO_TRUNCATE      = 0x0010,
@@ -55,8 +56,8 @@ enum XSFLAGS
 { XS_NONE          = 0x0000,
   XS_CAN_READ      = 0x0001,
   XS_CAN_WRITE     = 0x0002,
-  XS_CAN_READWRITE = 0x0004,
-  XS_CAN_CREATE    = 0x0008,
+  XS_CAN_READWRITE = 0x0003,
+  XS_CAN_CREATE    = 0x0004,
   XS_CAN_SEEK      = 0x0010,
   XS_CAN_SEEK_FAST = 0x0020
   //XS_NOT_BUFFERIZE = 0x0080
@@ -85,7 +86,7 @@ class XPROTOCOL {
   /// Interface for observing meta data changes
   struct Iobserver
   { virtual ~Iobserver() {}
-    virtual void metacallback(XIO_META type, const char* metabuff, long pos, long pos64) = 0;
+    virtual void metacallback(XIO_META type, const char* metabuff, int64_t pos) = 0;
   };
  
  public: 
@@ -103,76 +104,76 @@ class XPROTOCOL {
   /* Note: All methods of the protocol are serialized by library
      except for close, tell, getsize, get_metainfo and supports. */
 
-  /* Opens the file specified by filename. Returns 0 if it
+  /** Opens the file specified by filename. Returns 0 if it
      successfully opens the file. A return value of -1 shows an error. */
-  virtual int     open( const char* filename, XOFLAGS oflags ) = 0;
+  virtual int     open(const char* filename, XOFLAGS oflags) = 0;
 
-  /* Reads count bytes from the file into buffer. Returns the number
+  /** Reads count bytes from the file into buffer. Returns the number
      of bytes placed in result. The return value 0 indicates an attempt
      to read at end-of-file. A return value -1 indicates an error.
      Precondition: count > 0 && !error && !eof && XO_READ */
-  virtual int     read( void* result, unsigned int count ) = 0;
+  virtual int     read(void* result, unsigned int count) = 0;
 
-  /* Reads up to n-1 characters from the stream or stop at the first
+  /** Reads up to n-1 characters from the stream or stop at the first
      new line. CR characters (\r) are discarded.
      Precondition: n > 1 && !error && !eof && XO_READ */
-  virtual char*   gets( char* string, unsigned int n );
+  virtual char*   gets(char* string, unsigned int n);
 
-  /* Writes count bytes from source into the file. Returns the number
+  /** Writes count bytes from source into the file. Returns the number
      of bytes moved from the source to the file. The return value may
      be positive but less than count. A return value of -1 indicates an
      error.
      Precondition: count > 0 && !error && XO_WRITE */
-  virtual int     write( const void* source, unsigned int count ) = 0;
+  virtual int     write(const void* source, unsigned int count) = 0;
 
-  /* Copies string to the output file at the current position.
+  /** Copies string to the output file at the current position.
      It does not copy the null character (\0) at the end of the string.
      Returns -1 if an error occurs; otherwise, it returns a non-negative
      value.
      Precondition: !error && XO_WRITE */
-  virtual int     puts( const char* string );
+  virtual int     puts(const char* string);
 
-  /* Closes the file. Returns 0 if it successfully closes the file. A
+  /** Closes the file. Returns 0 if it successfully closes the file. A
      return value of -1 shows an error. */
   virtual int     close() = 0;
 
-  /* Returns the current position of the file pointer. The position is
+  /** Returns the current position of the file pointer. The position is
      the number of bytes from the beginning of the file. On devices
      incapable of seeking, the return value is -1L. */
-  virtual long    tell( long* offset64 = NULL ) = 0;
+  virtual int64_t tell() = 0;
 
-  /* Moves any file pointer to a new location that is offset bytes from
+  /** Moves any file pointer to a new location that is offset bytes from
      the origin. Returns the offset, in bytes, of the new position from
      the beginning of the file. A return value of -1L indicates an
      error. */
-  virtual long    seek( long offset, XIO_SEEK origin, long* offset64 = NULL ) = 0;
+  virtual int64_t seek(int64_t offset, XIO_SEEK origin) = 0;
 
-  /* Returns the size of the file. A return value of -1L indicates an
+  /** Returns the size of the file. A return value of -1L indicates an
      error or an unknown size. */
-  virtual long    getsize( long* offset64 = NULL ) = 0;
+  virtual int64_t getsize() = 0;
 
-  /* Lengthens or cuts off the file to the length specified by size.
+  /** Lengthens or cuts off the file to the length specified by size.
      You must open the file in a mode that permits writing. Adds null
      characters when it lengthens the file. When cuts off the file, it
      erases all data from the end of the shortened file to the end
      of the original file. Returns the value 0 if it successfully
      changes the file size. A return value of -1 shows an error.
      Precondition: XO_WRITE */
-  virtual int     chsize( long size, long offset64 = 0 ) = 0;
+  virtual int     chsize(int64_t size) = 0;
 
-  /* Retrieve stat information of the current file */
-  virtual int     getstat( _XSTAT* st ) = 0;
+  /** Retrieve stat information of the current file */
+  virtual int     getstat(XSTATL* st) = 0;
 
-  /* Returns a specified meta information if it is provided by associated stream.
+  /** Returns a specified meta information if it is provided by associated stream.
      The default implementation always return "".
      Precondition: size > 0 */
-  virtual char*   get_metainfo( XIO_META type, char* result, int size );
+  virtual char*   get_metainfo(XIO_META type, char* result, int size);
 
-  /* Set an observer that is called whenever a source updates the metadata.
+  /** Set an observer that is called whenever a source updates the metadata.
      The function returns the previously set observer.
      You cannot set more than one observer.
      The callback will only be executed while calling read(). */ 
-  virtual Iobserver* set_observer( Iobserver* observer );
+  virtual Iobserver* set_observer(Iobserver* observer);
 
   /// Return the supported properties of the current protocol
   virtual XSFLAGS supports() const = 0;
@@ -185,12 +186,12 @@ class XPROTOCOL {
 /* Specialization of XPROTOCOL for ready only access */
 class XIOreadonly : public XPROTOCOL
 {
-  virtual int write( const void* source, unsigned int count );
-  virtual int chsize( long size, long offset64 = 0 );
+  virtual int write(const void* source, unsigned int count);
+  virtual int chsize(int64_t size);
 };
 
 /* public C-style class interface */
-typedef struct _XFILE {
+struct _XFILE {
   //int scheme;  // is write only
   XOFLAGS       oflags;
 
@@ -210,7 +211,7 @@ typedef struct _XFILE {
   bool          Request();  /* Lock the current instance                     */
   void          Release();  /* Release the current instance                  */
 
-} XFILE;
+};
 
 #endif /* XIO_FILE_H */
 

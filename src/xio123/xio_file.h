@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,27 +34,62 @@
 #include "xio_protocol.h"
 
 class XIOfile : public XPROTOCOL
-{private:
+{protected:
   HFILE s_handle;
+ private:
   #ifdef XIO_SERIALIZE_DISK_IO
   bool  s_serialized;
   #endif
 
+ private:
+  virtual APIRET doOpen(const char* filename, ULONG flags, ULONG omode) = 0;
+  virtual APIRET doSetFilePtr(int64_t pos, ULONG method, int64_t* newpos = NULL) = 0;
+  virtual APIRET doQueryFileInfo(XSTATL* st) = 0;
+  virtual APIRET doSetFileSize(int64_t size) = 0;
  public:
   /* Initializes the file protocol. */
   XIOfile();
   virtual ~XIOfile();
-  virtual int open( const char* filename, XOFLAGS oflags );
-  virtual int read( void* result, unsigned int count );
-  virtual int write( const void* source, unsigned int count );
+  virtual int open(const char* filename, XOFLAGS oflags);
+  virtual int read(void* result, unsigned int count);
+  virtual int write(const void* source, unsigned int count);
   virtual int close();
-  virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, XIO_SEEK origin, long* offset64 = NULL );
-  virtual long getsize( long* offset64 = NULL );
-  virtual int getstat( XSTAT* st );
-  virtual int chsize( long size, long offset64 = 0 );
+  virtual int64_t tell();
+  virtual int64_t seek(int64_t offset, XIO_SEEK origin);
+  virtual int64_t getsize();
+  virtual int getstat(XSTATL* st);
+  virtual int chsize(int64_t size);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;
+};
+
+/// Implementation for the OS/2 file API using the old 32 bit calls.
+class XIOfile32 : public XIOfile
+{private:
+  virtual APIRET doOpen(const char* filename, ULONG flags, ULONG omode);
+  virtual APIRET doSetFilePtr(int64_t pos, ULONG method, int64_t* newpos);
+  virtual APIRET doQueryFileInfo(XSTATL* st);
+  virtual APIRET doSetFileSize(int64_t size);
+};
+
+/// Implementation for the OS/2 file API using the new 64 bit calls. Requires recent kernel.
+class XIOfile64 : public XIOfile
+{private:
+  static const LONGLONG LL0;
+ private:
+  static APIRET (APIENTRY *pOpen)(PSZ filename, PHFILE phf, PULONG pulaction, LONGLONG cbfile,
+                                  ULONG ulAttribute, ULONG fsOpenFlags, ULONG fsOpenMode, PEAOP2 peaop2);
+  static APIRET (APIENTRY *pSetFilePtr)(HFILE hf, LONGLONG ib, ULONG method, PLONGLONG ibActual);
+  static APIRET (APIENTRY *pSetFileSize)(HFILE hf, LONGLONG size);
+ public:
+  /// Check whether the 64 bit file API is supported.
+  /// You must not use this class unless this function returned \c true.
+  static bool supported();
+ private:
+  virtual APIRET doOpen(const char* filename, ULONG flags, ULONG omode);
+  virtual APIRET doSetFilePtr(int64_t pos, ULONG method, int64_t* newpos);
+  virtual APIRET doQueryFileInfo(XSTATL* st);
+  virtual APIRET doSetFileSize(int64_t size);
 };
 
 #endif /* XIO_FILE_H */

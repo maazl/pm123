@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,29 +68,27 @@ void XIOsocket::seterror()
    dotted-decimal notation or host name into an internet address
    number typed as an unsigned long value.  A -1 value
    indicates an error. */
-u_long XIOsocket::get_address( const char* hostname )
+u_long XIOsocket::get_address(const char* hostname)
 {
   u_long address;
   struct hostent* entry;
 
-  if( !hostname ) {
-    errno = HBASEERR + HOST_NOT_FOUND;
+  if (!hostname)
+  { errno = HBASEERR + HOST_NOT_FOUND;
     return (u_long)-1L;
   }
 
-  if(( address = inet_addr( (char*)hostname )) == (u_long)-1L ) {
-    if(( entry = gethostbyname( (char*)hostname )) != NULL ) {
-      memcpy( &address, entry->h_addr, sizeof( address ));
-    } else {
+  if ((address = inet_addr((char*)hostname)) == (u_long)-1L)
+  { if ((entry = gethostbyname((char*)hostname)) != NULL)
+    { memcpy( &address, entry->h_addr, sizeof( address ));
+    } else
+    {
       #ifdef NETDB_INTERNAL
-        if( h_errno == NETDB_INTERNAL ) {
-          errno = sock_errno();
-        } else {
+      if (h_errno == NETDB_INTERNAL)
+        errno = sock_errno();
+      else
       #endif
-          errno = h_errno + HBASEERR;
-      #ifdef NETDB_INTERNAL
-        }
-      #endif
+        errno = h_errno + HBASEERR;
     }
   }
 
@@ -98,23 +97,20 @@ u_long XIOsocket::get_address( const char* hostname )
 
 // Converts a string containing a valid service or port
 // into a port number. A -1 value indicates an error.
-int XIOsocket::get_service( const char* service )
+int XIOsocket::get_service(const char* service)
 {
   int port;
   size_t len;
   if (sscanf(service, "%i%n", &port, &len) != 1 || strlen(service) != len)
-  { struct servent* servent = getservbyname( (char*)service, "TCP" );
+  { struct servent* servent = getservbyname((char*)service, "TCP");
     if (servent == NULL)
     {
       #ifdef NETDB_INTERNAL
-        if( h_errno == NETDB_INTERNAL ) {
-          errno = sock_errno();
-        } else {
+      if (h_errno == NETDB_INTERNAL)
+        errno = sock_errno();
+      else
       #endif
-          errno = h_errno + HBASEERR;
-      #ifdef NETDB_INTERNAL
-        }
-      #endif
+        errno = h_errno + HBASEERR;
       return -1;
     }
     port = servent->s_port;
@@ -122,7 +118,7 @@ int XIOsocket::get_service( const char* service )
   return port;
 }
 
-int XIOsocket::open( const char* uri, XOFLAGS oflags )
+int XIOsocket::open(const char* uri, XOFLAGS oflags)
 { DEBUGLOG(("XIOsocket(%p)::open(%s, %x)\n", this, uri, oflags));
   if (strnicmp(uri, "tcpip://", 8) != 0)
   { seterror(SOCESOCKTNOSUPPORT);
@@ -155,16 +151,15 @@ int XIOsocket::open( const char* uri, XOFLAGS oflags )
    connection to a remote host. A non-negative socket descriptor
    return value indicates success. The return value -1 indicates
    an error. */
-int XIOsocket::open( u_long address, int port )
+int XIOsocket::open(u_long address, int port)
 {
   struct sockaddr_in server = {0};
   DEBUGLOG(("XIOsocket(%p)::open(0x%x, %d)\n", this, address, port));
 
-  if( address == (u_long)-1L || port == -1 ) {
+  if (address == (u_long)-1L || port == -1)
     return -1;
-  }
 
-  if(( s_handle = socket( PF_INET, SOCK_STREAM, 0 )) != -1 )
+  if ((s_handle = socket( PF_INET, SOCK_STREAM, 0 )) != -1)
   {
     #ifdef NONBLOCKED_CONNECT
     int dontblock;
@@ -177,54 +172,53 @@ int XIOsocket::open( u_long address, int port )
     server.sin_addr.s_addr = address;
     server.sin_port = htons( port );
 
-    setsockopt( s_handle, IPPROTO_TCP, SO_KEEPALIVE, NULL, TRUE );
+    setsockopt(s_handle, IPPROTO_TCP, SO_KEEPALIVE, NULL, TRUE);
     #ifndef  TCPV40HDRS
     tv.tv_sec = xio_socket_timeout();
-    if (tv.tv_sec) {
-      setsockopt( s_handle, IPPROTO_TCP, SO_RCVTIMEO, &tv, sizeof tv );
-      setsockopt( s_handle, IPPROTO_TCP, SO_SNDTIMEO, &tv, sizeof tv );
+    if (tv.tv_sec)
+    { setsockopt(s_handle, IPPROTO_TCP, SO_RCVTIMEO, &tv, sizeof tv);
+      setsockopt(s_handle, IPPROTO_TCP, SO_SNDTIMEO, &tv, sizeof tv);
     }
     #endif // TCPV40HDRS
 
     #ifdef NONBLOCKED_CONNECT
 
       dontblock = 1;
-      ioctl( s_handle, FIONBIO, (char*)&dontblock, sizeof( dontblock ));
+      ioctl(s_handle, FIONBIO, (char*)&dontblock, sizeof(dontblock));
 
-      if( connect( s_handle, (struct sockaddr*)&server, sizeof( server )) != -1 ||
-          sock_errno() == SOCEINPROGRESS )
+      if ( connect( s_handle, (struct sockaddr*)&server, sizeof(server)) != -1 ||
+           sock_errno() == SOCEINPROGRESS )
       {
         struct timeval timeout = {0};
         fd_set waitlist;
 
         timeout.tv_sec = xio_connect_timeout();
 
-        FD_ZERO( &waitlist    );
-        FD_SET ( s_handle, &waitlist );
+        FD_ZERO(&waitlist);
+        FD_SET (s_handle, &waitlist);
 
-        if( select( s_handle + 1, NULL, &waitlist, NULL, &timeout ) <= 0 ) {
-          seterror();
-          soclose( s_handle );
+        if (select(s_handle + 1, NULL, &waitlist, NULL, &timeout) <= 0)
+        { seterror();
+          soclose(s_handle);
           s_handle = -1;
-        } else {
-          dontblock = 0;
-          ioctl( s_handle, FIONBIO, (char*)&dontblock, sizeof( dontblock ));
+        } else
+        { dontblock = 0;
+          ioctl(s_handle, FIONBIO, (char*)&dontblock, sizeof(dontblock));
         }
-      } else {
-        seterror();
-        soclose( s_handle );
+      } else
+      { seterror();
+        soclose(s_handle);
         s_handle = -1;
       }
     #else
-      if( connect( s_handle, (struct sockaddr*)&server, sizeof( server )) == -1 ) {
-        seterror();
-        soclose( s_handle );
+      if (connect(s_handle, (struct sockaddr*)&server, sizeof(server)) == -1)
+      { seterror();
+        soclose(s_handle);
         s_handle = -1;
       }
     #endif // NONBLOCKED_CONNECT
-  } else {
+  } else
     seterror();
-  }
 
   DEBUGLOG(("XIOsocket::open: %d\n", s_handle));
   return -(s_handle == -1);
@@ -233,26 +227,26 @@ int XIOsocket::open( u_long address, int port )
 /* Sends data on a connected socket. When successful, returns 0.
    The return value -1 indicates an error was detected on the
    sending side of the connection. */
-int XIOsocket::write( const void* buffer, unsigned int size )
+int XIOsocket::write(const void* buffer, unsigned int size)
 {
   int done;
   DEBUGLOG2(("XIOsocket(%p{%d})::write(%p, %d)\n", this, s_handle, buffer, size));
 
-  while( size )
+  while (size)
   {
     #ifdef TCPV40HDRS
     // Work around for missing SO_SNDTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
 
     timeout.tv_sec = xio_socket_timeout();
-    if ( timeout.tv_sec ) {
-      fd_set waitlist;
+    if (timeout.tv_sec)
+    { fd_set waitlist;
 
-      FD_ZERO( &waitlist    );
-      FD_SET ( s_handle, &waitlist );
+      FD_ZERO(&waitlist);
+      FD_SET (s_handle, &waitlist);
 
-      switch ( select( s_handle+1, NULL, &waitlist, NULL, &timeout )) {
-        case 0: // Timeout
+      switch (select( s_handle+1, NULL, &waitlist, NULL, &timeout))
+      { case 0: // Timeout
           seterror(SOCETIMEDOUT);
           return -1;
         case -1: // Error
@@ -261,10 +255,10 @@ int XIOsocket::write( const void* buffer, unsigned int size )
       }
     }
     #endif
-    done = send( s_handle, (char*)buffer, size, 0 );
+    done = send(s_handle, (char*)buffer, size, 0);
 
-    if( done <= 0 ) {
-      seterror();
+    if (done <= 0)
+    { seterror();
       return -1;
     }
 
@@ -279,26 +273,26 @@ int XIOsocket::write( const void* buffer, unsigned int size )
    the buffer. When successful, the number of bytes of data received
    into the buffer is returned. The value 0 indicates that the
    connection is closed. The value -1 indicates an error. */
-int XIOsocket::read( void* buffer, unsigned int size )
+int XIOsocket::read(void* buffer, unsigned int size)
 {
   unsigned int read = 0;
   DEBUGLOG2(("XIOsocket(%p{%d})::read(%p, %d)\n", this, s_handle, buffer, size));
 
-  while( read < size )
+  while (read < size)
   {
     #ifdef TCPV40HDRS
     // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
 
     timeout.tv_sec = xio_socket_timeout();
-    if ( timeout.tv_sec ) {
-      fd_set waitlist;
+    if (timeout.tv_sec)
+    { fd_set waitlist;
 
-      FD_ZERO( &waitlist    );
-      FD_SET ( s_handle, &waitlist );
+      FD_ZERO(&waitlist);
+      FD_SET (s_handle, &waitlist);
 
-      switch ( select( s_handle+1, &waitlist, NULL, NULL, &timeout )) {
-        case 0: // Timeout
+      switch (select(s_handle+1, &waitlist, NULL, NULL, &timeout))
+      { case 0: // Timeout
           seterror(SOCETIMEDOUT);
           return -1;
         case -1: // Error
@@ -307,17 +301,17 @@ int XIOsocket::read( void* buffer, unsigned int size )
       }
     }
     #endif
-    int done = recv( s_handle, (char*)buffer + read, size - read, 0 );
+    int done = recv(s_handle, (char*)buffer + read, size - read, 0);
     DEBUGLOG2(("XIOsocket::read: %d, %d\n", done, sock_errno()));
 
-    if( done < 0 ) {
-      seterror();
+    if (done < 0)
+    { seterror();
       break;
-    } else if( done == 0 ) {
-      eof = true;
+    } else if (done == 0)
+    { eof = true;
       break;
-    } else {
-      read += done;
+    } else
+    { read += done;
     }
   }
 
@@ -331,26 +325,27 @@ int XIOsocket::read( void* buffer, unsigned int size )
    string is empty. Returns a pointer to the string buffer if successful.
    A NULL return value indicates an error or that the connection is
    closed.*/
-char* XIOsocket::gets( char* buffer, unsigned int size )
+char* XIOsocket::gets(char* buffer, unsigned int size)
 {
   unsigned int done = 0;
   char* p  = buffer;
   DEBUGLOG(("XIOsocket(%p{%d})::gets(%p, %d)\n", this, s_handle, buffer, size));
 
-  while( done < size - 1 ) {
+  while (done < size - 1)
+  {
     #ifdef TCPV40HDRS
     // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
 
     timeout.tv_sec = xio_socket_timeout();
-    if ( timeout.tv_sec ) {
-      fd_set waitlist;
+    if (timeout.tv_sec)
+    { fd_set waitlist;
 
-      FD_ZERO( &waitlist    );
-      FD_SET ( s_handle, &waitlist );
+      FD_ZERO(&waitlist);
+      FD_SET (s_handle, &waitlist);
 
-      switch ( select( s_handle+1, &waitlist, NULL, NULL, &timeout )) {
-        case 0: // Timeout
+      switch (select(s_handle+1, &waitlist, NULL, NULL, &timeout))
+      { case 0: // Timeout
           seterror(SOCETIMEDOUT);
           return NULL;
         case -1: // Error
@@ -359,27 +354,26 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
       }
     }
     #endif
-    int rc = recv( s_handle, p, 1, 0 );
-    if( rc == 1 ) {
-      if( *p == '\r' ) {
+    int rc = recv(s_handle, p, 1, 0);
+    if( rc == 1 )
+    { if (*p == '\r')
         continue;
-      } else if( *p == '\n' ) {
+      else if(*p == '\n')
         break;
-      } else {
-        ++p;
+      else
+      { ++p;
         ++done;
       }
-    } else {
-      DEBUGLOG(("XIOsocket::gets: error %d\n", sock_errno()));
-      if( !done ) {
-        if (rc == 0)
+    } else
+    { DEBUGLOG(("XIOsocket::gets: error %d\n", sock_errno()));
+      if (!done)
+      { if (rc == 0)
           eof = true;
         else
           seterror();
         return NULL;
-      } else {
+      } else
         break;
-      }
     }
   }
 
@@ -390,42 +384,37 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
 
 /* Shuts down a socket and frees resources allocated to the socket.
    Retuns value 0 indicates success; the value -1 indicates an error. */
-int XIOsocket::close() {
-  DEBUGLOG(("XIOsocket(%p{%d})::close()\n", this, s_handle));
-  int r = soclose( s_handle );
+int XIOsocket::close()
+{ DEBUGLOG(("XIOsocket(%p{%d})::close()\n", this, s_handle));
+  int r = soclose(s_handle);
   s_handle = -1;
   if (r)
     seterror();
   return r;
 }
 
-long XIOsocket::tell(long* offset64)
-{ if (offset64)
-    *offset64 = -1L;
-  return -1L;
+int64_t XIOsocket::tell()
+{ return -1;
 }
 
-long XIOsocket::seek(long offset, XIO_SEEK origin, long* offset64)
-{ errno = EINVAL;
-  if (offset64)
-    *offset64 = -1L;
-  return -1L;
-}
-
-long XIOsocket::getsize(long* offset64)
-{ errno = EINVAL;
-  if (offset64)
-    *offset64 = -1L;
-  return -1L;
-}
-
-int XIOsocket::getstat(XSTAT* st)
+int64_t XIOsocket::seek(int64_t offset, XIO_SEEK origin)
 { errno = EINVAL;
   return -1;
 }
 
-int XIOsocket::chsize(long size, long offset64)
-{ return -1;
+int64_t XIOsocket::getsize()
+{ errno = EINVAL;
+  return -1;
+}
+
+int XIOsocket::getstat(XSTATL* st)
+{ errno = EINVAL;
+  return -1;
+}
+
+int XIOsocket::chsize(int64_t size)
+{ errno = EINVAL;
+  return -1;
 }
 
 XSFLAGS XIOsocket::supports() const

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2013 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,12 +34,12 @@
 
 class XIOsyncbuffer : public XIObuffer
 {private:
-  unsigned int data_size; ///< Current size of the data in the buffer.
-  unsigned int data_read; ///< Current read position in the data buffer.
-                          ///< Note that data_read can be larger that data_size
-                          ///< if the file was recently shrunken.
+  int64_t data_size; ///< Current size of the data in the buffer.
+  int64_t data_read; ///< Current read position in the data buffer.
+                     ///< Note that data_read can be larger that data_size
+                     ///< if the file was recently shrunken.
  private:
-  virtual long do_seek( long offset, long* offset64 );
+  virtual int64_t do_seek(int64_t);
   
   // Load new data into the buffer. Return false on error.
   // The function tries to load the entire buffer size, but it succeeds also
@@ -51,11 +52,11 @@ class XIOsyncbuffer : public XIObuffer
   XIOsyncbuffer(XPROTOCOL* chain, unsigned int buf_size);
   //virtual bool init();
   //virtual ~XIOsyncbuffer();
-  virtual int read( void* result, unsigned int count );
+  virtual int read(void* result, unsigned int count);
   // more efficient implementation
-  virtual char* gets( char* string, unsigned int n );
+  virtual char* gets(char* string, unsigned int n);
   virtual int close();
-  virtual int chsize( long size, long offset64 = 0 );
+  virtual int chsize(int64_t size);
 };
 
 #endif /* XIO_SYNCBUFFER_H */
