@@ -282,7 +282,7 @@ DoFile: PROCEDURE EXPOSE opt. rule.
    symname = SymName(filepath)
    IF opt.debug THEN
       SAY 'DoFile: 'file filepath SYMBOL(symname)
-   IF POS('\..\', file) THEN
+   IF POS('\..\', file) > 0 THEN
       CALL Assert 'Invalid file name 'file
    /*IF ABBREV(file, '\') | ABBREV(SUBSTR(file, 2), ':\') THEN
       CALL Assert 'DoFile resulted in absolute path 'file*/
@@ -399,7 +399,7 @@ DoInclude: PROCEDURE EXPOSE rule. opt.
    inc = ARG(2)
    IF opt.debug THEN
       SAY "DoInclude: "ARG(1)", "inc
-   IF POS('\..\', inc) THEN
+   IF POS('\..\', inc) > 0 THEN
       CALL Assert 'Invalid not normalized include dependency 'inc
    IF LEFT(inc, 1) = '\' | ABBREV(SUBSTR(inc, 2), ':') THEN
       CALL Assert 'Invalid absolute include dependency 'inc
