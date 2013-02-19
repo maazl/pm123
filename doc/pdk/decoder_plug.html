@@ -450,6 +450,18 @@ uses the following syntax:</p>
   <samp>cdda:///H:/track02</samp> (CD track)<br>
   <samp>cdda:///H:/</samp> (CD TOC)
 </blockquote>
+<h5><tt>DECODER_PLAY</tt></h5>
+<blockquote>
+  <p>This command tell the decoder which song to decode.</p>
+</blockquote>
+<h5><tt>DECODER_STOP</tt></h5>
+<blockquote>
+  <p>Stop decoding of the current song.</p>
+</blockquote>
+<h5><tt>DECODER_FFWD</tt></h5>
+<blockquote>
+  <p>Change the fast forward or rewind mode. </p>
+</blockquote>
 <h3><a name="status_interface"></a>Status
 interface</h3>
 <p>The status interface has to be <em>thread safe</em>.</p>
@@ -568,8 +580,7 @@ or should be NULL otherwise. </li>
 when a <code>DECODER_JUMPTO</code> operation is completed
 (i.e. when no buffers from before the seek is sent to the output
 plug-in anymore). The message must also be sent, when playback starts
-in the middle of a song.<br>
-  </li>
+in the middle of a song. </li>
   <li><code><b>DECEVENT_CHANGETECH</b></code>
 is sent whenever you want PM123 to change the display of the current
 technical information of the stream (like samplerate). <var>param</var>

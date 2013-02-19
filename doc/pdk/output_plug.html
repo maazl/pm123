@@ -42,28 +42,7 @@ interface</a>.</p>
   <pre><a name="output_command"></a>ULONG DLLENTRY <b>output_command</b>(void* <var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS2* <var>info</var>)</pre>
 </blockquote>
 <ul>
-  <li><tt><var>msg</var></tt> - one of the following:<br>
-    <ul>
-      <li><code>OUTPUT_OPEN</code> opens the device or file needed for
-output.<br>
-This may happen while the device is already open, if the playback moves
-to the next file in playlist mode. As long as you do not care about the
-new filename you should ignore this message in this case. </li>
-      <li><code>OUTPUT_CLOSE</code> immediately stop playback and close
-the audio device. </li>
-      <li><code>OUTPUT_VOLUME</code> changes the volume of an output
-device. </li>
-      <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in <code>output_request_buffer()</code>).
-      </li>
-      <li><code>OUTPUT_SETUP</code> setup the format that <code>output_request_buffer()</code>
-will most likely receive, event callback. </li>
-      <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently
-awaiting to be played.<br>
-This message should immediately release a thread waiting at <tt>output_request_buffer</tt>
-for data to be played. This is essential to stop playback while in
-paused mode. </li>
-    </ul>
-  </li>
+  <li><tt><var>msg</var></tt> - command to execute, see below </li>
   <li><tt><var>info</var></tt> - structure that contains the parameters
 needed
 by the preceding commands </li>
@@ -71,25 +50,95 @@ by the preceding commands </li>
     <tt>PLUGIN_OK</tt> (<tt>0</tt>) -&gt; O.K.<br>
 others -&gt; MMOS/2 errors or anything else. </li>
 </ul>
-<p>There is a lot of commands to implement for this function.
-Parameters
-needed for each of them are described in the definition of the
-<tt>OUTPUT_PARAMS2</tt> structure
-in the <tt>output_plug.h</tt> file.</p>
-<p>The status graph is as follows:
-</p>
+The status graph is as follows:
 <ol>
-  <li><code>OUTPUT_VOLUME</code></li>
   <li><code>OUTPUT_SETUP</code></li>
   <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>. The <a
  href="#data_interface">data interface</a> may be used.<br>
 Optionally repeat this step if another song is to be played.</li>
   <li><code>OUTPUT_CLOSE</code> - now we are no longer active.</li>
 </ol>
-<p>The function codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
-are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always
-allowed.</p>
-<h5>Notes</h5>
+<p>The other function codes (<code>OUTPUT_VOLUME</code>, <code>OUTPUT_PAUSE</code>
+and <code>OUTPUT_TRASH_BUFFERS</code>)
+are allowed only in active mode.</p>
+<h5><tt>OUTPUT_SETUP</tt> - setup the event callback</h5>
+<p>Only the fields <tt>OutEvent</tt> and <tt>W</tt> should be read
+during
+this call.</p>
+<h5><tt>OUTPUT_OPEN</tt> - opens the device or file needed for
+output</h5>
+<p>This call tells the device about the object that is about to be
+played (fields <tt>URL</tt> and <tt>Info</tt>). The Output could use
+this information to get the format (sampling rate and channels) that is
+likely to come. The field <tt>PlayingPos</tt> contains the time index
+of the first sample of the decoded object.
+</p>
+<p>The <tt>URL</tt> parameter at the <code>OUTPUT_OPEN</code> call
+uses the
+following syntax:<br>
+<samp>file:///D:/Music/my favorite song.mp3</samp><br>
+<samp>file://server/share/favorite song.mp3</samp> (UNC path)<br>
+<samp>http://</samp>... (as you would expect)<br>
+<samp>cdda:///H:/track02</samp></p>
+<p>The URI may change during playback, if the
+playback moves
+to the next file in playlist mode. This is signaled with a new <code>OUTPUT_OPEN</code>
+call while the device is already open. The call is always before the
+first decoded samples of the mentioned object arrive. The new
+object's data start with the time index <tt>PlayingPos</tt>. Note that
+multiple short items might be in the processing queue before their
+samples
+arrive. But usually only one song is
+decoded in advance.<br>
+As long as you do not care about the
+new object you could ignore this message. But note that
+the format might change with a new item.</p>
+<h5><tt>OUTPUT_TRASH_BUFFERS</tt> - trash any buffers currently
+awaiting to be played</h5>
+<p>This command tells the output to discard any buffers not yet played.
+It is used to make seek operations responsive. This implies also to
+discard an outstanding flush request and any information from <tt>OUTPUT_OPEN</tt>
+calls, except for the last one.</p>
+<p>This message should immediately release a thread waiting at <tt>output_request_buffer</tt>
+for data to be played. This is essential to stop playback while in
+paused mode.</p>
+<p>If the target is a sound device, the output plug-in should usually
+immediately respond with an <tt>OUTEVENT_LOW_WATER</tt> event, because
+there are no more buffers to play at the moment.<b><code></code></b></p>
+<h5><tt>OUTPUT_VOLUME</tt> - changes the volume of an output
+device</h5>
+<p>On this call the <tt>Volume</tt> field contains the new volume
+setting. The change should apply as soon as possible.
+</p>
+<p>The values are in the range [0,1]. The scale should behave like a
+volume control of a hi-fi unit, i.e. it should not use a linear scale.
+If your hardware or API has a linear scale, you could use the
+approximation <var>linscale</var> = <var>value</var>&nbsp;/&nbsp;(1&nbsp;+&nbsp;sqrt(10)&nbsp;*&nbsp;(1&nbsp;-&nbsp;<var>value</var>)).</p>
+<p>PM123 since 1.41 will no longer call this function before <tt>OUTPUT_OPEN</tt>.</p>
+<h5><tt>OUTPUT_PAUSE</tt> - pauses or resume the playback</h5>
+<p>The command should immediately pause or resume playback, depending
+on the <tt>Pause</tt> field in the control structure. If playback is
+paused the plug-in should sooner or later block in <a
+ href="#output_request_buffer"><tt>output_request_buffer</tt></a> if
+the buffers become full.</p>
+<h5><tt>OUTPUT_CLOSE</tt> - immediately stop playback and close
+the audio device</h5>
+<p>There are two cases, when <tt>OUTPUT_CLOSE</tt> can arrive.</p>
+<ol>
+  <li>The output has sent <tt>OUTEVENT_END_OF_DATA</tt>.<br>
+In this case no more samples are passed to the output and the device
+could safely be closed.</li>
+  <li>The user aborts playback.<br>
+Any thread blocked at <a href="#output_request_buffer"><tt>output_request_buffer</tt></a>
+or <a href="#output_commit_buffer"><tt>output_commit_buffer</tt></a><em>must
+be released immediately</em>. This is essential to stop playback while
+in paused mode. <tt>output_request_buffer</tt>
+should
+return &#8804;&nbsp;0 in this case.</li>
+</ol>
+PM123 will not call <a href="#output_uninit"><tt>output_uninit</tt></a>
+unless the decoder thread really terminated.<br>
+<h5>Events</h5>
 <ol>
   <li>The output plug-in <em>must</em> call the event handler <b><code>output_event</code></b>
 with the parameter <b><code>OUTEVENT_PLAY_ERROR</code></b>
@@ -103,23 +152,7 @@ buffer pointer of <code>NULL</code> (flush signal).</li>
 and <b><code>OUTEVENT_HIGH_WATER</code></b> to signal that
 the buffers are running low or the buffers are getting full
 respectively. This is used by PM123 to control the scheduling priority.</li>
-  <li>When the output plug-in receives an <b><tt>OUTPUT_CLOSE</tt></b>
-command any thread blocked at <a href="#output_request_buffer"><tt>output_request_buffer</tt></a>
-or <a href="#output_commit_buffer"><tt>output_commit_buffer</tt></a>
-    <em>must be released</em> immediately. <tt>output_request_buffer</tt>
-should
-return &#8804;&nbsp;0 in this case.<br>
-PM123 will not call <a href="#output_uninit"><tt>output_uninit</tt></a>
-unless the decoder thread really terminated. </li>
   <li>The event handler may be called from any thread in any context.</li>
-  <li>The URI parameter at the <code>OUTPUT_OPEN</code> call uses the
-following syntax:<br>
-    <samp>file:///D:/Music/my favorite song.mp3</samp><br>
-    <samp>file://server/share/favorite song.mp3</samp> (UNC path)<br>
-    <samp>http://</samp>... (as you would expect)<br>
-    <samp>cdda:///H:/track02</samp><br>
-The URI may change during playback. This is signaled with a new <code>OUTPUT_OPEN</code>
-call. You may ignore this.</li>
 </ol>
 <h4><a name="data_interface"></a>Data interface</h4>
 <p>The data interface is only used when the control interface is in
@@ -166,8 +199,11 @@ no need to call <code>output_commit_buffer</code>. The flush signal
 should be used to play any internal buffers regardless if they are
 completely full or not.<br>
 Note that the flush signal is an implicit request for an <code>OUTEVENT_END_OF_DATA</code>
-event. The <code>output_request_buffer</code> call must not block
-until all buffers are played.</p>
+event. The <code>output_request_buffer</code> call shall not block
+until all buffers are played.<br>
+Do not close the output if you receive a flush request. The user could
+use navigation commands to resume playback while the flush request
+already is in the processing queue.</p>
 <blockquote>
   <pre><a name="output_commit_buffer"></a>void DLLENTRY <b>output_commit_buffer</b>(void* <var>a</var>, int <var>len</var>, PM123_TIME <var>pos</var>)</pre>
 </blockquote>
@@ -283,10 +319,10 @@ output. </li>
       <li><code>OUTPUT_CLOSE</code> closes it. </li>
       <li><code>OUTPUT_VOLUME</code> changes the volume of an output
 device. </li>
-      <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in
-output_playsamples()). </li>
-      <li><code>OUTPUT_SETUP</code> setup the format that
-output_playsamples() will most likely
+      <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in <tt>output_playsamples</tt>).
+      </li>
+      <li><code>OUTPUT_SETUP</code> setup the format that <tt>output_playsamples</tt>
+will most likely
 receive, boost priority values, error_display functions and hwnd. </li>
       <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently
 awating to be played. </li>
@@ -321,7 +357,8 @@ in the .h file.</p>
 <p>The other function codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
 are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always
 allowed.</p>
-<p>The output plug-in MUST <tt>WinPostMsg()</tt> the following
+<p>The output plug-in <em>must</em> <tt>WinPostMsg()</tt> the
+following
 messages
 to <var><tt>hwnd</tt></var>:
 </p>
