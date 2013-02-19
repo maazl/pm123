@@ -143,7 +143,8 @@ int DLLENTRY xio_fclose(XFILE* x);
 
 /** Finds the current position of the file.
  * @return Returns the current file position. On error, returns -1L
- * and sets xio_errno() to a nonzero value. */
+ * and sets xio_errno() to a nonzero value.
+ * @deprecated You should prefer the 64 bit API \c xio_ftelll. */
 long DLLENTRY xio_ftell(XFILE* x);
 /** Finds the current position of the file.
  * @return Returns the current file position. On error, returns -1L
@@ -153,7 +154,8 @@ int64_t DLLENTRY xio_ftelll(XFILE* x);
 /** Changes the current file position to a new location within the file.
  * @return Returns the new position if it successfully moves the pointer.
  * A return value of -1L indicates an error. On devices that cannot seek
- * the return value is -1L. */
+ * the return value is -1L.
+ * @deprecated You should prefer the 64 bit API \c xio_fseekl. */
 long DLLENTRY xio_fseek(XFILE* x, long int offset, XIO_SEEK origin);
 /** Changes the current file position to a new location within the file.
  * @return Returns the new position if it successfully moves the pointer.
@@ -170,7 +172,8 @@ int64_t DLLENTRY xio_fseekl(XFILE* x, int64_t offset, XIO_SEEK origin);
 int DLLENTRY xio_rewind(XFILE* x);
 
 /** Returns the size of the file. A return value of -1L indicates an
- * error or an unknown size. */
+ * error or an unknown size.
+ * @deprecated You should prefer the 64 bit API \c xio_fsizel. */
 long DLLENTRY xio_fsize(XFILE* x);
 /** Returns the size of the file. A return value of -1L indicates an
  * error or an unknown size. */
@@ -180,7 +183,7 @@ int64_t DLLENTRY xio_fsizel(XFILE* x);
  * @param x XFILE desrciptor
  * @param st [out] The stat result is written to this structure.
  * @return 0 => OK, else see xio_ferrno.
- */
+ * @deprecated You should prefer the 64 bit API \c xio_fstatl. */
 int DLLENTRY xio_fstat(XFILE* x, XSTAT* st);
 /** Stat the current file.
  * @param x XFILE desrciptor
@@ -198,7 +201,7 @@ int DLLENTRY xio_fstatl(XFILE* x, XSTATL* st);
  * A return value of -1 shows an error. Note that \c xio_ftell can end up
  * to be beyond the end of the file. That happens if you have read data
  * and truncated the file to a smaller EOF position later.
- */
+ * @deprecated You should prefer the 64 bit API \c xio_ftruncatel. */
 int DLLENTRY xio_ftruncate(XFILE* x, long size);
 /** @brief Lengthens or cuts off the file to the length specified by size.
  * @details You must open the file in a mode that permits writing. Adds null
@@ -262,7 +265,8 @@ int DLLENTRY xio_errno(void);
 const char* DLLENTRY xio_strerror(int errnum);
 
 /** Sets a callback function that is notified when meta information
- * changes in the stream. A non-zero return value indicates an error. */
+ * changes in the stream. A non-zero return value indicates an error.
+ * @deprecated You should prefer the 64 bit API \c xio_set_metacallbackl. */
 int DLLENTRY xio_set_metacallback(XFILE* x, void DLLENTRYP(callback)(XIO_META type, const char* metabuff, long pos, void* arg), void* arg);
 /** Sets a callback function that is notified when meta information
  * changes in the stream. A non-zero return value indicates an error. */
@@ -345,7 +349,7 @@ void DLLENTRY xio_set_socket_timeout(int seconds);
 
 /* Syntactic sugar for C++ fanboys. */
 class XIO
-{private:
+{protected:
   XFILE*  Handle;
  public:
           XIO()                                         : Handle(NULL) {}
@@ -367,22 +371,16 @@ class XIO
   char*   GetS(char* string, int n)                     { return xio_fgets(string, n, Handle); }
   int     PutS(const char* string)                      { return xio_fputs(string, Handle); }
 
-  long    Tell() const                                  { return xio_ftell(Handle); }
-  int64_t TellL() const                                 { return xio_ftelll(Handle); }
+  int64_t Tell() const                                  { return xio_ftelll(Handle); }
   XIO_SEEK_SUPPORT CanSeek() const                      { return xio_can_seek(Handle); }
-  long    Seek(long offset, XIO_SEEK origin = XIO_SEEK_SET) { return xio_fseek(Handle, offset, origin); }
-  int64_t SeekL(int64_t offset, XIO_SEEK origin = XIO_SEEK_SET) { return xio_fseekl(Handle, offset, origin); }
+  int64_t Seek(int64_t offset, XIO_SEEK origin = XIO_SEEK_SET) { return xio_fseekl(Handle, offset, origin); }
   int     Rewind()                                      { return xio_rewind(Handle); }
 
-  long    Size() const                                  { return xio_fsize(Handle); }
-  int64_t SizeL() const                                 { return xio_fsizel(Handle); }
-  int     Stat(XSTAT* st) const                         { return xio_fstat(Handle, st); }
-  int     StatL(XSTATL* st) const                       { return xio_fstatl(Handle, st); }
-  int     Truncate(long size)                           { return xio_ftruncate(Handle, size); }
-  int     TruncateL(int64_t size)                       { return xio_ftruncatel(Handle, size); }
+  int64_t Size() const                                  { return xio_fsizel(Handle); }
+  int     Stat(XSTATL* st) const                        { return xio_fstatl(Handle, st); }
+  int     Truncate(int64_t size)                        { return xio_ftruncatel(Handle, size); }
 
-  int     SetMetaCallback(void DLLENTRYP(callback)(XIO_META type, const char* metabuff, long pos, void* arg), void* arg) { return xio_set_metacallback(Handle, callback, arg); }
-  int     SetMetaCallbackL(void DLLENTRYP(callback)(XIO_META type, const char* metabuff, int64_t pos, void* arg), void* arg) { return xio_set_metacallbackl(Handle, callback, arg); }
+  int     SetMetaCallback(void DLLENTRYP(callback)(XIO_META type, const char* metabuff, int64_t pos, void* arg), void* arg) { return xio_set_metacallbackl(Handle, callback, arg); }
   char*   GetMetaInfo(XIO_META type, char* result, int n) { return xio_get_metainfo(Handle, type, result, n); }
 };
 #endif
