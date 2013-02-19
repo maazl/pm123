@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2012 Marcel Mueller
+ * Copyright 2009-2013 Marcel Mueller
  * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
