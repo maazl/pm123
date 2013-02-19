@@ -37,7 +37,7 @@ xio_buffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_buffer.h xio_protocol
 xio_cddb.cpp:	..\utils\snprintf.h xio_cddb.h xio_url.h xio_socket.h ..\utils\debuglog.h
 xio_file.cpp:	..\utils\strutils.h ..\utils\eautils.h xio_file.h xio_url.h ..\utils\debuglog.h
 xio_ftp.cpp:	xio_ftp.h xio_url.h xio_socket.h ..\utils\interlocked.h
-xio_http.cpp:	xio_http.h xio_url.h xio_socket.h xio.h ..\utils\utilfct.h
+xio_http.cpp:	xio_http.h xio_url.h xio_socket.h xio.h ..\utils\cpp\xstring.h ..\utils\utilfct.h
 xio_socket.cpp:	xio_socket.h xio.h ..\utils\debuglog.h
 xio_url.cpp:	xio_url.h ..\utils\utilfct.h ..\utils\debuglog.h
 xio.h:		..\include\config.h
@@ -49,13 +49,10 @@ xio_syncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_syncbuffer.h xio_
 ..\utils\utilfct.h:	..\include\config.h ..\utils\errorstr.h ..\utils\minmax.h ..\utils\strutils.h
 ..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
 ..\include\plugin.h:	..\include\config.h
-..\utils\cpp\xstring.h:	..\utils\cpp\smartptr.h
 ..\utils\cpp\smartptr.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
-..\utils\cpp\mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
 ..\utils\interlocked.h:	..\include\config.h
 ..\utils\debuglog.h:	..\utils\errorstr.h
 xio_socket.h:	xio_protocol.h
-..\utils\cpp\container\stringmap.h:	..\utils\cpp\xstring.h ..\utils\cpp\container\sorted_vector.h
 ..\utils\cpp\container\sorted_vector.h:	..\utils\cpp\smartptr.h ..\utils\cpp\algorithm.h ..\utils\cpp\container\vector.h
 ..\utils\cpp\algorithm.h:	..\utils\cpp\container\vector.h
 ..\utils\cpp\container\vector.h:	..\utils\cpp\mutex.h ..\utils\cpp\smartptr.h

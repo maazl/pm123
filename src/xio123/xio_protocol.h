@@ -40,8 +40,8 @@ struct _XSTAT;
 
 enum XOFLAGS
 { XO_NONE          = 0x0000,
-  XO_WRITE         = 0x0001,
-  XO_READ          = 0x0002,
+  XO_READ          = 0x0001,
+  XO_WRITE         = 0x0002,
   XO_READWRITE     = 0x0003,
   XO_CREATE        = 0x0004,
   XO_APPEND        = 0x0008,
