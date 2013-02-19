@@ -37,6 +37,7 @@
 #include <utilfct.h>
 #include <process.h>
 #include <fileutil.h>
+#include <stddef.h>
 
 
 const double seek_window = .2;
@@ -48,32 +49,16 @@ const double seek_speed  = 4;
    value is nonzero. */
 static int DLLENTRY vio_seek(void* w, ogg_int64_t offset, int whence)
 { DEBUGLOG2(("oggplay:vio_seek(%p, %li, %i)\n", w, offset, whence));
-
-  XFILE* x   = (XFILE*)w;
-  int    pos = 0;
-
-  if( xio_can_seek(x) < XIO_CAN_SEEK_FAST )
+  if (xio_fseekl((XFILE*)w, offset, (XIO_SEEK)whence) >= 0)
+    return 0;
+  else
     return -1;
-
-  switch( whence )
-  { case SEEK_SET: pos = offset; break;
-    case SEEK_CUR: pos = xio_ftell(x) + offset; break;
-    case SEEK_END: pos = xio_fsize(x) + offset; break;
-    default:
-      return -1;
-  }
-
-  if( xio_fseek( x, pos, XIO_SEEK_SET ) >= 0 ) {
-    return pos;
-  } else {
-    return -1;
-  }
 }
 
 /* Finds the current position of the file. Returns the current file
    position. On error, returns -1L and sets errno to a nonzero value. */
-static long DLLENTRY vio_tell(void* w)
-{ return xio_ftell((XFILE*)w);
+static ogg_int64_t DLLENTRY vio_tell(void* w)
+{ return xio_ftelll((XFILE*)w);
 }
 
 /* Reads up to count items of size length from the input file and
@@ -83,7 +68,7 @@ static long DLLENTRY vio_tell(void* w)
    or if the end-of-file is met before reaching count. */
 static size_t DLLENTRY vio_read(void* ptr, size_t size, size_t count, void* w)
 { DEBUGLOG2(("oggplay:vio_read(%p, %i, %i, %p)\n", ptr, size, count, w));
-  return xio_fread( ptr, size, count, (XFILE*)w);
+  return xio_fread(ptr, size, count, (XFILE*)w);
 }
 
 
@@ -246,7 +231,7 @@ OggDecoderThread::~DECODER_STRUCT()
   DecoderCommand(DECODER_STOP, NULL);
 
   { Mutex::Lock lock(InstMtx);
-    foreach(OggDecoderThread*const*, dpp, Instances)
+    foreach(OggDecoderThread,*const*, dpp, Instances)
     { if (*dpp == this)
       { Instances.erase(dpp);
         break;
@@ -450,7 +435,7 @@ int OggDecoderThread::ReplaceStream(const char* sourcename, const char* destname
   // Suspend all active instances of the updated file.
   Mutex::Lock lock(InstMtx);
 
-  foreach(OggDecoderThread*const*, dpp, Instances)
+  foreach(OggDecoderThread,*const*, dpp, Instances)
   { OggDecoderThread& dec = **dpp;
     dec.Mtx.Request();
 
@@ -474,7 +459,7 @@ int OggDecoderThread::ReplaceStream(const char* sourcename, const char* destname
     rc = errno;
 
   // Resume all suspended instances of the updated file.
-  foreach(OggDecoderThread*const*, dpp, Instances)
+  foreach(OggDecoderThread,*const*, dpp, Instances)
   { OggDecoderThread& dec = **dpp;
     if (dec.ResumePcms != -1)
     { DEBUGLOG(("oggplay: resumes currently used file: %s\n", destname));
