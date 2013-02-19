@@ -46,47 +46,35 @@
 
 PLUGIN_CONTEXT Ctx;
 
-static sf_count_t DLLENTRY vio_fsize( void* x )
-{ return xio_fsize((XFILE*)x );
+static sf_count_t DLLENTRY vio_fsize(void* x)
+{ return xio_fsizel((XFILE*)x);
 }
 
-static sf_count_t DLLENTRY vio_seek( sf_count_t offset, int whence, void* x )
-{
-  int pos = 0;
-
-  switch( whence )
-  {
-    case SEEK_SET: pos = offset; break;
-    case SEEK_CUR: pos = xio_ftell((XFILE*)x) + offset; break;
-    case SEEK_END: pos = xio_fsize((XFILE*)x) + offset; break;
-    default:
-      return -1;
-  }
-
-  if( xio_fseek((XFILE*)x, pos, XIO_SEEK_SET ) != -1 ) {
-    return pos;
-  } else {
-    return -1;
-  }
+static sf_count_t DLLENTRY vio_seek(sf_count_t offset, int whence, void* x)
+{ return xio_fseekl((XFILE*)x, offset, (XIO_SEEK)whence);
 }
 
-static sf_count_t DLLENTRY vio_read( void* ptr, sf_count_t count, void* x )
-{ return xio_fread( ptr, 1, count, (XFILE*)x );
+static sf_count_t DLLENTRY vio_read(void* ptr, sf_count_t count, void* x)
+{ if (count > 0x7fffffff)
+    count = 0x7fffff00;
+  return xio_fread(ptr, 1, count, (XFILE*)x);
 }
 
-static sf_count_t DLLENTRY vio_write( const void* ptr, sf_count_t count, void* x )
-{ return xio_fwrite((void*)ptr, 1, count, (XFILE*)x );
+static sf_count_t DLLENTRY vio_write(const void* ptr, sf_count_t count, void* x)
+{ // Hopefully we do not receive write instructions with > 2GB block size.
+  // I think this is impossible with PM123.
+  return xio_fwrite(ptr, 1, count, (XFILE*)x);
 }
 
-static sf_count_t DLLENTRY vio_tell( void *x )
-{ return xio_ftell((XFILE*)x );
+static sf_count_t DLLENTRY vio_tell(void *x)
+{ return xio_ftell((XFILE*)x);
 }
 
 static const SF_VIRTUAL_IO vio_procs = { &vio_fsize, &vio_seek, &vio_read, &vio_write, &vio_tell };
 
 
 /* Decoding thread. */
-static void TFNENTRY decoder_thread( void* arg )
+static void TFNENTRY decoder_thread(void* arg)
 {
   ULONG resetcount;
   PM123_TIME markerpos;
