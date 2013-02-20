@@ -423,13 +423,12 @@ static off_t get_fileinfo(mpg123_handle *fr)
 {
 	off_t len;
 
-	if((len=io_seek(&fr->rdat,0,SEEK_END)) < 0)	return -1;
+	if((len=io_seek(&fr->rdat,-128,SEEK_END)) >= 0)
+	{
+		if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
 
-	if(io_seek(&fr->rdat,-128,SEEK_END) < 0) return -1;
-
-	if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
-
-	if(!strncmp((char*)fr->id3buf,"TAG",3))	len -= 128;
+		if(strncmp((char*)fr->id3buf,"TAG",3) != 0)	len += 128;
+	}
 
 	if(io_seek(&fr->rdat,0,SEEK_SET) < 0)	return -1;
 
