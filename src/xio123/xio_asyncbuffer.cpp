@@ -172,7 +172,7 @@ void TFNENTRY buffer_read_ahead_stub(void* arg)
 }
 
 /* Allocates and initializes the buffer. */
-XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned int block_size)
+XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size)
 : XIObuffer(chain, buf_size), 
   tail(head + size),
   prefill(0),
@@ -187,8 +187,7 @@ XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned
   data_end(false),
   end(false),
   boosted(false)
-{ blocksize = block_size;
-}
+{}
 
 bool XIOasyncbuffer::init()
 {

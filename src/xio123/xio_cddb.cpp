@@ -216,7 +216,7 @@ int XIOcddb::close()
    incapable of seeking, the return value is -1L. */
 int64_t XIOcddb::tell()
 { // For now this is atomic
-  return (int)s_pos;
+  return s_pos;
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
@@ -255,7 +255,7 @@ XIOcddb::~XIOcddb()
 
 /* Initializes the cddb protocol. */
 XIOcddb::XIOcddb()
-: s_pos((unsigned long)-1)
+: s_pos(0)
 { blocksize = 4096; // Sufficient for most Records
 }
 

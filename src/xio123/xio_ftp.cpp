@@ -255,8 +255,8 @@ int XIOftp::close()
   send_command( "QUIT", "" );
   s_socket.close();
   // Invalidate fields
-  s_pos    = (unsigned long)-1;
-  s_size   = (unsigned long)-1;
+  s_pos    = -1;
+  s_size   = -1;
   return 0;
 }
 
@@ -344,8 +344,8 @@ XIOftp::~XIOftp()
 /* Initializes the ftp protocol. */
 XIOftp::XIOftp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
-  s_pos((unsigned long)-1),
-  s_size((unsigned long)-1),
+  s_pos(0),
+  s_size(-1),
   s_location(NULL)
 { memset(s_reply, 0, sizeof s_reply);
   blocksize = 8192;

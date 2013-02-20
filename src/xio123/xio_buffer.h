@@ -47,17 +47,17 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
     char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
   };
  protected:
-  XPROTOCOL* chain;        ///< C  Pointer to virtualized protocol
+  XPROTOCOL*   chain;        ///< C  Pointer to virtualized protocol
 
-  char* head;              ///< C  Pointer to the first byte of the buffer.
-  const unsigned int size; ///< C  Current size of the buffer.
+  char*        head;         ///< C  Pointer to the first byte of the buffer.
+  const size_t size;         ///< C  Size of the buffer.
 
-  int64_t read_pos;        ///< M  Position of the logical read pointer in the associated file.
+  int64_t      read_pos;     ///< M  Position of the logical read pointer in the associated file.
 
   // Entries for the observer
   obs_entry*   s_obs_head;
   obs_entry*   s_obs_tail;
-  char  s_title[128];
+  char         s_title[128];
 
  protected:
   // Clear the observer meta data buffer
@@ -76,7 +76,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   virtual int64_t do_seek(int64_t offset) = 0;
   
  public:
-  XIObuffer(XPROTOCOL* chain, unsigned int buf_size);
+  XIObuffer(XPROTOCOL* chain, size_t buf_size);
   virtual bool init();
   virtual ~XIObuffer();
   virtual int open(const char* filename, XOFLAGS oflags);

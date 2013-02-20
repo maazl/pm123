@@ -70,8 +70,8 @@ class XIOftp : public XIOreadonly
 {private:
   XSFLAGS       support;
   XIOsocket     s_socket;   // Connection.
-  unsigned long s_pos;      // Current position of the stream pointer.
-  unsigned long s_size;     // Size of the associated file.
+  int64_t       s_pos;      // Current position of the stream pointer.
+  int64_t       s_size;     // Size of the associated file.
   char*         s_location; // Saved resource location.
 
   XIOsocket     s_datasocket;

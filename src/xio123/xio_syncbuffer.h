@@ -34,24 +34,29 @@
 
 class XIOsyncbuffer : public XIObuffer
 {private:
-  int64_t data_size; ///< Current size of the data in the buffer.
-  int64_t data_read; ///< Current read position in the data buffer.
-                     ///< Note that data_read can be larger that data_size
-                     ///< if the file was recently shrunken.
+  size_t  data_size; ///< Current size of the data in the buffer, &le; \c size.
+  size_t  data_ptr;  ///< Current read position in the data buffer, &lt; \c size.
+  size_t  data_unread;///< Unread part of the buffer data, &le; \c data_size.
  private:
   virtual int64_t do_seek(int64_t);
   
-  // Load new data into the buffer. Return false on error.
-  // The function tries to load the entire buffer size, but it succeeds also
-  // with less data if the underlying stream runs into EOF.
-  // data_size will tell you what has happened. If it is less than size
-  // EOF is reached.
-  bool    fill_buffer();
+  /// @brief Load new data into the buffer. Return false on error.
+  /// @details The function tries to load at least \a minsize bytes, but it succeeds also
+  /// with less data if the underlying stream runs into EOF.
+  /// \c data_size will tell you what has happened. If it is less than min
+  /// EOF is reached.
+  /// @pre \a minsize &isin [1 .. \c size] && \c data_unread == 0
+  bool    fill_buffer(size_t minsize);
 
  public:
+  /// Allocates and initializes the buffer.
   XIOsyncbuffer(XPROTOCOL* chain, unsigned int buf_size);
   //virtual bool init();
   //virtual ~XIOsyncbuffer();
+  /// Reads count bytes from the file into \a buffer. Returns the number
+  /// of bytes placed in result. The return value \c 0 indicates an attempt
+  /// to read at end-of-file. A return value \c -1 indicates an error.
+  /// @pre count > 0 && !eof && XO_READ
   virtual int read(void* result, unsigned int count);
   // more efficient implementation
   virtual char* gets(char* string, unsigned int n);

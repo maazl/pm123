@@ -165,7 +165,7 @@ int XIOhttp::read_file(const char* filename, int64_t range)
 
   for (redirect = 0; redirect < HTTP_MAX_REDIRECT; redirect++)
   {
-    int64_t r_size     = (unsigned long)-1;
+    int64_t r_size     = -1;
     time_t  r_mtime    = -1;
     int     r_metaint  = 0;
     XSFLAGS r_supports = support & ~XS_CAN_SEEK;

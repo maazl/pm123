@@ -153,9 +153,9 @@ XFILE* DLLENTRY xio_fopen(const char* filename, const char* mode)
   { int size = xio_buffer_size();
     XIObuffer* buffer;
     if ((x->oflags & XO_ASYNCBUFFER) && size)
-      buffer = (XIObuffer*)new XIOasyncbuffer(x->protocol, xio_buffer_size(), x->protocol->blocksize);
+      buffer = (XIObuffer*)new XIOasyncbuffer(x->protocol, xio_buffer_size());
     else
-      buffer = new XIOsyncbuffer(x->protocol, x->protocol->blocksize);
+      buffer = new XIOsyncbuffer(x->protocol, xio_buffer_size());
     if (buffer->init())
       x->protocol = buffer;
     else
@@ -296,6 +296,8 @@ int64_t DLLENTRY xio_fseekl(XFILE* x, int64_t offset, XIO_SEEK origin)
   XCHECK(x, -1);
   if (!x->Request())
     return -1;
+  x->protocol->error = 0;
+  x->protocol->eof   = 0;
   int64_t ret = x->protocol->seek(offset, origin);
   x->Release();
   DEBUGLOG(("xio_fseek: %lli\n", ret));
@@ -320,8 +322,7 @@ long DLLENTRY xio_fseek(XFILE* x, long int offset, XIO_SEEK origin)
    except that xio_rewind also clears the error indicator for
    the stream. */
 int DLLENTRY xio_rewind(XFILE* x)
-{ xio_clearerr(x);
-  return xio_fseekl(x, 0, XIO_SEEK_SET) == -1L;
+{ return xio_fseekl(x, 0, XIO_SEEK_SET) == -1L;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an

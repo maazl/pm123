@@ -53,7 +53,9 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
   s_obs_head(NULL),
   s_obs_tail(NULL)
 { *s_title = 0;
-  blocksize = 4096; // Probably not needed by anyone
+  blocksize = chain->blocksize;
+  if (blocksize > buf_size)
+    blocksize = buf_size;
 }
 
 bool XIObuffer::init()
@@ -107,9 +109,8 @@ int64_t XIObuffer::tell()
 int64_t XIObuffer::getsize()
 {
   int64_t ret = chain->getsize();
-  if (ret > read_pos && eof)
-  { eof = false;
-  }
+  if (ret > read_pos)
+    eof = false;
   return ret;
 }
 
@@ -133,7 +134,7 @@ int64_t XIObuffer::seek(int64_t offset, XIO_SEEK origin)
       break;
     case XIO_SEEK_END:
       result = getsize();
-      if (result != -1L)
+      if (result != -1)
       { result += offset;
         break;
       }

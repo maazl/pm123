@@ -44,79 +44,108 @@
 #include "xio.h"
 
 
-/* Allocates and initializes the buffer. */
 XIOsyncbuffer::XIOsyncbuffer(XPROTOCOL* chain, unsigned int buf_size)
-: XIObuffer(chain, buf_size), 
-  data_size(0),
-  data_read(0)
+: XIObuffer(chain, buf_size)
+, data_size(0)
+, data_ptr(0)
+, data_unread(0)
 {}
 
-/* Load new data into the buffer. Return false on error.
-   The function tries to load the entire buffer size, but it succeeds also
-   with less data if the underlying stream runs into EOF.
-   data_size will tell you what has happend. If it is less than size
-   EOF is reached. */
-bool XIOsyncbuffer::fill_buffer()
-{ DEBUGLOG(("XIOsyncbuffer(%p)::fill_buffer() - %p, %u\n", this, head, size));
-  unsigned int read_size = chain->read( head, size );
-  DEBUGLOG(("XIOsyncbuffer::fill_buffer: %u, %i\n", read_size, errno));
-  if (read_size == (unsigned int)-1)
-  { error = errno;
-    if (error == 0) // Hmm...
-      error = EINVAL;
+bool XIOsyncbuffer::fill_buffer(size_t minsize)
+{ DEBUGLOG(("XIOsyncbuffer(%p)::fill_buffer(%u) - %u, %u\n", this, minsize, data_ptr, data_size));
+  ASSERT(minsize <= size && minsize);
+  ASSERT(data_unread == 0);
+  // round up to next blocksize
+  size_t read_size = minsize + blocksize - 1 - ((minsize-1) % blocksize);
+  // limit to buffer size
+  if (read_size >= size)
+  { read_size = size;
+    data_ptr = 0;
+    goto read1;
+  }
+  if (data_ptr + read_size > size)
+  { // Ring buffer turn around
+    size_t read_size1 = size - data_ptr;
+    size_t data_read = chain->read(head + data_ptr, read_size1);
+    DEBUGLOG(("XIOsyncbuffer::fill_buffer: split %u, %i\n", data_read, errno));
+    if (data_read == (size_t)-1)
+      goto fail;
+    if (data_read != read_size1) // eof is coming
+      read_size = data_read;
+    else
+    { data_read = chain->read(head, read_size - read_size1);
+      if (data_read != (size_t)-1)
+        read_size += data_read;
+    }
+  } else
+  {read1:
+    read_size = chain->read(head + data_ptr, read_size);
+    DEBUGLOG(("XIOsyncbuffer::fill_buffer: %u, %i\n", read_size, errno));
+    if (read_size == (size_t)-1)
+    {fail:
+      error = errno;
+      if (error == 0) // Hmm...
+        error = EINVAL;
+      return false;
+    }
+  }
+  if (read_size == 0)
+  { eof = true;
     return false;
   }
-  data_size = read_size;
+  data_unread = read_size;
+  data_size += read_size;
+  if (data_size > size)
+    data_size = size;
   return true;
 }
 
-/* Reads count bytes from the file into buffer. Returns the number
-   of bytes placed in result. The return value 0 indicates an attempt
-   to read at end-of-file. A return value -1 indicates an error.
-   Precondition: count > 0 && !eof && XO_READ */
 int XIOsyncbuffer::read(void* result, unsigned int count)
 {
-  DEBUGLOG(("XIOsyncbuffer(%p)::read(%p, %u) - %u, %u\n", this, result, count, data_size, data_read));
+  DEBUGLOG(("XIOsyncbuffer(%p)::read(%p, %u) - %u, %u\n", this, result, count, data_size, data_ptr));
   unsigned int read_done = 0;
 
  again:
-  if (data_size > data_read)
-  { // Something is in the buffer
-    unsigned int read_size = min(data_size - data_read, count - read_done);
-    // Copy a next chunk of data in the result buffer.
-    memcpy((char*)result + read_done, head + data_read, read_size);
-
-    read_done += read_size;
-    data_read += read_size;
-  }
+  unsigned int read_size = count - read_done;
+  if (read_size > data_unread)
+    read_size = data_unread;
+  // Copy a next chunk of data in the result buffer.
+  if (data_ptr + read_size > size)
+  { // Ring buffer turn around
+    size_t read_size1 = size - data_ptr;
+    memcpy((char*)result + read_done, head + data_ptr, read_size1);
+    memcpy((char*)result + read_done + read_size1, head, read_size - read_size1);
+  } else
+    memcpy((char*)result + read_done, head + data_ptr, read_size);
+  read_done += read_size;
+  data_ptr += read_size;
+  if (data_ptr > size)
+    data_ptr -= size;
+  data_unread -= read_size;
 
   // not enough?
   if (read_done < count)
-  {
-    DEBUGLOG(("XIOsyncbuffer::read: fill buffer %u, %u, %u, %u, %i, %i\n",
-      read_done, count, data_read, size, chain->error, chain->eof));
-    // Now the buffer is neccessarily consumed => discard it.
-    data_size = 0;
-    data_read = 0;
+  { DEBUGLOG(("XIOsyncbuffer::read: fill buffer %u, %u, {%u, %u, %u}, %i, %i\n",
+      read_done, count, data_size, data_ptr, data_unread, chain->error, chain->eof));
     // But maybe we already run into an error in the chain. 
-    if (chain->error) 
-    { errno = error = chain->error;
-    } else if (chain->eof)
-    { eof = true;
-    } else if (count - read_done >= size)
+    if (chain->error)
+      errno = error = chain->error;
+    else if (chain->eof)
+      eof = true;
+    else if (count - read_done <= size)
+    { // Fill buffer
+      if (fill_buffer(count - read_done))
+        goto again;
+    } else
     { // Buffer bypass for large requests
       unsigned int read_size = chain->read((char*)result + read_done, count - read_done);
-      if (read_size == (unsigned int)-1)
-      { error = chain->error;
-      } else
+      if (read_size == (size_t)-1)
+        error = chain->error;
+      else
       { read_done += read_size;
         if (read_size < size)
           eof = true;
       }
-    } else
-    { // Fill buffer
-      if (fill_buffer())
-        goto again;
     }
   }
 
@@ -140,9 +169,10 @@ char* XIOsyncbuffer::gets(char* string, unsigned int n)
   --n; // space for \n
   for(;;)
   { // Transfer characters and stop after \n
-    while (data_read < data_size)
-    { char c = head[data_read++];
+    while (data_unread)
+    { char c = head[data_ptr++];
       ++read_pos;
+      --data_unread;
       switch (c)
       {case '\r':
         continue;
@@ -154,13 +184,13 @@ char* XIOsyncbuffer::gets(char* string, unsigned int n)
         if (--n == 0)
           goto done;
       }
+      if (data_ptr == size)
+        data_ptr = 0;
     }
-    // Buffer empty or file truncated.
-    data_size = 0;
-    data_read = 0;
-    if (!fill_buffer())
+    // Buffer empty
+    if (!fill_buffer(1))
       break;
-    if (data_size == 0)
+    else if (data_size == 0)
     { eof = true;
       break;
     }
@@ -179,7 +209,8 @@ int XIOsyncbuffer::close()
   int ret = XIObuffer::close();
   if (ret == 0)
   { data_size = 0;
-    data_read = 0;
+    data_ptr = 0;
+    data_unread = 0;
   }
   return ret;
 }
@@ -191,17 +222,25 @@ int XIOsyncbuffer::close()
 int64_t XIOsyncbuffer::do_seek(int64_t offset)
 {
   // Does result lie within the buffer?
-  int64_t buf_start_pos = read_pos - data_read;
-  if (offset >= buf_start_pos && offset <= buf_start_pos + data_size && !error)
-  { data_read = offset - buf_start_pos;
+  int64_t buf_end_pos = read_pos + data_unread;
+  if (offset >= buf_end_pos - data_size && offset <= buf_end_pos && !error)
+  { // Cache hit
+    size_t data_end = data_ptr + data_unread; // may overflow size
+    data_unread = (size_t)(buf_end_pos - offset);
+    data_ptr = (data_end + size - data_unread) % size;
+    DEBUGLOG(("XIOsyncbuffer::do_seek: cache hit %u, %u\n", data_unread, data_ptr));
+    error = 0;
+    eof = !data_unread && chain->eof;
     // TODO: When turning the pointer backwards in the buffer the observer events are not fired again. 
     obs_discard();
   } else
-  { if (chain->seek(offset, XIO_SEEK_SET) != -1)
+  { DEBUGLOG(("XIOsyncbuffer::do_seek: cache miss %llu, %llu\n", read_pos, offset));
+    if (chain->seek(offset, XIO_SEEK_SET) != -1)
     { obs_clear();
       // Discard the buffer
       data_size = 0;
-      data_read = 0;
+      data_ptr = 0;
+      data_unread = 0;
       // Reset error flags
       error = 0;
       eof   = chain->eof;
@@ -211,7 +250,7 @@ int64_t XIOsyncbuffer::do_seek(int64_t offset)
     }
   }
 
-  return read_pos = offset; // implicitly atomic
+  return read_pos = offset;
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
@@ -219,14 +258,25 @@ int64_t XIOsyncbuffer::do_seek(int64_t offset)
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
    of the original file. */
-int XIOsyncbuffer::chsize(int64_t size)
+int XIOsyncbuffer::chsize(int64_t newsize)
 {
-  int rc = XIObuffer::chsize(size);
+  int rc = XIObuffer::chsize(newsize);
   if (rc >= 0)
-  { // TODO: 64 bit
-    long buf_start_pos = read_pos - data_read;
-    if (rc != -1 && size < buf_start_pos + data_size)
-      data_size = size < buf_start_pos ? 0 : size - buf_start_pos;
+  { int64_t buf_end_pos = read_pos + data_unread;
+    if (newsize < buf_end_pos)
+    { int64_t strip_end = buf_end_pos - newsize; // Strip no of bytes from the back of the buffer.
+      if (strip_end >= data_unread)
+      { // discard entire buffer because we can't strip before data_ptr.
+        data_size = 0;
+        data_ptr = 0;
+        data_unread = 0;
+        eof = true;
+      } else
+      { // shorten read ahead buffer only
+        data_size -= (size_t)strip_end;
+        data_unread -= (size_t)strip_end;
+      }
+    }
   }
   return rc;
 }

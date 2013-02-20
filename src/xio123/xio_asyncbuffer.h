@@ -79,7 +79,7 @@ class XIOasyncbuffer : public XIObuffer
   virtual int64_t do_seek(int64_t offset);
 
  public:
-  XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned int block_size);
+  XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size);
   virtual bool init();
   virtual ~XIOasyncbuffer();
   virtual int read(void* result, unsigned int count);
