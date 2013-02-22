@@ -487,7 +487,7 @@ class xstringbuilder
   void        vappendf(const char* fmt, va_list va);
 
   /// Append a single character.
-  xstringbuilder& operator+=(char c)        { append(c); return *this; }
+  xstringbuilder& operator+=(char c);
   /// Append a C string.
   xstringbuilder& operator+=(const char* str) { append(str); return *this; }
 
@@ -612,6 +612,10 @@ inline void xstringbuilder::append(char c)
   Data[Len++] = c;
   Data[Len] = 0;
 }
+inline xstringbuilder& xstringbuilder::operator+=(char c)
+{ append(c); return *this;
+}
+
 inline void xstringbuilder::appendd(int i)
 { appendf("%i", i);
 }
