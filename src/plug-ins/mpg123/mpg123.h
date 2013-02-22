@@ -55,7 +55,7 @@
 #endif
 
 #include <plugin.h>
-#include <../libmpg123/config.h>
+#include <../libmpg123/compat.h> // name clash
 #include <../libmpg123/mpg123.h> // name clash
 #include <id3v1/id3v1.h>
 #include <id3v2/id3v2.h>
