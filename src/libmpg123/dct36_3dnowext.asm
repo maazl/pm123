@@ -15,7 +15,7 @@ extern	_INT123_COS9
 extern	_INT123_tfcos36
 
 section .text
-align 5
+align 32
 global	_INT123_dct36_3dnowext
 
 _INT123_dct36_3dnowext

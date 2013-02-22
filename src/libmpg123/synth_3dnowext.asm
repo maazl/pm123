@@ -15,17 +15,17 @@
 ;  33 "synth_sse3d.h"
 extern	_INT123_dct64_3dnowext
 section .data
-align 3
+align 8
 one_null
  dd -65536
  dd -65536
-align 3
+align 8
 null_one
  dd 65535
  dd 65535
 
 section .text
-align 4
+align 16
 
 global	_synth_1to1_3dnowext_asm
 _synth_1to1_3dnowext_asm

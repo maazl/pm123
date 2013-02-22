@@ -8,9 +8,9 @@
 #ifndef MPG123_ICY_H
 #define MPG123_ICY_H
 
-#ifndef NO_ICY
-
 #include "compat.h"
+
+#ifndef NO_ICY
 #include "mpg123.h"
 
 struct icy_meta

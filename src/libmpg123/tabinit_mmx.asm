@@ -12,7 +12,7 @@
 ;  10 "tabinit_mmx.S" 2
 
 section .data
-align 5
+align 32
 global	_INT123_costab_mmxsse
 _INT123_costab_mmxsse
  dd 1056974725
@@ -46,7 +46,7 @@ _INT123_costab_mmxsse
  dd 1057655764
  dd 1067924853
  dd 1060439283
-align 5
+align 32
 intwinbase
  dd 0, -1, -1, -1, -1, -1, -1, -2
  dd -2, -2, -2, -3, -3, -4, -4, -5
@@ -85,7 +85,7 @@ intwinbase
 intwindiv
  dd 0x47800000  ;  65536.0
 section .text
-align 5
+align 32
 
 global	_INT123_make_decode_tables_mmx_asm
 _INT123_make_decode_tables_mmx_asm

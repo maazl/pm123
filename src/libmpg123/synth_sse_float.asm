@@ -13,14 +13,14 @@
 ;  26 "synth_sse_float.S"
 section .data
 
-align 5
+align 32
 _scale_sse:
  dd 939524096
  dd 939524096
  dd 939524096
  dd 939524096
 section .text
-align 4
+align 16
 global	_INT123_synth_1to1_real_sse_asm
 _INT123_synth_1to1_real_sse_asm:
 	push	dword ebp

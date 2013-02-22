@@ -13,7 +13,7 @@
 ;  53 "synth_3dnow.S"
 extern	_INT123_dct64_3dnow
 section .text
-align 4
+align 16
 global	_INT123_synth_1to1_3dnow_asm
 
 _INT123_synth_1to1_3dnow_asm
@@ -91,7 +91,7 @@ _L29
 	pslld	mm7, 31
 	movq	mm0, [edx]
 	movq	mm1, [ebx]
-align 5
+align 32
 _L33
 	movq	mm3, [edx+8]
 	pfmul	mm0, mm1
@@ -190,7 +190,7 @@ _L33
 	movd	mm1, [edx+-4]
 	punpckldq	mm0, [ebx+4]
 	punpckldq	mm1, [edx+-8]
-align 5
+align 32
 _L46
 	movd	mm3, [ebx+8]
 	movd	mm4, [edx+-12]

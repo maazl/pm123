@@ -13,13 +13,13 @@
 ;  31 "synth_stereo_sse_s32.S"
 section .data
 
-align 5
+align 32
 _scale_s32:
  dd 1199570944
  dd 1199570944
  dd 1199570944
  dd 1199570944
-align 4
+align 16
 _maxmin_s32:
  dd 1191182335
  dd 1191182335
@@ -30,7 +30,7 @@ _maxmin_s32:
  dd -956301312
  dd -956301312
 section .text
-align 4
+align 16
 global	_INT123_synth_1to1_s32_s_sse_asm
 _INT123_synth_1to1_s32_s_sse_asm:
 	push	dword ebp

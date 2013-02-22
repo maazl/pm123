@@ -594,7 +594,7 @@ int attribute_align_arg mpg123_info(mpg123_handle *mh, struct mpg123_frameinfo *
 	}
 	mi->mode_ext = mh->mode_ext;
 	mi->framesize = mh->framesize+4; /* Include header. */
-	mi->flags = 0;
+	mi->flags = (enum mpg123_flags)0;
 	if(mh->error_protection) mi->flags |= MPG123_CRC;
 	if(mh->copyright)        mi->flags |= MPG123_COPYRIGHT;
 	if(mh->extension)        mi->flags |= MPG123_PRIVATE;

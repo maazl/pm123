@@ -10,6 +10,7 @@
 #ifndef SAMPLE_H
 #define SAMPLE_H
 
+
 /* mpg123lib_intern.h is included already, right? */
 
 /* Special case is fixed point math... which does work, but not that nice yet.  */
@@ -36,7 +37,7 @@ static inline short idiv_signed_rounded(long x, int shift)
 # if (defined REAL_IS_FLOAT) && (defined IEEE_FLOAT)
 /* This function is only available for IEEE754 single-precision values
    This is nearly identical to proper rounding, just -+0.5 is rounded to 0 */
-static inline short ftoi16(float x)
+INLINE short ftoi16(float x)
 {
 	union
 	{

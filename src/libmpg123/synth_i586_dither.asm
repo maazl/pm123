@@ -15,13 +15,13 @@ section .data
 extern	_INT123_dct64_i386
 
 
-align 3
+align 8
 _LC0:
  dd 0x0,0x40dfffc0
-align 3
+align 8
 _LC1:
  dd 0x0,0xc0e00000
-align 3
+align 8
 section .text
 
 global	_INT123_synth_1to1_i586_asm_dither

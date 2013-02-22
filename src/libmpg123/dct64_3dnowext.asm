@@ -13,12 +13,12 @@
 
 extern	_INT123_costab_mmxsse
 section .data
-align 2
+align 4
 
 
 plus_1f
  dd 1065353216
-align 3
+align 8
 
 
 x_plus_minus_3dnow
@@ -26,7 +26,7 @@ x_plus_minus_3dnow
  dd -2147483648
 
 section .text
-align 5
+align 32
 global	_INT123_dct64_3dnowext
 
 _INT123_dct64_3dnowext

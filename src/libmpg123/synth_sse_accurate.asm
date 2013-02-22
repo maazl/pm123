@@ -13,7 +13,7 @@
 ;  28 "synth_sse_accurate.S"
 section .data
 
-align 5
+align 32
 _maxmin_s16:
  dd 1191181824
  dd 1191181824
@@ -24,7 +24,7 @@ _maxmin_s16:
  dd -956301312
  dd -956301312
 section .text
-align 4
+align 16
 global	_INT123_synth_1to1_sse_accurate_asm
 _INT123_synth_1to1_sse_accurate_asm:
 	push	dword ebp

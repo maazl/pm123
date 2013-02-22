@@ -72,7 +72,7 @@ int compat_open(const char *filename, int flags)
 fallback:
 #endif
 
-#if (defined(WIN32) && !defined (__CYGWIN__)) /* MSDN says POSIX function is deprecated beginning in Visual C++ 2005 */
+#if (defined(__OS2__) || (defined(WIN32) && !defined (__CYGWIN__))) /* MSDN says POSIX function is deprecated beginning in Visual C++ 2005 */
 	ret = _open(filename, flags); /* Try plain old _open(), if it fails, do nothing */
 #else
 	/* On UNIX, we always add a default permission mask in case flags|O_CREAT. */
