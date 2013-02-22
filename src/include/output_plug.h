@@ -30,14 +30,14 @@ ULONG DLLENTRY output_init  (struct OUTPUT_STRUCT** a);
 ULONG DLLENTRY output_uninit(struct OUTPUT_STRUCT*  a);
 
 typedef enum
-{ OUTPUT_OPEN          = 1,
-  OUTPUT_CLOSE         = 2,
-  OUTPUT_VOLUME        = 3,
-  OUTPUT_PAUSE         = 4,
-  OUTPUT_SETUP         = 5,
-  OUTPUT_TRASH_BUFFERS = 6,
+{ OUTPUT_OPEN          = 1
+, OUTPUT_CLOSE         = 2
+, OUTPUT_VOLUME        = 3
+, OUTPUT_PAUSE         = 4
+, OUTPUT_SETUP         = 5
+, OUTPUT_TRASH_BUFFERS = 6
   #if PLUGIN_INTERFACE_LEVEL < 2
-  OUTPUT_NOBUFFERMODE  = 7 /* obsolete */
+, OUTPUT_NOBUFFERMODE  = 7 /* obsolete */
   #endif
 } OUTMSGTYPE;
 
@@ -48,7 +48,7 @@ typedef enum
  ***************************************************************************/
 #if PLUGIN_INTERFACE_LEVEL < 2 || defined(PM123_CORE)
 
-// forward declaration
+/* forward declaration */
 struct _DECODER_INFO;
 
 #define OUTPUT_SIZE_1 76  /* size of the OUTPUT_PARAMS structure prior PM123 1.32 */
