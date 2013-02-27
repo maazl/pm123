@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Marcel Mueller
+ * Copyright 2012-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,7 +39,6 @@
 
 
 const double seek_window = .2;
-const double seek_speed  = 4;
 
 
 DecoderBase::DecoderBase()
@@ -117,7 +116,7 @@ FLAC__StreamDecoderTellStatus DecoderBase::TellCB(const FLAC__StreamDecoder *dec
 }
 
 FLAC__StreamDecoderLengthStatus DecoderBase::LengthCB(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *data)
-{ long ret = xio_fsize(((DecoderBase*)data)->File);
+{ int64_t ret = xio_fsizel(((DecoderBase*)data)->File);
   if (ret != -1L)
   { *stream_length = ret;
     return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
@@ -266,7 +265,7 @@ void ThreadDecoder::Reset()
   //NewSaveTo = NULL;
   Format.channels = -1;
   Format.samplerate = -1;
-  FastMode = DECFAST_NORMAL_PLAY;
+  SkipSecs = 0;
   //SaveTo = NULL;
 }
 
@@ -307,9 +306,9 @@ PLUGIN_RC ThreadDecoder::Seek(PM123_TIME location)
   return PLUGIN_OK;
 }
 
-PLUGIN_RC ThreadDecoder::SetFast(DECFASTMODE mode)
-{ DEBUGLOG(("ThreadDecoder(%p)::SetFast(%u) - %f\n", this, mode, FastMode));
-  FastMode = mode;
+PLUGIN_RC ThreadDecoder::SetFast(float skipspeed)
+{ DEBUGLOG(("ThreadDecoder(%p)::SetFast(%u) - %f\n", this, speed, Speed));
+  SkipSecs = skipspeed * seek_window;
   NextSkip = 0;
   return PLUGIN_OK;
 }
@@ -380,10 +379,10 @@ void ThreadDecoder::DecoderThread()
 
       PM123_TIME newpos = SeekTo;
       PM123_TIME pos = GetTime();
-      if (FastMode && pos >= NextSkip)
+      if (SkipSecs && pos >= NextSkip)
       { if (newpos < 0)
           newpos = pos;
-        newpos += FastMode == DECFAST_FORWARD ? seek_window*(-1+seek_speed) : seek_window*(-1-seek_speed);
+        newpos += SkipSecs;
         if (newpos < 0)
           break; // Begin of song
       }

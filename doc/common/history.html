@@ -11,11 +11,13 @@
 <ul>
   <li>Added <em>playlist plug-in</em> support.</li>
   <li>Switched PM123 engine to 32 bits per sample.</li>
-  <li>Added <em>large file support</em> (&gt;2GB).</li>
+  <li>Added large file support (&gt;2GB).</li>
   <li>Significant speed up when invoking large playlists with many http
 URLs as long as you use no old decoder plug-ins.</li>
   <li>Implemented new shuffle algorithm that can deal with nested
-playlists. (Fixes bug #1) </li>
+playlists. (Fixes bug #1)</li>
+  <li>Added alternation list support for alternative URLs of streaming
+servers. </li>
   <li>Moved replay gain processing to PM123 core.</li>
   <li>Access to meta data through pipe interface.</li>
   <li>Switched to dynamic string library with shared storage to save
@@ -43,15 +45,14 @@ from unresponsive UI.</li>
   <h4>FLAC123</h4>
 </blockquote>
 <ul>
-  <li>FLAC decoder is now shipped by default. This decoder supersedes
-FLACPLAY.DLL.</li>
+  <li>FLAC decoder is now shipped by default. This decoder supersedes <tt>FLACPLAY.DLL</tt>.</li>
 </ul>
 <blockquote>
   <h4>PLIST123</h4>
 </blockquote>
 <ul>
   <li>Moved playlist read/write to a separate plug-in.</li>
-  <li>Added support for CUE sheets.</li>
+  <li>Added support for <em>CUE sheets</em>.</li>
 </ul>
 <blockquote>
   <h4>FOLDR123</h4>
@@ -63,7 +64,7 @@ FLACPLAY.DLL.</li>
   <h4>PULSE123</h4>
 </blockquote>
 <ul>
-  <li>Added <em>PulseAudio</em> client support, playback and recording.</li>
+  <li>Added <em>PulseAudio client</em> support, playback and recording.</li>
   <li>Support configuration by introspection API.</li>
 </ul>
 <blockquote>
@@ -77,13 +78,20 @@ FLACPLAY.DLL.</li>
 </blockquote>
 <ul>
   <li>Moved replay gain processing to PM123 core.</li>
-  <li>Moved logarithmic volume control to os2audio.</li>
+  <li>Joined logarithmic volume control plug-in to os2audio.</li>
 </ul>
 <blockquote>
   <h4>WAVPLAY</h4>
 </blockquote>
 <ul>
   <li>Upgrade to libsndfile 1.0.23.</li>
+</ul>
+<blockquote>
+  <h4>WAVOUT</h4>
+</blockquote>
+<ul>
+  <li>Added time stamp naming scheme.</li>
+  <li>Added support for WAV &gt; 2GB.</li>
 </ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>
 <blockquote>This is a fork of PM123 1.32.</blockquote>

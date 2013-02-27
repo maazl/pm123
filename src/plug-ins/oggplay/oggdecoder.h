@@ -1,4 +1,5 @@
 /*
+ * Copyright 2009-2013 Marcel Mueller
  * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,22 +94,22 @@ class OggDecoder
 
 typedef struct DECODER_STRUCT : public OggDecoder
 {private:
-  Event         Play;       // For internal use to sync the decoder thread.
-  Mutex         Mtx;        // For internal use to sync the decoder thread.
-  int           DecoderTID; // Decoder thread identifier.
-  DECODERSTATE  Status;     // Decoder status
+  Event         Play;       ///< For internal use to sync the decoder thread.
+  Mutex         Mtx;        ///< For internal use to sync the decoder thread.
+  int           DecoderTID; ///< Decoder thread identifier.
+  DECODERSTATE  Status;     ///< Decoder status
 
   bool          StopRq;
+  float         SkipSecs;   ///< Forward/rewind
   double        JumpToPos;
-  DECFASTMODE   FastMode;   // Forward/rewind
   double        NextSkip;
 
-  /* specify a function which the decoder should use for output */
+  // specify a function which the decoder should use for output
   int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  /* decoder events */
+  // decoder events
   void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
-  void* A;                  /* only to be used with the precedent functions */
+  void* A;                  ///< only to be used with the precedent functions
 
   ogg_int64_t     ResumePcms;
 

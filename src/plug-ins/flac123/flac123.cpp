@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Marcel Mueller
+ * Copyright 2012-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -86,7 +86,7 @@ ULONG DLLENTRY decoder_command(struct DECODER_STRUCT* w, DECMSGTYPE msg, const D
     return w->Stop();
 
    case DECODER_FFWD:
-    return w->SetFast(params->Fast);
+    return w->SetFast(params->SkipSpeed);
 
    case DECODER_JUMPTO:
     return w->Seek(params->JumpTo);

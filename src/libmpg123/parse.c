@@ -218,13 +218,13 @@ static int check_lame_tag(mpg123_handle *fr)
 							but that's problematic with seeking and such.
 							I still miss the real solution for detecting the end.
 						*/
-						fr->track_frames = (off_t) make_long(fr->bsbuf, lame_offset);
+						fr->track_frames = (mpg123_off_t) make_long(fr->bsbuf, lame_offset);
 						if(fr->track_frames > TRACK_MAX_FRAMES) fr->track_frames = 0; /* endless stream? */
 						#ifdef GAPLESS
 						/* if no further info there, remove/add at least the decoder delay */
 						if(fr->p.flags & MPG123_GAPLESS)
 						{
-							off_t length = fr->track_frames * spf(fr);
+							mpg123_off_t length = fr->track_frames * spf(fr);
 							if(length > 1)
 							frame_gapless_init(fr, GAPLESS_DELAY, length+GAPLESS_DELAY);
 						}
@@ -246,12 +246,12 @@ static int check_lame_tag(mpg123_handle *fr)
 						unsigned long xing_bytes = make_long(fr->bsbuf, lame_offset);					/* We assume that this is the _total_ size of the file, including Xing frame ... and ID3 frames...
 						   It's not that clearly documented... */
 						if(fr->rdat.filelen < 1)
-						fr->rdat.filelen = (off_t) xing_bytes; /* One could start caring for overflow here. */
+						fr->rdat.filelen = (mpg123_off_t) xing_bytes; /* One could start caring for overflow here. */
 						else
 						{
-							if((off_t) xing_bytes != fr->rdat.filelen && NOQUIET)
+							if((mpg123_off_t) xing_bytes != fr->rdat.filelen && NOQUIET)
 							{
-								double diff = 1.0/fr->rdat.filelen * (fr->rdat.filelen - (off_t)xing_bytes);
+								double diff = 1.0/fr->rdat.filelen * (fr->rdat.filelen - (mpg123_off_t)xing_bytes);
 								if(diff < 0.) diff = -diff;
 
 								if(VERBOSE3)
@@ -390,9 +390,9 @@ static int check_lame_tag(mpg123_handle *fr)
 					#ifdef GAPLESS
 					if(fr->p.flags & MPG123_GAPLESS)
 					{
-						off_t length = fr->track_frames * spf(fr);
-						off_t skipbegin = GAPLESS_DELAY + ((((int) fr->bsbuf[lame_offset]) << 4) | (((int) fr->bsbuf[lame_offset+1]) >> 4));
-						off_t skipend = -GAPLESS_DELAY + (((((int) fr->bsbuf[lame_offset+1]) << 8) | (((int) fr->bsbuf[lame_offset+2]))) & 0xfff);
+						mpg123_off_t length = fr->track_frames * spf(fr);
+						mpg123_off_t skipbegin = GAPLESS_DELAY + ((((int) fr->bsbuf[lame_offset]) << 4) | (((int) fr->bsbuf[lame_offset+1]) >> 4));
+						mpg123_off_t skipend = -GAPLESS_DELAY + (((((int) fr->bsbuf[lame_offset+1]) << 8) | (((int) fr->bsbuf[lame_offset+2]))) & 0xfff);
 						debug3("preparing gapless mode for layer3: length %lu, skipbegin %lu, skipend %lu", 
 								(long unsigned)length, (long unsigned)skipbegin, (long unsigned)skipend);
 						if(length > 1)
@@ -424,7 +424,7 @@ int read_frame(mpg123_handle *fr)
 {
 	/* TODO: rework this thing */
 	unsigned long newhead;
-	off_t framepos;
+	mpg123_off_t framepos;
 	int ret;
 	/* stuff that needs resetting if complete frame reading fails */
 	int oldsize  = fr->framesize;
@@ -552,7 +552,7 @@ init_resync:
 	{
 		unsigned long nexthead = 0;
 		int hd = 0;
-		off_t start = fr->rd->tell(fr);
+		mpg123_off_t start = fr->rd->tell(fr);
 		if(ret<0){ debug("need more?"); goto read_frame_bad; }
 
 		debug2("doing ahead check with BPF %d at %"OFF_P, fr->framesize+4, (off_p)start);
@@ -1071,13 +1071,13 @@ double attribute_align_arg mpg123_tpf(mpg123_handle *fr)
 	return tpf;
 }
 
-int attribute_align_arg mpg123_position(mpg123_handle *fr, off_t no, off_t buffsize,
-	off_t  *current_frame,   off_t  *frames_left,
+int attribute_align_arg mpg123_position(mpg123_handle *fr, mpg123_off_t no, mpg123_off_t buffsize,
+	mpg123_off_t  *current_frame,   mpg123_off_t  *frames_left,
 	double *current_seconds, double *seconds_left)
 {
 	double tpf;
 	double dt = 0.0;
-	off_t cur, left;
+	mpg123_off_t cur, left;
 	double curs, lefts;
 
 	if(!fr || !fr->rd) /* Isn't this too paranoid? */
@@ -1102,9 +1102,9 @@ int attribute_align_arg mpg123_position(mpg123_handle *fr, off_t no, off_t buffs
 	if(fr->rdat.filelen >= 0)
 	{
 		double bpf;
-		off_t t = fr->rd->tell(fr);
+		mpg123_off_t t = fr->rd->tell(fr);
 		bpf = fr->mean_framesize ? fr->mean_framesize : compute_bpf(fr);
-		left = (off_t)((double)(fr->rdat.filelen-t)/bpf);
+		left = (mpg123_off_t)((double)(fr->rdat.filelen-t)/bpf);
 		/* no can be different for prophetic purposes, file pointer is always associated with fr->num! */
 		if(fr->num != no)
 		{

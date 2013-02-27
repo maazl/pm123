@@ -322,9 +322,9 @@ static inline long scale_rounded(long x, int shift)
 
 int decode_update(mpg123_handle *mh);
 /* residing in format.c  */
-off_t samples_to_storage(mpg123_handle *fr , off_t s);
-off_t samples_to_bytes(mpg123_handle *fr , off_t s);
-off_t bytes_to_samples(mpg123_handle *fr , off_t b);
+mpg123_off_t samples_to_storage(mpg123_handle *fr , mpg123_off_t s);
+mpg123_off_t samples_to_bytes(mpg123_handle *fr , mpg123_off_t s);
+mpg123_off_t bytes_to_samples(mpg123_handle *fr , mpg123_off_t b);
 /* Postprocessing format conversion of freshly decoded buffer. */
 void postprocess_buffer(mpg123_handle *fr);
 

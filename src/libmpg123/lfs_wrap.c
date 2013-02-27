@@ -7,14 +7,14 @@
 	initially written by Thomas Orgis, thanks to Guido Draheim for consulting
 
 	This file contains wrappers for the case that _FILE_OFFSET_BITS (or equivalent, theoretically, depends on mpg123.h) is defined and thus certain mpg123 API calls get renamed with a suffix (p.ex. _64).
-	The renamed calls expect large off_t arguments, and possibly return large off_t values... these wrappers here provide the same functionality with long integer arguments/values.
+	The renamed calls expect large mpg123_off_t arguments, and possibly return large mpg123_off_t values... these wrappers here provide the same functionality with long integer arguments/values.
 
 	Prototypical idea: There is
-		off_t mpg123_seek_64(mpg123_handle*, off_t, int)
+		mpg123_off_t mpg123_seek_64(mpg123_handle*, mpg123_off_t, int)
 	This code provides
 		long mpg123_seek(mpg123_handle*, long, int)
 
-	This is rather simple business... wouldn't mpg123 offer replacing the I/O core with callbacks. Translating the callbacks between long and off_t world is the main reason why this file contains non-trivial code.
+	This is rather simple business... wouldn't mpg123 offer replacing the I/O core with callbacks. Translating the callbacks between long and mpg123_off_t world is the main reason why this file contains non-trivial code.
 
 	Note about file descriptors: We just assume that they are generally interchangeable between large and small file code... and that a large file descriptor will trigger errors when accessed with small file code where it may cause trouble (a really large file).
 */
@@ -39,7 +39,7 @@ if(/^\s*EXPORT\s+(\S+)\s+(mpg123_\S+)\((.*)\);\s*$/)
 	$type = $1;
 	$name = $2;
 	$args = $3;
-	next unless ($type =~ /off_t/ or $args =~ /off_t/);
+	next unless ($type =~ /mpg123_off_t/ or $args =~ /mpg123_off_t/);
 	print "$name\n" unless grep {$_ eq $name} 
 		("mpg123_open", "mpg123_open_fd", "mpg123_open_handle", "mpg123_replace_reader", "mpg123_replace_reader_handle");
 }' < mpg123.h.in
@@ -160,10 +160,10 @@ static struct wrap_data* wrap_get(mpg123_handle *mh)
 /* After settling the data... start with some simple wrappers. */
 
 #undef mpg123_decode_frame
-/* int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes) */
+/* int mpg123_decode_frame(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes) */
 int attribute_align_arg mpg123_decode_frame(mpg123_handle *mh, long *num, unsigned char **audio, size_t *bytes)
 {
-	off_t largenum;
+	mpg123_off_t largenum;
 	int err;
 
 	err = MPG123_LARGENAME(mpg123_decode_frame)(mh, &largenum, audio, bytes);
@@ -180,10 +180,10 @@ int attribute_align_arg mpg123_decode_frame(mpg123_handle *mh, long *num, unsign
 }
 
 #undef mpg123_framebyframe_decode
-/* int mpg123_framebyframe_decode(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes); */
+/* int mpg123_framebyframe_decode(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes); */
 int attribute_align_arg mpg123_framebyframe_decode(mpg123_handle *mh, long *num, unsigned char **audio, size_t *bytes)
 {
-	off_t largenum;
+	mpg123_off_t largenum;
 	int err;
 
 	err = MPG123_LARGENAME(mpg123_framebyframe_decode)(mh, &largenum, audio, bytes);
@@ -200,11 +200,11 @@ int attribute_align_arg mpg123_framebyframe_decode(mpg123_handle *mh, long *num,
 }
 
 #undef mpg123_tell
-/* off_t mpg123_tell(mpg123_handle *mh); */
+/* mpg123_off_t mpg123_tell(mpg123_handle *mh); */
 long attribute_align_arg mpg123_tell(mpg123_handle *mh)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_tell)(mh);
 	val = largeval;
@@ -217,11 +217,11 @@ long attribute_align_arg mpg123_tell(mpg123_handle *mh)
 }
 
 #undef mpg123_tellframe
-/* off_t mpg123_tellframe(mpg123_handle *mh); */
+/* mpg123_off_t mpg123_tellframe(mpg123_handle *mh); */
 long attribute_align_arg mpg123_tellframe(mpg123_handle *mh)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_tellframe)(mh);
 	val = largeval;
@@ -234,11 +234,11 @@ long attribute_align_arg mpg123_tellframe(mpg123_handle *mh)
 }
 
 #undef mpg123_tell_stream
-/* off_t mpg123_tell_stream(mpg123_handle *mh); */
+/* mpg123_off_t mpg123_tell_stream(mpg123_handle *mh); */
 long attribute_align_arg mpg123_tell_stream(mpg123_handle *mh)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_tell_stream)(mh);
 	val = largeval;
@@ -251,11 +251,11 @@ long attribute_align_arg mpg123_tell_stream(mpg123_handle *mh)
 }
 
 #undef mpg123_seek
-/* off_t mpg123_seek(mpg123_handle *mh, off_t sampleoff, int whence); */
+/* mpg123_off_t mpg123_seek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence); */
 long attribute_align_arg mpg123_seek(mpg123_handle *mh, long sampleoff, int whence)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_seek)(mh, sampleoff, whence);
 	val = largeval;
@@ -268,12 +268,12 @@ long attribute_align_arg mpg123_seek(mpg123_handle *mh, long sampleoff, int when
 }
 
 #undef mpg123_feedseek
-/* off_t mpg123_feedseek(mpg123_handle *mh, off_t sampleoff, int whence, off_t *input_offset); */
+/* mpg123_off_t mpg123_feedseek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence, mpg123_off_t *input_offset); */
 long attribute_align_arg mpg123_feedseek(mpg123_handle *mh, long sampleoff, int whence, long *input_offset)
 {
 	long val;
-	off_t largeioff;
-	off_t largeval;
+	mpg123_off_t largeioff;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_feedseek)(mh, sampleoff, whence, &largeioff);
 	/* Error/message codes are small... */
@@ -290,11 +290,11 @@ long attribute_align_arg mpg123_feedseek(mpg123_handle *mh, long sampleoff, int 
 }
 
 #undef mpg123_seek_frame
-/* off_t mpg123_seek_frame(mpg123_handle *mh, off_t frameoff, int whence); */
+/* mpg123_off_t mpg123_seek_frame(mpg123_handle *mh, mpg123_off_t frameoff, int whence); */
 long attribute_align_arg mpg123_seek_frame(mpg123_handle *mh, long frameoff, int whence)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_seek_frame)(mh, frameoff, whence);
 	val = largeval;
@@ -307,11 +307,11 @@ long attribute_align_arg mpg123_seek_frame(mpg123_handle *mh, long frameoff, int
 }
 
 #undef mpg123_timeframe
-/* off_t mpg123_timeframe(mpg123_handle *mh, double sec); */
+/* mpg123_off_t mpg123_timeframe(mpg123_handle *mh, double sec); */
 long attribute_align_arg mpg123_timeframe(mpg123_handle *mh, double sec)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_timeframe)(mh, sec);
 	val = largeval;
@@ -324,17 +324,17 @@ long attribute_align_arg mpg123_timeframe(mpg123_handle *mh, double sec)
 }
 
 /* Now something less simple: Index retrieval and manipulation.
-   The index is an _array_ of off_t, which means that I need to construct a copy with translated long values. */
+   The index is an _array_ of mpg123_off_t, which means that I need to construct a copy with translated long values. */
 #undef mpg123_index
-/* int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t *fill) */
+/* int mpg123_index(mpg123_handle *mh, mpg123_off_t **offsets, mpg123_off_t *step, size_t *fill) */
 int attribute_align_arg mpg123_index(mpg123_handle *mh, long **offsets, long *step, size_t *fill)
 {
 	int err;
 	size_t i;
 	long smallstep;
 	size_t thefill;
-	off_t largestep;
-	off_t *largeoffsets;
+	mpg123_off_t largestep;
+	mpg123_off_t *largeoffsets;
 	struct wrap_data *whd;
 
 	whd = wrap_get(mh);
@@ -381,21 +381,21 @@ int attribute_align_arg mpg123_index(mpg123_handle *mh, long **offsets, long *st
 }
 
 /* The writing does basically the same than the above, just the opposite.
-   Oh, and the overflow checks are not needed -- off_t is bigger than long. */
+   Oh, and the overflow checks are not needed -- mpg123_off_t is bigger than long. */
 #undef mpg123_set_index
-/* int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_t fill); */
+/* int mpg123_set_index(mpg123_handle *mh, mpg123_off_t *offsets, mpg123_off_t step, size_t fill); */
 int attribute_align_arg mpg123_set_index(mpg123_handle *mh, long *offsets, long step, size_t fill)
 {
 	int err;
 	size_t i;
 	struct wrap_data *whd;
-	off_t *indextmp;
+	mpg123_off_t *indextmp;
 
 	whd = wrap_get(mh);
 	if(whd == NULL) return MPG123_ERR;
 
 	/* Expensive temporary storage... for staying outside at the API layer. */
-	indextmp = malloc(fill*sizeof(off_t));
+	indextmp = malloc(fill*sizeof(mpg123_off_t));
 	if(indextmp == NULL)
 	{
 		mh->err = MPG123_OUT_OF_MEM;
@@ -422,10 +422,10 @@ int attribute_align_arg mpg123_set_index(mpg123_handle *mh, long *offsets, long 
 
 /* So... breathe... a couple of simple wrappers before the big mess. */
 #undef mpg123_position
-/* int mpg123_position( mpg123_handle *mh, off_t frame_offset, off_t buffered_bytes, off_t *current_frame, off_t *frames_left, double *current_seconds, double *seconds_left); */
+/* int mpg123_position( mpg123_handle *mh, mpg123_off_t frame_offset, mpg123_off_t buffered_bytes, mpg123_off_t *current_frame, mpg123_off_t *frames_left, double *current_seconds, double *seconds_left); */
 int attribute_align_arg mpg123_position(mpg123_handle *mh, long frame_offset, long buffered_bytes, long *current_frame, long *frames_left, double *current_seconds, double *seconds_left)
 {
-	off_t curframe, frameleft;
+	mpg123_off_t curframe, frameleft;
 	long small_curframe, small_frameleft;
 	int err;
 
@@ -449,11 +449,11 @@ int attribute_align_arg mpg123_position(mpg123_handle *mh, long frame_offset, lo
 }
 
 #undef mpg123_length
-/* off_t mpg123_length(mpg123_handle *mh); */
+/* mpg123_off_t mpg123_length(mpg123_handle *mh); */
 long attribute_align_arg mpg123_length(mpg123_handle *mh)
 {
 	long val;
-	off_t largeval;
+	mpg123_off_t largeval;
 
 	largeval = MPG123_LARGENAME(mpg123_length)(mh);
 	val = largeval;
@@ -467,7 +467,7 @@ long attribute_align_arg mpg123_length(mpg123_handle *mh)
 
 /* The simplest wrapper of all... */
 #undef mpg123_set_filesize
-/* int mpg123_set_filesize(mpg123_handle *mh, off_t size); */
+/* int mpg123_set_filesize(mpg123_handle *mh, mpg123_off_t size); */
 int attribute_align_arg mpg123_set_filesize(mpg123_handle *mh, long size)
 {
 	return MPG123_LARGENAME(mpg123_set_filesize)(mh, size);
@@ -505,7 +505,7 @@ ssize_t wrap_read(void* handle, void *buf, size_t count)
 }
 
 /* Seek callback needs protection from too big offsets. */
-off_t wrap_lseek(void *handle, off_t offset, int whence)
+mpg123_off_t wrap_lseek(void *handle, mpg123_off_t offset, int whence)
 {
 	struct wrap_data *ioh = handle;
 	long smalloff = offset;
@@ -549,7 +549,7 @@ static long fallback_lseek(int fd, long offset, int whence)
 {
 	/* Since the offset is long int already, the returned value really should fit into a long... but whatever. */
 	long newpos_long;
-	off_t newpos;
+	mpg123_off_t newpos;
 	newpos = lseek(fd, offset, whence);
 	newpos_long = newpos;
 	if(newpos_long == newpos)

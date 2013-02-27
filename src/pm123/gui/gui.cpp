@@ -526,9 +526,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (flags & Ctrl::EV_Pause)
         WinSendDlgItemMsg(HPlayer, BMP_PAUSE,   Ctrl::IsPaused() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & Ctrl::EV_Scan)
-      { DECFASTMODE mode = Ctrl::GetScan();
-        WinSendDlgItemMsg(HPlayer, BMP_FWD,     mode & DECFAST_FORWARD ? WM_PRESS : WM_DEPRESS, 0, 0);
-        WinSendDlgItemMsg(HPlayer, BMP_REW,     mode & DECFAST_REWIND  ? WM_PRESS : WM_DEPRESS, 0, 0);
+      { WinSendDlgItemMsg(HPlayer, BMP_FWD,     Ctrl::GetScan() > 0 ? WM_PRESS : WM_DEPRESS, 0, 0);
+        WinSendDlgItemMsg(HPlayer, BMP_REW,     Ctrl::GetScan() < 0 ? WM_PRESS : WM_DEPRESS, 0, 0);
       }
       if (flags & Ctrl::EV_Shuffle)
         WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
@@ -651,8 +650,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { HWND menu = HWNDFROMMP(mp2);
       mn_check_item(menu, BMP_PLAY,    Ctrl::IsPlaying());
       mn_check_item(menu, BMP_PAUSE,   Ctrl::IsPaused() );
-      mn_check_item(menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND );
-      mn_check_item(menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD);
+      mn_check_item(menu, BMP_REW,     Ctrl::GetScan() < 0);
+      mn_check_item(menu, BMP_FWD,     Ctrl::GetScan() > 0);
       mn_check_item(menu, BMP_SHUFFLE, Ctrl::IsShuffle());
       mn_check_item(menu, BMP_REPEAT,  Ctrl::IsRepeat() );
     }

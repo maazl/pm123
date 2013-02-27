@@ -50,11 +50,12 @@ struct DECODER_STRUCT
   SF_INFO      SFInfo;
   FORMAT_INFO2 Format;
 
-  HEV          play;            // For internal use to sync the decoder thread.
-  HMTX         mutex;           // For internal use to sync the decoder thread.
-  int          decodertid;      // Decoder thread indentifier.
+  HEV          play;            ///< For internal use to sync the decoder thread.
+  HMTX         mutex;           ///< For internal use to sync the decoder thread.
+  int          decodertid;      ///< Decoder thread indentifier.
   bool         Stop;
-  DECFASTMODE  Fast;
+  float        SkipSpeed;
+  int          NextSkip;
   PM123_TIME   JumpToPos;
   DECODERSTATE status;
 

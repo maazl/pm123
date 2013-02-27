@@ -729,10 +729,10 @@ void CommandProcessor::XRepeat()
 }
 
 static bool IsRewind()
-{ return Ctrl::GetScan() == DECFAST_REWIND;
+{ return Ctrl::GetScan() < 0;
 }
 static bool IsForward()
-{ return Ctrl::GetScan() == DECFAST_FORWARD;
+{ return Ctrl::GetScan() > 0;
 }
 void CommandProcessor::XQuery()
 { static const strmap<8, bool (*)()> map[] =

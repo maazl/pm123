@@ -109,6 +109,7 @@ typedef struct OUTPUT_STRUCT
   PM123_TIME         TimeOffset;
   uint64_t           WriteIndexOffset;
   bool               TrashFlag;
+  bool               FlushFlag;
   bool               LowWater;
   BackupBuffer       Buffer;
   PABasicOperation   DrainOp;

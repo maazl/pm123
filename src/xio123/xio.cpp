@@ -292,7 +292,7 @@ long DLLENTRY xio_ftell(XFILE* x)
    value indicates an error. On devices that cannot seek the return
    value is nonzero. */
 int64_t DLLENTRY xio_fseekl(XFILE* x, int64_t offset, XIO_SEEK origin)
-{ DEBUGLOG(("xio_fseek(%p, %lli, %i)\n", x, offset, origin));
+{ DEBUGLOG(("xio_fseekl(%p, %lli, %i)\n", x, offset, origin));
   XCHECK(x, -1);
   if (!x->Request())
     return -1;
@@ -328,10 +328,10 @@ int DLLENTRY xio_rewind(XFILE* x)
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
 int64_t DLLENTRY xio_fsizel(XFILE* x)
-{ DEBUGLOG(("xio_fsize(%p)\n", x));
+{ DEBUGLOG(("xio_fsizel(%p)\n", x));
   XCHECK(x, -1);
   int64_t ret = x->protocol->getsize();
-  DEBUGLOG(("xio_fsize: %lli\n", ret));
+  DEBUGLOG(("xio_fsizel: %lli\n", ret));
   return ret;
 }
 long DLLENTRY xio_fsize(XFILE* x)
@@ -344,10 +344,10 @@ long DLLENTRY xio_fsize(XFILE* x)
 }
 
 int DLLENTRY xio_fstatl(XFILE* x, XSTATL* st)
-{ DEBUGLOG(("xio_fstat(%p)\n", x));
+{ DEBUGLOG(("xio_fstatl(%p)\n", x));
   XCHECK(x, -1);
   int ret = x->protocol->getstat(st);
-  DEBUGLOG(("xio_fstat: %li\n", ret));
+  DEBUGLOG(("xio_fstatl: %li\n", ret));
   return ret;
 }
 int DLLENTRY xio_fstat(XFILE* x, XSTAT* st)
@@ -371,7 +371,7 @@ int DLLENTRY xio_fstat(XFILE* x, XSTAT* st)
    of the original file. Returns the value 0 if it successfully
    changes the file size. A return value of -1 shows an error. */
 int DLLENTRY xio_ftruncatel(XFILE* x, int64_t size)
-{ DEBUGLOG(("xio_fclose(%p, %lli)\n", x, size));
+{ DEBUGLOG(("xio_ftruncatel(%p, %lli)\n", x, size));
   XCHECK(x, -1);
   if (!(x->oflags & XO_WRITE))
   { errno = EACCES;

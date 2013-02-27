@@ -29,13 +29,13 @@ struct bufferchain
 	ssize_t pos;         /* Position in whole chain. */
 	ssize_t firstpos;    /* The point of return on non-forget() */
 	/* The "real" filepos is fileoff + pos. */
-	off_t fileoff;       /* Beginning of chain is at this file offset. */
+	mpg123_off_t fileoff;       /* Beginning of chain is at this file offset. */
 };
 
 struct reader_data
 {
-	off_t filelen; /* total file length or total buffer size */
-	off_t filepos; /* position in file or position in buffer chain */
+	mpg123_off_t filelen; /* total file length or total buffer size */
+	mpg123_off_t filepos; /* position in file or position in buffer chain */
 	int   filept;
 	/* Custom opaque I/O handle from the client. */
 	void *iohandle;
@@ -44,22 +44,22 @@ struct reader_data
 	ssize_t (*fdread) (mpg123_handle *, void *, size_t);
 	/* User can replace the read and lseek functions. The r_* are the stored replacement functions or NULL. */
 	ssize_t (*r_read) (int fd, void *buf, size_t count);
-	off_t   (*r_lseek)(int fd, off_t offset, int whence);
+	mpg123_off_t   (*r_lseek)(int fd, mpg123_off_t offset, int whence);
 	/* These are custom I/O routines for opaque user handles.
 	   They get picked if there's some iohandle set. */
 	ssize_t (*r_read_handle) (void *handle, void *buf, size_t count);
-	off_t   (*r_lseek_handle)(void *handle, off_t offset, int whence);
+	mpg123_off_t   (*r_lseek_handle)(void *handle, mpg123_off_t offset, int whence);
 	/* An optional cleaner for the handle on closing the stream. */
 	void    (*cleanup_handle)(void *handle);
 	/* These two pointers are the actual workers (default map to POSIX read/lseek). */
 	ssize_t (*read) (int fd, void *buf, size_t count);
-	off_t   (*lseek)(int fd, off_t offset, int whence);
+	mpg123_off_t   (*lseek)(int fd, mpg123_off_t offset, int whence);
 	/* Buffered readers want that abstracted, set internally. */
 	ssize_t (*fullread)(mpg123_handle *, unsigned char *, ssize_t);
 	struct bufferchain buffer; /* Not dynamically allocated, these few struct bytes aren't worth the trouble. */
 };
 
-/* start to use off_t to properly do LFS in future ... used to be long */
+/* start to use mpg123_off_t to properly do LFS in future ... used to be long */
 struct reader
 {
 	int     (*init)           (mpg123_handle *);
@@ -67,11 +67,11 @@ struct reader
 	ssize_t (*fullread)       (mpg123_handle *, unsigned char *, ssize_t);
 	int     (*head_read)      (mpg123_handle *, unsigned long *newhead);    /* succ: TRUE, else <= 0 (FALSE or READER_MORE) */
 	int     (*head_shift)     (mpg123_handle *, unsigned long *head);       /* succ: TRUE, else <= 0 (FALSE or READER_MORE) */
-	off_t   (*skip_bytes)     (mpg123_handle *, off_t len);                 /* succ: >=0, else error or READER_MORE         */
+	mpg123_off_t   (*skip_bytes)     (mpg123_handle *, mpg123_off_t len);                 /* succ: >=0, else error or READER_MORE         */
 	int     (*read_frame_body)(mpg123_handle *, unsigned char *, int size);
-	int     (*back_bytes)     (mpg123_handle *, off_t bytes);
-	int     (*seek_frame)     (mpg123_handle *, off_t num);
-	off_t   (*tell)           (mpg123_handle *);
+	int     (*back_bytes)     (mpg123_handle *, mpg123_off_t bytes);
+	int     (*seek_frame)     (mpg123_handle *, mpg123_off_t num);
+	mpg123_off_t   (*tell)           (mpg123_handle *);
 	void    (*rewind)         (mpg123_handle *);
 	void    (*forget)         (mpg123_handle *);
 };
@@ -86,7 +86,7 @@ int open_feed(mpg123_handle *);
 /* externally called function, returns 0 on success, -1 on error */
 int  feed_more(mpg123_handle *fr, const unsigned char *in, long count);
 void feed_forget(mpg123_handle *fr);  /* forget the data that has been read (free some buffers) */
-off_t feed_set_pos(mpg123_handle *fr, off_t pos); /* Set position (inside available data if possible), return wanted byte offset of next feed. */
+mpg123_off_t feed_set_pos(mpg123_handle *fr, mpg123_off_t pos); /* Set position (inside available data if possible), return wanted byte offset of next feed. */
 
 void open_bad(mpg123_handle *);
 

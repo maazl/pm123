@@ -260,10 +260,10 @@ int ID3V1_TAG::WriteTag(XFILE* x) const
    error occured. */
 int ID3V1_TAG::WipeTag(XFILE* x)
 { char id[3];
-  if ( xio_fseek(x, -128, XIO_SEEK_END) != -1
+  if ( xio_fseekl(x, -128, XIO_SEEK_END) != -1
     && xio_fread(id, 1, 3, x) == 3 )
   { if ( strncmp(id, "TAG", 3) != 0
-      || xio_ftruncate(x, xio_fsize(x) - 128) == 0 )
+      || xio_ftruncatel(x, xio_fsizel(x) - 128) == 0 )
       return 0;
   }
   return -1;

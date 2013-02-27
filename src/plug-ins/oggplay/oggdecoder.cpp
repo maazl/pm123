@@ -40,8 +40,8 @@
 #include <stddef.h>
 
 
+/// Length of the chunks played during scan of a file.
 const double seek_window = .2;
-const double seek_speed  = 4;
 
 /* Changes the current file position to a new location within the file.
    Returns 0 if it successfully moves the pointer. A nonzero return
@@ -219,8 +219,8 @@ Mutex OggDecoderThread::InstMtx;
 OggDecoderThread::DECODER_STRUCT()
 : DecoderTID(-1)
 , Status(DECODER_STOPPED)
+, SkipSecs(0)
 , JumpToPos(-1)
-, FastMode(DECFAST_NORMAL_PLAY)
 {
   Mutex::Lock lock(InstMtx);
   Instances.append() = this;
@@ -290,10 +290,10 @@ void OggDecoderThread::DecoderThread()
     { Play.Reset();
 
       double newpos = JumpToPos;
-      if (FastMode && GetPos() >= NextSkip)
+      if (SkipSecs && GetPos() >= NextSkip)
       { if (newpos < 0)
           newpos = GetPos();
-        newpos += FastMode == DECFAST_FORWARD ? seek_window*(-1+seek_speed) : seek_window*(-1-seek_speed);
+        newpos += SkipSecs;
         if (newpos < 0)
           break; // Begin of song
       }
@@ -412,7 +412,7 @@ ULONG OggDecoderThread::DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* pa
     case DECODER_FFWD:
       /*if (params->Fast && File && xio_can_seek(File) != XIO_CAN_SEEK_FAST)
         return PLUGIN_UNSUPPORTED;*/
-      FastMode = params->Fast;
+      SkipSecs = seek_window * params->SkipSpeed;
       NextSkip = GetPos();
       Play.Set();
       break;

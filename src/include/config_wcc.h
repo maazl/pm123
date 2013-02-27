@@ -79,4 +79,7 @@ typedef long sf_count_t;
 #define SF_COUNT_MAX 0x7fffffff
 #define SIZEOF_SF_COUNT_T 4
 
+/* for libmpg123 */
+typedef long mpg123_off_t;
+
 #endif /* PM123_CONFIG_WCC_H */

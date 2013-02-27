@@ -290,6 +290,7 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     TimeOffset = pos;
     WriteIndexOffset = 0;
     TrashFlag = true;
+    FlushFlag = false;
     LowWater = false;
     Buffer.Reset();
 
@@ -343,7 +344,8 @@ ULONG PlaybackWorker::TrashBuffers(PM123_TIME pos) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::TrashBuffers(%f)\n", this, pos));
   ULONG ret = 0;
   try
-  { Stream.Flush();
+  { FlushFlag = false;
+    Stream.Flush();
     //Buffer.Reset();
   } catch (const PAException& ex)
   { // We ignore errors here
@@ -362,9 +364,11 @@ ULONG PlaybackWorker::TrashBuffers(PM123_TIME pos) throw()
 
 void PlaybackWorker::DrainOpCompletion(const int& success)
 { DEBUGLOG(("PlaybackWorker(%p)::DrainOpCompletion(%u)\n", this, success));
-  // We raise the finish event even in case of an error to prevent
-  // PM123 from hanging at the end of the song.
-  RaiseOutputEvent(OUTEVENT_END_OF_DATA);
+  if (FlushFlag)
+  { // We raise the finish event even in case of an error to prevent
+    // PM123 from hanging at the end of the song.
+    RaiseOutputEvent(OUTEVENT_END_OF_DATA);
+  }
 }
 
 int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw()
@@ -372,11 +376,12 @@ int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw
     format ? format->channels : -1, format ? format->samplerate : -1));
   ASSERT(LastBuffer == NULL);
   try
-  { if (buf == NULL)
+  { if ((FlushFlag = (buf == NULL)) != false)
     { // flush request
       Stream.RunDrain(DrainOp);
       return 0;
     }
+    DrainOp.Cancel();
     // TODO: format changes!
     size_t len = (size_t)-1;
     *buf = LastBuffer = (float*)Stream.BeginWrite(len);

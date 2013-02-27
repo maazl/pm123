@@ -574,9 +574,9 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
 
   // Try XIO123 first.
   StreamHelper stream(URL);
-  XSTAT st;
+  XSTATL st;
   *st.type = 0;
-  if (stream.Handle && xio_fstat(stream.Handle, &st) == 0)
+  if (stream.Handle && xio_fstatl(stream.Handle, &st) == 0)
   { whatrq &= ~IF_Phys;
     what |= IF_Phys;
     phys.filesize = st.size;

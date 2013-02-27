@@ -77,6 +77,7 @@ const amp_cfg Cfg::Default =
 , { CFG_RG_ALBUM_NO_CLIP, CFG_RG_ALBUM, CFG_RG_TRACK_NO_CLIP, CFG_RG_TRACK }
 , 0
 , -3
+, 4
 , 0x21a // priority
 , 0x300
 , 15
@@ -198,6 +199,7 @@ void Cfg::LoadIni()
   load_ini_value(HIni, cfg.rg_list);
   load_ini_value(HIni, cfg.rg_preamp);
   load_ini_value(HIni, cfg.rg_preamp_other);
+  load_ini_int(HIni, cfg.scan_speed);
   load_ini_int(HIni, cfg.pri_normal);
   load_ini_int(HIni, cfg.pri_high);
   load_ini_int(HIni, cfg.pri_limit);
@@ -271,6 +273,7 @@ void Cfg::SaveIni()
     save_ini_value(HIni, cfg.rg_list);
     save_ini_value(HIni, cfg.rg_preamp);
     save_ini_value(HIni, cfg.rg_preamp_other);
+    save_ini_value(HIni, cfg.scan_speed);
     save_ini_value(HIni, cfg.pri_normal);
     save_ini_value(HIni, cfg.pri_high);
     save_ini_value(HIni, cfg.pri_limit);

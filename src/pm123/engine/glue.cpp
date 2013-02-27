@@ -293,7 +293,7 @@ ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_
   GlueImp::DParams.URL              = song.GetPlayable().URL;
   GlueImp::DParams.Info             = &song.GetInfo();
   GlueImp::DParams.JumpTo           = start;
-  GlueImp::DParams.Fast             = DECFAST_NORMAL_PLAY;
+  GlueImp::DParams.SkipSpeed        = 0;
   GlueImp::DParams.OutRequestBuffer = &PROXYFUNCREF(GlueImp)GlueRequestBuffer;
   GlueImp::DParams.OutCommitBuffer  = &PROXYFUNCREF(GlueImp)GlueCommitBuffer;
   GlueImp::DParams.A                = GlueImp::Procs.A;
@@ -364,8 +364,8 @@ void Glue::DecClose()
 }
 
 /* set fast forward/rewind mode */
-ULONG Glue::DecFast(DECFASTMODE mode)
-{ GlueImp::DParams.Fast = mode;
+ULONG Glue::DecFast(float skipspeed)
+{ GlueImp::DParams.SkipSpeed = skipspeed;
   return GlueImp::DecCommand(DECODER_FFWD);
 }
 
@@ -377,9 +377,7 @@ ULONG Glue::DecJump(PM123_TIME location)
   GlueImp::DParams.JumpTo = location;
   ULONG rc = GlueImp::DecCommand(DECODER_JUMPTO);
   if (rc == 0 && GlueImp::Initialized)
-  { GlueImp::OParams.PlayingPos = location;
-    GlueImp::OutCommand(OUTPUT_TRASH_BUFFERS);
-  }
+    GlueImp::OParams.PlayingPos = location;
   return rc;
 }
 

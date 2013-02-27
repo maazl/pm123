@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 Marcel Mueller
+ * Copyright 2008-2013 Marcel Mueller
  * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,8 @@
 #include <fileutil.h>
 
 PLUGIN_CONTEXT Ctx = {0};
+
+const float SkipWindow = .5;
 
 #define load_prf_value(var) \
   Ctx.plugin_api->profile_query(#var, &var, sizeof var)
@@ -214,8 +216,8 @@ void MPG123::EndTrackInstance()
       Instances.erase(dpp);
 }
 
-inline off_t MPG123::Time2Sample(PM123_TIME time)
-{ return (off_t)(floor(time * FrameInfo.rate + .5));
+inline mpg123_off_t MPG123::Time2Sample(PM123_TIME time)
+{ return (mpg123_off_t)(floor(time * FrameInfo.rate + .5));
 }
 
 static const char* const ch_modes[] = { "Stereo", "Joint-Stereo", "Dual-Channel", "Mono" };
@@ -249,12 +251,12 @@ bool MPG123::ReadFrameInfo()
 }
 
 bool MPG123::UpdateStreamLength()
-{ long size = xio_fsize(XFile);
+{ int64_t size = xio_fsizel(XFile);
   if (LastSize != size)
   { LastSize = size;
     if (size > 0)
     { mpg123_set_filesize(MPEG, size);
-      off_t length = mpg123_length(MPEG);
+      mpg123_off_t length = mpg123_length(MPEG);
       if (LastLength != length)
       { LastLength = length;
         return true;
@@ -320,10 +322,10 @@ ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
   #undef this
 }
 
-off_t MPG123::FSeek(void* that, off_t offset, int seekmode)
+mpg123_off_t MPG123::FSeek(void* that, mpg123_off_t offset, int seekmode)
 {
   #define this ((Decoder*)that)
-  return xio_fseek(this->XFile, offset, (XIO_SEEK)seekmode);
+  return xio_fseekl(this->XFile, offset, (XIO_SEEK)seekmode);
   #undef this
 }
 
@@ -532,7 +534,7 @@ xstring MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
   Mutex::Lock lock(InstMutex);
 
   // TODO: won't work
-  off_t* resumepoints = (off_t*)alloca(Instances.size() * sizeof *resumepoints);
+  mpg123_off_t* resumepoints = (mpg123_off_t*)alloca(Instances.size() * sizeof *resumepoints);
   memset(resumepoints, -1, Instances.size() * sizeof *resumepoints);
 
   size_t i;
@@ -655,21 +657,17 @@ void Decoder::ThreadFunc()
     }
     JumpTo = -1;
     (*OutEvent)(OutParam, DECEVENT_SEEKSTOP, NULL);
-  } else if (NextFast <= 0 && Fast == DECFAST_FORWARD)
-  { if (mpg123_seek(MPEG, Time2Sample(.3), SEEK_CUR) < 0)
-    {fastend:
-      state = ST_EOF;
+  } else if (SkipSpeed && NextFast <= 0)
+  { mpg123_off_t delta = (mpg123_off_t)floor((SkipWindow * FrameInfo.rate - NextFast) * SkipSpeed + .5);
+    if (mpg123_seek(MPEG, delta, SEEK_CUR) <= 0)
+    { state = ST_EOF;
       DecMutex.Release();
       (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
       goto start;
     }
-    NextFast = Time2Sample(.1);
+    NextFast = Time2Sample(SkipWindow);
   } else if (state == ST_EOF)
   { goto wait;
-  } else if (NextFast <= 0 && Fast == DECFAST_REWIND)
-  { if (mpg123_seek(MPEG, Time2Sample(-.5), SEEK_CUR) <= 0)
-      goto fastend;
-    NextFast = Time2Sample(.1);
   }
   state = ST_READY; // Recover from ST_EOF in case of seek
 
@@ -687,6 +685,10 @@ void Decoder::ThreadFunc()
     (*OutEvent)(OutParam, DECEVENT_PLAYERROR, NULL);
     goto start;
   }
+
+  // Restrict buffer size in case of scan
+  if (SkipSpeed && count > NextFast)
+    count = NextFast;
 
   size_t done;
   int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Channels, &done);
@@ -757,13 +759,13 @@ PLUGIN_RC Decoder::Setup(const DECODER_PARAMS2& par)
   return PLUGIN_OK;
 }
 
-PLUGIN_RC Decoder::Play(PM123_TIME start, DECFASTMODE fast)
+PLUGIN_RC Decoder::Play(PM123_TIME start, float skipspeed)
 { if (Status != DECODER_STOPPED)
     return PLUGIN_GO_ALREADY;
 
   JumpTo = start <= 0 ? -1 : start; // After opening a new file we so are in its beginning.
   NextFast = 0;
-  Fast = fast;
+  SkipSpeed = skipspeed;
   Status = DECODER_STARTING;
   Terminate = false;
   DecTID = _beginthread(PROXYFUNCREF(Decoder)ThreadStub, 0, 65535, this);
@@ -788,17 +790,17 @@ PLUGIN_RC Decoder::Stop()
   return PLUGIN_OK;
 }
 
-PLUGIN_RC Decoder::SetFast(DECFASTMODE fast)
+PLUGIN_RC Decoder::SetFast(float skipspeed)
 { if (Status == DECODER_STOPPED)
     return PLUGIN_GO_FAILED;
-  if (Fast == fast)
-    return PLUGIN_GO_ALREADY;
+  if (SkipSpeed == skipspeed)
+    return PLUGIN_OK;
 
   Mutex::Lock lock(DecMutex);
   if (!xio_can_seek(XFile)) // Support fast forward for unseekable streams?
     return PLUGIN_UNSUPPORTED;
   NextFast = 0;
-  Fast = fast;
+  SkipSpeed = skipspeed;
   return PLUGIN_OK;
 }
 
@@ -876,13 +878,13 @@ ULONG DLLENTRY decoder_command(Decoder* w, DECMSGTYPE msg, const DECODER_PARAMS2
       return w->Setup(*info);
 
     case DECODER_PLAY:
-      return w->Play(info->JumpTo, info->Fast);
+      return w->Play(info->JumpTo, info->SkipSpeed);
 
     case DECODER_STOP:
       return w->Stop();
 
     case DECODER_FFWD:
-      return w->SetFast(info->Fast);
+      return w->SetFast(info->SkipSpeed);
 
     case DECODER_JUMPTO:
       return w->Jump(info->JumpTo);

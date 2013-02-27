@@ -64,10 +64,10 @@ if(/^\s*EXPORT\s+(\S+)\s+(mpg123_\S+)\((.*)\);\s*$/)
 	my $type = $1;
 	my $name = $2;
 	my $args = $3;
-	next unless ($type =~ /off_t/ or $args =~ /off_t/ or ($name =~ /open/ and $name ne mpg123_open_feed));
-	$type =~ s/off_t/long/g;
+	next unless ($type =~ /mpg123_off_t/ or $args =~ /mpg123_off_t/ or ($name =~ /open/ and $name ne mpg123_open_feed));
+	$type =~ s/mpg123_off_t/long/g;
 	my @nargs = ();
-	$args =~ s/off_t/long/g;
+	$args =~ s/mpg123_off_t/long/g;
 	foreach my $a (split(/,/, $args))
 	{
 		$a =~ s/^.*\s\**([a-z_]+)$/$1/;

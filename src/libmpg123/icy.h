@@ -16,8 +16,8 @@
 struct icy_meta
 {
 	char* data;
-	off_t interval;
-	off_t next;
+	mpg123_off_t interval;
+	mpg123_off_t next;
 };
 
 void init_icy(struct icy_meta *);

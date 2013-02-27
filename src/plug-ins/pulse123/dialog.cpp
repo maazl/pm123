@@ -219,7 +219,7 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SinkPort));
       // Set current value
       if (Configuration.SinkServer)
-      { ComboBox(+GetCtrl(CB_SERVER)).SetText(Configuration.SinkServer);
+      { ComboBox(+GetCtrl(CB_SERVER)).Text(Configuration.SinkServer);
         PostMsg(UM_CONNECT, 0, 0);
       }
       SpinButton sb(GetCtrl(SB_MINLATENCY));
@@ -358,7 +358,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { MRESULT ret = IntrospectBase::DlgProc(msg, mp1, mp2);
       SetTitle(Title);
       if (Configuration.SourceServer)
-      { ComboBox(+GetCtrl(CB_SERVER)).SetText(Configuration.SourceServer);
+      { ComboBox(+GetCtrl(CB_SERVER)).Text(Configuration.SourceServer);
         PostMsg(UM_CONNECT, 0, 0);
       }
       if (Configuration.Source)

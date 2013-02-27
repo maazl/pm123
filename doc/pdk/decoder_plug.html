@@ -405,20 +405,17 @@ from another thread when <tt>decoder_uninit</tt> has returned.</p>
   <li><tt><var>msg</var></tt> - one of
 the following:
     <ul>
+      <li><tt>DECODER_SETUP</tt> - setup various
+parameters such as the output plug-in functions.</li>
       <li><tt>DECODER_PLAY</tt> - start playing the
 given filename, URL or others.</li>
-      <li><tt>DECODER_STOP</tt> - stop playing.</li>
       <li><tt>DECODER_FFWD</tt> - engage in ffwd mode
 (i.e.: play faster or skip forward or backward when playing).</li>
       <li><tt>DECODER_JUMPTO</tt> - jump and start
 decoding at the given time position.</li>
-      <li><tt>DECODER_SETUP</tt>The type <tt>struct DECODER_STRUCT</tt>
-is incomplete. You may fill it with life or simply cast to your own
-type.The type <tt>struct DECODER_STRUCT</tt> is incomplete. You may
-fill it with life or simply cast to your own type. - setup various
-parameters such as the output plug-in functions.</li>
       <li><tt>DECODER_SAVEDATA</tt> - tells the
 decoder to start saving the stream to HD.</li>
+      <li><tt>DECODER_STOP</tt> - stop playing.</li>
     </ul>
   </li>
   <li><tt><var>params</var></tt> -
@@ -450,17 +447,51 @@ uses the following syntax:</p>
   <samp>cdda:///H:/track02</samp> (CD track)<br>
   <samp>cdda:///H:/</samp> (CD TOC)
 </blockquote>
+<h5><tt>DECODER_SETUP</tt></h5>
+<blockquote>The <tt><tt>DECODER_SETUP</tt></tt> call is intended to
+capture the callback entries for the <a href="#output_interface">output
+interface</a>. They do not change during decoding.</blockquote>
 <h5><tt>DECODER_PLAY</tt></h5>
 <blockquote>
-  <p>This command tell the decoder which song to decode.</p>
+  <p>This command tell the decoder which song to decode. This should
+spawn a new thread that decodes the song and feeds the result to the <a
+ href="#output_interface">output interface</a>.</p>
 </blockquote>
-<h5><tt>DECODER_STOP</tt></h5>
+<h5><tt>DECODER_JUMPTO</tt></h5>
 <blockquote>
-  <p>Stop decoding of the current song.</p>
+  <p>Tells the decoder to continue decoding at a certain location of
+the song. The structure member <tt>JumpTo</tt> is the location in
+seconds from the song's start.</p>
 </blockquote>
 <h5><tt>DECODER_FFWD</tt></h5>
 <blockquote>
-  <p>Change the fast forward or rewind mode. </p>
+  <p>Change the fast forward or rewind mode. The structure member <tt>SkipSpeed</tt>
+tell the decoder which playback speed is intended. The value i a delta
+to the normal playback speed, i.e. <var>speed</var> = <var><tt>SkipSpeed</tt></var>
++ 1. Examples:</p>
+  <ul>
+    <li><b>0.0</b> =&gt; normal playback</li>
+    <li>1.0 =&gt; play twice as fast</li>
+    <li><b>3.0</b> =&gt; play 4 times faster</li>
+    <li>-2.0 =&gt; play reverse</li>
+    <li>-3.0 =&gt; play reverse twice as fast</li>
+    <li><b>-5.0</b> =&gt; play revers 4 time faster</li>
+    <li>-0.5 =&gt; play at half speed (currently unused)</li>
+  </ul>
+  <p>There is no need to hit this value exactly. It is better to skip
+parts of the song instead of transforming the sample rate. Common
+values are marked bold. If a decoder can't support different speeds, it
+could simply use <tt>SkipSpeed</tt> &gt; 0 for fast forward, and <tt>SkipSpeed</tt>
+&lt; 0 for fest rewind.</p>
+  <p><u>Implementation hint:</u> If you implement fast scan mode by
+seeking every 100 ms forward or reverse, then you need to seek <tt>SkipSpeed</tt>
+* 100 ms every time to get the desired average speed.</p>
+</blockquote>
+<h5><tt>DECODER_STOP</tt></h5>
+<blockquote>
+  <p>Stop decoding of the current song. This should terminate the
+decoder thread. After <tt>DECODER_STOP</tt> the decoder should ignore
+all errors and simply terminate.</p>
 </blockquote>
 <h3><a name="status_interface"></a>Status
 interface</h3>
@@ -642,9 +673,7 @@ set must be modified. The others should be left unchanged. </li>
   <li><code><var>haveinfo</var></code> -
 Components of info to modify.</li>
   <li><var><tt>errortext</tt></var> - place a descriptive error text
-he
-    <pre><b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(</pre>
-re if the function fails.<var> </var></li>
+here if the function fails.<var> </var></li>
   <li><var>return value</var><br>
     <code>PLUGIN_OK</code> (0) = everything is perfect,
 meta info is saved to <code><var>url</var></code>.<br>
@@ -686,9 +715,7 @@ will never request this on input.) </li>
 - Information of the playlist object itself. Usually playlists do not
 contain additional object information other than their content. So the
 info may be mostly ignored. However, it could speed up PM123 if <code>decoder_fileinfo</code>
-can
-    <pre><b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(<b>OutCommitBuffer</b>)(</pre>
-restore some infos in a cheap way.</li>
+can restore some infos in a cheap way.</li>
   <li><var><code>cb</code></var> -
 Enumeration callback. The decoder should call this function<code></code>
 to retrieve the information about the playlist content from PM123, but

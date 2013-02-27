@@ -46,6 +46,8 @@
 
 PLUGIN_CONTEXT Ctx;
 
+static const float SkipWindow = .1;
+
 static sf_count_t DLLENTRY vio_fsize(void* x)
 { return xio_fsizel((XFILE*)x);
 }
@@ -55,15 +57,11 @@ static sf_count_t DLLENTRY vio_seek(sf_count_t offset, int whence, void* x)
 }
 
 static sf_count_t DLLENTRY vio_read(void* ptr, sf_count_t count, void* x)
-{ if (count > 0x7fffffff)
-    count = 0x7fffff00;
-  return xio_fread(ptr, 1, count, (XFILE*)x);
+{ return xio_fread(ptr, 1, (int)count, (XFILE*)x);
 }
 
 static sf_count_t DLLENTRY vio_write(const void* ptr, sf_count_t count, void* x)
-{ // Hopefully we do not receive write instructions with > 2GB block size.
-  // I think this is impossible with PM123.
-  return xio_fwrite(ptr, 1, count, (XFILE*)x);
+{ return xio_fwrite(ptr, 1, (int)count, (XFILE*)x);
 }
 
 static sf_count_t DLLENTRY vio_tell(void *x)
@@ -72,16 +70,14 @@ static sf_count_t DLLENTRY vio_tell(void *x)
 
 static const SF_VIRTUAL_IO vio_procs = { &vio_fsize, &vio_seek, &vio_read, &vio_write, &vio_tell };
 
-
 /* Decoding thread. */
 static void TFNENTRY decoder_thread(void* arg)
 {
   ULONG resetcount;
-  PM123_TIME markerpos;
-
   DECODER_STRUCT* w = (DECODER_STRUCT*)arg;
+  sf_count_t markerpos = 0;
 
-  w->Fast = DECFAST_NORMAL_PLAY;
+  w->SkipSpeed = 0;
   w->Stop = false;
 
   if ((w->XFile = xio_fopen(w->URL, "rbXU")) == NULL)
@@ -107,7 +103,7 @@ static void TFNENTRY decoder_thread(void* arg)
 
   for(;;)
   {
-    DosWaitEventSem ( w->play, SEM_INDEFINITE_WAIT );
+    DosWaitEventSem(w->play, SEM_INDEFINITE_WAIT);
 
     if (w->Stop)
       break;
@@ -117,34 +113,23 @@ static void TFNENTRY decoder_thread(void* arg)
     while (!w->Stop)
     {
       int read;
+      DosResetEventSem(w->play, &resetcount);
 
-      DosResetEventSem( w->play, &resetcount );
-
-      if( w->JumpToPos >= 0 )
+      if (w->JumpToPos >= 0)
       { sf_count_t jumptoframe = (sf_count_t)(w->JumpToPos * w->SFInfo.samplerate +.5);
-        sf_seek(w->Sndfile, jumptoframe, SEEK_SET);
+        markerpos = sf_seek(w->Sndfile, jumptoframe, SEEK_SET);
+        if (markerpos < 0)
+          break;
         w->JumpToPos = -1;
         (*w->DecEvent)(w->A, DECEVENT_SEEKSTOP, NULL);
-      }
-
-      switch (w->Fast)
-      {case DECFAST_REWIND:
-        { /* ie.: ~1/2 second */
-          sf_count_t frame = sf_seek(w->Sndfile, 0, SEEK_CUR) - w->SFInfo.samplerate / 2;
-          if( frame < 0 ) {
-            goto playstop;
-          } else {
-            sf_seek(w->Sndfile, frame, SEEK_SET);
-          }
+      } else if (w->SkipSpeed && w->NextSkip <= 0)
+      { sf_count_t jumptoframe =
+          (sf_count_t)(w->SkipSpeed * (SkipWindow * w->SFInfo.samplerate) - w->NextSkip +.5);
+        markerpos = sf_seek(w->Sndfile, jumptoframe, SEEK_CUR);
+        if (markerpos < 0)
           break;
-        }
-       case DECFAST_FORWARD:
-        { sf_count_t frame = sf_seek(w->Sndfile, 0, SEEK_CUR) + w->SFInfo.samplerate / 2;
-          sf_seek(w->Sndfile, frame, SEEK_SET);
-        }
-       default:;
+        w->NextSkip = (sf_count_t)(SkipWindow * w->SFInfo.samplerate +.5);
       }
-
       // Request target buffer
       float* buffer;
       int frames = (*w->OutRequestBuffer)(w->A, &w->Format, &buffer);
@@ -153,14 +138,16 @@ static void TFNENTRY decoder_thread(void* arg)
         goto end;
       }
 
-      markerpos = sf_seek(w->Sndfile, 0, SEEK_CUR) / w->SFInfo.samplerate;
       read = sf_readf_float(w->Sndfile, buffer, frames);
       if (read <= 0)
         break;
 
-      (*w->OutCommitBuffer)(w->A, read, markerpos);
+      (*w->OutCommitBuffer)(w->A, read, (PM123_TIME)markerpos / w->SFInfo.samplerate);
+
+      w->NextSkip -= read;
+      markerpos += read;
     }
-   playstop:
+    // File finished
     (*w->DecEvent)(w->A, DECEVENT_PLAYSTOP, NULL);
     w->status = DECODER_STOPPING;
   }
@@ -256,7 +243,7 @@ static void decoder_inject_raw_format(const TECH_INFO& tech, SF_INFO& sfinfo)
    the stream demanded by the user. */
 int DLLENTRY decoder_init(DECODER_STRUCT** returnw)
 {
-  DECODER_STRUCT* w = (DECODER_STRUCT*)calloc( sizeof(*w), 1 );
+  DECODER_STRUCT* w = (DECODER_STRUCT*)calloc(sizeof(*w), 1);
   *returnw = w;
 
   DosCreateEventSem( NULL, &w->play,  0, FALSE );
@@ -345,7 +332,7 @@ decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* info)
     }
 
     case DECODER_FFWD:
-      if (info->Fast)
+      if (info->SkipSpeed)
       { DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
         if (w->decodertid == -1 || xio_can_seek(w->XFile) != XIO_CAN_SEEK_FAST )
         { DosReleaseMutexSem( w->mutex );
@@ -353,7 +340,8 @@ decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* info)
         }
         DosReleaseMutexSem( w->mutex );
       }
-      w->Fast = info->Fast;
+      w->NextSkip = 0;
+      w->SkipSpeed = info->SkipSpeed;
       break;
 
     case DECODER_JUMPTO:

@@ -406,7 +406,7 @@ void invalidate_format(struct audioformat *af)
 }
 
 /* Consider 24bit output needing 32bit output as temporary storage. */
-off_t samples_to_storage(mpg123_handle *fr, off_t s)
+mpg123_off_t samples_to_storage(mpg123_handle *fr, mpg123_off_t s)
 {
 	if(fr->af.encoding & MPG123_ENC_24)
 	return s*4*fr->af.channels; /* 4 bytes per sample */
@@ -415,12 +415,12 @@ off_t samples_to_storage(mpg123_handle *fr, off_t s)
 }
 
 /* take into account: channels, bytes per sample -- NOT resampling!*/
-off_t samples_to_bytes(mpg123_handle *fr , off_t s)
+mpg123_off_t samples_to_bytes(mpg123_handle *fr , mpg123_off_t s)
 {
 	return s * fr->af.encsize * fr->af.channels;
 }
 
-off_t bytes_to_samples(mpg123_handle *fr , off_t b)
+mpg123_off_t bytes_to_samples(mpg123_handle *fr , mpg123_off_t b)
 {
 	return b / fr->af.encsize / fr->af.channels;
 }

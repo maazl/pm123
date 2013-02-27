@@ -44,9 +44,7 @@
 #include <config.h>
 
 #include <stdlib.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <time.h>
 
 #ifdef __cplusplus

@@ -615,10 +615,10 @@ int attribute_align_arg mpg123_info(mpg123_handle *mh, struct mpg123_frameinfo *
 		- guess wildly from mean framesize and offset of first frame / beginning of file.
 */
 
-static off_t frame_fuzzy_find(mpg123_handle *fr, off_t want_frame, off_t* get_frame)
+static mpg123_off_t frame_fuzzy_find(mpg123_handle *fr, mpg123_off_t want_frame, mpg123_off_t* get_frame)
 {
 	/* Default is to go to the beginning. */
-	off_t ret = fr->audio_start;
+	mpg123_off_t ret = fr->audio_start;
 	*get_frame = 0;
 
 	/* But we try to find something better. */
@@ -634,12 +634,12 @@ static off_t frame_fuzzy_find(mpg123_handle *fr, off_t want_frame, off_t* get_fr
 		if(toc_entry > 99) toc_entry = 99;
 
 		/* Now estimate back what frame we get. */
-		*get_frame = (off_t) ((double)toc_entry/100. * fr->track_frames);
+		*get_frame = (mpg123_off_t) ((double)toc_entry/100. * fr->track_frames);
 		fr->accurate = FALSE;
 		fr->silent_resync = 1;
 		/* Question: Is the TOC for whole file size (with/without ID3) or the "real" audio data only?
 		   ID3v1 info could also matter. */
-		ret = (off_t) ((double)fr->xing_toc[toc_entry]/256.* fr->rdat.filelen);
+		ret = (mpg123_off_t) ((double)fr->xing_toc[toc_entry]/256.* fr->rdat.filelen);
 	}
 	else if(fr->mean_framesize > 0)
 	{	/* Just guess with mean framesize (may be exact with CBR files). */
@@ -647,7 +647,7 @@ static off_t frame_fuzzy_find(mpg123_handle *fr, off_t want_frame, off_t* get_fr
 		fr->accurate = FALSE; /* Fuzzy! */
 		fr->silent_resync = 1;
 		*get_frame = want_frame;
-		ret = (off_t) (fr->audio_start+fr->mean_framesize*want_frame);
+		ret = (mpg123_off_t) (fr->audio_start+fr->mean_framesize*want_frame);
 	}
 	debug5("fuzzy: want %li of %li, get %li at %li B of %li B",
 		(long)want_frame, (long)fr->track_frames, (long)*get_frame, (long)ret, (long)(fr->rdat.filelen-fr->audio_start));
@@ -663,10 +663,10 @@ static off_t frame_fuzzy_find(mpg123_handle *fr, off_t want_frame, off_t* get_fr
 	Decide if you want low latency reaction and accurate timing info or stable long-time playback with buffer!
 */
 
-off_t frame_index_find(mpg123_handle *fr, off_t want_frame, off_t* get_frame)
+mpg123_off_t frame_index_find(mpg123_handle *fr, mpg123_off_t want_frame, mpg123_off_t* get_frame)
 {
 	/* default is file start if no index position */
-	off_t gopos = 0;
+	mpg123_off_t gopos = 0;
 	*get_frame = 0;
 #ifdef FRAME_INDEX
 	/* Possibly use VBRI index, too? I'd need an example for this... */
@@ -708,9 +708,9 @@ off_t frame_index_find(mpg123_handle *fr, off_t want_frame, off_t* get_frame)
 	return gopos;
 }
 
-off_t frame_ins2outs(mpg123_handle *fr, off_t ins)
+mpg123_off_t frame_ins2outs(mpg123_handle *fr, mpg123_off_t ins)
 {	
-	off_t outs = 0;
+	mpg123_off_t outs = 0;
 	switch(fr->down_sample)
 	{
 		case 0:
@@ -728,9 +728,9 @@ off_t frame_ins2outs(mpg123_handle *fr, off_t ins)
 	return outs;
 }
 
-off_t frame_outs(mpg123_handle *fr, off_t num)
+mpg123_off_t frame_outs(mpg123_handle *fr, mpg123_off_t num)
 {
-	off_t outs = 0;
+	mpg123_off_t outs = 0;
 	switch(fr->down_sample)
 	{
 		case 0:
@@ -750,9 +750,9 @@ off_t frame_outs(mpg123_handle *fr, off_t num)
 
 /* Compute the number of output samples we expect from this frame.
    This is either simple spf() or a tad more elaborate for ntom. */
-off_t frame_expect_outsamples(mpg123_handle *fr)
+mpg123_off_t frame_expect_outsamples(mpg123_handle *fr)
 {
-	off_t outs = 0;
+	mpg123_off_t outs = 0;
 	switch(fr->down_sample)
 	{
 		case 0:
@@ -770,9 +770,9 @@ off_t frame_expect_outsamples(mpg123_handle *fr)
 	return outs;
 }
 
-off_t frame_offset(mpg123_handle *fr, off_t outs)
+mpg123_off_t frame_offset(mpg123_handle *fr, mpg123_off_t outs)
 {
-	off_t num = 0;
+	mpg123_off_t num = 0;
 	switch(fr->down_sample)
 	{
 		case 0:
@@ -792,7 +792,7 @@ off_t frame_offset(mpg123_handle *fr, off_t outs)
 
 #ifdef GAPLESS
 /* input in _input_ samples */
-void frame_gapless_init(mpg123_handle *fr, off_t b, off_t e)
+void frame_gapless_init(mpg123_handle *fr, mpg123_off_t b, mpg123_off_t e)
 {
 	fr->begin_s = b;
 	fr->end_s = e;
@@ -810,7 +810,7 @@ void frame_gapless_realinit(mpg123_handle *fr)
 }
 
 /* When we got a new sample count, update the gaplessness. */
-void frame_gapless_update(mpg123_handle *fr, off_t total_samples)
+void frame_gapless_update(mpg123_handle *fr, mpg123_off_t total_samples)
 {
 	if(fr->end_s < 1)
 	{
@@ -831,9 +831,9 @@ void frame_gapless_update(mpg123_handle *fr, off_t total_samples)
 #endif
 
 /* Compute the needed frame to ignore from, for getting accurate/consistent output for intended firstframe. */
-static off_t ignoreframe(mpg123_handle *fr)
+static mpg123_off_t ignoreframe(mpg123_handle *fr)
 {
-	off_t preshift = fr->p.preframes;
+	mpg123_off_t preshift = fr->p.preframes;
 	/* Layer 3 _really_ needs at least one frame before. */
 	if(fr->lay==3 && preshift < 1) preshift = 1;
 	/* Layer 1 & 2 reall do not need more than 2. */
@@ -846,14 +846,14 @@ static off_t ignoreframe(mpg123_handle *fr)
    Seek to frame offset 1 may be just seek to 200 samples offset in output since the beginning of first frame is delay/padding.
    Hm, is that right? OK for the padding stuff, but actually, should the decoder delay be better totally hidden or not?
    With gapless, even the whole frame position could be advanced further than requested (since Homey don't play dat). */
-void frame_set_frameseek(mpg123_handle *fr, off_t fe)
+void frame_set_frameseek(mpg123_handle *fr, mpg123_off_t fe)
 {
 	fr->firstframe = fe;
 #ifdef GAPLESS
 	if(fr->p.flags & MPG123_GAPLESS)
 	{
 		/* Take care of the beginning... */
-		off_t beg_f = frame_offset(fr, fr->begin_os);
+		mpg123_off_t beg_f = frame_offset(fr, fr->begin_os);
 		if(fe <= beg_f)
 		{
 			fr->firstframe = beg_f;
@@ -888,7 +888,7 @@ void frame_skip(mpg123_handle *fr)
 
 /* Sample accurate seek prepare for decoder. */
 /* This gets unadjusted output samples and takes resampling into account */
-void frame_set_seek(mpg123_handle *fr, off_t sp)
+void frame_set_seek(mpg123_handle *fr, mpg123_off_t sp)
 {
 	fr->firstframe = frame_offset(fr, sp);
 #ifndef NO_NTOM

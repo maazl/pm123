@@ -13,7 +13,7 @@ LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\src\sndfile$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\G72x\g72x$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\GSM610\gsm610$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
-LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO)
+LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO)
 DEF      = wavplay$(LDEF_SUFFX)
 
 wavplay.dll: $(OBJECTS) $(DEF) $(LIBS)

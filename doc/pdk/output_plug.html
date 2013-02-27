@@ -13,8 +13,8 @@ level 3.</p>
 <h4><a name="initialization_interface"></a>Initialization interface</h4>
 <p>The initialization interface does not need to be thread safe.</p>
 <blockquote>
-  <pre><a name="output_init"></a>ULONG DLLENTRY <b>output_init</b>  (void**<var> a</var>)<br><a
- name="output_uninit"></a>ULONG DLLENTRY <b>output_uninit</b>(void* <var> a</var>)</pre>
+  <pre><a name="output_init"></a>ULONG DLLENTRY <b>output_init</b>  (struct OUTPUT_STRUCT**<var> a</var>)<br><a
+ name="output_uninit"></a>ULONG DLLENTRY <b>output_uninit</b>(struct OUTPUT_STRUCT* <var> a</var>)</pre>
 </blockquote>
 <ul>
   <li><var><tt>a</tt></var> - Allocate any chunk of memory necessary
@@ -39,7 +39,7 @@ plug-in is request by the user and should free the allocated memory for
 is called from a different thread than the <a href="#data_interface">data
 interface</a>.</p>
 <blockquote>
-  <pre><a name="output_command"></a>ULONG DLLENTRY <b>output_command</b>(void* <var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS2* <var>info</var>)</pre>
+  <pre><a name="output_command"></a>ULONG DLLENTRY <b>output_command</b>(struct OUTPUT_STRUCT* <var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS2* <var>info</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>msg</var></tt> - command to execute, see below </li>
@@ -169,7 +169,7 @@ Anything else is an error.
 <p>All samples are passed as 32 floating point regardless what
 type the input has been.</p>
 <blockquote>
-  <pre><a name="output_request_buffer"></a>int DLLENTRY <b>output_request_buffer</b>(void* <var>a</var>, <a
+  <pre><a name="output_request_buffer"></a>int DLLENTRY <b>output_request_buffer</b>(struct OUTPUT_STRUCT* <var>a</var>, <a
  href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>format</var>, float** <var>buf</var>)</pre>
 </blockquote>
 <ul>
@@ -205,7 +205,7 @@ Do not close the output if you receive a flush request. The user could
 use navigation commands to resume playback while the flush request
 already is in the processing queue.</p>
 <blockquote>
-  <pre><a name="output_commit_buffer"></a>void DLLENTRY <b>output_commit_buffer</b>(void* <var>a</var>, int <var>len</var>, PM123_TIME <var>pos</var>)</pre>
+  <pre><a name="output_commit_buffer"></a>void DLLENTRY <b>output_commit_buffer</b>(struct OUTPUT_STRUCT* <var>a</var>, int <var>len</var>, PM123_TIME <var>pos</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>a</var></tt> - Decoder instance created with <a
@@ -227,7 +227,7 @@ plug-in to play the stored samples.
 <h4><a name="status_interface"></a>Status interface</h4>
 <p>The status interface must be thread safe and reentrant.</p>
 <blockquote>
-  <pre>PM123_TIME DLLENTRY <b>output_playing_pos</b>(void* <var>a</var>)</pre>
+  <pre>PM123_TIME DLLENTRY <b>output_playing_pos</b>(struct OUTPUT_STRUCT* <var>a</var>)</pre>
 </blockquote>
 This function returns the <tt><var>pos</var></tt> from the buffer that
 the user currently hears.
@@ -241,7 +241,7 @@ But you must not make any assumptions about the zero point.
 Returns <tt>TRUE</tt> if the output plug-in still has some buffers to
 play.
 <blockquote>
-  <pre><a name="output_playing_samples"></a>ULONG DLLENTRY <b>output_playing_samples</b>(void* a, <a
+  <pre><a name="output_playing_samples"></a>ULONG DLLENTRY <b>output_playing_samples</b>(struct OUTPUT_STRUCT* a, <a
  href="datatype.html#PM123_TIME">PM123_TIME</a> offset, <a
  href="#OUTPUT_PLAYING_BUFFER_CB">OUTPUT_PLAYING_BUFFER_CB</a> cb, void* param)</pre>
 </blockquote>
@@ -309,7 +309,7 @@ part of the interface has not been changed.</p>
 is called from a different thread than the <a href="#data_interface1">data
 interface</a>.</p>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>output_command</b>(void *<var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS *<var>info</var>)</pre>
+  <pre>ULONG DLLENTRY <b>output_command</b>(struct OUTPUT_STRUCT *<var>a</var>, ULONG <var>msg</var>, OUTPUT_PARAMS *<var>info</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>msg</var></tt> - one of the following:<br>
@@ -376,7 +376,7 @@ activated state.</p>
 called from a different thread than the <a href="#control_interface1">control
 interface</a>.</p>
 <blockquote>
-  <pre>int DLLENTRY <b>output_play_samples</b>(void* <var>a</var>, FORMAT_INFO* <var>format</var>, char* <var>buf</var>, int <var>len</var>, int <var>posmarker</var>)</pre>
+  <pre>int DLLENTRY <b>output_play_samples</b>(struct OUTPUT_STRUCT* <var>a</var>, FORMAT_INFO* <var>format</var>, char* <var>buf</var>, int <var>len</var>, int <var>posmarker</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>format</var></tt> - format of buf. The format type is
@@ -398,7 +398,7 @@ plug-in to play samples.
 <h4>Status interface</h4>
 <p>The status interface must be thread safe and reentrant.</p>
 <blockquote>
-  <pre>int DLLENTRY <b>output_playing_pos</b>(void* <var>a</var>)</pre>
+  <pre>int DLLENTRY <b>output_playing_pos</b>(struct OUTPUT_STRUCT* <var>a</var>)</pre>
 </blockquote>
 This function returns the <var>posmarker</var> from the buffer that
 the user currently hears.
@@ -407,11 +407,11 @@ The plug-in may use this knowledge to calculate time indices with
 higher resolution than one buffer.
 But you must not make any assumptions about the zero point.
 <blockquote>
-  <pre>BOOL DLLENTRY <b>output_playing_data</b>(void* <var>a</var>)</pre>
+  <pre>BOOL DLLENTRY <b>output_playing_data</b>(struct OUTPUT_STRUCT* <var>a</var>)</pre>
 </blockquote>
 Returns TRUE if the output plug-in still has some buffers to play.
 <blockquote>
-  <pre>ULONG DLLENTRY <b>output_playing_samples</b>(void* <var>a</var>, FORMAT_INFO* <var>info</var>, char* <var>buf</var>, int <var>len</var>)</pre>
+  <pre>ULONG DLLENTRY <b>output_playing_samples</b>(struct OUTPUT_STRUCT* <var>a</var>, FORMAT_INFO* <var>info</var>, char* <var>buf</var>, int <var>len</var>)</pre>
 </blockquote>
 <ul>
   <li><tt><var>info</var></tt> - return the format of <var><tt>buf</tt></var>.

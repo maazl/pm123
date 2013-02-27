@@ -15,34 +15,6 @@
 #define MPG123_COMPAT_H
 
 #include "config.h"
-
-/* Static configuration for PM123 */
-#define OPT_MULTI 1
-#define OPT_GENERIC 1
-#define OPT_GENERIC_DITHER 1
-#define OPT_I386 1
-#define OPT_I586 1
-#define OPT_I586_DITHER 1
-#define OPT_3DNOW 1
-#define OPT_3DNOWEXT 1
-#define OPT_SSE 1
-
-#define REAL_IS_FLOAT 1
-#define IEEE_FLOAT 1
-#define ASMALIGN_EXP 1
-
-#define GAPLESS 1
-#define NO_ICY 1
-#define NO_NTOM 1
-#define NO_DOWNSAMPLE 1
-#define NO_8BIT 1
-#define NO_16BIT 1
-#define NO_32BIT 1
-
-/* We do not use the ID3V2 code of libmpg123, since it does not handle writing. */
-#define ID3V2_RAW 1
-
-
 #include "intsym.h"
 
 #ifdef HAVE_STDLIB_H

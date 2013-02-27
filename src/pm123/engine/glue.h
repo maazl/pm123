@@ -83,7 +83,7 @@ class Glue
   /// @details This does not imply that the decoder is currently decoding data.
   static bool  DecInitialized() { return !!DecPlug; }
   /// Set fast forward/rewind mode
-  static ULONG DecFast(DECFASTMODE mode);
+  static ULONG DecFast(float skipspeed);
   /// Jump to absolute position
   static ULONG DecJump(PM123_TIME location);
   /// Set savefilename to save the raw stream data

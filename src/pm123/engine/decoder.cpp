@@ -244,7 +244,7 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
   xstring url; // currently playing song
   PM123_TIME temppos;
   int    juststarted; // Status whether the first samples after DECODER_PLAY did not yet arrive. 2 = no data arrived, 1 = no valid data arrived, 0 = OK
-  DECFASTMODE lastfast;
+  float  lastskipspeed;
   DECODER_FILETYPE* filetypebuffer;
   char*  filetypestringbuffer;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
@@ -519,7 +519,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
     op->a                      = params->A;
 
     op->temppos  = -1;
-    op->lastfast = DECFAST_NORMAL_PLAY;
+    op->lastskipspeed = 0;
     break;
 
    case DECODER_STOP:
@@ -532,20 +532,19 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, const DECODER_PA
 
    case DECODER_FFWD:
    case DECODER_REW:
-    DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->Fast));
-    if (op->lastfast && params->Fast)
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->SkipSpeed));
+    if (op->lastskipspeed && params->SkipSpeed)
     { // changing direction requires two commands
-      msg = op->lastfast == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
+      msg = op->lastskipspeed < 0 ? DECODER_REW : DECODER_FFWD;
       par1.ffwd              = FALSE;
       par1.rew               = FALSE;
       (*op->vdecoder_command)(w, msg, &par1);
-      op->lastfast = params->Fast;
     }
-    par1.ffwd                = params->Fast == DECFAST_FORWARD;
-    par1.rew                 = params->Fast == DECFAST_REWIND;
-    msg = (op->lastfast|params->Fast) == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
+    par1.ffwd                = params->SkipSpeed > 0;
+    par1.rew                 = params->SkipSpeed < 0;
+    msg = op->lastskipspeed + params->SkipSpeed < 0 ? DECODER_REW : DECODER_FFWD;
     op->temppos  = Glue::OutPlayingPos();
-    op->lastfast = params->Fast;
+    op->lastskipspeed = params->SkipSpeed;
     break;
 
    case DECODER_JUMPTO:

@@ -198,9 +198,9 @@ struct mpg123_handle_struct
 	int framesize; /* computed framesize */
 	int freesize;  /* free format frame size */
 	enum mpg123_vbr vbr; /* 1 if variable bitrate was detected */
-	off_t num; /* frame offset ... */
-	off_t playnum; /* playback offset... includes repetitions, reset at seeks */
-	off_t audio_start; /* The byte offset in the file where audio data begins. */
+	mpg123_off_t num; /* frame offset ... */
+	mpg123_off_t playnum; /* playback offset... includes repetitions, reset at seeks */
+	mpg123_off_t audio_start; /* The byte offset in the file where audio data begins. */
 	char accurate; /* Flag to see if we trust the frame number. */
 	char silent_resync; /* Do not complain for the next n resyncs. */
 	unsigned char* xing_toc; /* The seek TOC from Xing header. */
@@ -226,10 +226,10 @@ struct mpg123_handle_struct
 	} rva;
 
 	/* input data */
-	off_t track_frames;
-	off_t track_samples;
+	mpg123_off_t track_frames;
+	mpg123_off_t track_samples;
 	double mean_framesize;
-	off_t mean_frames;
+	mpg123_off_t mean_frames;
 	int fsizeold;
 	int ssize;
 	unsigned int bitreservoir;
@@ -251,16 +251,16 @@ struct mpg123_handle_struct
 	size_t outblock; /* number of bytes that this frame produces (upper bound) */
 	int to_decode;   /* this frame holds data to be decoded */
 	int to_ignore;   /* the same, somehow */
-	off_t firstframe;  /* start decoding from here */
-	off_t lastframe;   /* last frame to decode (for gapless or num_frames limit) */
-	off_t ignoreframe; /* frames to decode but discard before firstframe */
+	mpg123_off_t firstframe;  /* start decoding from here */
+	mpg123_off_t lastframe;   /* last frame to decode (for gapless or num_frames limit) */
+	mpg123_off_t ignoreframe; /* frames to decode but discard before firstframe */
 #ifdef GAPLESS
-	off_t firstoff; /* number of samples to ignore from firstframe */
-	off_t lastoff;  /* number of samples to use from lastframe */
-	off_t begin_s;  /* overall begin offset in samples */
-	off_t begin_os;
-	off_t end_s;    /* overall end offset in samples */
-	off_t end_os;
+	mpg123_off_t firstoff; /* number of samples to ignore from firstframe */
+	mpg123_off_t lastoff;  /* number of samples to use from lastframe */
+	mpg123_off_t begin_s;  /* overall begin offset in samples */
+	mpg123_off_t begin_os;
+	mpg123_off_t end_s;    /* overall end offset in samples */
+	mpg123_off_t end_os;
 #endif
 	unsigned int crc; /* Well, I need a safe 16bit type, actually. But wider doesn't hurt. */
 	struct reader *rd; /* pointer to the reading functions */
@@ -332,7 +332,7 @@ void frame_exit(mpg123_handle *fr);   /* end, free all buffers */
 /* Well... print it... */
 int mpg123_print_index(mpg123_handle *fr, FILE* out);
 /* Find a seek position in index. */
-off_t frame_index_find(mpg123_handle *fr, off_t want_frame, off_t* get_frame);
+mpg123_off_t frame_index_find(mpg123_handle *fr, mpg123_off_t want_frame, mpg123_off_t* get_frame);
 /* Apply index_size setting. */
 int frame_index_setup(mpg123_handle *fr);
 
@@ -362,17 +362,17 @@ MPEG 2.5
 /* well, I take that one for granted... at least layer3 */
 #define GAPLESS_DELAY 529
 /* still fine-tuning the "real music" window... see read_frame */
-void frame_gapless_init(mpg123_handle *fr, off_t b, off_t e);
+void frame_gapless_init(mpg123_handle *fr, mpg123_off_t b, mpg123_off_t e);
 void frame_gapless_realinit(mpg123_handle *fr);
-void frame_gapless_update(mpg123_handle *mh, off_t total_samples);
+void frame_gapless_update(mpg123_handle *mh, mpg123_off_t total_samples);
 /*void frame_gapless_position(mpg123_handle* fr);
 void frame_gapless_bytify(mpg123_handle *fr);
-void frame_gapless_ignore(mpg123_handle *fr, off_t frames);*/
+void frame_gapless_ignore(mpg123_handle *fr, mpg123_off_t frames);*/
 /* void frame_gapless_buffercheck(mpg123_handle *fr); */
 #endif
 
 /* Number of samples the decoding of the current frame should yield. */
-off_t frame_expect_outsamples(mpg123_handle *fr);
+mpg123_off_t frame_expect_outsamples(mpg123_handle *fr);
 
 /* Skip this frame... do some fake action to get away without actually decoding it. */
 void frame_skip(mpg123_handle *fr);
@@ -384,14 +384,14 @@ void frame_skip(mpg123_handle *fr);
 	- get leading frame offset for output sample offset
 	The offsets are "unadjusted"/internal; resampling is being taken care of.
 */
-off_t frame_ins2outs(mpg123_handle *fr, off_t ins);
-off_t frame_outs(mpg123_handle *fr, off_t num);
+mpg123_off_t frame_ins2outs(mpg123_handle *fr, mpg123_off_t ins);
+mpg123_off_t frame_outs(mpg123_handle *fr, mpg123_off_t num);
 /* This one just computes the expected sample count for _this_ frame. */
-off_t frame_expect_outsampels(mpg123_handle *fr);
-off_t frame_offset(mpg123_handle *fr, off_t outs);
-void frame_set_frameseek(mpg123_handle *fr, off_t fe);
-void frame_set_seek(mpg123_handle *fr, off_t sp);
-off_t frame_tell_seek(mpg123_handle *fr);
+mpg123_off_t frame_expect_outsampels(mpg123_handle *fr);
+mpg123_off_t frame_offset(mpg123_handle *fr, mpg123_off_t outs);
+void frame_set_frameseek(mpg123_handle *fr, mpg123_off_t fe);
+void frame_set_seek(mpg123_handle *fr, mpg123_off_t sp);
+mpg123_off_t frame_tell_seek(mpg123_handle *fr);
 /* Take a copy of the Xing VBR TOC for fuzzy seeking. */
 int frame_fill_toc(mpg123_handle *fr, unsigned char* in);
 #endif

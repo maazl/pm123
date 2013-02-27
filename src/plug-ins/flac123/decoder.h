@@ -122,7 +122,7 @@ typedef struct DECODER_STRUCT : public DecoderBase
   FLAC__uint64 SamplePos;
   PM123_TIME   NextSkip;
   //XFILE*       SaveTo;
-  DECFASTMODE  FastMode;
+  float        SkipSecs;  ///< Number of seconds to skip, 0 = normal play.
  private: // Tasks
   bool         Terminate; ///< true to stop the decoder thread
   PM123_TIME   SeekTo;    ///< Location or -1
@@ -147,7 +147,7 @@ typedef struct DECODER_STRUCT : public DecoderBase
 
   PLUGIN_RC Seek(PM123_TIME location);
 
-  PLUGIN_RC SetFast(DECFASTMODE mode);
+  PLUGIN_RC SetFast(float skipspeed);
 
   //PLUGIN_RC SaveStream(const xstring& target);
 

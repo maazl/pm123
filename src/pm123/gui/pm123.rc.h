@@ -353,6 +353,10 @@
 #define SB_DLGWORKERS      1381
 #define CB_LOWPRIWORKERS   1382
 
+#define CB_PRI_NORM        1390
+#define CB_PRI_HIGH        1391
+#define SB_PRI_LIMIT       1392
+
 #define CFG_DISPLAY1       1400
 
 #define CB_DOCK            1410
@@ -383,9 +387,8 @@
 #define PB_RG_REMOVE       1466
 #define SB_RG_PREAMP       1467
 #define SB_RG_PREAMP_OTHER 1468
-#define CB_PRI_NORM        1470
-#define CB_PRI_HIGH        1471
-#define SB_PRI_LIMIT       1472
+
+#define SB_SCAN_SPEED      1470
 
 #define CFG_DEC_CONFIG     1500
 #define CFG_FIL_CONFIG     1501

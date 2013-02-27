@@ -202,7 +202,8 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
   // preprocessing
   switch (msg)
   {case OUTPUT_TRASH_BUFFERS:
-    op->voutput_trash_buffer   = true;
+    op->voutput_trash_buffer  = true;
+    op->voutput_flush_request = false;
     break;
 
    case OUTPUT_SETUP:
@@ -210,33 +211,33 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
    case OUTPUT_OPEN:
     { // convert DECODER_INFO2 to DECODER_INFO
       ProxyHelper::ConvertINFO_BUNDLE(&dinfo, info->Info);
-      params.formatinfo        = dinfo.format;
-      params.info              = &dinfo;
-      params.hwnd              = op->voutput_hwnd;
+      params.formatinfo = dinfo.format;
+      params.info       = &dinfo;
+      params.hwnd       = op->voutput_hwnd;
       break;
     }
   }
   const volatile amp_cfg& cfg = Cfg::Get();
-  params.buffersize            = BUFSIZE;
+  params.buffersize      = BUFSIZE;
   int priority = cfg.pri_high; // remove volatile to avoid inconsistent samples.
-  params.boostclass            = priority >> 8;
-  params.boostdelta            = priority & 0xff;
+  params.boostclass      = priority >> 8;
+  params.boostdelta      = priority & 0xff;
   priority = cfg.pri_normal;
-  params.normalclass           = priority >> 8;
-  params.normaldelta           = priority & 0xff;
-  params.nobuffermode          = FALSE;
-  params.error_display         = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
-  params.info_display          = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
-  params.volume                = (char)(info->Volume*100+.5);
-  params.pause                 = info->Pause;
-  params.temp_playingpos       = TstmpF2I(info->PlayingPos);
+  params.normalclass     = priority >> 8;
+  params.normaldelta     = priority & 0xff;
+  params.nobuffermode    = FALSE;
+  params.error_display   = &PROXYFUNCREF(ProxyHelper)PluginDisplayError;
+  params.info_display    = &PROXYFUNCREF(ProxyHelper)PluginDisplayInfo;
+  params.volume          = (char)(info->Volume*100+.5);
+  params.pause           = info->Pause;
+  params.temp_playingpos = TstmpF2I(info->PlayingPos);
 
   if (info->URL != NULL && strnicmp(info->URL, "file:", 5) == 0)
   { char* fname = (char*)alloca(strlen(info->URL)+1);
     strcpy(fname, info->URL);
-    params.filename            = ConvertUrl2File(fname);
+    params.filename = ConvertUrl2File(fname);
   } else
-    params.filename            = info->URL;
+    params.filename = info->URL;
 
   // call plug-in
   int r = (*op->voutput_command)(a, msg, &params);

@@ -28,15 +28,15 @@
 #include "debug.h"
 
 static int default_init(mpg123_handle *fr);
-static off_t get_fileinfo(mpg123_handle *);
+static mpg123_off_t get_fileinfo(mpg123_handle *);
 static ssize_t posix_read(int fd, void *buf, size_t count){ return read(fd, buf, count); }
-static off_t   posix_lseek(int fd, off_t offset, int whence){ return lseek(fd, offset, whence); }
-static off_t     nix_lseek(int fd, off_t offset, int whence){ return -1; }
+static mpg123_off_t   posix_lseek(int fd, mpg123_off_t offset, int whence){ return lseek(fd, offset, whence); }
+static mpg123_off_t     nix_lseek(int fd, mpg123_off_t offset, int whence){ return -1; }
 
 static ssize_t plain_fullread(mpg123_handle *fr,unsigned char *buf, ssize_t count);
 
 /* Wrapper to decide between descriptor-based and external handle-based I/O. */
-static off_t io_seek(struct reader_data *rdat, off_t offset, int whence);
+static mpg123_off_t io_seek(struct reader_data *rdat, mpg123_off_t offset, int whence);
 static ssize_t io_read(struct reader_data *rdat, void *buf, size_t count);
 
 #ifndef NO_FEEDER
@@ -223,9 +223,9 @@ static ssize_t plain_fullread(mpg123_handle *fr,unsigned char *buf, ssize_t coun
 	return cnt;
 }
 
-static off_t stream_lseek(mpg123_handle *fr, off_t pos, int whence)
+static mpg123_off_t stream_lseek(mpg123_handle *fr, mpg123_off_t pos, int whence)
 {
-	off_t ret;
+	mpg123_off_t ret;
 	ret = io_seek(&fr->rdat, pos, whence);
 	if (ret >= 0)	fr->rdat.filepos = ret;
 	else
@@ -251,16 +251,16 @@ static void stream_close(mpg123_handle *fr)
 	}
 }
 
-static int stream_seek_frame(mpg123_handle *fr, off_t newframe)
+static int stream_seek_frame(mpg123_handle *fr, mpg123_off_t newframe)
 {
 	debug2("seek_frame to %"OFF_P" (from %"OFF_P")", (off_p)newframe, (off_p)fr->num);
 	/* Seekable streams can go backwards and jump forwards.
 	   Non-seekable streams still can go forward, just not jump. */
 	if((fr->rdat.flags & READER_SEEKABLE) || (newframe >= fr->num))
 	{
-		off_t preframe; /* a leading frame we jump to */
-		off_t seek_to;  /* the byte offset we want to reach */
-		off_t to_skip;  /* bytes to skip to get there (can be negative) */
+		mpg123_off_t preframe; /* a leading frame we jump to */
+		mpg123_off_t seek_to;  /* the byte offset we want to reach */
+		mpg123_off_t to_skip;  /* bytes to skip to get there (can be negative) */
 		/*
 			now seek to nearest leading index position and read from there until newframe is reached.
 			We use skip_bytes, which handles seekable and non-seekable streams
@@ -327,11 +327,11 @@ static int generic_head_shift(mpg123_handle *fr,unsigned long *head)
 }
 
 /* returns reached position... negative ones are bad... */
-static off_t stream_skip_bytes(mpg123_handle *fr,off_t len)
+static mpg123_off_t stream_skip_bytes(mpg123_handle *fr,mpg123_off_t len)
 {
 	if(fr->rdat.flags & READER_SEEKABLE)
 	{
-		off_t ret = stream_lseek(fr, len, SEEK_CUR);
+		mpg123_off_t ret = stream_lseek(fr, len, SEEK_CUR);
 		return (ret < 0) ? READER_ERROR : ret;
 	}
 	else if(len >= 0)
@@ -340,7 +340,7 @@ static off_t stream_skip_bytes(mpg123_handle *fr,off_t len)
 		ssize_t ret;
 		while (len > 0)
 		{
-			ssize_t num = len < (off_t)sizeof(buf) ? (ssize_t)len : (ssize_t)sizeof(buf);
+			ssize_t num = len < (mpg123_off_t)sizeof(buf) ? (ssize_t)len : (ssize_t)sizeof(buf);
 			ret = fr->rd->fullread(fr, buf, num);
 			if (ret < 0) return ret;
 			else if(ret == 0) break; /* EOF... an error? interface defined to tell the actual position... */
@@ -369,9 +369,9 @@ static off_t stream_skip_bytes(mpg123_handle *fr,off_t len)
 }
 
 /* Return 0 on success... */
-static int stream_back_bytes(mpg123_handle *fr, off_t bytes)
+static int stream_back_bytes(mpg123_handle *fr, mpg123_off_t bytes)
 {
-	off_t want = fr->rd->tell(fr)-bytes;
+	mpg123_off_t want = fr->rd->tell(fr)-bytes;
 	if(want < 0) return READER_ERROR;
 	if(stream_skip_bytes(fr,-bytes) != want) return READER_ERROR;
 
@@ -393,7 +393,7 @@ static int generic_read_frame_body(mpg123_handle *fr,unsigned char *buf, int siz
 	return l;
 }
 
-static off_t generic_tell(mpg123_handle *fr)
+static mpg123_off_t generic_tell(mpg123_handle *fr)
 {
 	if(fr->rdat.flags & READER_BUFFERED)
 	fr->rdat.filepos = fr->rdat.buffer.fileoff+fr->rdat.buffer.pos;
@@ -419,20 +419,21 @@ static void stream_rewind(mpg123_handle *fr)
  * reads the last 128 bytes information into buffer
  * ... that is not totally safe...
  */
-static off_t get_fileinfo(mpg123_handle *fr)
+static mpg123_off_t get_fileinfo(mpg123_handle *fr)
 {
-	off_t len;
+	mpg123_off_t len;
 
-	if((len=io_seek(&fr->rdat,-128,SEEK_END)) >= 0)
-	{
-		if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
+	if((len=io_seek(&fr->rdat,0,SEEK_END)) < 0) return -1;
 
-		if(strncmp((char*)fr->id3buf,"TAG",3) != 0)	len += 128;
-	}
+	if(io_seek(&fr->rdat,-128,SEEK_END) < 0) return -1;
+
+	if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128) return -1;
+
+	if(!strncmp((char*)fr->id3buf,"TAG",3)) len -= 128;
 
 	if(io_seek(&fr->rdat,0,SEEK_SET) < 0)	return -1;
 
-	if(len <= 0)	return -1;
+	if(len <= 0)	return len;
 
 	return len;
 }
@@ -676,16 +677,16 @@ static ssize_t feed_read(mpg123_handle *fr, unsigned char *out, ssize_t count)
 }
 
 /* returns reached position... negative ones are bad... */
-static off_t feed_skip_bytes(mpg123_handle *fr,off_t len)
+static mpg123_off_t feed_skip_bytes(mpg123_handle *fr,mpg123_off_t len)
 {
 	/* This is either the new buffer offset or some negative error value. */
-	off_t res = bc_skip(&fr->rdat.buffer, (ssize_t)len);
+	mpg123_off_t res = bc_skip(&fr->rdat.buffer, (ssize_t)len);
 	if(res < 0) return res;
 
 	return fr->rdat.buffer.fileoff+res;
 }
 
-static int feed_back_bytes(mpg123_handle *fr, off_t bytes)
+static int feed_back_bytes(mpg123_handle *fr, mpg123_off_t bytes)
 {
 	if(bytes >=0)
 	return bc_seekback(&fr->rdat.buffer, (ssize_t)bytes) >= 0 ? 0 : READER_ERROR;
@@ -693,7 +694,7 @@ static int feed_back_bytes(mpg123_handle *fr, off_t bytes)
 	return feed_skip_bytes(fr, -bytes) >= 0 ? 0 : READER_ERROR;
 }
 
-static int feed_seek_frame(mpg123_handle *fr, off_t num){ return READER_ERROR; }
+static int feed_seek_frame(mpg123_handle *fr, mpg123_off_t num){ return READER_ERROR; }
 
 /* Not just for feed reader, also for self-feeding buffered reader. */
 static void buffered_forget(mpg123_handle *fr)
@@ -702,7 +703,7 @@ static void buffered_forget(mpg123_handle *fr)
 	fr->rdat.filepos = fr->rdat.buffer.fileoff + fr->rdat.buffer.pos;
 }
 
-off_t feed_set_pos(mpg123_handle *fr, off_t pos)
+mpg123_off_t feed_set_pos(mpg123_handle *fr, mpg123_off_t pos)
 {
 	struct bufferchain *bc = &fr->rdat.buffer;
 	if(pos >= bc->fileoff && pos-bc->fileoff < bc->size)
@@ -770,7 +771,7 @@ int feed_more(mpg123_handle *fr, const unsigned char *in, long count)
 	fr->err = MPG123_MISSING_FEATURE;
 	return -1;
 }
-off_t feed_set_pos(mpg123_handle *fr, off_t pos)
+mpg123_off_t feed_set_pos(mpg123_handle *fr, mpg123_off_t pos)
 {
 	fr->err = MPG123_MISSING_FEATURE;
 	return -1;
@@ -787,11 +788,11 @@ static void bad_close(mpg123_handle *mh){}
 static ssize_t bad_fullread(mpg123_handle *mh, unsigned char *data, ssize_t count) bugger_off
 static int bad_head_read(mpg123_handle *mh, unsigned long *newhead) bugger_off
 static int bad_head_shift(mpg123_handle *mh, unsigned long *head) bugger_off
-static off_t bad_skip_bytes(mpg123_handle *mh, off_t len) bugger_off
+static mpg123_off_t bad_skip_bytes(mpg123_handle *mh, mpg123_off_t len) bugger_off
 static int bad_read_frame_body(mpg123_handle *mh, unsigned char *data, int size) bugger_off
-static int bad_back_bytes(mpg123_handle *mh, off_t bytes) bugger_off
-static int bad_seek_frame(mpg123_handle *mh, off_t num) bugger_off
-static off_t bad_tell(mpg123_handle *mh) bugger_off
+static int bad_back_bytes(mpg123_handle *mh, mpg123_off_t bytes) bugger_off
+static int bad_seek_frame(mpg123_handle *mh, mpg123_off_t num) bugger_off
+static mpg123_off_t bad_tell(mpg123_handle *mh) bugger_off
 static void bad_rewind(mpg123_handle *mh){}
 #undef bugger_off
 
@@ -1095,7 +1096,7 @@ int open_stream_handle(mpg123_handle *fr, void *iohandle)
 }
 
 /* Wrappers for actual reading/seeking... I'm full of wrappers here. */
-static off_t io_seek(struct reader_data *rdat, off_t offset, int whence)
+static mpg123_off_t io_seek(struct reader_data *rdat, mpg123_off_t offset, int whence)
 {
 	if(rdat->flags & READER_HANDLEIO)
 	{

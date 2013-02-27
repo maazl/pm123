@@ -98,9 +98,16 @@
 #define SELECT_TYPE_ARG234        
 #define SELECT_TYPE_ARG5          
 
+#ifndef ASSEMBLER
+
 /* for libsndfile */
-#define sf_count_t long long
+typedef long long sf_count_t;
 #define SF_COUNT_MAX 0x7fffffffffffffffll
 #define SIZEOF_SF_COUNT_T 8
+
+/* for libmpg123 */
+typedef long long mpg123_off_t;
+
+#endif
 
 #endif /* PM123_CONFIG_GCC_H */

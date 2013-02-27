@@ -75,11 +75,11 @@ class Ctrl
 
   /// Flags for setter commands
   enum Op
-  { Op_Reset  = 0,
-    Op_Set    = 1,
-    Op_Clear  = 2,
-    Op_Toggle = 3,
-    Op_Rewind = 4  // PM123_Scan only
+  { Op_Reset  = 0
+  , Op_Set    = 1
+  , Op_Clear  = 2
+  , Op_Toggle = 3
+  , Op_Rewind = 4 // MsgScan only
   };
 
   /// Navigation type for Navigate Command
@@ -169,10 +169,10 @@ class Ctrl
   };
 
  protected: // working set
-  static bool          Paused;                ///< True if the current song is paused
-  static DECFASTMODE   Scan;                  ///< Current scan mode
+  static signed char   Scan;                  ///< Current scan mode
   static double        Volume;                ///< Current volume setting
   static xstring       Savename;              ///< Current save file name (for the decoder)
+  static bool          Paused;                ///< True if the current song is paused
   static bool          Shuffle;               ///< Shuffle flag
   static bool          Repeat;                ///< Repeat flag
 
@@ -198,8 +198,8 @@ class Ctrl
   static bool          IsPlaying();           //{ return Glue::OutInitialized(); } Dependencies!!
   /// Check whether the current play status is paused.
   static bool          IsPaused()             { return Paused; }
-  /// Return the current scanmode.
-  static DECFASTMODE   GetScan()              { return Scan; }
+  /// Return the current scan mode. 0 => normal play, > 0 => fast forward, < 0 => rewind.
+  static int           GetScan()              { return Scan; }
   /// Return the current volume. This does not return a decreased value in scan mode.
   static double        GetVolume()            { return Volume; }
   /// Return the current shuffle status.

@@ -141,6 +141,7 @@ struct amp_cfg
   cfg_rgtype rg_list[4];       ///< Type of replay gain processing
   int      rg_preamp;          ///< additional gain for tracks with replaygain information [dB]
   int      rg_preamp_other;    ///< additional gain for tracks without replaygain information [dB]
+  int      scan_speed;         ///< Speed for fast forward/rewind
   int      pri_normal;         ///< Normal decoder priority
   int      pri_high;           ///< High decoder priority
   int      pri_limit;          ///< Maximum high priority seconds

@@ -199,7 +199,7 @@ void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
     return;
   }
   // Allocate target structure.
-  childpos_list = (SWP*)malloc(count * sizeof(SWP));
+  childpos_list = (SWP*)calloc(count, sizeof(SWP));
   count = 0;
   while ((child = WinGetNextWindow(en)) != NULLHANDLE)
   { SWP* childpos;

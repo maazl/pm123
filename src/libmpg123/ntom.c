@@ -6,7 +6,7 @@
 	initially written by Michael Hipp
 */
 
-#define SAFE_NTOM /* Do not depend on off_t*off_t with big values still being in the range... */
+#define SAFE_NTOM /* Do not depend on mpg123_off_t*mpg123_off_t with big values still being in the range... */
 #include "mpg123lib_intern.h"
 #include "debug.h"
 
@@ -40,14 +40,14 @@ int synth_ntom_set_step(mpg123_handle *fr)
 /*
 	The SAFE_NTOM does iterative loops instead of straight multiplication.
 	The safety is not just about the algorithm closely mimicking the decoder instead of applying some formula,
-	it is more about avoiding multiplication of possibly big sample offsets (a 32bit off_t could overflow too easily).
+	it is more about avoiding multiplication of possibly big sample offsets (a 32bit mpg123_off_t could overflow too easily).
 */
 
-unsigned long ntom_val(mpg123_handle *fr, off_t frame)
+unsigned long ntom_val(mpg123_handle *fr, mpg123_off_t frame)
 {
-	off_t ntm;
+	mpg123_off_t ntm;
 #ifdef SAFE_NTOM /* Carry out the loop, without the threatening integer overflow. */
-	off_t f;
+	mpg123_off_t f;
 	ntm = NTOM_MUL>>1; /* for frame 0 */
 	for(f=0; f<frame; ++f)   /* for frame > 0 */
 	{
@@ -63,14 +63,14 @@ unsigned long ntom_val(mpg123_handle *fr, off_t frame)
 
 /* Set the ntom value for next expected frame to be decoded.
    This is for keeping output consistent across seeks. */
-void ntom_set_ntom(mpg123_handle *fr, off_t num)
+void ntom_set_ntom(mpg123_handle *fr, mpg123_off_t num)
 {
 	fr->ntom_val[1] = fr->ntom_val[0] = ntom_val(fr, num);
 }
 
 /* Carry out the ntom sample count operation for this one frame. 
    No fear of integer overflow here. */
-off_t ntom_frame_outsamples(mpg123_handle *fr)
+mpg123_off_t ntom_frame_outsamples(mpg123_handle *fr)
 {
 	/* The do this before decoding the separate channels, so there is only one common ntom value. */
 	int ntm = fr->ntom_val[0];
@@ -79,13 +79,13 @@ off_t ntom_frame_outsamples(mpg123_handle *fr)
 }
 
 /* Convert frame offset to unadjusted output sample offset. */
-off_t ntom_frmouts(mpg123_handle *fr, off_t frame)
+mpg123_off_t ntom_frmouts(mpg123_handle *fr, mpg123_off_t frame)
 {
 #ifdef SAFE_NTOM
-	off_t f;
+	mpg123_off_t f;
 #endif
-	off_t soff = 0;
-	off_t ntm = ntom_val(fr,0);
+	mpg123_off_t soff = 0;
+	mpg123_off_t ntm = ntom_val(fr,0);
 #ifdef SAFE_NTOM
 	if(frame <= 0) return 0;
 	for(f=0; f<frame; ++f)
@@ -95,23 +95,23 @@ off_t ntom_frmouts(mpg123_handle *fr, off_t frame)
 		ntm  -= (ntm/NTOM_MUL)*NTOM_MUL;
 	}
 #else
-	soff = (ntm + frame*(off_t)spf(fr)*(off_t)fr->ntom_step)/(off_t)NTOM_MUL;
+	soff = (ntm + frame*(mpg123_off_t)spf(fr)*(mpg123_off_t)fr->ntom_step)/(mpg123_off_t)NTOM_MUL;
 #endif
 	return soff;
 }
 
 /* Convert input samples to unadjusted output samples. */
-off_t ntom_ins2outs(mpg123_handle *fr, off_t ins)
+mpg123_off_t ntom_ins2outs(mpg123_handle *fr, mpg123_off_t ins)
 {
-	off_t soff = 0;
-	off_t ntm = ntom_val(fr,0);
+	mpg123_off_t soff = 0;
+	mpg123_off_t ntm = ntom_val(fr,0);
 #ifdef SAFE_NTOM
 	{
-		off_t block = spf(fr);
+		mpg123_off_t block = spf(fr);
 		if(ins <= 0) return 0;
 		do
 		{
-			off_t nowblock = ins > block ? block : ins;
+			mpg123_off_t nowblock = ins > block ? block : ins;
 			ntm  += nowblock*fr->ntom_step;
 			soff += ntm/NTOM_MUL;
 			ntm  -= (ntm/NTOM_MUL)*NTOM_MUL;
@@ -119,18 +119,18 @@ off_t ntom_ins2outs(mpg123_handle *fr, off_t ins)
 		} while(ins > 0);
 	}
 #else
-	/* Beware of overflows: when off_t is 32bits, the multiplication blows too easily.
+	/* Beware of overflows: when mpg123_off_t is 32bits, the multiplication blows too easily.
 	   Of course, it blows for 64bits, too, in theory, but that's for _really_ large files. */
-	soff = ((off_t)ntm + (off_t)ins*(off_t)fr->ntom_step)/(off_t)NTOM_MUL;
+	soff = ((mpg123_off_t)ntm + (mpg123_off_t)ins*(mpg123_off_t)fr->ntom_step)/(mpg123_off_t)NTOM_MUL;
 #endif
 	return soff;
 }
 
 /* Determine frame offset from unadjusted output sample offset. */
-off_t ntom_frameoff(mpg123_handle *fr, off_t soff)
+mpg123_off_t ntom_frameoff(mpg123_handle *fr, mpg123_off_t soff)
 {
-	off_t ioff = 0; /* frames or samples */
-	off_t ntm = ntom_val(fr,0);
+	mpg123_off_t ioff = 0; /* frames or samples */
+	mpg123_off_t ntm = ntom_val(fr,0);
 #ifdef SAFE_NTOM
 	if(soff <= 0) return 0;
 	for(ioff=0; 1; ++ioff)
@@ -142,7 +142,7 @@ off_t ntom_frameoff(mpg123_handle *fr, off_t soff)
 	}
 	return ioff;
 #else
-	ioff = (soff*(off_t)NTOM_MUL-ntm)/(off_t)fr->ntom_step;
-	return ioff/(off_t)spf(fr);
+	ioff = (soff*(mpg123_off_t)NTOM_MUL-ntm)/(mpg123_off_t)fr->ntom_step;
+	return ioff/(mpg123_off_t)spf(fr);
 #endif
 }

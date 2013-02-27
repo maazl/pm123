@@ -151,7 +151,7 @@ class CtrlImp
   { NR_OK      ///< Navigation succeeded.
   , NR_Failed  ///< Navigation error, Error info placed in ControlCommand.
   , NR_NoScan  ///< Navigation OK, but failed to set scan mode.
-  }            NavigateCore(Location& si, unsigned newscan = 0);
+  }            NavigateCore(Location& si, signed char newscan = 2);
   /// Request some information on the current song.
   static void  AttachCurrentSong();
   /// Clears the prefetch list and keep the first element if keep is true.
@@ -220,10 +220,10 @@ void Ctrl::ControlCommand::Destroy()
 
 
 vector<CtrlImp::PrefetchEntry> CtrlImp::PrefetchList(10);
-bool                  Ctrl::Paused    = false;
-DECFASTMODE           Ctrl::Scan      = DECFAST_NORMAL_PLAY;
 double                Ctrl::Volume    = 1.;
 xstring               Ctrl::Savename;
+bool                  Ctrl::Paused    = false;
+signed char           Ctrl::Scan      = 0;
 bool                  Ctrl::Shuffle   = false;
 bool                  Ctrl::Repeat    = false;
 
@@ -332,14 +332,14 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
   if (pe.Loc.GetPosition() >= 0)
     at = pe.Loc.GetPosition();
   
-  if (Scan == DECFAST_REWIND && reverse)
+  if (Scan < 0 && reverse)
   { if (stop > 0)
     { at = stop - 1.; // do not seek to the end, because this will cause problems.
     } else if (song.GetInfo().obj->songlength > 0)
     { at = song.GetInfo().obj->songlength - 1.;
     } else
     { // no songlength => error => undo MsgScan
-      Scan = DECFAST_NORMAL_PLAY;
+      Scan = 0;
       Pending |= EV_Scan;
     }
     if (at < start) // Do not hit negative values for very short songs.
@@ -351,8 +351,12 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
   if (rc != 0)
     return rc;
 
-  if (Scan != DECFAST_NORMAL_PLAY)
-    Glue::DecFast(Scan);
+  if (Scan)
+  { if (Glue::DecFast(Scan * Cfg::Get().scan_speed - 1))
+    { Scan = 0;
+      Pending |= EV_Scan;
+    }
+  }
 
   if (LastStart == NULL)
     LastStart = &song;
@@ -412,7 +416,7 @@ bool CtrlImp::SkipCore(SongIterator& si, int count)
   return true;
 }
 
-CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, unsigned newscan)
+CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}, %u) - %s\n", si.Serialize().cdata(), newscan, Current()->Loc.Serialize().cdata()));
   SongIterator& curloc = PrefetchList[PrefetchList.size()-1]->Loc;
   // Move forward to the next Song, if the current item is a playlist.
@@ -437,17 +441,22 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, unsigned newscan)
           return NR_Failed;
         }
         IsSeeking = true;
-        if (newscan)
-        { ULONG rc = Glue::DecFast((DECFASTMODE)(newscan & 3));
+        if (newscan != 2)
+        { int speed = newscan * Cfg::Get().scan_speed;
+          if (speed)
+            --speed;
+          ULONG rc = Glue::DecFast(speed);
           if (rc)
           { ReplyDecoderError(rc);
             return NR_NoScan;
           }
-          Scan = (DECFASTMODE)(newscan & 3);
+          Scan = newscan;
+          Pending |= EV_Scan;
         }
       } else
       { // The decoder has quit => reactivate it.
-        Scan = (DECFASTMODE)(newscan & 3);
+        Scan = newscan;
+        Pending |= EV_Scan;
         ULONG rc = DecoderStart(*Current(), false);
         if (rc)
         { OutputStop();
@@ -646,17 +655,17 @@ void CtrlImp::MsgScan()
   { ReplyBadArg("Invalid scan argument %x", Flags);
     return;
   }
-  static const DECFASTMODE opmatrix[8][3] =
-  { {DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY},
-    {DECFAST_FORWARD,     DECFAST_FORWARD,     DECFAST_FORWARD    },
-    {DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY, DECFAST_REWIND     },
-    {DECFAST_FORWARD,     DECFAST_NORMAL_PLAY, DECFAST_FORWARD    },
-    {DECFAST_NORMAL_PLAY, DECFAST_FORWARD,     DECFAST_REWIND     },
-    {DECFAST_REWIND,      DECFAST_REWIND,      DECFAST_REWIND     },
-    {DECFAST_NORMAL_PLAY, DECFAST_FORWARD,     DECFAST_NORMAL_PLAY},
-    {DECFAST_REWIND,      DECFAST_REWIND,      DECFAST_NORMAL_PLAY}
+  static const signed char opmatrix[8][3] =
+  { { 0, 0, 0}
+  , { 1, 1, 1}
+  , {-1, 0, 0}
+  , { 1, 1, 0}
+  , {-1, 0, 1}
+  , {-1,-1,-1}
+  , { 0, 0, 1}
+  , { 0,-1,-1}
   };
-  DECFASTMODE newscan = opmatrix[Flags][Scan];
+  signed char newscan = opmatrix[Flags][Scan+1];
   // Check for NOP.
   if (Scan != newscan)
   { if (Glue::OutInitialized())
@@ -665,16 +674,15 @@ void CtrlImp::MsgScan()
       SongIterator si(Current()->Loc);
       si.NavigateRewindSong();
       si.NavigateTime(SyncJob, FetchCurrentSongTime(), si.GetCallstack().size());
-      if (NavigateCore(si, newscan | 4))
+      if (NavigateCore(si, newscan) == NR_Failed)
         return;
-    } else if (Flags & Op_Set)
-    { Reply(RC_NotPlaying);
-      return;
-    }
-    // Update event flags
-    if (Scan != newscan)
-    { Pending |= EV_Scan;
+    } else
+    { if (Flags & Op_Set)
+      { Reply(RC_NotPlaying);
+        return;
+      }
       Scan = newscan;
+      Pending |= EV_Scan;
     }
   }
   Reply(RC_OK);
@@ -1057,7 +1065,7 @@ void CtrlImp::MsgDecStop()
     LastStart = NULL;
 
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + max, Current()->Loc);
-  int dir = Scan == DECFAST_REWIND ? -1 : 1;
+  int dir = Scan < 0 ? -1 : 1;
 
   // Navigation
   if (pep->Loc.NavigateCount(SyncJob, dir, TATTR_SONG))

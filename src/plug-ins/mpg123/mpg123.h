@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 Marcel Mueller
+ * Copyright 2008-2013 Marcel Mueller
  * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ class MPG123 : public ID3
   int           Channels;
  private:
   unsigned      FirstFrameLen;
-  off_t         LastLength;
+  mpg123_off_t  LastLength;
   long          LastSize;
 
  private: // Repository
@@ -140,10 +140,10 @@ class MPG123 : public ID3
   void          TrackInstance();
   void          EndTrackInstance();
   static ssize_t FRead(void* that, void* buffer, size_t size);
-  static off_t  FSeek(void* that, off_t offset, int seekmode);
+  static mpg123_off_t FSeek(void* that, mpg123_off_t offset, int seekmode);
 
  protected:
-  off_t         Time2Sample(PM123_TIME time);
+  mpg123_off_t  Time2Sample(PM123_TIME time);
   bool          ReadFrameInfo();
   bool          UpdateStreamLength();
 
@@ -191,19 +191,15 @@ typedef struct DECODER_STRUCT : public MPG123
   xstring       Savename;
 
  private:
-  /// For internal use to sync the decoder thread.
-  Event         DecEvent;
-  /// Decoder thread identifier.
-  int           DecTID;
+  Event         DecEvent;   /// For internal use to sync the decoder thread.
+  int           DecTID;     ///< Decoder thread identifier.
 
   DECODERSTATE  Status;
   bool          Terminate;
 
-  /// absolute positioning in seconds
-  PM123_TIME    JumpTo;
-  DECFASTMODE   Fast;
-  /// Count through zero if the next skip should take place.
-  int           NextFast;
+  PM123_TIME    JumpTo;     ///< absolute positioning in seconds
+  float         SkipSpeed;  ///< Skip speed from FFWD command
+  int           NextFast;   ///< Count through zero if the next skip should take place.
 
  private:
   bool          UpdateMeta;
@@ -235,9 +231,9 @@ typedef struct DECODER_STRUCT : public MPG123
   DECODERSTATE  GetStatus() const { return Status; }
 
   PLUGIN_RC     Setup(const DECODER_PARAMS2& par);
-  PLUGIN_RC     Play(PM123_TIME start, DECFASTMODE fast);
+  PLUGIN_RC     Play(PM123_TIME start, float skipspeed);
   PLUGIN_RC     Stop();
-  PLUGIN_RC     SetFast(DECFASTMODE fast);
+  PLUGIN_RC     SetFast(float skipspeed);
   PLUGIN_RC     Jump(PM123_TIME pos);
 
   PLUGIN_RC     Save(const xstring& savename);

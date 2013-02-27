@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,67 +27,21 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _WAVOUT_H
-#define _WAVOUT_H
+#ifndef WAVOUT_H
+#define WAVOUT_H
 
 #define DLG_CONFIGURE 1000
 #define ID_NULL       1001
 #define ST_FILENAME   1010
 #define EF_FILENAME   1020
 #define PB_BROWSE     1030
-#define ST_ABOUT      1040
+#define ST_NAMING     1040
+#define RB_SOURCEFILE 1041
+#define RB_TIMESTAMP  1042
+#define ST_ABOUT1     1090
+#define ST_ABOUT2     1091
+#define ST_ABOUT3     1092
 
 #define DLG_BROWSE    2000
-
-#pragma pack(1)
-typedef struct _RIFF_HEADER
-{
-  char           id_riff[4]; /* RIFF */
-  unsigned long  len;
-  char           id_wave[4]; /* WAVE */
-
-} RIFF_HEADER;
-
-typedef struct _CHNK_HEADER
-{
-  char           id[4];
-  unsigned long  len;
-
-} CHNK_HEADER;
-
-typedef struct _FORMAT
-{
-  unsigned short FormatTag;
-  unsigned short Channels;
-  unsigned long  SamplesPerSec;
-  unsigned long  AvgBytesPerSec;
-  unsigned short BlockAlign;
-  unsigned short BitsPerSample;
-
-} FORMAT;
-
-typedef struct WAVE_HEADER
-{
-  RIFF_HEADER  riff;
-  CHNK_HEADER  format_header;
-  FORMAT       format;
-  CHNK_HEADER  data_header;
-} WAVE_HEADER;
-
-#pragma pack()
-
-typedef struct OUTPUT_STRUCT
-{
-  HEV   pause;
-  int   playingpos;
-  char  filename[CCHMAXPATH];   // filled by setup.
-  char  fullpath[CCHMAXPATH];   // completed by open with outpath.
-  char* buffer;
-  FILE* file;
-
-  WAVE_HEADER   header;
-  OUTPUT_PARAMS original_info;  // to open the device.
-
-} WAVOUT;
 
 #endif

@@ -96,7 +96,7 @@ void XIOasyncbuffer::read_ahead()
 
       lock.Release();
       int64_t rc = chain->seek(do_seek_to, XIO_SEEK_SET);
-      DEBUGLOG(("XIOasyncbuffer::read_ahead: seek to %li -> %li\n", do_seek_to, rc));
+      DEBUGLOG(("XIOasyncbuffer::read_ahead: seek to %lli -> %lli\n", do_seek_to, rc));
       lock.Request();
       
       if (rc == -1L)
@@ -136,7 +136,7 @@ void XIOasyncbuffer::read_ahead()
           int64_t file_pos = read_pos - (data_size - data_rest);
           if (seekto >= file_pos && seekto <= file_pos + data_size)
           { // Buffer seek
-            DEBUGLOG(("XIOasyncbuffer::read_ahead: seek buffer %li \n", seekto));
+            DEBUGLOG(("XIOasyncbuffer::read_ahead: seek buffer %lli \n", seekto));
             int dist = seekto - file_pos;
             data_read = move(data_head, dist);
             data_rest = data_size - dist;
@@ -338,7 +338,7 @@ int64_t XIOasyncbuffer::do_seek(int64_t offset)
   error  = 0;
 
   int64_t file_pos = read_pos - (data_size - data_rest);
-  DEBUGLOG(("XIOasyncbuffer::do_seek: %li, [%li, %li), %i\n", offset, file_pos, file_pos + data_size, data_rest));
+  DEBUGLOG(("XIOasyncbuffer::do_seek: %lli, [%lli, %lli), %i\n", offset, file_pos, file_pos + data_size, data_rest));
   if (offset >= file_pos && offset <= file_pos + data_size)
   { int moveto = offset - file_pos;
     data_read = move(data_head, moveto);

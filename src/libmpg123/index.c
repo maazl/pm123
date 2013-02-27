@@ -10,9 +10,9 @@
 #include "debug.h"
 
 /* The next expected frame offset, one step ahead. */
-static off_t fi_next(struct frame_index *fi)
+static mpg123_off_t fi_next(struct frame_index *fi)
 {
-	return (off_t)fi->fill*fi->step;
+	return (mpg123_off_t)fi->fill*fi->step;
 }
 
 /* Shrink down the used index to the half.
@@ -54,7 +54,7 @@ void fi_exit(struct frame_index *fi)
 
 int fi_resize(struct frame_index *fi, size_t newsize)
 {
-	off_t *newdata = NULL;
+	mpg123_off_t *newdata = NULL;
 	if(newsize == fi->size) return 0;
 
 	if(newsize > 0 && newsize < fi->size)
@@ -62,7 +62,7 @@ int fi_resize(struct frame_index *fi, size_t newsize)
 		while(fi->fill > newsize){ fi_shrink(fi); }
 	}
 
-	newdata = safe_realloc(fi->data, newsize*sizeof(off_t));
+	newdata = safe_realloc(fi->data, newsize*sizeof(mpg123_off_t));
 	if(newsize == 0 || newdata != NULL)
 	{
 		fi->data = newdata;
@@ -80,13 +80,13 @@ int fi_resize(struct frame_index *fi, size_t newsize)
 	}
 }
 
-void fi_add(struct frame_index *fi, off_t pos)
+void fi_add(struct frame_index *fi, mpg123_off_t pos)
 {
 	debug3("wanting to add to fill %lu, step %lu, size %lu", (unsigned long)fi->fill, (unsigned long)fi->step, (unsigned long)fi->size);
 	if(fi->fill == fi->size)
 	{ /* Index is full, we need to shrink... or grow. */
 		/* Store the current frame number to check later if we still want it. */
-		off_t framenum = fi->fill*fi->step;
+		mpg123_off_t framenum = fi->fill*fi->step;
 		/* If we want not / cannot grow, we shrink. */	
 		if( !(fi->grow_size && fi_resize(fi, fi->size+fi->grow_size)==0) )
 		fi_shrink(fi);
@@ -105,13 +105,13 @@ void fi_add(struct frame_index *fi, off_t pos)
 	}
 }
 
-int fi_set(struct frame_index *fi, off_t *offsets, off_t step, size_t fill)
+int fi_set(struct frame_index *fi, mpg123_off_t *offsets, mpg123_off_t step, size_t fill)
 {
 	if(fi_resize(fi, fill) == -1) return -1;
 	fi->step = step;
 	if(offsets != NULL)
 	{
-		memcpy(fi->data, offsets, fill*sizeof(off_t));
+		memcpy(fi->data, offsets, fill*sizeof(mpg123_off_t));
 		fi->fill = fill;
 	}
 	else

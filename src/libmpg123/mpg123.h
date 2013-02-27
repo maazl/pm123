@@ -498,7 +498,7 @@ EXPORT int mpg123_decode(mpg123_handle *mh, const unsigned char *inmemory, size_
  *  \param audio This pointer is set to the internal buffer to read the decoded audio from.
  *  \param bytes number of output bytes ready in the buffer
  */
-EXPORT int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+EXPORT int mpg123_decode_frame(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes);
 
 /** Decode current MPEG frame to internal buffer.
  * Warning: This is experimental API that might change in future releases!
@@ -507,7 +507,7 @@ EXPORT int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **au
  *  \param audio this pointer is set to the internal buffer to read the decoded audio from.
  *  \param bytes number of output bytes ready in the buffer
  */
-EXPORT int mpg123_framebyframe_decode(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+EXPORT int mpg123_framebyframe_decode(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes);
 
 /** Find, read and parse the next mp3 frame
  * Warning: This is experimental API that might change in future releases!
@@ -539,35 +539,35 @@ EXPORT int mpg123_framebyframe_next(mpg123_handle *mh);
 
 /** Returns the current position in samples.
  *  On the next read, you'd get that sample. */
-EXPORT off_t mpg123_tell(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tell(mpg123_handle *mh);
 
 /** Returns the frame number that the next read will give you data from. */
-EXPORT off_t mpg123_tellframe(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tellframe(mpg123_handle *mh);
 
 /** Returns the current byte offset in the input stream. */
-EXPORT off_t mpg123_tell_stream(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tell_stream(mpg123_handle *mh);
 
 /** Seek to a desired sample offset. 
  *  Set whence to SEEK_SET, SEEK_CUR or SEEK_END.
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_seek(mpg123_handle *mh, off_t sampleoff, int whence);
+EXPORT mpg123_off_t mpg123_seek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence);
 
 /** Seek to a desired sample offset in data feeding mode. 
  *  This just prepares things to be right only if you ensure that the next chunk of input data will be from input_offset byte position.
  *  \param input_offset The position it expects to be at the 
  *                      next time data is fed to mpg123_decode().
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_feedseek(mpg123_handle *mh, off_t sampleoff, int whence, off_t *input_offset);
+EXPORT mpg123_off_t mpg123_feedseek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence, mpg123_off_t *input_offset);
 
 /** Seek to a desired MPEG frame index.
  *  Set whence to SEEK_SET, SEEK_CUR or SEEK_END.
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_seek_frame(mpg123_handle *mh, off_t frameoff, int whence);
+EXPORT mpg123_off_t mpg123_seek_frame(mpg123_handle *mh, mpg123_off_t frameoff, int whence);
 
 /** Return a MPEG frame offset corresponding to an offset in seconds.
  *  This assumes that the samples per frame do not change in the file/stream, which is a good assumption for any sane file/stream only.
  *  \return frame offset >= 0 or error/message code */
-EXPORT off_t mpg123_timeframe(mpg123_handle *mh, double sec);
+EXPORT mpg123_off_t mpg123_timeframe(mpg123_handle *mh, double sec);
 
 /** Give access to the frame index table that is managed for seeking.
  *  You are asked not to modify the values... Use mpg123_set_index to set the
@@ -575,7 +575,7 @@ EXPORT off_t mpg123_timeframe(mpg123_handle *mh, double sec);
  *  \param offsets pointer to the index array
  *  \param step one index byte offset advances this many MPEG frames
  *  \param fill number of recorded index offsets; size of the array */
-EXPORT int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t *fill);
+EXPORT int mpg123_index(mpg123_handle *mh, mpg123_off_t **offsets, mpg123_off_t *step, size_t *fill);
 
 /** Set the frame index table
  *  Setting offsets to NULL and fill > 0 will allocate fill entries. Setting offsets
@@ -583,7 +583,7 @@ EXPORT int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t 
  *  \param offsets pointer to the index array
  *  \param step    one index byte offset advances this many MPEG frames
  *  \param fill    number of recorded index offsets; size of the array */ 
-EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_t fill);
+EXPORT int mpg123_set_index(mpg123_handle *mh, mpg123_off_t *offsets, mpg123_off_t step, size_t fill);
 
 /** Get information about current and remaining frames/seconds.
  *  WARNING: This function is there because of special usage by standalone mpg123 and may be removed in the final version of libmpg123!
@@ -591,7 +591,7 @@ EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_
  *  served by libmpg123 but not yet played. You get the projected current frame 
  *  and seconds, as well as the remaining frames/seconds. This does _not_ care 
  *  about skipped samples due to gapless playback. */
-EXPORT int mpg123_position( mpg123_handle *mh, off_t frame_offset, off_t buffered_bytes, off_t *current_frame, off_t *frames_left, double *current_seconds, double *seconds_left);
+EXPORT int mpg123_position( mpg123_handle *mh, mpg123_off_t frame_offset, mpg123_off_t buffered_bytes, mpg123_off_t *current_frame, mpg123_off_t *frames_left, double *current_seconds, double *seconds_left);
 
 /*@}*/
 
@@ -711,12 +711,12 @@ EXPORT int mpg123_scan(mpg123_handle *mh);
 
 /** Return, if possible, the full (expected) length of current track in samples.
   * \return length >= 0 or MPG123_ERR if there is no length guess possible. */
-EXPORT off_t mpg123_length(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_length(mpg123_handle *mh);
 
 /** Override the value for file size in bytes.
   * Useful for getting sensible track length values in feed mode or for HTTP streams.
   * \return MPG123_OK or MPG123_ERR */
-EXPORT int mpg123_set_filesize(mpg123_handle *mh, off_t size);
+EXPORT int mpg123_set_filesize(mpg123_handle *mh, mpg123_off_t size);
 
 /** Returns the time (seconds) per frame; <0 is error. */
 EXPORT double mpg123_tpf(mpg123_handle *mh);
@@ -1019,7 +1019,7 @@ EXPORT size_t mpg123_outblock(mpg123_handle *mh);
  *  used (active from next mpg123_open call on).
  *  Note: As it would be troublesome to mess with this while having a file open,
  *  this implies mpg123_close(). */
-EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void *, size_t), off_t (*r_lseek)(int, off_t, int));
+EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void *, size_t), mpg123_off_t (*r_lseek)(int, mpg123_off_t, int));
 
 /** Replace I/O functions with your own ones operating on some kind of handle instead of integer descriptors.
  *  The handle is a void pointer, so you can pass any data you want...
@@ -1030,7 +1030,7 @@ EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void
  *  \param r_read The callback for reading (behaviour like posix read).
  *  \param r_lseek The callback for seeking (like posix lseek).
  *  \param cleanup A callback to clean up an I/O handle on mpg123_close, can be NULL for none (you take care of cleaning your handles). */
-EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), off_t (*r_lseek)(void *, off_t, int), void (*cleanup)(void*));
+EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), mpg123_off_t (*r_lseek)(void *, mpg123_off_t, int), void (*cleanup)(void*));
 
 /* @} */
 

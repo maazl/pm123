@@ -3,13 +3,15 @@
 #
 
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123;
 TARGET   = wavout.dll
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = wavout$(CO)
+OBJECTS  = writer$(CO) wavout$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
+LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO)
 DEF      = wavout$(LDEF_SUFFX)
 RESOURCE = wavout$(RES)
 SYSLIBS  = $(LIBS_MM)
@@ -24,4 +26,4 @@ wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
 clean:  $(MDUMMY)
 	-@del wavout$(LBI) wavout.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-wavout.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\debuglog.h
+wavout.cpp:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\debuglog.h
