@@ -42,7 +42,7 @@
 #include <gbm.h>
 #include <gbmrect.h>
 #include <utilfct.h>
-#include <skin.h>
+#include <gui/skin.h>
 #include <copyright.h>
 
 static char suberror[256];

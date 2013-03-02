@@ -19,4 +19,7 @@ skinutil.exe: $(OBJECTS) $(DEF) $(LIBS)
 clean:  $(MDUMMY)
 	-@del skinutil.exe $(OBJECTS) 2> nul
 
-skinutil.c:	..\gbm123\gbm.h ..\gbm123\gbmrect.h ..\utils\utilfct.h ..\pm123\skin.h ..\pm123\copyright.h
+skinutil.c:	..\gbm123\gbm.h ..\gbm123\gbmrect.h ..\utils\utilfct.h ..\pm123\gui\skin.h ..\pm123\copyright.h
+..\gbm123\gbm.h:	..\include\config.h
+..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
+..\utils\utilfct.h:	..\include\config.h ..\utils\errorstr.h ..\utils\minmax.h ..\utils\strutils.h
