@@ -328,13 +328,9 @@ void ModuleImp::Load()
   (*pquery)(&QueryParam);
 
   if (QueryParam.interface > PLUGIN_INTERFACE_LEVEL)
-  {
-    #define toconststring(x) #x
     throw ModuleException("Could not load plug-in %s because it requires a newer version of the PM123 core\n"
-                          "Requested interface revision: %d, max. supported: " toconststring(PLUGIN_INTERFACE_LEVEL),
-                          ModuleName.cdata(), QueryParam.interface);
-    #undef toconststring
-  }
+                          "Requested interface revision: %d, max. supported: %d",
+                          ModuleName.cdata(), QueryParam.interface, PLUGIN_INTERFACE_LEVEL);
 
   if (pinit)
   { PluginApi.message_display = &PROXYFUNCREF(Module)PluginDisplayMessage;
