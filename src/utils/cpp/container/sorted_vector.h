@@ -42,13 +42,6 @@ template <class T>
 int CompareInstance(const T& l, const T& r)
 { return (char*)&l - (char*)&r; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2.
 }
-/** @brief Function to compare pointers by value.
- * @details The comparer provides an unspecified but stable order.
- */
-template <class T>
-int ComparePtr(T*const& l, T*const& r)
-{ return (char*)l - (char*)r; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2.
-}
 
 /** Sorted variant of vector using the logical key type \a K.
  * @tparam T Element type. Only pointers to \a T are stored in this container.
