@@ -1,0 +1,65 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1054" sublinks="*">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Performance Settings</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  <meta content="Marcel Müller" name="author">
+</head>
+<body>
+<h2>PM123's Performance Settings</h2>
+<blockquote> <img alt="Screenshot" src="images/prop2a.png" height="395"
+ width="550"></blockquote>
+<h3>Worker Threads</h3>
+<p>PM123 uses worker threads to decouple I/O operations from the
+user
+interface. More workers can do more tasks in parallel, but this is not
+necessarily faster, because of other limited system resources, first of
+all the disk I/O. It is recommended to have at least 2 workers and no
+more than 6 (in all).</p>
+There are two kinds of tasks to perform:<br>
+<ol>
+  <li><em>Dialog tasks</em><br>
+Dialog tasks do I/O operations where the user is typically waiting for,
+e.g. loading a playlist that is just opened for editing.<em></em></li>
+  <li><em>Background tasks</em><br>
+Background
+tasks do I/O operations that are not indispensable to user actions like
+fetching the total playing time of a large playlist.</li>
+</ol>
+<dl>
+  <dt><b>Gerneral purpose</b></dt>
+  <dd>Number of general purpose worker threads. The general
+purpose workers can do both kind of tasks. The more general purpose
+workers you have, the higher is the I/O load. You need at least one
+general purpose worker.</dd>
+  <dt><b>Dialog</b></dt>
+  <dd>Number of dialog worker threads. The dialog workers are
+reserved for dialog tasks to keep the user interface always responsive.
+It is recommended to have at least one dialog worker. More than one
+dialog worker makes sense if you often have to deal with network
+timeouts or something like that. A second worker will keep PM123
+responsive while the first one is trying to perform some task to no
+avail.</dd>
+  <dt><b>Lower priority background tasks</b></dt>
+  <dd>This option causes background tasks to be executed at idle time
+priority. This keep the system more responsive during heavy load.</dd>
+</dl>
+<h3>Decoder Priority</h3>
+<p>PM123 dynamically adjusts the priority of decoder threads to keep
+the sound playing without too much delays to user interactions.</p>
+<dl>
+  <dt><b>At normal play</b></dt>
+  <dd>The normal priority of the decoder thread is used by default.</dd>
+  <dt><b>At low buffer</b></dt>
+  <dd>The priority of the decoder thread is raised to this level when
+the output buffers become empty.</dd>
+  <dt><b>Lower priority after</b></dt>
+  <dd>If you have a slow CPU and activated many filter plug-ins. The
+CPU might no longer be able to decode the song in real-time. This could
+effectively freeze the UI because of the high priority of the decoder
+thread. This setting lowers the priority after some time to get the
+system back.</dd>
+</dl>
+</body>
+</html>

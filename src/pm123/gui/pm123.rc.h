@@ -273,6 +273,7 @@
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
 #define IDH_SETTINGSIO     1052
+#define IDH_SETTINGSPERF   1054
 #define IDH_PLAYBACK       1053
 #define IDH_DISPLAY        1055
 #define IDH_DEC_PLUGINS    1060
@@ -349,68 +350,70 @@
 #define CB_FILLBUFFER      1377
 #define SB_FILLBUFFER      1378
 
-#define SB_NUMWORKERS      1380
-#define SB_DLGWORKERS      1381
-#define CB_LOWPRIWORKERS   1382
+#define CFG_PERFORMANCE    1400
 
-#define CB_PRI_NORM        1390
-#define CB_PRI_HIGH        1391
-#define SB_PRI_LIMIT       1392
+#define SB_NUMWORKERS      1410
+#define SB_DLGWORKERS      1411
+#define CB_LOWPRIWORKERS   1412
 
-#define CFG_DISPLAY1       1400
+#define CB_PRI_NORM        1420
+#define CB_PRI_HIGH        1421
+#define SB_PRI_LIMIT       1422
 
-#define CB_DOCK            1410
-#define SB_DOCK            1411
-#define CB_SAVEWNDPOSBYOBJ 1412
-#define RB_SCROLL_INFINITE 1420
-#define RB_SCROLL_ONCE     1421
-#define RB_SCROLL_DISABLE  1422
-#define CB_SCROLL_AROUND   1423
-#define RB_DISP_FILENAME   1425
-#define RB_DISP_ID3TAG     1426
-#define RB_DISP_FILEINFO   1427
-#define CB_RESTRICT_META   1428
-#define SB_RESTRICT_META   1429
-#define GB_FONT            1430
-#define CB_USE_SKIN_FONT   1431
-#define ST_FONT_SAMPLE     1432
-#define PB_FONT_SELECT     1433
+#define CFG_DISPLAY1       1500
 
-#define CFG_PLAYBACK       1450
+#define CB_DOCK            1510
+#define SB_DOCK            1511
+#define CB_SAVEWNDPOSBYOBJ 1512
+#define RB_SCROLL_INFINITE 1520
+#define RB_SCROLL_ONCE     1521
+#define RB_SCROLL_DISABLE  1522
+#define CB_SCROLL_AROUND   1523
+#define RB_DISP_FILENAME   1525
+#define RB_DISP_ID3TAG     1526
+#define RB_DISP_FILEINFO   1527
+#define CB_RESTRICT_META   1528
+#define SB_RESTRICT_META   1529
+#define GB_FONT            1530
+#define CB_USE_SKIN_FONT   1531
+#define ST_FONT_SAMPLE     1532
+#define PB_FONT_SELECT     1533
 
-#define CB_RG_ENABLE       1460
-#define LB_RG_LIST         1461
-#define LB_RG_AVAILABLE    1462
-#define PB_RG_UP           1463
-#define PB_RG_DOWN         1464
-#define PB_RG_ADD          1465
-#define PB_RG_REMOVE       1466
-#define SB_RG_PREAMP       1467
-#define SB_RG_PREAMP_OTHER 1468
+#define CFG_PLAYBACK       1550
+
+#define CB_RG_ENABLE       1560
+#define LB_RG_LIST         1561
+#define LB_RG_AVAILABLE    1562
+#define PB_RG_UP           1563
+#define PB_RG_DOWN         1564
+#define PB_RG_ADD          1565
+#define PB_RG_REMOVE       1566
+#define SB_RG_PREAMP       1567
+#define SB_RG_PREAMP_OTHER 1568
 
 #define SB_SCAN_SPEED      1470
 
-#define CFG_DEC_CONFIG     1500
-#define CFG_FIL_CONFIG     1501
-#define CFG_OUT_CONFIG     1502
-#define CFG_VIS_CONFIG     1503
+#define CFG_DEC_CONFIG     1600
+#define CFG_FIL_CONFIG     1601
+#define CFG_OUT_CONFIG     1602
+#define CFG_VIS_CONFIG     1603
 
-#define LB_PLUGINS         1511
-#define PB_PLG_UNLOAD      1512
-#define PB_PLG_ADD         1513
-#define PB_PLG_UP          1514
-#define PB_PLG_DOWN        1515
-#define PB_PLG_ENABLE      1516
-#define PB_PLG_CONFIG      1518
-#define ST_PLG_AUTHOR      1519
-#define ST_PLG_DESC        1520
-#define ST_PLG_LEVEL       1521
+#define LB_PLUGINS         1611
+#define PB_PLG_UNLOAD      1612
+#define PB_PLG_ADD         1613
+#define PB_PLG_UP          1614
+#define PB_PLG_DOWN        1615
+#define PB_PLG_ENABLE      1616
+#define PB_PLG_CONFIG      1618
+#define ST_PLG_AUTHOR      1619
+#define ST_PLG_DESC        1620
+#define ST_PLG_LEVEL       1621
 
-#define ST_DEC_FILETYPES   1531
-#define ML_DEC_FILETYPES   1532
-#define CB_DEC_TRYOTHER    1533
-#define CB_DEC_SERIALIZE   1534
-#define PB_PLG_SET         1539
+#define ST_DEC_FILETYPES   1631
+#define ML_DEC_FILETYPES   1632
+#define CB_DEC_TRYOTHER    1633
+#define CB_DEC_SERIALIZE   1634
+#define PB_PLG_SET         1639
 
 /* Object Info */
 #define DLG_INFO           1700

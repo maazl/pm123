@@ -54,7 +54,7 @@ const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstrin
   return false;
 }
 
-// The properties!
+// The default properties!
 const amp_cfg Cfg::Default =
 { ""
 , true
@@ -80,10 +80,10 @@ const amp_cfg Cfg::Default =
 , 4
 , 0x21a // priority
 , 0x300
-, 15
+, 30
 
-, 2 // num_workers
-, 1
+, 3 // num_workers
+, 2
 , true
 
 , 1 // font

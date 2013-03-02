@@ -412,75 +412,81 @@ DLGTEMPLATE CFG_IOSETTINGS
   DIALOG         "",                                    CFG_IOSETTINGS,     0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Remote control ",                    GB_GENERIC,         4,138, 248, 24, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Remote control ",                    GB_GENERIC,         4, 74, 248, 24, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
-    RTEXT        "~Pipe name",                          ST_GENERIC,         8,142,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~Pipe name",                          ST_GENERIC,         8, 78,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PIPE,           62,144,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PIPE,           62, 80,  72,  8, ES_MARGIN
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
 
-    GROUPBOX     " Streaming audio ",                   GB_GENERIC,         4, 68, 248, 68, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Streaming audio ",                   GB_GENERIC,         4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
-    RTEXT        "~HTTP Proxy",                         ST_GENERIC,         8,114,  48, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~HTTP Proxy",                         ST_GENERIC,         8, 50,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_HOST,     62,116, 132,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_HOST,     62, 52, 132,  8, ES_MARGIN
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
       CTLDATA 8, 512, 0, 0
-    RTEXT        "P~ort",                               ST_GENERIC,       196,114,  20, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+    RTEXT        "P~ort",                               ST_GENERIC,       196, 50,  20, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,2,0,1, 0,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PORT,    220,116,  24,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_PORT,    220, 52,  24,  8, ES_MARGIN
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,2,0,1, 0,2,0,1)
       CTLDATA 8, 5, 0, 0
-    RTEXT        "~User name",                          ST_GENERIC,         8,100,  48, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+    RTEXT        "~User name",                          ST_GENERIC,         8, 36,  48, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_USER,     62,102,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_USER,     62, 38,  72,  8, ES_MARGIN
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
       CTLDATA 8, 128, 0, 0
-    RTEXT        "Pass~word",                           ST_GENERIC,       140,100,  32, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+    RTEXT        "Pass~word",                           ST_GENERIC,       140, 36,  32, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,2,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PASS,    176,102,  68,  8, ES_MARGIN|ES_UNREADABLE
+    ENTRYFIELD   "",                                    EF_PROXY_PASS,    176, 38,  68,  8, ES_MARGIN|ES_UNREADABLE
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
       CTLDATA 8, 128, 0, 0
-    RTEXT        "Conn. ~timeout",                      ST_GENERIC,         8, 86,  48, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "Conn. ~timeout",                      ST_GENERIC,         8, 22,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_TIMEOUT,        60, 88,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "seconds",                             ST_GENERIC,       100, 86,  36, 12, DT_VCENTER|NOT WS_GROUP
+    SPINBUTTON                                          SB_TIMEOUT,        60, 24,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "seconds",                             ST_GENERIC,       100, 22,  36, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    RTEXT        "~Buffer size",                        ST_GENERIC,         8, 72,  48, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~Buffer size",                        ST_GENERIC,         8,  8,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_BUFFERSIZE,     60, 74,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "kB",                                  ST_GENERIC,       100, 72,  20, 12, DT_VCENTER|NOT WS_GROUP
+    SPINBUTTON                                          SB_BUFFERSIZE,     60, 10,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "kB",                                  ST_GENERIC,       100,  8,  20, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,    124, 72,  22, 12
-    SPINBUTTON                                          SB_FILLBUFFER,    144, 74,  28,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "% of buffer before play",             ST_GENERIC,       176, 72,  68, 12, DT_VCENTER|NOT WS_GROUP
+    AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,    124,  8,  22, 12
+    SPINBUTTON                                          SB_FILLBUFFER,    144, 10,  28,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "% of buffer before play",             ST_GENERIC,       176,  8,  68, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+  }
+}
 
-    GROUPBOX     " Performance ",                       GB_GENERIC,         4,  4, 248, 62, NOT WS_TABSTOP|WS_GROUP
+DLGTEMPLATE CFG_PERFORMANCE
+{
+  DIALOG         "",                                    CFG_PERFORMANCE,    0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  {
+    GROUPBOX     " Worker threads ",                    GB_GENERIC,         4, 58, 248, 36, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
-    RTEXT        "~Worker threads",                     ST_GENERIC,         8, 46,  48, 12, DT_VCENTER|DT_MNEMONIC|WS_GROUP
-    SPINBUTTON                                          SB_NUMWORKERS,     60, 48,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "(general purpose)",                   ST_GENERIC,        92, 46,  62, 12, DT_VCENTER|NOT WS_GROUP
+    RTEXT        "~general purpose",                    ST_GENERIC,         8, 74,  56, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_DLGWORKERS,    156, 48,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "(dialog)",                            ST_GENERIC,       188, 46,  40, 12, DT_VCENTER|NOT WS_GROUP
+    SPINBUTTON                                          SB_NUMWORKERS,     68, 76,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    RTEXT        "~dialog",                             ST_GENERIC,       100, 74,  40, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "Lower priority of non-essential worker threads",
-                                                        CB_LOWPRIWORKERS,  60, 34, 184, 12, WS_GROUP
+    SPINBUTTON                                          SB_DLGWORKERS,    144, 76,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTOCHECKBOX "Lower priority of background tasks",  CB_LOWPRIWORKERS,  68, 62, 160, 12, WS_GROUP
 
-    RTEXT        "~Decoder priority"                    ST_GENERIC,         8, 22,  48,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    COMBOBOX     "",                                    CB_PRI_NORM,       60,-18,  60, 48, CBS_DROPDOWNLIST
-    LTEXT        "(normal)",                            ST_GENERIC,       122, 22,  30,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    GROUPBOX     " Decoder priority ",                  GB_GENERIC,         4,  4, 248, 52, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,2,0,1, 2,2,0,1)
+    RTEXT        "At ~normal play",                     ST_GENERIC,         8, 36,  56, 12, DT_VCENTER|DT_MNEMONIC|WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    COMBOBOX     "",                                    CB_PRI_HIGH,      156,-18,  60, 48, CBS_DROPDOWNLIST
-    LTEXT        "(high)",                              ST_GENERIC,       218, 22,  24,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    COMBOBOX     "",                                    CB_PRI_NORM,       68, -6,  72, 52, CBS_DROPDOWNLIST
+    RTEXT        "At ~low buffer",                      ST_GENERIC,         8, 22,  56, 12, DT_VCENTER|DT_MNEMONIC|WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LTEXT        "~Low priority after:",                ST_GENERIC,        60, 10,  48,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    COMBOBOX     "",                                    CB_PRI_HIGH,       68,-20,  72, 52, CBS_DROPDOWNLIST
+    RTEXT        "Low priority ~after",                 ST_GENERIC,         8,  8,  56, 12, DT_VCENTER|DT_MNEMONIC|WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_PRI_LIMIT,     122, 10,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "s",                                   ST_GENERIC,       156, 10,  12,  8, DT_BOTTOM
+    SPINBUTTON                                          SB_PRI_LIMIT,      68, 10,  28, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "seconds",                             ST_GENERIC,       102,  8,  56, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   }
 }
