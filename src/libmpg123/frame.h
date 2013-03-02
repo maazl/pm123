@@ -13,7 +13,7 @@
 #include "config.h"
 #include "mpg123.h"
 #include "optimize.h"
-/*#include "id3.h" cyclic dependency */
+//#include "id3.h"
 #include "icy.h"
 #include "reader.h"
 #ifdef FRAME_INDEX
@@ -38,10 +38,11 @@ struct al_table
 /* the output buffer, used to be pcm_sample, pcm_point and audiobufsize */
 struct outbuffer
 {
-	unsigned char *data;
+	unsigned char *data; /* main data pointer, aligned */
 	unsigned char *p; /* read pointer  */
 	size_t fill; /* fill from read pointer */
-	size_t size; /* that's actually more like a safe size, after we have more than that, flush it */
+	size_t size;
+	unsigned char *rdata; /* unaligned base pointer */
 };
 
 struct audioformat
@@ -77,9 +78,17 @@ struct mpg123_pars_struct
 	long resync_limit;
 	long index_size; /* Long, because: negative values have a meaning. */
 	long preframes;
+#ifndef NO_FEEDER
+	long feedpool;
+	long feedbuffer;
+#endif
 };
 
-
+enum frame_state_flags
+{
+	 FRAME_ACCURATE      = 0x1  /**<     0001 Positions are considered accurate. */
+	,FRAME_FRANKENSTEIN  = 0x2  /**<     0010 This stream is concatenated. */
+};
 
 /* There is a lot to condense here... many ints can be merged as flags; though the main space is still consumed by buffers. */
 struct mpg123_handle_struct
@@ -199,9 +208,10 @@ struct mpg123_handle_struct
 	int freesize;  /* free format frame size */
 	enum mpg123_vbr vbr; /* 1 if variable bitrate was detected */
 	mpg123_off_t num; /* frame offset ... */
+	mpg123_off_t input_offset; /* byte offset of this frame in input stream */
 	mpg123_off_t playnum; /* playback offset... includes repetitions, reset at seeks */
 	mpg123_off_t audio_start; /* The byte offset in the file where audio data begins. */
-	char accurate; /* Flag to see if we trust the frame number. */
+	int state_flags;
 	char silent_resync; /* Do not complain for the next n resyncs. */
 	unsigned char* xing_toc; /* The seek TOC from Xing header. */
 	int freeformat;
@@ -237,7 +247,9 @@ struct mpg123_handle_struct
 	unsigned char *bsbuf;
 	unsigned char *bsbufold;
 	int bsnum;
+	/* That is the header matching the last read frame body. */
 	unsigned long oldhead;
+	/* That is the header that is supposedly the first of the stream. */
 	unsigned long firsthead;
 	int abr_rate;
 #ifdef FRAME_INDEX
@@ -255,12 +267,14 @@ struct mpg123_handle_struct
 	mpg123_off_t lastframe;   /* last frame to decode (for gapless or num_frames limit) */
 	mpg123_off_t ignoreframe; /* frames to decode but discard before firstframe */
 #ifdef GAPLESS
+	mpg123_off_t gapless_frames; /* frame count for the gapless part */
 	mpg123_off_t firstoff; /* number of samples to ignore from firstframe */
 	mpg123_off_t lastoff;  /* number of samples to use from lastframe */
 	mpg123_off_t begin_s;  /* overall begin offset in samples */
 	mpg123_off_t begin_os;
 	mpg123_off_t end_s;    /* overall end offset in samples */
 	mpg123_off_t end_os;
+	mpg123_off_t fullend_os; /* gapless_frames translated to output samples */
 #endif
 	unsigned int crc; /* Well, I need a safe 16bit type, actually. But wider doesn't hurt. */
 	struct reader *rd; /* pointer to the reading functions */
@@ -361,8 +375,7 @@ MPEG 2.5
 #ifdef GAPLESS
 /* well, I take that one for granted... at least layer3 */
 #define GAPLESS_DELAY 529
-/* still fine-tuning the "real music" window... see read_frame */
-void frame_gapless_init(mpg123_handle *fr, mpg123_off_t b, mpg123_off_t e);
+void frame_gapless_init(mpg123_handle *fr, mpg123_off_t framecount, mpg123_off_t bskip, mpg123_off_t eskip);
 void frame_gapless_realinit(mpg123_handle *fr);
 void frame_gapless_update(mpg123_handle *mh, mpg123_off_t total_samples);
 /*void frame_gapless_position(mpg123_handle* fr);

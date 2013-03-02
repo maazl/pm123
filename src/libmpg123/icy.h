@@ -8,9 +8,9 @@
 #ifndef MPG123_ICY_H
 #define MPG123_ICY_H
 
-#include "compat.h"
-
 #ifndef NO_ICY
+
+#include "compat.h"
 #include "mpg123.h"
 
 struct icy_meta
@@ -26,8 +26,11 @@ void reset_icy(struct icy_meta *);
 
 #else
 
+#undef init_icy
 #define init_icy(a)
+#undef clear_icy
 #define clear_icy(a)
+#undef reset_icy
 #define reset_icy(a)
 
 #endif /* NO_ICY */

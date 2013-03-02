@@ -17,6 +17,8 @@
 	Confusing, I know. It sucks.
 */
 
+#include "config.h"
+
 /* Hack for Solaris: Some system headers included from compat.h might force _FILE_OFFSET_BITS. Need to follow that here. */
 #include "compat.h"
 
@@ -127,6 +129,14 @@ int attribute_align_arg ALIAS_NAME(mpg123_decode_frame)(mpg123_handle *mh, long 
 int attribute_align_arg ALIAS_NAME(mpg123_framebyframe_decode)(mpg123_handle *mh, long *num, unsigned char **audio, size_t *bytes)
 {
 	return NATIVE_NAME(mpg123_framebyframe_decode)(mh, num, audio, bytes);
+}
+
+#ifdef mpg123_framepos
+#undef mpg123_framepos
+#endif
+long attribute_align_arg ALIAS_NAME(mpg123_framepos)(mpg123_handle *mh)
+{
+	return NATIVE_NAME(mpg123_framepos)(mh);
 }
 
 #ifdef mpg123_tell

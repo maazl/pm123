@@ -6,6 +6,7 @@
 	initially written by Taihei Monma
 */
 
+#include "config.h"
 #include "compat.h"
 #include "dither.h"
 

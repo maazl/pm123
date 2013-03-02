@@ -12,6 +12,11 @@
 
 #ifndef NO_ID3V2 /* Only the main parsing routine will always be there. */
 
+/* We know the usual text frames plus some specifics. */
+#define KNOWN_FRAMES 4
+static const char frame_type[KNOWN_FRAMES][5] = { "COMM", "TXXX", "RVA2", "USLT" };
+enum frame_types { unknown = -2, text = -1, comment, extra, rva2, uslt };
+
 /* UTF support definitions */
 
 typedef void (*text_converter)(mpg123_string *sb, const unsigned char* source, size_t len, const int noquiet);
@@ -20,7 +25,7 @@ static void convert_latin1  (mpg123_string *sb, const unsigned char* source, siz
 static void convert_utf16bom(mpg123_string *sb, const unsigned char* source, size_t len, const int noquiet);
 static void convert_utf8    (mpg123_string *sb, const unsigned char* source, size_t len, const int noquiet);
 
-static const text_converter text_converters[4] =
+static const text_converter text_converters[4] = 
 {
 	convert_latin1,
 	/* We always check for (multiple) BOM in 16bit unicode. Without BOM, UTF16 BE is the default.
@@ -33,10 +38,6 @@ static const text_converter text_converters[4] =
 static const unsigned int encoding_widths[4] = { 1, 2, 2, 1 };
 
 #ifndef ID3V2_RAW
-/* We know the usual text frames plus some specifics. */
-#define KNOWN_FRAMES 4
-static const char frame_type[KNOWN_FRAMES][5] = { "COMM", "TXXX", "RVA2", "USLT" };
-enum frame_types { unknown = -2, text = -1, comment, extra, rva2, uslt };
 
 /* the code starts here... */
 
@@ -48,6 +49,18 @@ static void null_id3_links(mpg123_handle *fr)
 	fr->id3v2.year   = NULL;
 	fr->id3v2.genre  = NULL;
 	fr->id3v2.comment = NULL;
+}
+
+void init_id3(mpg123_handle *fr)
+{
+	fr->id3v2.version = 0; /* nothing there */
+	null_id3_links(fr);
+	fr->id3v2.comments     = 0;
+	fr->id3v2.comment_list = NULL;
+	fr->id3v2.texts    = 0;
+	fr->id3v2.text     = NULL;
+	fr->id3v2.extras   = 0;
+	fr->id3v2.extra    = NULL;
 }
 
 /* Managing of the text, comment and extra lists. */
@@ -125,68 +138,32 @@ static void pop_id3_text(mpg123_text **list, size_t *size)
 		*size = 0;
 	}
 }
+
+#else
+void init_id3(mpg123_handle *fr)
+{
+  fr->id3v2.tagdata = NULL;
+  fr->id3v2.taglen = 0;
+}
 #endif // ID3V2_RAW
 
-/* OK, back to the higher level functions. */
-void init_id3(mpg123_handle *fr)
-{   memset(&fr->id3v2, 0, sizeof fr->id3v2);
-    /*fr->id3v2.version = 0;  nothing there
-    null_id3_links(fr);
-    fr->id3v2.comments     = 0;
-    fr->id3v2.comment_list = NULL;
-    fr->id3v2.texts    = 0;
-    fr->id3v2.text     = NULL;
-    fr->id3v2.extras   = 0;
-    fr->id3v2.extra    = NULL;*/
-}
+/* OK, back t the higher level functions. */
 
 void exit_id3(mpg123_handle *fr)
 {
 #ifdef ID3V2_RAW
     free(fr->id3v2.tagdata);
 #else
-    free_comment(fr);
-    free_extra(fr);
-    free_text(fr);
+	free_comment(fr);
+	free_extra(fr);
+	free_text(fr);
 #endif
 }
 
 void reset_id3(mpg123_handle *fr)
 {
-    exit_id3(fr);
-    init_id3(fr);
-}
-
-/* On error, sb->size is 0. */
-void id3_to_utf8(mpg123_string *sb, unsigned char encoding, const unsigned char *source, size_t source_size, int noquiet)
-{
-    unsigned int bwidth;
-    debug1("encoding: %u", encoding);
-    /* A note: ID3v2.3 uses UCS-2 non-variable 16bit encoding, v2.4 uses UTF16.
-       UTF-16 uses a reserved/private range in UCS-2 to add the magic, so we just always treat it as UTF. */
-    if(encoding > mpg123_id3_enc_max)
-    {
-        if(noquiet) error1("Unknown text encoding %u, I take no chances, sorry!", encoding);
-
-        mpg123_free_string(sb);
-        return;
-    }
-    bwidth = encoding_widths[encoding];
-    /* Hack! I've seen a stray zero byte before BOM. Is that supposed to happen? */
-    if(encoding != mpg123_id3_utf16be) /* UTF16be _can_ beging with a null byte! */
-    while(source_size > bwidth && source[0] == 0)
-    {
-        --source_size;
-        ++source;
-        debug("skipped leading zero");
-    }
-    if(source_size % bwidth)
-    {
-        /* When we need two bytes for a character, it's strange to have an uneven bytestream length. */
-        if(noquiet) warning2("Weird tag size %d for encoding %u - I will probably trim too early or something but I think the MP3 is broken.", (int)source_size, encoding);
-        source_size -= source_size % bwidth;
-    }
-    text_converters[encoding](sb, source, source_size, noquiet);
+	exit_id3(fr);
+	init_id3(fr);
 }
 
 #ifndef ID3V2_RAW
@@ -252,6 +229,38 @@ static void store_id3_text(mpg123_string *sb, char *source, size_t source_size, 
 
 	if(sb->fill) debug1("UTF-8 string (the first one): %s", sb->p);
 	else if(noquiet) error("unable to convert string to UTF-8 (out of memory, junk input?)!");
+}
+
+/* On error, sb->size is 0. */
+void id3_to_utf8(mpg123_string *sb, unsigned char encoding, const unsigned char *source, size_t source_size, int noquiet)
+{
+	unsigned int bwidth;
+	debug1("encoding: %u", encoding);
+	/* A note: ID3v2.3 uses UCS-2 non-variable 16bit encoding, v2.4 uses UTF16.
+	   UTF-16 uses a reserved/private range in UCS-2 to add the magic, so we just always treat it as UTF. */
+	if(encoding > mpg123_id3_enc_max)
+	{
+		if(noquiet) error1("Unknown text encoding %u, I take no chances, sorry!", encoding);
+
+		mpg123_free_string(sb);
+		return;
+	}
+	bwidth = encoding_widths[encoding];
+	/* Hack! I've seen a stray zero byte before BOM. Is that supposed to happen? */
+	if(encoding != mpg123_id3_utf16be) /* UTF16be _can_ beging with a null byte! */
+	while(source_size > bwidth && source[0] == 0)
+	{
+		--source_size;
+		++source;
+		debug("skipped leading zero");
+	}
+	if(source_size % bwidth)
+	{
+		/* When we need two bytes for a character, it's strange to have an uneven bytestream length. */
+		if(noquiet) warning2("Weird tag size %d for encoding %u - I will probably trim too early or something but I think the MP3 is broken.", (int)source_size, encoding);
+		source_size -= source_size % bwidth;
+	}
+	text_converters[encoding](sb, source, source_size, noquiet);
 }
 
 static char *next_text(char* prev, int encoding, size_t limit)
@@ -522,7 +531,8 @@ static int promote_framename(mpg123_handle *fr, char *id) /* fr because of VERBO
 	return -1;
 }
 
-#endif /* ID3V3_RAW */
+#endif /* ID2V2_RAW */
+
 #endif /* NO_ID3V2 */
 
 /*
@@ -614,8 +624,9 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
 	else
 	{
 		unsigned char* tagdata = NULL;
+
 #ifdef ID3V2_RAW
-		if((tagdata = (unsigned char*) malloc(length+11)) != NULL)
+		if((tagdata = (unsigned char*)malloc(length+11)) != NULL)
         {
             if((ret2 = fr->rd->read_frame_body(fr,tagdata+10,length)) > 0)
             {
@@ -629,13 +640,14 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
               tagdata = NULL;
             }
 #else
-        /* try to interpret that beast */
-        fr->id3v2.version = major;
+
+		fr->id3v2.version = major;
+		/* try to interpret that beast */
 		if((tagdata = (unsigned char*) malloc(length+1)) != NULL)
-        {
-            debug("ID3v2: analysing frames...");
-            if((ret2 = fr->rd->read_frame_body(fr,tagdata,length)) > 0)
-            {
+		{
+			debug("ID3v2: analysing frames...");
+			if((ret2 = fr->rd->read_frame_body(fr,tagdata,length)) > 0)
+			{
 				unsigned long tagpos = 0;
 				debug1("ID3v2: have read at all %lu bytes for the tag now", (unsigned long)length+6);
 				/* going to apply strlen for strings inside frames, make sure that it doesn't overflow! */
@@ -677,6 +689,7 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
 						{
 							/* 4 or 3 bytes id */
 							strncpy(id, (char*) tagdata+pos, head_part);
+							id[head_part] = 0; /* terminate for 3 or 4 bytes */
 							pos += head_part;
 							tagpos += head_part;
 							/* size as 32 bits or 28 bits */
@@ -823,7 +836,7 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
 						#undef KNOWN_FRAMES
 					}
 				}
-            }
+			}
 #endif /* ID3V2_RAW */
 			else
 			{
@@ -889,7 +902,7 @@ static void convert_latin1(mpg123_string *sb, const unsigned char* s, size_t l, 
 	 1: big endian
 
 	This modifies source and len to indicate the data _after_ the BOM(s).
-	Note on nasty data: The last encountered BOM determines the endianess.
+	Note on nasty data: The last encountered BOM determines the endianness.
 	I have seen data with multiple BOMS, namely from "the" id3v2 program.
 	Not nice, but what should I do?
 */
@@ -936,7 +949,7 @@ static void convert_utf16bom(mpg123_string *sb, const unsigned char* s, size_t l
 	debug1("convert_utf16 with length %lu", (unsigned long)l);
 
 	bom_endian = check_bom(&s, &l);
-	debug1("UTF16 endianess check: %i", bom_endian);
+	debug1("UTF16 endianness check: %i", bom_endian);
 
 	if(bom_endian == -1) /* little-endian */
 	{

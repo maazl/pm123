@@ -14,7 +14,7 @@
 #include "mangle.h"
 
 .data
-#if !defined(__APPLE__) && !defined(__OS2__)
+#if !defined(__APPLE__) && !defined(OS_IS_OS2)
 		.section	.rodata
 #endif
 	ALIGN8
@@ -192,7 +192,7 @@ ASM_NAME(synth_1to1_i586_asm_dither):
 	jl 2f
 	movw %ax,(%esi)
 	jmp 4f
-1:	movw $32767, (%esi)
+1:	movw $32767,(%esi)
 	jmp 3f
 2:	movw $-32768,(%esi)
 3:

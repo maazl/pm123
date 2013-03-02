@@ -12,6 +12,7 @@
 #include "config.h"
 #include "mpg123.h"
 
+#ifndef NO_FEEDER
 struct buffy
 {
 	unsigned char *data;
@@ -19,6 +20,7 @@ struct buffy
 	ssize_t realsize;
 	struct buffy *next;
 };
+
 
 struct bufferchain
 {
@@ -30,7 +32,23 @@ struct bufferchain
 	ssize_t firstpos;    /* The point of return on non-forget() */
 	/* The "real" filepos is fileoff + pos. */
 	mpg123_off_t fileoff;       /* Beginning of chain is at this file offset. */
+	size_t bufblock;     /* Default (minimal) size of buffers. */
+	size_t pool_size;    /* Keep that many buffers in storage. */
+	size_t pool_fill;    /* That many buffers are there. */
+	/* A pool of buffers to re-use, if activated. It's a linked list that is worked on from the front. */
+	struct buffy *pool;
 };
+
+/* Call this before any buffer chain use (even bc_init()). */
+void bc_prepare(struct bufferchain *, size_t pool_size, size_t bufblock);
+/* Free persistent data in the buffer chain, after bc_reset(). */
+void bc_cleanup(struct bufferchain *);
+/* Change pool size. This does not actually allocate/free anything on itself, just instructs later operations to free less / allocate more buffers. */
+void bc_poolsize(struct bufferchain *, size_t pool_size, size_t bufblock);
+/* Return available byte count in the buffer. */
+size_t bc_fill(struct bufferchain *bc);
+
+#endif
 
 struct reader_data
 {
@@ -56,7 +74,9 @@ struct reader_data
 	mpg123_off_t   (*lseek)(int fd, mpg123_off_t offset, int whence);
 	/* Buffered readers want that abstracted, set internally. */
 	ssize_t (*fullread)(mpg123_handle *, unsigned char *, ssize_t);
+#ifndef NO_FEEDER
 	struct bufferchain buffer; /* Not dynamically allocated, these few struct bytes aren't worth the trouble. */
+#endif
 };
 
 /* start to use mpg123_off_t to properly do LFS in future ... used to be long */

@@ -4,7 +4,7 @@
 
 	The mpg123 code is determined to keep it's legacy. A legacy of old, old UNIX.
 	It is envisioned to include this compat header instead of any of the "standard" headers, to catch compatibility issues.
-	So, don't include stdlib.h or string.h ... include compat.h.
+	So, don't include stdlib.h or string.h ... include _compat.h.
 
 	copyright 2007-8 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
@@ -20,16 +20,6 @@
 #ifdef HAVE_STDLIB_H
 /* realloc, size_t */
 #include <stdlib.h>
-#endif
-
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#else
-/* assume 32 bit platform */
-typedef int ssize_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef unsigned int uintptr_t;
 #endif
 
 #include        <stdio.h>
@@ -163,7 +153,7 @@ int compat_close(int infd);
  *
  * WideCharToMultiByte - http://msdn.microsoft.com/en-us/library/dd374130(VS.85).aspx
  */
-int win32_wide_utf8 (const wchar_t * const wptr, const char **const mbptr, size_t * const buflen);
+int win32_wide_utf8(const wchar_t * const wptr, char **mbptr, size_t * buflen);
 
 /**
  * win32_mbc2uni
@@ -177,14 +167,13 @@ int win32_wide_utf8 (const wchar_t * const wptr, const char **const mbptr, size_
  * MultiByteToWideChar - http://msdn.microsoft.com/en-us/library/dd319072(VS.85).aspx
  */
 
-int win32_utf8_wide (const char *const mbptr, const wchar_t ** const wptr, size_t * const buflen);
+int win32_utf8_wide(const char *const mbptr, wchar_t **wptr, size_t *buflen);
 #endif
 
-#if 0    /* does not compile */
 /* That one comes from Tellie on OS/2, needed in resolver. */
 #ifdef __KLIBC__
-typedef int socklen_t;
-#endif
+/* Is defined in <sys/types.h>.
+typedef int socklen_t; */
 #endif
 
 #endif

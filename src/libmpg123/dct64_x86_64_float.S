@@ -28,7 +28,7 @@
 	void dct64_real_x86_64(real *out0, real *out1, real *samples);
 */
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(OS_IS_OS2)
 	.section	.rodata
 #else
 	.data

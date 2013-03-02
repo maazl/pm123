@@ -43,6 +43,7 @@
 #define HAVE_VASPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_GETTIMEOFDAY 1 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_FSYNC        1 /* Define to 1 if you have the `fsync' function. */
+#define HAVE_STRDUP       1 /* Define to 1 if you have the `strdup` function. */
 #define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_UINTPTR_T    1 /* Define to 1 if the system has the type `uintptr_t'. */
 #define HAVE_DECL_S_IRGRP 1 /* Define to 1 if S_IRGRP is defined. */
@@ -52,6 +53,7 @@
 #define HAVE_SSIZE_T      1 /* Define to 1 if the system has the type `ssize_t'. */
 #undef  HAVE_CLOCK_GETTIME  /* Define to 1 if you have the `clock_gettime' function. */
 
+#define HAVE_STDIO_H      1 /* Define to 1 if you have the <stdio.h> header file. */
 #define HAVE_STDLIB_H     1 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STRING_H     1 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_SYS_STAT_H   1 /* Define to 1 if you have the <sys/stat.h> header file. */

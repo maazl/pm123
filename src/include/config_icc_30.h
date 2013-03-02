@@ -50,6 +50,7 @@ void _CRT_term( void );
 #define HAVE_SETLOCALE    1 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SNPRINTF     1 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_VSNPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
+#define HAVE_STRDUP       1 /* Define to 1 if you have the `strdup` function. */
 #define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
 #undef  HAVE_GETTIMEOFDAY   /* Define to 1 if you have the `gettimeofday' function. */
 #undef  HAVE_FSYNC          /* Define to 1 if you have the `fsync' function. */
@@ -60,6 +61,7 @@ void _CRT_term( void );
 #undef  HAVE_LRINTF         /* Define to 1 if you have C99's `lrintf' function. */
 #undef  HAVE_SSIZE_T        /* Define to 1 if the system has the type `ssize_t'. */
 
+#define HAVE_STDIO_H      1 /* Define to 1 if you have the <stdio.h> header file. */
 #define HAVE_STDLIB_H     1 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STRING_H     1 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_SYS_STAT_H   1 /* Define to 1 if you have the <sys/stat.h> header file. */
