@@ -36,7 +36,7 @@ bufstream.c:	bufstream.h
 charset.c:	charset.h strutils.h debuglog.h utilfct.h
 debuglog.h:	.\errorstr.h
 utilfct.h:	..\include\config.h .\errorstr.h .\minmax.h .\strutils.h
-debuglog.c:	debuglog.h snprintf.h
+debuglog.c:	debuglog.h snprintf.h strutils.h
 eautils.c:	debuglog.h
 errorstr.c:	strutils.h snprintf.h
 fileheader.c:	debuglog.h
@@ -75,5 +75,5 @@ strutils.c:	strutils.h
 utilfct_dlg.c:	utilfct.h debuglog.h
 interlocked.c:	interlocked.h
 interlocked.h:	..\include\config.h
-eadecode.c:	debuglog.h
+eadecode.c:	strutils.h debuglog.h
 strptime.c:	strutils.h

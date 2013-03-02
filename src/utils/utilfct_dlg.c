@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com> *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2011 Marcel Mueller
+ * Copyright 2006-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -150,7 +150,7 @@ void dlg_adjust_resize(HWND hwnd, SWP* pswp)
     PMASSERT(en != NULLHANDLE);
     while ((child = WinGetNextWindow(en)) != NULLHANDLE)
     { // find PPU_RESIZEINFO
-      PPResizeParams rsinfo = {{0},{1,1}};
+      PPResizeParams rsinfo = {{{0,0},{0,0},{0,0},{0,0}},{1,1,0,0}};
       SWP childpos;
       if (WinQueryPresParam(child, PPU_RESIZEINFO, 0, NULL, sizeof rsinfo.rs, &rsinfo.rs, QPF_NOINHERIT) == 0)
         continue;
@@ -175,9 +175,9 @@ void dlg_adjust_resize(HWND hwnd, SWP* pswp)
 void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
 { HENUM en;
   HWND child;
-  size_t count;
+  size_t count = 0;
   SWP* childpos_list;
-  PPResizeParams rsinfo = {{0}};
+  PPResizeParams rsinfo = {{{0,0},{0,0},{0,0},{0,0}},{1,1,0,0}};
 
   DEBUGLOG(("dlg_do_resize(%p, {%x, %i,%i, %i,%i}, {%x, %i,%i, %i,%i})\n", hwnd,
     pswpnew->fl, pswpnew->cx, pswpnew->cy, pswpnew->x, pswpnew->y,
