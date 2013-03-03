@@ -52,7 +52,8 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
   read_pos(0),
   s_obs_head(NULL),
   s_obs_tail(NULL)
-{ *s_title = 0;
+{ ASSERT(size);
+  *s_title = 0;
   blocksize = chain->blocksize;
   if (blocksize > buf_size)
     blocksize = buf_size;

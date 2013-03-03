@@ -686,18 +686,32 @@ int DLLENTRY xio_buffer_fill()
 
 /* Sets the read-ahead buffer size. */
 void DLLENTRY xio_set_buffer_size(int size)
-{ buffer_size = size;
+{ if (size < 256)
+  { errno = EINVAL;
+    return;
+  }
+  errno = 0;
+  buffer_size = size;
 }
 
 /* Sets fills the buffer before reading state. */
 void DLLENTRY xio_set_buffer_wait(int wait)
-{ buffer_wait = wait;
+{ if (wait < 0)
+  { errno = EINVAL;
+    return;
+  }
+  errno = 0;
+  buffer_wait = wait;
 }
 
 /* Sets value of prefilling of the buffer. */
 void DLLENTRY xio_set_buffer_fill(int percent)
-{ if (percent > 0 && percent <= 100)
-    buffer_fill = percent;
+{ if (percent < 0 || percent > 100)
+  { errno = EINVAL;
+    return;
+  }
+  errno = 0;
+  buffer_fill = percent;
 }
 
 /* Returns the name of the proxy server. */
@@ -718,8 +732,7 @@ void DLLENTRY xio_http_proxy_user(char* username, int size)
 }
 
 /* Returns the user password of the proxy server. */
-void DLLENTRY
-xio_http_proxy_pass(char* password, int size)
+void DLLENTRY xio_http_proxy_pass(char* password, int size)
 { Mutex::Lock lock(mutex);
   strlcpy(password, http_proxy_pass, size );
 }
