@@ -97,9 +97,9 @@ static char* fetcharg(char**& argv, const char* opt)
   return *argv;
 }
 
-static void config_change(const void*, const CfgChangeArgs& args)
+static void config_change(const void* ctx, const CfgChangeArgs& args)
 {
-  if (args.New.proxy != args.Old.proxy || args.New.auth != args.Old.auth)
+  if (ctx || args.New.proxy != args.Old.proxy || args.New.auth != args.Old.auth)
   { // set proxy and buffer settings statically in the xio library, not that nice, but working.
     char buffer[1024];
     char* cp = strchr(args.New.proxy, ':');
@@ -121,7 +121,8 @@ static void config_change(const void*, const CfgChangeArgs& args)
       xio_set_http_proxy_pass(cp +1);
     }
   }
-  if ( args.New.buff_size != args.Old.buff_size
+  if ( ctx
+    || args.New.buff_size != args.Old.buff_size
     || args.New.buff_wait != args.Old.buff_wait
     || args.New.buff_fill != args.Old.buff_fill
     || args.New.conn_timeout != args.Old.conn_timeout )
@@ -131,7 +132,7 @@ static void config_change(const void*, const CfgChangeArgs& args)
     xio_set_connect_timeout(args.New.conn_timeout);
   }
 
-  if (args.New.pipe_name != args.Old.pipe_name)
+  if (!ctx && args.New.pipe_name.compareToI(args.Old.pipe_name))
   { amp_pipe_destroy();
     amp_pipe_create();
   }
@@ -224,7 +225,7 @@ int main(int argc, char** argv)
   Cfg::Init();
   if (pipename)
     Cfg::ChangeAccess().pipe_name = pipename;
-  config_change(NULL, CfgChangeArgs((const amp_cfg&)Cfg::Get(), Cfg::Default));
+  config_change((void*)1, CfgChangeArgs((const amp_cfg&)Cfg::Get(), Cfg::Default));
   Cfg::GetChange() += config_deleg;
 
   // Command line args?
