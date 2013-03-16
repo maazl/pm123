@@ -79,12 +79,13 @@ class WaitInfo : private WaitLoadInfo
 class WaitAggregateInfo : private WaitLoadInfo
 {private:
   int_ptr<APlayable>        Inst;
-  AggregateInfo*            AI;
+  const PlayableSetBase*    Exclude;
   Reliability               Rel;
+  const volatile AggregateInfo* AI;
  private:
   virtual void              CommitInfo(InfoFlags what);
  public:
-  bool                      Wait(APlayable& inst, AggregateInfo& ai, InfoFlags what, Reliability rel, long ms = -1);
+  const volatile AggregateInfo* Wait(APlayable& inst, const PlayableSetBase& exclude, InfoFlags what, Reliability rel, long ms = -1);
 };
 
 #endif

@@ -117,7 +117,8 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
 static char DebugDumpBuffer[32][128];
 
 const char* PlayableSetBase::DebugDump() const
-{ TIB* tip;
+{ PASSERT(this);
+  TIB* tip;
   DosGetInfoBlocks(&tip, NULL);
   char* buf = DebugDumpBuffer[tip->tib_ptib2->tib2_ultid-1];
   *buf = 0;

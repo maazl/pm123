@@ -7,6 +7,7 @@ my %omap;
 my @reqstack;
 
 # current request state by object address and priority
+# $reqflags{$object}=[$rqlow][$rqhigh]
 my %reqflags;
 
 # required workers by object address and priority
@@ -15,7 +16,7 @@ my %worker;
 # dependency workers by address
 my %dependencyworker;
 
-# dependecy workers by dependant object adress
+# dependecy workers by dependant object address
 my %dependencyindex;
 
 sub pri_ix($)
@@ -44,6 +45,7 @@ sub dump_set(\%)
 #               $tid                      --$o--                      $wha $p $r
 sub req($$$$$)
 {	my ($tid, $o, $what, $pri, $rel) = @_;
+	printf "$. Req1: %s, what=%x pri=%x rel=%u\n", $o, $what, $pri, $rel;
 	$reqstack[$tid] = [] unless exists $reqstack[$tid];
 	push @{$reqstack[$tid]}, [$o, $what, $pri, $rel];
 }
@@ -55,12 +57,12 @@ sub req2($$$)
 	exists $reqstack[$tid] && @{$reqstack[$tid]} or warn "$. req2 without req in thread $tid\nnn", return;
 	my ($o, $what, $pri, $rel) = @{pop @{$reqstack[$tid]}};
 	$o or warn "$. Invalid request $tid, $rq, $async\n";
-	printf "$. Req: %s, what=%x pri=%u rel=%u rq=%x async=%x\n", $o, $what, $pri, $rel, $rq, $async;
+	printf "$. Req: %s, what=%x pri=%x rel=%u rq=%x async=%x\n", $o, $what, $pri, $rel, $rq, $async;
 	return unless $rq;
 	return unless $pri;
 	my $ix = pri_ix $pri;
 	exists $reqflags{$o} && ($reqflags{$o}[$ix] || $reqflags{$o}[1]) || $async or
-	warn sprintf "$. first request for %s at priority %i did not cause an asynchronous request (%x,%x)\n", $o, $pri, $reqflags{$o}[0], $reqflags{$o}[1];
+		warn sprintf "$. first request for %s: %x at priority %x did not cause an asynchronous request (%x,%x)\n", $o, $rq, $pri, $reqflags{$o}[0], $reqflags{$o}[1];
 	$reqflags{$o}[$ix] |= $rq;
 	$reqflags{$o}[0] &= ~$rq if $ix;
 	#$reqflags{$o}[2+$ix] |= $rq;
@@ -72,7 +74,7 @@ sub req2($$$)
 #                                         --$o--                             $pri
 sub handle($$)
 {	my ($o, $pri) = @_;
-	printf "$. Handle: %s, pri=%u isclow=%x ischigh=%x\n", $o, $pri, $reqflags{$o}[2], $reqflags{$o}[3];            
+	printf "$. Handle: %s, pri=%x rqlow=%x rqhigh=%x\n", $o, $pri, $reqflags{$o}[0], $reqflags{$o}[1];            
 
 	my $ix = pri_ix $pri;
 	#$worker{$o}[$ix] || $worker{$o}[0] or
@@ -88,7 +90,7 @@ sub handle($$)
 #                                         --$o--                                         $load$chg$inval                
 sub event($$$$)
 {	my ($o, $load, $chg, $inval) = @_;
-	printf "$. Event: %s, %x, %x, %x - %x, %x\n", $o, $load, $chg, $inval, $reqflags{$o}[0], $reqflags{$o}[1];
+	printf "$. Event: %s, L=%x, C=%x, I=%x - %x, %x\n", $o, $load, $chg, $inval, $reqflags{$o}[0], $reqflags{$o}[1];
 	$reqflags{$o}[0] &= ~$load;
 	$reqflags{$o}[1] &= ~$load;
 
@@ -144,14 +146,29 @@ sub noreschedule($)
 }
 
 
+sub reqinfo()
+{	/[ :](\d{4}) .*APlayable\(0x([0-9a-fA-F]+).*?}\)::RequestInfo\(([0-9a-fA-F]+),\s*([0-9a-fA-F]),\s*(\d)\)/ or die $_;
+	req $1, $2, hex $3, hex $4, $5;
+}
+sub reqagg()
+{	/[ :](\d{4}) .*APlayable\(0x([0-9a-fA-F]+).*?}\)::RequestAggregateInfo\({(.*)},\s*([0-9a-fA-F]+),\s*([0-9a-fA-F]),\s*(\d)\)/ or die $_;
+	req $1, $2, hex $4, hex $5, $6;
+}
+sub handlereq()
+{	/APlayable\(0x([0-9a-fA-F]+).*\)::HandleRequest\(([0-9a-fA-F])\)/ or die $_;
+	handle $1, hex $2;
+}
+
 while (<>)
 {	chomp;
 	/0x([0-9a-fA-F]+)\{([^}]+)\}/ and $omap{$1} = $2; 
-	/[ :](\d{4}) .*APlayable\(0x([0-9a-fA-F]+).*\)::Request(?:Aggregate)?Info\(([0-9a-fA-F]+),\s*(\d),\s*(\d)\)/ and req $1, $2, hex $3, $4, $5;
-	/[ :](\d{4}) .*APlayable::Request(?:Aggregate)?Info.*rq\s*=\s*([0-9a-fA-F]+),\s*async\s*=\s*([0-9a-fA-F]+)/ and req2 $1, hex $2, hex $3;
+	/\)::RequestInfo\(/ and reqinfo;
+	/\)::RequestAggregateInfo\(/ and reqagg; 
+	/[ :](\d{4}) .*APlayable::RequestInfo.*rq\s*=\s*([0-9a-fA-F]+),\s*async\s*=\s*([0-9a-fA-F]+)/ and req2 $1, hex $2, hex $3;
+	/[ :](\d{4}) .*APlayable::RequestAggregateInfo.*rq\s*=\s*([0-9a-fA-F]+),\s*async\s*=\s*([0-9a-fA-F]+)/ and req2 $1, hex $2, hex $3;
 	/APlayable\(0x([0-9a-fA-F]+).*\)::RaiseInfoChange\(&?\{&?0x([0-9a-fA-F]+),[^,]*,\s*([0-9a-fA-F]+),\s*([0-9a-fA-F]+),\s*([0-9a-fA-F]+)\s*\}\)/ and event $1, hex $3, hex $4, hex $5;
-	/APlayable\(0x([0-9a-fA-F]+).*\)::HandleRequest\((\d)\)/ and handle $1, $2;
-	/RescheduleWorker\(0x([0-9a-fA-F]+)\)::RescheduleWorker\(.*{MandatorySet\s*=\s*(.*);\s*OptionalSet\s*=\s*(.*)},\s*&0x([0-9a-fA-F]+)(?:{[^}]*})?,\s*(\d)/ and reschedule $1, $2, $3, $4, $5; 
+	/\)::HandleRequest\(/ and handlereq;
+	/RescheduleWorker\(0x([0-9a-fA-F]+)\)::RescheduleWorker\(.*{MandatorySet\s*=\s*(.*);\s*OptionalSet\s*=\s*(.*)},\s*&0x([0-9a-fA-F]+)(?:{[^}]*})?,\s*([0-9a-fA-F])/ and reschedule $1, $2, $3, $4, hex $5; 
 	/RescheduleWorker\(0x([0-9a-fA-F]+)\)::~RescheduleWorker/ and noreschedule $1; 
 }
 
@@ -178,9 +195,9 @@ while (my ($o, $d) = each %worker)
 while (my ($w, $dep) = each %dependencyworker)
 {	my ($mand, $opt, $o, $pri) = @$dep;
 	if (%$mand || %$opt)
-	{	warn sprintf "Uncompleted dependency worker %s for %s pri=%u: M = {%s}, O = {%s}\n", $w, $o, $pri, dump_set(%$mand), dump_set(%$opt);
+	{	warn sprintf "Uncompleted dependency worker %s for %s pri=%x: M = {%s}, O = {%s}\n", $w, $o, $pri, dump_set(%$mand), dump_set(%$opt);
 	} else
-	{	warn sprintf "Completed dependency worker %s for %s pri=%u has not been discarded\n", $w, $o, $pri;
+	{	warn sprintf "Completed dependency worker %s for %s pri=%x has not been discarded\n", $w, $o, $pri;
 	}
 }
 

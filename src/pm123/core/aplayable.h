@@ -161,10 +161,11 @@ class APlayable
   /// \e not immediately available at the requested reliability level.
   /// @details For all the returned bits the information is requested asynchronously.
   /// You should wait for the matching \c InfoChange event to get the requested information.
-  /// @note Note that requesting information not necessarily causes a Changed flag to be set.
-  /// Only the Loaded bits are guaranteed.
+  /// @note Note that requesting information not necessarily causes a \c Changed flag to be set.
+  /// Only the \c Loaded bits are guaranteed.
   /// @note Note that the function may return more bits than requested in case some of the
-  /// requested informations depend on other not requested ones.
+  /// requested informations depend on other not requested ones. But it may not return \e only
+  /// information that is not requested.
   /// @details Of course you have to register the event handler before the call to \c RequestInfo.
   /// If no information is yet available, the function returns \c IF_None.
   /// If \c RequestInfo returned all requested bits the \c InfoChange event is not raised
@@ -177,7 +178,7 @@ class APlayable
   /// which information is immediately available.
   /// @param rel The parameter \a rel controls the quality of the requested information.
   /// By default cached information is sufficient and will not cause any further action.
-  /// But you may specify \c REL_Confirmed to explicitly ignore cached infos und \c REL_Reload
+  /// But you may specify \c REL_Confirmed to explicitly ignore cached infos and \c REL_Reload
   /// to explicitly reload some kind of information.
           InfoFlags           RequestInfo(InfoFlags what, Priority pri, Reliability rel = REL_Cached);
 
@@ -273,25 +274,26 @@ class APlayable
   /// Request a reference to a context dependent aggregate information. The returned reference should
   /// not be dereferenced unless It is passed to DoRequestAI. The returned reference must be valid
   /// until *this dies. However, the content may get outdated.
-  virtual AggregateInfo&      DoAILookup(const PlayableSetBase& exclude) = 0;
+  //virtual AggregateInfo&      DoAILookup(const PlayableSetBase& exclude) = 0;
   /// DoRequestAI is the context sensitive variant of DoRequestInfo to request aggregate information.
   /// The AggregateInfo reference MUST have been returned by DoAILookup of the same object.
   /// @remarks Note that DoRequestAI may return more bits than requested. It may even return bits
   /// that are not valid for an aggregate info request, if they are required to compute the result.
-  virtual InfoFlags           DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel) = 0;
+  virtual InfoFlags           DoRequestAI(const PlayableSetBase& excluding, const volatile AggregateInfo*& ai,
+                                          InfoFlags& what, Priority pri, Reliability rel) = 0;
 
   //virtual InfoFlags           DoGetOutstanding(Priority pri) = 0;
   virtual xstring             DoDebugName() const = 0;
 
  protected: // Proxy functions to call the above methods also for other objects that derive from APlayable.
-  static  InfoFlags           CallDoRequestInfo(APlayable& that, InfoFlags& what, Priority pri, Reliability rel)
+  /*static  InfoFlags           CallDoRequestInfo(APlayable& that, InfoFlags& what, Priority pri, Reliability rel)
                               { return that.DoRequestInfo(what, pri, rel); }  
   static  void                CallDoLoadInfo(APlayable& that, JobSet& job)
                               { that.DoLoadInfo(job); }
   static  AggregateInfo&      CallDoAILookup(APlayable& that, const PlayableSetBase& exclude)
                               { return that.DoAILookup(exclude); }  
   static  InfoFlags           CallDoRequestAI(APlayable& that, AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-                              { return that.DoRequestAI(ai, what, pri, rel); }  
+                              { return that.DoRequestAI(ai, what, pri, rel); }*/
 
  private: // Internal dispatcher functions
   virtual const Playable&     DoGetPlayable() const = 0;

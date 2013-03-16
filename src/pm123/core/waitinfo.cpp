@@ -108,20 +108,23 @@ void WaitInfo::CommitInfo(InfoFlags what)
 *
 ****************************************************************************/
 
-bool WaitAggregateInfo::Wait(APlayable& inst, AggregateInfo& ai, InfoFlags what, Reliability rel, long ms)
+const volatile AggregateInfo* WaitAggregateInfo::Wait(APlayable& inst, const PlayableSetBase& exclude, InfoFlags what, Reliability rel, long ms)
 { ASSERT((what & ~IF_Aggreg) == 0);
   Inst = &inst;
-  AI = &ai;
+  Exclude = &exclude;
   Rel = rel;
+  AI = NULL;
   Start(inst, what);
   CommitInfo(what);
-  return WaitLoadInfo::Wait(ms);
+  if (!WaitLoadInfo::Wait(ms))
+    return NULL;
+  return AI; // AI is filled by CommitInfo
 }
 
 void WaitAggregateInfo::CommitInfo(InfoFlags what)
 { InfoFlags rq = what & IF_Aggreg;
   if (rq)
-  { Inst->DoRequestAI(*AI, rq, PRI_None, Rel);
+  { Inst->DoRequestAI(*Exclude, AI, rq, PRI_None, Rel);
     what &= ~rq;
   }
   WaitLoadInfo::CommitInfo(what);

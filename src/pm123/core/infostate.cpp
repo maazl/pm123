@@ -86,13 +86,16 @@ InfoFlags InfoState::Cache(InfoFlags what)
 
 InfoFlags InfoState::Request(InfoFlags what, Priority pri)
 { ASSERT(pri != PRI_None);
+  DEBUGLOG(("InfoState::Request(%x, %u) - %x, %x\n", what, pri, ReqLow.get(), ReqHigh.get()));
   if (pri & PRI_Low)
     // This is not fully atomic because a high priority request may be placed
     // after the mask is applied to what. But this has the only consequence that
     // an unnecessary request is placed in the worker queue. This request causes a no-op.
-    return (InfoFlags)ReqLow.maskset(what & ~ReqHigh);
+    what = (InfoFlags)ReqLow.maskset(what & ~ReqHigh);
   else
-    return (InfoFlags)ReqHigh.maskset(what);
+    what = (InfoFlags)ReqHigh.maskset(what);
+  DEBUGLOG(("InfoState::Request: %x - %x, %x\n", what, ReqLow.get(), ReqHigh.get()));
+  return what;
 }
 
 InfoFlags InfoState::EndUpdate(InfoFlags what)

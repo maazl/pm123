@@ -80,7 +80,8 @@ InfoFlags Playable::InvalidateInfoSync(InfoFlags what)
 }*/
 
 CollectionInfo* CollectionInfoCache::Lookup(const PlayableSetBase& exclude)
-{ DEBUGLOG(("CollectionInfoCache::Lookup({%u,})\n", exclude.size()));
+{ DEBUGLOG(("CollectionInfoCache(%p)::Lookup({%u,})\n", this, exclude.size()));
+  PASSERT(this);
   // Fastpath: no cache entry for the default object.
   size_t size = exclude.size();
   if (size == 0 || (size == 1 && exclude[0] == &Parent))
@@ -107,7 +108,8 @@ CollectionInfo* CollectionInfoCache::Lookup(const PlayableSetBase& exclude)
 }
 
 InfoFlags CollectionInfoCache::Invalidate(InfoFlags what, const Playable* pp)
-{ DEBUGLOG(("CollectionInfoCache::Invalidate(%p)\n", pp));
+{ DEBUGLOG(("CollectionInfoCache(%p)::Invalidate(%p)\n", this, pp));
+  PASSERT(this);
   InfoFlags ret = IF_None;
   Mutex::Lock lock(CacheMutex);
   CacheEntry*const* cipp = Cache.begin();
@@ -122,6 +124,7 @@ InfoFlags CollectionInfoCache::Invalidate(InfoFlags what, const Playable* pp)
 
 bool CollectionInfoCache::GetNextWorkItem(CollectionInfo*& item, Priority pri, InfoState::Update& upd)
 { DEBUGLOG(("CollectionInfoCache(%p{&%p})::GetNextWorkItem(%p, %u)\n", this, &Parent, item, pri));
+  PASSERT(this);
   if (Cache.size()) // Fastpath without mutex
   { Mutex::Lock lck(CacheMutex);
     CacheEntry*const* cipp = Cache.begin();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2012 M.Mueller
+ * Copyright 2009-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -77,7 +77,7 @@ void APlayable::RaiseInfoChange(const PlayableChangeArgs& args)
 }
 
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
-{ DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
+{ DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %x, %d)\n", this, DebugName().cdata(), what, pri, rel));
   if (what == IF_None)
     return IF_None;
 
@@ -85,7 +85,7 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
   InfoFlags async = DoRequestInfo(rq, pri, rel);
   DEBUGLOG(("APlayable::RequestInfo rq = %x, async = %x\n", rq, async));
   ASSERT(async == IF_None || pri);
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   if (pri && rq)
   { RequestState req;
     PeekRequest(req);
@@ -94,95 +94,102 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
     DoRequestInfo(rq, PRI_None, rel);
     ASSERT((~req.ReqHigh & rq) == 0);
   }
-  #endif
+  #endif*/
   ASSERT((async & rq) == async);
   // what  - requested information
   // rq    - missing information, might be more than what
   // async - asynchronously requested information, subset of rq
   //         because the information may be on the way by another thread.
-  
-  if (!(pri & PRI_Sync))
-  { if (async != IF_None)
+  if (rq == IF_None)
+    return IF_None;
+
+  if (!(pri & (PRI_Sync|PRI_TrySync)))
+  {async:
+    if (async != IF_None)
       ScheduleRequest(pri);
     return rq & what;
   }
-  // PRI_Sync
-  if (rq == IF_None)
-    return IF_None;
+  // PRI_Sync|PRI_TrySync
   // Execute immediately
   HandleRequest(pri);
-  DoRequestInfo(rq, PRI_None, rel);
-  if (rq == IF_None)
-    return IF_None;
-  // Synchronous processing failed because of dependencies or concurrency
-  // => execute asynchronously
   // Restrict rel to avoid to load an information twice.
   if (rel == REL_Reload)
     rel = REL_Confirmed;
+  DoRequestInfo(rq, PRI_None, rel);
+  // Request completed?
+  if (rq == IF_None)
+    return IF_None;
+  // Should not wait?
+  if (!(pri & PRI_Sync))
+    goto async;
+  // PRI_Sync
+  // Synchronous processing failed because of dependencies or concurrency
+  // => execute asynchronously
   // Wait for information currently in service (if any).
   WaitInfo().Wait(*this, rq, rel);
-
   return IF_None;
 }
 
 volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   const PlayableSetBase& exclude, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("APlayable(%p{%s})::RequestAggregateInfo({%s}, %x, %d, %d)\n", this, DebugName().cdata(),
+{ DEBUGLOG(("APlayable(%p{%s})::RequestAggregateInfo({%s}, %x, %x, %d)\n", this, DebugName().cdata(),
     exclude.DebugDump(), what, pri, rel));
-  AggregateInfo& ai = DoAILookup(exclude);
+  const volatile AggregateInfo* ai;// = DoAILookup(exclude);
   InfoFlags rq = what;
-  InfoFlags async = DoRequestAI(ai, rq, pri, rel);
-  DEBUGLOG(("APlayable::RequestAggregateInfo ai = &%p{%s}, rq = %x, async = %x\n",
-    &ai, ai.Exclude.DebugDump(), rq, async));
+  InfoFlags async = DoRequestAI(exclude, ai, rq, pri, rel);
+  DEBUGLOG(("APlayable(%p)::RequestAggregateInfo ai = &%p{%s}, rq = %x, async = %x\n",
+    this, &ai, ai->Exclude.DebugDump(), rq, async));
   ASSERT(async == IF_None || pri);
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   if (pri && rq)
   { RequestState req;
     PeekRequest(req);
     if (pri & PRI_Low)
       req.ReqHigh |= req.ReqLow;
-    DoRequestAI(ai, rq, PRI_None, rel);
+    DoRequestAI(exclude, ai, rq, PRI_None, rel);
     ASSERT((~req.ReqHigh & rq) == 0);
   }
-  #endif
+  #endif*/
   // what  - requested information
   // rq    - missing information, subset of what
   // async - asynchronously requested information, subset of rq
   //         because the information may be on the way by another thread or PRI_None was specified.
+  if (rq == IF_None)
+    goto done;
   
+  if (!(pri & (PRI_Sync|PRI_TrySync)))
+  {async:
+    // Asynchronous request? => Schedule request
+    if (async != IF_None)
+      ScheduleRequest(pri);
+    goto done;
+  }
+  // PRI_Sync|PRI_TrySync
+  // Synchronous request => use the current thread
+  HandleRequest(pri);
   // Restrict rel to avoid to load an information twice.
   if (rel == REL_Reload)
     rel = REL_Confirmed;
-
-  if (async != IF_None)
-  { // Something to do
-    if (!(pri & PRI_Sync))
-    { // Asynchronous request => Schedule request
-      ScheduleRequest(pri);
-      goto done;
-    }
-    // Synchronous request => use the current thread
-    HandleRequest(pri);
-
-  } else if (!(pri & PRI_Sync))
-    goto done; // Asynchronous request => Schedule request
-
+  DoRequestAI(exclude, ai, rq, PRI_None, rel);
+  // Request completed?
+  if (rq == IF_None)
+    goto done;
+  // Should not wait
+  if (!(pri & PRI_Sync))
+    goto async;
   // PRI_Sync
-  if (rq != IF_None)
-  { // Synchronous processing failed because of dependencies or concurrency
-    // => execute asynchronously
-    // Wait for information currently in service (if any).
-    WaitAggregateInfo().Wait(*this, ai, rq, rel);
-    rq = IF_None;
-  }
-
+  // Synchronous processing failed because of dependencies or concurrency
+  // => execute asynchronously
+  // Wait for information currently in service (if any).
+  ai = WaitAggregateInfo().Wait(*this, exclude, rq, rel);
+  rq = IF_None;
  done:
-  what = rq;
-  return ai;
+  what &= rq;
+  return *ai;
 }
 
 InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
-{ DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%s}, %x, {%u,}, %p, %p, %i)\n", this, DebugName().cdata(),
+{ DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%s}, %x, {%x,}, %p, %p, %i)\n", this, DebugName().cdata(),
     exclude.DebugDump(), what, job.Pri, start, stop, level));
   InfoFlags whatnotok = IF_None;
 
@@ -324,7 +331,7 @@ RescheduleWorker::RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Pri
 : DependencyInfoWorker()
 , Inst(&inst)
 , Pri(pri)
-{ DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p{%s}, %u)\n", this,
+{ DEBUGLOG(("RescheduleWorker(%p)::RescheduleWorker(&%p{%s}, &%p{%s}, %x)\n", this,
     &data, data.DebugDump().cdata(), &inst, inst.DebugName().cdata(), pri));
   Data.Swap(data);
   { Mutex::Lock lock(Mtx);
@@ -356,7 +363,7 @@ bool RescheduleWorker::QueueTraverse(bool (*action)(APlayable& inst, Priority pr
 
 
 void APlayable::ScheduleRequest(Priority pri)
-{ DEBUGLOG(("APlayable(%p)::ScheduleRequest(%u)\n", this, pri));
+{ DEBUGLOG(("APlayable(%p)::ScheduleRequest(%x)\n", this, pri));
   bool low = !(pri & PRI_Normal);
   if (!AsyncRequest.bitset(low))
   { WQueue.Write(new QEntry(this), low);
@@ -365,9 +372,9 @@ void APlayable::ScheduleRequest(Priority pri)
 }
 
 void APlayable::HandleRequest(Priority pri)
-{ DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%u)\n", this, DebugName().cdata(), pri));
+{ DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%x)\n", this, DebugName().cdata(), pri));
   int old_pri = -1;
-  JobSet job(pri & ~PRI_Sync); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
+  JobSet job((pri & ~PRI_Sync) | PRI_TrySync); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
   if (pri & PRI_Low)
   { AsyncRequest = 0;
     if (Cfg::Get().low_priority_workers)

@@ -49,7 +49,7 @@ void DependencyInfoPath::Entry::Merge(InfoFlags what, const PlayableSetBase* exc
 InfoFlags DependencyInfoPath::Entry::Check()
 { InfoFlags what2 = What & IF_Aggreg;
   if (what2 && Exclude)
-  { Inst->RequestAggregateInfo(*Exclude, what2, PRI_None);
+  { (void)Inst->RequestAggregateInfo(*Exclude, what2, PRI_None);
     What &= what2 | ~IF_Aggreg;
     if ((What & ~IF_Aggreg) == 0)
       goto done;

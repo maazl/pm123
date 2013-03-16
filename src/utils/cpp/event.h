@@ -120,7 +120,7 @@ class delegate_base
   void           operator=(const delegate_base& r);
  protected:
   /// Construct unattached delegate
-  delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
+  delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG2(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
   /// Construct delegate and attach it to an event immediately
   delegate_base(event_base& ev, func_type fn, const void* rcv);
   ~delegate_base();
@@ -329,7 +329,7 @@ class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
 
 template <class C, class P, class P2>
 void class_delegate2<C, P, P2>::CallFunc(class_delegate2<C, P, P2>* rcv, P& param)
-{ DEBUGLOG(("class_delegate2<>::CallFunc(%p{%p, ...}, &%p)\n", rcv, rcv->Inst, &param));
+{ DEBUGLOG2(("class_delegate2<>::CallFunc(%p{%p, ...}, &%p)\n", rcv, rcv->Inst, &param));
   (rcv->Inst->*rcv->Func)(param, rcv->Param);
 }
 

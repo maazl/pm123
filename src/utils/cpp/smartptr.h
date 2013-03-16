@@ -187,7 +187,7 @@ class int_ptr
 
   // Raw initialization
   struct uninitialized_tag {};
-  explicit    int_ptr(T* data, uninitialized_tag) : Data(data) { PASSERT(data); }
+  explicit    int_ptr(T* data, uninitialized_tag) : Data(data) { P0ASSERT(data); }
  public:
   // Initialize a NULL pointer.
               int_ptr()                 : Data(NULL) {}
@@ -247,6 +247,7 @@ template <class T>
 T* int_ptr<T>::acquire() volatile const
 { if (!Data)
     return 0; // fast path
+  PASSERT(Data);
   const unsigned old_outer = InterlockedXad((volatile unsigned*)&Data, 1) + 1;
   const unsigned outer_count = old_outer & INT_PTR_COUNTER_MASK;
   ASSERT((old_outer & INT_PTR_COUNTER_MASK) != 0); // overflow condition
@@ -275,7 +276,8 @@ template <class T>
 void int_ptr<T>::release(T* data)
 { T* obj = (T*)((unsigned)data & INT_PTR_POINTER_MASK);
   if (obj)
-  { unsigned adjust = -(((unsigned)data & INT_PTR_COUNTER_MASK) + INT_PTR_ALIGNMENT);
+  { PASSERT(data);
+    unsigned adjust = -(((unsigned)data & INT_PTR_COUNTER_MASK) + INT_PTR_ALIGNMENT);
     // If you get an error about access_counter undeclared,
     // this is most likely because T is an incomplete type.
     adjust += InterlockedXad(&obj->access_counter(), adjust);
@@ -290,7 +292,9 @@ T* int_ptr<T>::transfer(T* data)
   if (outer)
   { data = (T*)((unsigned)data & INT_PTR_POINTER_MASK);
     if (data)
+    { PASSERT(data);
       InterlockedSub(&data->access_counter(), outer);
+    }
   }
   return data;
 }
@@ -300,21 +304,26 @@ T* int_ptr<T>::transfer(T* data)
 template <class T>
 inline int_ptr<T>::int_ptr(T* ptr)
 : Data(ptr)
-{ PASSERT(ptr);
-  if (Data)
+{ if (Data)
+  { PASSERT(ptr);
     InterlockedAdd(&Data->access_counter(), INT_PTR_ALIGNMENT);
+  }
 }
 template <class T>
 inline int_ptr<T>::int_ptr(int_ptr<T>& r)
 : Data(r.Data)
 { if (Data)
+  { PASSERT(r.Data);
     InterlockedAdd(&Data->access_counter(), INT_PTR_ALIGNMENT);
+  }
 }
 template <class T>
 inline int_ptr<T>::int_ptr(const int_ptr<T>& r)
 : Data(r.Data)
 { if (Data)
+  { PASSERT(r.Data);
     InterlockedAdd(&Data->access_counter(), INT_PTR_ALIGNMENT);
+  }
 }
 template <class T>
 inline int_ptr<T>::int_ptr(volatile const int_ptr<T>& r)

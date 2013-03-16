@@ -68,10 +68,11 @@ FLAGSATTRIBUTE(InfoFlags);
 
 /// Asynchronous request priority
 enum Priority
-{ PRI_None      = 0U   ///< Do not execute anything, only check for existance.
+{ PRI_None      = 0U   ///< Do not execute anything, only check for existence.
 , PRI_Low       = 1U   ///< Execute request at idle time.
-, PRI_Normal    = 2U   ///< Execute request.
-, PRI_Sync      = 4U   ///< Execute request synchronously, i.e. wait for the response.
+, PRI_Normal    = 2U   ///< Execute request at normal priority.
+, PRI_TrySync   = 4U   ///< Try to execute request synchronously, but in doubt do not wait.
+, PRI_Sync      = 8U   ///< Execute synchronously, i.e. wait for the response and do not return without info.
 };
 FLAGSATTRIBUTE(Priority);
 

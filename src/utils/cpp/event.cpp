@@ -42,7 +42,7 @@ Mutex event_base::Mtx;
 event_base::delegate_iterator::delegate_iterator(event_base& root)
 : Next(NULL)
 , Root(root)
-{ DEBUGLOG(("delegate_iterator(%p)::delegate_iterator(&%p)\n", this, &root));
+{ DEBUGLOG2(("delegate_iterator(%p)::delegate_iterator(&%p)\n", this, &root));
   // register iterator
   register delegate_iterator* old_root = root.Iter;
   do
@@ -54,7 +54,7 @@ event_base::delegate_iterator::delegate_iterator(event_base& root)
 }
 
 event_base::delegate_iterator::~delegate_iterator()
-{ DEBUGLOG(("delegate_iterator(%p{%p})::~delegate_iterator()\n", this, &Root));
+{ DEBUGLOG2(("delegate_iterator(%p{%p})::~delegate_iterator()\n", this, &Root));
   // cancel iterator registration
   Mutex::Lock lock(Mtx);
   delegate_iterator** ipp = &Root.Iter;
@@ -120,7 +120,7 @@ bool event_base::operator-=(delegate_base& d)
       if (!mp)
         break;
       if (mp == &d)
-      { PASSERT(d.Link);
+      { P0ASSERT(d.Link);
         *mpp = d.Link;
         mp->Link = NULL;
         goto ok;
@@ -135,7 +135,7 @@ bool event_base::operator-=(delegate_base& d)
 }
 
 void event_base::operator()(dummy& param)
-{ DEBUGLOG(("event_base(%p)::operator()(%p) - %p, %p\n", this, &param, Deleg, Iter));
+{ DEBUGLOG2(("event_base(%p)::operator()(%p) - %p, %p\n", this, &param, Deleg, Iter));
   delegate_iterator iter(*this);
   do
   { delegate_base* mp = iter.next();
@@ -200,7 +200,7 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
 : Fn(fn),
   Rcv(rcv),
   Ev(&ev)
-{ DEBUGLOG(("delegate_base(%p)::delegate_base(&%p, %p, %p)\n", this, &ev, fn, rcv));
+{ DEBUGLOG2(("delegate_base(%p)::delegate_base(&%p, %p, %p)\n", this, &ev, fn, rcv));
   register delegate_base* old_root = ev.Deleg;
   do
   { Link = old_root;
@@ -209,7 +209,7 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
 } 
 
 delegate_base::~delegate_base()
-{ DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev));
+{ DEBUGLOG2(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev));
   detach();
   sync();
 }
@@ -231,7 +231,7 @@ void delegate_base::swap_rcv(delegate_base& r)
 }*/
 
 bool delegate_base::detach()
-{ DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
+{ DEBUGLOG2(("delegate_base(%p)::detach() - %p\n", this, Ev));
   bool ret = false;
   if (Ev)
   { ret = (*Ev) -= *this;
@@ -241,7 +241,7 @@ bool delegate_base::detach()
 }
 
 void delegate_base::sync()
-{ DEBUGLOG(("delegate_base(%p)::sync() - %p\n", this, Ev));
+{ DEBUGLOG2(("delegate_base(%p)::sync() - %p\n", this, Ev));
   // Hmm, not that nice
   if (Ev)
     Ev->sync();

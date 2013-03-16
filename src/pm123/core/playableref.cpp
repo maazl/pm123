@@ -298,10 +298,14 @@ void PlayableRef::InfoChangeHandler(const PlayableChangeArgs& args)
 }
 
 InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableRef(%p{%s})::DoRequestInfo(%x, %d, %d)\n", this, DebugName().cdata(), what, pri, rel));
+{ DEBUGLOG(("PlayableRef(%p{%s})::DoRequestInfo(%x, %x, %d)\n", this, DebugName().cdata(), what, pri, rel));
 
   if (!(Overridden & IF_Item))
-    return CallDoRequestInfo(*RefTo, what, pri, rel);
+  { //return CallDoRequestInfo(*RefTo, what, pri, rel);
+    what &= RefTo->RequestInfo(what, pri, rel);
+    // No async request with respect to THIS instance.
+    return IF_None;
+  }
 
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child|IF_Slice; // required for DRPL_INFO aggregate
@@ -313,7 +317,9 @@ InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability 
   InfoFlags what2 = what;
   // Forward all remaining requests to *RefTo.
   // TODO Forward aggregate only if no slice?
-  InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
+  //InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
+  //InfoFlags async = RefTo->RequestInfo(what2, pri, rel);
+  what2 &= RefTo->RequestInfo(what2, pri, rel);
 
   EnsureCIC();
   InfoState& infostat = CIC->DefaultInfo.InfoStat;
@@ -337,6 +343,7 @@ InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability 
         case CR_Delayed:
     }*/
 
+  InfoFlags async = IF_None;
   if (pri != PRI_None && what != IF_None)
     // Place request for slice
     async |= infostat.Request(what, pri);
@@ -345,7 +352,7 @@ InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability 
   return async;
 }
 
-AggregateInfo& PlayableRef::DoAILookup(const PlayableSetBase& exclude)
+/*AggregateInfo& PlayableRef::DoAILookup(const PlayableSetBase& exclude)
 { DEBUGLOG(("PlayableRef(%p)::DoAILookup({%u,})\n", this, exclude.size()));
 
   if ( !IsSlice()
@@ -355,16 +362,28 @@ AggregateInfo& PlayableRef::DoAILookup(const PlayableSetBase& exclude)
   EnsureCIC();
   AggregateInfo* pai = CIC->Lookup(exclude);
   return pai ? *pai : CIC->DefaultInfo;
-}
+}*/
 
-InfoFlags PlayableRef::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableRef(%p{%s})::DoRequestAI(&%p, %x, %d, %d)\n",
-    this, DebugName().cdata(), &ai, what, pri, rel));
+InfoFlags PlayableRef::DoRequestAI(const PlayableSetBase& exclude, const volatile AggregateInfo*& ai, InfoFlags& what, Priority pri, Reliability rel)
+{ DEBUGLOG(("PlayableRef(%p)::DoRequestAI({%s},, %x, %x, %d)\n", this, exclude.DebugDump(), what, pri, rel));
 
-  // We have to check whether the supplied AggregateInfo is mine or from *RefTo.
+  if ( !IsSlice()
+    && (!(Overridden & IF_Attr) || (Attr && (Attr->ploptions & PLO_ALTERNATION))) )
+  { //return CallDoAILookup(*RefTo, exclude);
+    ai = &RefTo->RequestAggregateInfo(exclude, what, pri, rel);
+    return IF_None;
+  }
+
+  EnsureCIC();
+  ai = CIC->Lookup(exclude);
+  if (!ai)
+    ai = &CIC->DefaultInfo;
+
+  /*// We have to check whether the supplied AggregateInfo is mine or from *RefTo.
   if (!CIC || !CIC->IsMine(ai))
     // from *RefTo
-    return CallDoRequestAI(*RefTo, ai, what, pri, rel);
+    //return CallDoRequestAI(*RefTo, ai, what, pri, rel);
+    return RefTo->RequestAggregateInfo(what, pri, rel);*/
 
   InfoFlags what2 = IF_None;
   if (what & IF_Drpl)
@@ -373,13 +392,13 @@ InfoFlags PlayableRef::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority 
     what2 = IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
   what2 = DoRequestInfo(what2, pri, rel);
 
-  return ((CollectionInfo&)ai).RequestAI(what, pri, rel) | what2;
+  return ((CollectionInfo*)ai)->RequestAI(what, pri, rel) | what2;
 }
 
 
 PlayableRef::CalcResult PlayableRef::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
 { xstring localstr = strloc;
-  DEBUGLOG(("PlayableRef(%p)::CalcLoc(&%s, &%p, %x, {%u,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
+  DEBUGLOG(("PlayableRef(%p)::CalcLoc(&%s, &%p, %x, {%x,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
   CalcResult ret;
   if (localstr)
   { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
@@ -420,9 +439,9 @@ PlayableRef::CalcResult PlayableRef::CalcLoc(const volatile xstring& strloc, vol
 }
 
 void PlayableRef::DoLoadInfo(JobSet& job)
-{ DEBUGLOG(("PlayableRef(%p{%s})::DoLoadInfo({%u,})\n", this, DebugName().cdata(), job.Pri));
+{ DEBUGLOG(("PlayableRef(%p{%s})::DoLoadInfo({%x,})\n", this, DebugName().cdata(), job.Pri));
   // Load base info first.
-  CallDoLoadInfo(*RefTo, job);
+  //CallDoLoadInfo(*RefTo, job);
 
   if (CIC == NULL) // Nothing to do?
     return;

@@ -95,9 +95,15 @@ long getTID();
   /** @brief Pointer validation (roughly)
    * @example PASSERT(some_pointer);
    * @details Asserts if the passed pointer is definitely invalid, i.e. points to bad memory.
+   * NULL pointers are invalid too.
+   * @remarks The check is not bullet proof. It only checks for pointers that are definitely invalid. */
+  #define PASSERT(expr) ASSERT(((unsigned)(expr) >= 0x10000 && (unsigned)(expr) < 0x40000000))
+  /** @brief Pointer validation (roughly)
+   * @example PASSERT(some_pointer);
+   * @details Asserts if the passed pointer is definitely invalid, i.e. points to bad memory.
    * NULL pointers are valid.
    * @remarks The check is not bullet proof. It only checks for pointers that are definitely invalid. */
-  #define PASSERT(expr) ASSERT(!(expr) || ((unsigned)(expr) >= 0x10000 && (unsigned)(expr) < 0x40000000))
+  #define P0ASSERT(expr) ASSERT(!(expr) || ((unsigned)(expr) >= 0x10000 && (unsigned)(expr) < 0x40000000))
 
   /** Raise C runtime assertion and show value of \c errno.
    * @param file Code file, usually \c __FILE__
@@ -155,6 +161,7 @@ long getTID();
   #define RASSERT(expr) (void)(expr)
   #define XASSERT(expr, cond) (void)(expr)
   #define PASSERT(expr)
+  #define P0ASSERT(expr)
 
   #define CASSERT(expr)
   #define CXASSERT(expr, cond) (void)(expr)

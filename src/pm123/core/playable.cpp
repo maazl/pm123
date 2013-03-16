@@ -251,7 +251,8 @@ static inline void SetDependentInfo(InfoFlags& what)
 }
 
 void Playable::RaiseInfoChange(CollectionChangeArgs& args)
-{ SetDependentInfo(args.Changed);
+{ SetDependentInfo(args.Loaded);
+  SetDependentInfo(args.Changed);
   SetDependentInfo(args.Invalidated);
   APlayable::RaiseInfoChange(args);
 }
@@ -278,7 +279,7 @@ InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
 }
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %u, %u)\n", this, what, pri, rel));
+{ DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %x, %u)\n", this, what, pri, rel));
 
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
@@ -297,7 +298,7 @@ InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel
   return op;
 }
 
-AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
+/*AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 { DEBUGLOG(("Playable(%p)::DoAILookup({%u,})\n", this, exclude.size()));
   if ((Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // Playlist
@@ -311,11 +312,26 @@ AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
   }
   // noexclusion, invalid or unknown item
   return Info;
-}
+}*/
 
-InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p{%s}, %x&, %d, %d)\n", this, &ai, ai.Exclude.DebugDump(), what, pri, rel));
+InfoFlags Playable::DoRequestAI(const PlayableSetBase& exclude, const volatile AggregateInfo*& ai, InfoFlags& what, Priority pri, Reliability rel)
+{ DEBUGLOG(("Playable(%p)::DoRequestAI({%s},, %x&, %x, %d)\n", this, exclude.DebugDump(), what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
+  if ((Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID)) == TATTR_PLAYLIST)
+  { // Playlist
+    if (!Playlist) // Fastpath
+    { Mutex::Lock lock(Mtx);
+      EnsurePlaylist();
+    }
+    ai = Playlist->Lookup(exclude);
+    if (!ai)
+      goto definfo;
+  } else
+  {definfo:
+    ai = &Info;
+  }
+  PASSERT(ai);
+
   if (!what)
     return IF_None; // fast path
 
@@ -325,13 +341,14 @@ InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri
   else if (what & IF_Rpl)
     what2 = IF_Phys|IF_Tech|IF_Child; // required for RPL_INFO aggregate
   what2 = DoRequestInfo(what2, pri, rel);
-  what2 |= ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+  what2 |= ((CollectionInfo*)ai)->RequestAI(what, pri, rel);
   DEBUGLOG(("Playable::DoRequestAI(,%x&,) : %x\n", what, what2));
   return what2;
 }
 
 void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
-{ DEBUGLOG(("Playable(%p)::CalcRplInfo(, {%x}, , {%u,})\n", this, upd.GetWhat(), job.Pri));
+{ DEBUGLOG(("Playable(%p)::CalcRplInfo(, {%x}, , {%x,})\n", this, upd.GetWhat(), job.Pri));
+  PASSERT(this);
   // The entire implementation of this function is basically lock-free.
   // This means that the result may not be valid after the function finished.
   // This is addressed by invalidating the rpl bits of cie.InfoStat by other threads.
@@ -362,6 +379,7 @@ void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
     }
     InfoFlags what2 = upd & IF_Aggreg;
     const volatile AggregateInfo& ai = job.RequestAggregateInfo(*pi, excluding, what2);
+    DEBUGLOG(("Playable(%p)::CalcRplInfo - got sub info: %p %x\n", this, &ai, what2));
     whatok &= ~what2;
     // TODO: Increment unk_* counters instead of ignoring incomplete subitems?
     if (whatok & IF_Rpl)
@@ -395,7 +413,8 @@ struct deccbdata
 };
 
 void Playable::DoLoadInfo(JobSet& job)
-{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%u,})\n", this, DebugName().cdata(), job.Pri));
+{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%x,})\n", this, DebugName().cdata(), job.Pri));
+  PASSERT(this);
   InfoState::Update upd(Info.InfoStat, job.Pri);
   DEBUGLOG(("Playable::DoLoadInfo: update %x\n", upd.GetWhat()));
   // There must not be outstanding requests on informations that cause a no-op.
@@ -404,56 +423,57 @@ void Playable::DoLoadInfo(JobSet& job)
 
   // get information
   InfoBundle info;
-  InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
-  if (what2)
-  { // Keep some tech infos
-    info.Tech.samplerate = Info.Tech.samplerate;
-    info.Tech.channels   = Info.Tech.channels;
-    info.Tech.format     = Info.Tech.format;
-    info.Tech.decoder    = Info.Tech.decoder;
-    deccbdata children(*this);
-    int rc = DecoderFileInfo(what2, info, &children);
-    upd.Extend(what2);
-    DEBUGLOG(("Playable::DoLoadInfo - rc = %i, what2 = %x\n", rc, what2));
-    
-    // Update information, but only if still in service.
-    Mutex::Lock lock(Mtx);
-    CollectionChangeArgs args(*this);
-    args.Changed = UpdateInfo(info, what2);
-    // update children
-    if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
-    { EnsurePlaylist();
-      if (UpdateCollection(children.Children))
-      { args.Changed |= IF_Child;
-        args.Type = PCT_All;
+  { InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
+    if (what2)
+    { // Keep some tech infos
+      info.Tech.samplerate = Info.Tech.samplerate;
+      info.Tech.channels   = Info.Tech.channels;
+      info.Tech.format     = Info.Tech.format;
+      info.Tech.decoder    = Info.Tech.decoder;
+      deccbdata children(*this);
+      int rc = DecoderFileInfo(what2, info, &children);
+      upd.Extend(what2);
+      DEBUGLOG(("Playable::DoLoadInfo - rc = %i, what2 = %x\n", rc, what2));
+
+      // Update information, but only if still in service.
+      Mutex::Lock lock(Mtx);
+      CollectionChangeArgs args(*this);
+      args.Changed = UpdateInfo(info, what2);
+      // update children
+      if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
+      { EnsurePlaylist();
+        if (UpdateCollection(children.Children))
+        { args.Changed |= IF_Child;
+          args.Type = PCT_All;
+        }
+        if (Modified)
+        { // Well, the playlist content is currently the only thing that can be modified.
+          // So reset the flag on reload.
+          Modified = false;
+          args.Changed |= IF_Usage;
+        }
       }
-      if (Modified)
-      { // Well, the playlist content is currently the only thing that can be modified.
-        // So reset the flag on reload.
-        Modified = false;
-        args.Changed |= IF_Usage;
-      }
+      // Raise the first bunch of change events.
+      args.Loaded = upd.Commit(what2);
+      if (!args.IsInitial())
+        RaiseInfoChange(args);
     }
-    // Raise the first bunch of change events.
-    args.Loaded = upd.Commit(what2);
-    if (!args.IsInitial())
-      RaiseInfoChange(args);
+    // Now only aggregate information should be incomplete.
+    ASSERT((upd & ~IF_Aggreg) == IF_None);
   }
-  // Now only aggregate information should be incomplete.
-  ASSERT((upd & ~IF_Aggreg) == IF_None);
 
   // The required basic information to calculate aggregate infos might be on the way by another thread.
-  // In this case we have either to wait or to disable automatic calculation of cheap aggregate infos.
-  { InfoFlags what2 = Info.InfoStat.Check(IF_Phys|IF_Tech|IF_Obj|IF_Child, REL_Invalid);
+  // In this case we have either to give up and schedule a dependency to ourself.
+  { InfoFlags what2 = upd & IF_Drpl ? IF_Phys|IF_Tech|IF_Obj|IF_Child : IF_Phys|IF_Tech|IF_Child;
     if (upd)
-    { // Aggregate information is explicitly requested.
-      if ((upd & IF_Drpl) == 0)
-        what2 &= ~IF_Obj;
-      // Wait for information currently in service.
-      WaitInfo().Wait(*this, what2, REL_Cached);
+    { // Aggregate info explicitly requested
+      if (job.RequestInfo(*this, what2))
+      { job.Commit();
+        return;
+      }
     } else
     { // Aggregate information is not requested and should only be calculated if cheap.
-      if (what2)
+      if (Info.InfoStat.Check(what2, REL_Cached))
         return;
     }
   }

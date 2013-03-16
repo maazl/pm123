@@ -207,8 +207,9 @@ class Playable
 
  private: // Implementation of abstract info worker API.
   virtual InfoFlags         DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel);
-  virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
-  virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
+  //virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
+  virtual InfoFlags         DoRequestAI(const PlayableSetBase& exclude, const volatile AggregateInfo*& ai,
+                                        InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);
   virtual xstring           DoDebugName() const;
   /// Returns the decoder NAME that can play this file and returns 0
