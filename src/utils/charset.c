@@ -394,20 +394,26 @@ ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, 
     UniChar*    ucs_buffer;
     size_t      ucs_charsleft;
     size_t      nonidentical;
+    bool        byteswap = false;
   
     if (( uco_attr.esid & 0xF00 ) == 0x200 ) { // is DBCS
       // check for byte order mark
       if ( cp_source == 1200 ) {
         switch (*(UniChar*)source) {
           case 0xFFFE:
+            /* OS/2 ignores endianess => work around
             // Modify uconv attributes to swap bytes
-            uco_attr.endian.source = ENDIAN_LITTLE;
+            uco_attr.endian.source = ENDIAN_BIG;
+            goto with_bom;*/
+            byteswap = true;
+          case 0xFEFF: // Native byte order of this OS => ignore
+            /*uco_attr.endian.source = ENDIAN_LITTLE;
+          with_bom:
             if(( rc = UniSetUconvObject( uco, &uco_attr )) != ULS_SUCCESS) {
               DEBUGLOG(( "charset: UniSetUconvObject failed, rc=%08X\n", rc ));
               UniFreeUconvObject( uco );
               return NULL;
-            }
-          case 0xFEFF: // Native byte order of this OS => ignore
+            }*/
             source += 2;
         }
       }
@@ -416,7 +422,7 @@ ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, 
         goto copyDBCS; // same as above
       }
 
-      src_chars     = UniStrlen((UniChar*)source );
+      src_chars     = UniStrlen((UniChar*)source);
       sbs_bytesleft = src_chars * 2;
 
     } else {
@@ -457,13 +463,21 @@ ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, 
     rc = UniUconvToUcs( uco, &sbs_buffer, &sbs_bytesleft,
                              &ucs_buffer, &ucs_charsleft, &nonidentical );
     UniFreeUconvObject( uco );
-
     if( rc != ULS_SUCCESS && rc != ULS_BUFFERFULL ) {
       free( buffer );
       return NULL;
     }
+
+    if (byteswap)
+    { UniChar* ucs_p   = buffer;
+      UniChar* ucs_end = buffer + src_chars;
+      while (ucs_p != ucs_end)
+      { *ucs_p = (UniChar)((*ucs_p * 0x10001) >> 8);
+        ++ucs_p;
+      }
+    }
     
-    if ( buffer == NULL )
+    if (buffer == NULL)
     { // in-place => so we are done
       ((UniChar*)target)[ size / 2 - ucs_charsleft - 1 ] = 0;
       return target_bak;
