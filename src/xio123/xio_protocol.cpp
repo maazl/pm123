@@ -35,6 +35,17 @@
 #include <memory.h>
 #include <errno.h>
 
+
+volatile xstring http_proxy(xstring::empty);
+volatile xstring http_proxy_auth(xstring::empty);
+
+volatile int  buffer_size     = 32768;
+volatile int  buffer_wait     = 0;
+volatile int  buffer_fill     = 30;
+volatile int  connect_timeout = 30;
+volatile int  socket_timeout  = 30;
+
+
 _XFILE::_XFILE()
 : oflags(XO_NONE),
   protocol(NULL),
@@ -149,9 +160,8 @@ int XPROTOCOL::puts(const char* string)
   return rc;
 }
 
-char* XPROTOCOL::get_metainfo(XIO_META type, char* result, int size)
-{ *result = 0;
-  return result;
+xstring XPROTOCOL::get_metainfo(XIO_META type)
+{ return xstring();
 }
 
 XPROTOCOL::Iobserver* XPROTOCOL::set_observer(Iobserver* obs)

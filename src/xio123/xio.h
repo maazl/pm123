@@ -51,9 +51,8 @@
 extern "C" {
 #endif
 
-#define XIO_MAX_HOSTNAME  512
-#define XIO_MAX_USERNAME  128
-#define XIO_MAX_PASSWORD  128
+struct xstring;
+
 #define XIO_MAX_FILETYPE  128
 
 typedef enum _XIO_PROTOCOL
@@ -274,7 +273,7 @@ int DLLENTRY xio_set_metacallbackl(XFILE* x, void DLLENTRYP(callback)(XIO_META t
 
 /** Returns a specified meta information if it is
  * provided by associated stream. */
-char* DLLENTRY xio_get_metainfo(XFILE* x, XIO_META type, char* result, int size);
+void DLLENTRY xio_get_metainfo(XFILE* x, XIO_META type, struct xstring* result);
 
 /** @deprecated use xio_set_metacallback instead.
  * @details Sets a handle of a window that are to be notified of changes
@@ -311,28 +310,15 @@ void DLLENTRY xio_set_buffer_wait(int wait);
 /** Sets value of prefilling of the buffer. */
 void DLLENTRY xio_set_buffer_fill(int percent);
 
-/** Returns the name of the proxy server. */
-void DLLENTRY xio_http_proxy_host(char* hostname, int size);
-/** Returns the port number of the proxy server. */
-int DLLENTRY xio_http_proxy_port(void);
-/** Returns the user name of the proxy server. */
-void DLLENTRY xio_http_proxy_user(char* username, int size);
-/** Returns the user password of the proxy server. */
-void DLLENTRY xio_http_proxy_pass(char* password, int size);
+/** Returns the name of the proxy server including the port. */
+void DLLENTRY xio_http_proxy(char* proxy, int size);
+/** Returns the user name and password of the proxy server. */
+void DLLENTRY xio_http_proxy_auth(char* auth, int size);
 
-/** Returns an Internet address of the proxy server.
- * Returns 0 if the proxy server is not defined or -1 if
- * an error occurs */
-unsigned long DLLENTRY xio_http_proxy_addr(void);
-
-/** Sets the name of the proxy server. */
-void DLLENTRY xio_set_http_proxy_host(const char* hostname);
-/** Sets the port number of the proxy server. */
-void DLLENTRY xio_set_http_proxy_port(int port);
-/** Sets the user name of the proxy server. */
-void DLLENTRY xio_set_http_proxy_user(const char* username);
-/** Sets the user password of the proxy server. */
-void DLLENTRY xio_set_http_proxy_pass(const char* password);
+/** Sets the name of the proxy server including the port. */
+void DLLENTRY xio_set_http_proxy(const char* proxy);
+/** Sets the user name and password of the proxy server. */
+void DLLENTRY xio_set_http_proxy_auth(const char* auth);
 
 /** Returns the TCP/IP connection timeout. */
 int DLLENTRY xio_connect_timeout(void);
@@ -348,6 +334,8 @@ void DLLENTRY xio_set_socket_timeout(int seconds);
 }
 
 /* Syntactic sugar for C++ fanboys. */
+#include <cpp/xstring.h>
+
 class XIO
 {protected:
   XFILE*  Handle;
@@ -381,7 +369,7 @@ class XIO
   int     Truncate(int64_t size)                        { return xio_ftruncatel(Handle, size); }
 
   int     SetMetaCallback(void DLLENTRYP(callback)(XIO_META type, const char* metabuff, int64_t pos, void* arg), void* arg) { return xio_set_metacallbackl(Handle, callback, arg); }
-  char*   GetMetaInfo(XIO_META type, char* result, int n) { return xio_get_metainfo(Handle, type, result, n); }
+  struct xstring GetMetaInfo(XIO_META type)             { xstring ret; xio_get_metainfo(Handle, type, &ret); return ret; }
 };
 #endif
 #endif /* XIO_H */

@@ -693,8 +693,20 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
     tech.attributes = TATTR_INVALID;
     if (tech.info == NULL)
       tech.info.sprintf("Decoder error %i", rc);
-  } else if (info.obj->bitrate < 0 && info.obj->songlength > 0 && phys.filesize > 0)
-    info.obj->bitrate = (int)(phys.filesize*8. / info.obj->songlength);
+  } else
+  { if (info.obj->bitrate < 0 && info.obj->songlength > 0 && phys.filesize > 0)
+      info.obj->bitrate = (int)(phys.filesize*8. / info.obj->songlength);
+    // try streaming meta data if we do not have meta infos so far.
+    if (stream.Handle)
+    { META_INFO& meta = *info.meta;
+      if (!meta.title)
+        xio_get_metainfo(stream.Handle, XIO_META_TITLE, &meta.title);
+      if (!meta.comment)
+        xio_get_metainfo(stream.Handle, XIO_META_NAME, &meta.comment);
+      if (!meta.genre)
+        xio_get_metainfo(stream.Handle, XIO_META_GENRE, &meta.genre);
+    }
+  }
   DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
     phys.filesize, phys.tstmp, phys.attributes,
     tech.samplerate, tech.channels, tech.attributes,

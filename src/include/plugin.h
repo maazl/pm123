@@ -33,15 +33,15 @@
  * You must not access the embedded cstr member of volatile instances.
  * This would cause undefined behavior with race conditions.
  */
-typedef struct
+typedef struct xstring
 { const char* cstr;   /* pointer to C style null terminated string */
 } xstring;
 static const xstring xstring_NULL = { NULL };
 #elif defined(PM123_CORE)
-class xstring; // Keep CDT happy
+struct xstring; // Keep CDT happy
 #define xstring_NULL xstring()
 #else
-class xstring;
+struct xstring;
 #endif
 
 #ifdef __cplusplus

@@ -62,21 +62,6 @@
 #define XCHECK(x,err) ASSERT(x && x->serial == XIO_SERIAL)
 #endif
 
-static char   http_proxy_host[XIO_MAX_HOSTNAME];
-static int    http_proxy_port;
-static char   http_proxy_user[XIO_MAX_USERNAME];
-static char   http_proxy_pass[XIO_MAX_PASSWORD];
-static u_long http_proxy_addr;
-
-static int  buffer_size     = 32768;
-static int  buffer_wait     = 0;
-static int  buffer_fill     = 30;
-static int  connect_timeout = 30;
-static int  socket_timeout  = 30;
-
-/* Serializes access to the library's global data. */
-static Mutex mutex;
-
 
 /* Open file. Returns a pointer to a file structure that can be used
    to access the open file. A NULL pointer return value indicates an
@@ -94,7 +79,7 @@ XFILE* DLLENTRY xio_fopen(const char* filename, const char* mode)
   if (strnicmp(filename, "http:", 5) == 0)
     x->protocol = new XIOhttp();
   else if (strnicmp(filename, "ftp:", 4) == 0)
-  { if (*http_proxy_host)
+  { if (!!http_proxy)
       x->protocol = new XIOhttp();
     else
       x->protocol = new XIOftp();
@@ -587,14 +572,10 @@ int DLLENTRY xio_set_metacallback(XFILE* x, void DLLENTRYP(callback)(XIO_META ty
 
 /* Returns a specified meta information if it is
    provided by associated stream. */
-char* DLLENTRY xio_get_metainfo(XFILE* x, XIO_META type, char* result, int size)
-{ DEBUGLOG(("xio_get_metainfo(%p, %i, %p, %i)\n", x, type, result, size));
+void DLLENTRY xio_get_metainfo(XFILE* x, XIO_META type, xstring* result)
+{ DEBUGLOG(("xio_get_metainfo(%p, %i, %p)\n", x, type, result));
   XCHECK(x, NULL);
-  if (!size)
-  { errno = EINVAL;
-    return NULL;
-  }
-  return x->protocol->get_metainfo(type, result, size);
+  *result = x->protocol->get_metainfo(type);
 }
 
 // emulation for deprecated observers
@@ -715,74 +696,37 @@ void DLLENTRY xio_set_buffer_fill(int percent)
 }
 
 /* Returns the name of the proxy server. */
-void DLLENTRY xio_http_proxy_host(char* hostname, int size)
-{ Mutex::Lock lock(mutex);
-  strlcpy( hostname, http_proxy_host, size );
-}
-
-/* Returns the port number of the proxy server. */
-int DLLENTRY xio_http_proxy_port()
-{ return http_proxy_port;
+void DLLENTRY xio_http_proxy(char* proxy, int size)
+{ xstring l_proxy(http_proxy);
+  if (l_proxy)
+    strlcpy(proxy, l_proxy, size);
+  else if (size)
+    *proxy = 0;
 }
 
 /* Returns the user name of the proxy server. */
-void DLLENTRY xio_http_proxy_user(char* username, int size)
-{ Mutex::Lock lock(mutex);
-  strlcpy(username, http_proxy_user, size);
-}
-
-/* Returns the user password of the proxy server. */
-void DLLENTRY xio_http_proxy_pass(char* password, int size)
-{ Mutex::Lock lock(mutex);
-  strlcpy(password, http_proxy_pass, size );
+void DLLENTRY xio_http_proxy_auth(char* auth, int size)
+{ xstring l_auth(http_proxy_auth);
+  if (l_auth)
+    strlcpy(auth, l_auth, size);
+  else if (size)
+    *auth = 0;
 }
 
 /* Sets the name of the proxy server. */
-void DLLENTRY xio_set_http_proxy_host(const char* hostname)
-{ Mutex::Lock lock(mutex);
-  strlcpy(http_proxy_host, hostname, sizeof http_proxy_host);
-  http_proxy_addr = 0;
-}
-
-/* Sets the port number of the proxy server. */
-void DLLENTRY xio_set_http_proxy_port(int port)
-{ http_proxy_port = port;
+void DLLENTRY xio_set_http_proxy(const char* proxy)
+{ if (proxy && *proxy)
+    http_proxy = proxy;
+  else
+    http_proxy.reset();
 }
 
 /* Sets the user name of the proxy server. */
-void DLLENTRY xio_set_http_proxy_user(const char* username)
-{ Mutex::Lock lock(mutex);
-  strlcpy(http_proxy_user, username, sizeof http_proxy_user);
-}
-
-/* Sets the user password of the proxy server. */
-void DLLENTRY xio_set_http_proxy_pass(const char* password)
-{ Mutex::Lock lock(mutex);
-  strlcpy(http_proxy_pass, password, sizeof http_proxy_pass);
-}
-
-/* Returns an internet address of the proxy server.
-   Returns 0 if the proxy server is not defined or -1 if
-   an error occurs */
-unsigned long DLLENTRY xio_http_proxy_addr()
-{
-  char host[XIO_MAX_HOSTNAME];
-  u_long address;
-
-  { Mutex::Lock lock(mutex);
-    strlcpy( host, http_proxy_host, sizeof host);
-    address = http_proxy_addr;
-  }
-
-  if (address != 0 && address != (u_long)-1)
-    return address;
-  if (!*host)
-    return 0;
-
-  address = XIOsocket::get_address(host);
-
-  http_proxy_addr = address;
-  return address;
+void DLLENTRY xio_set_http_proxy_auth(const char* auth)
+{ if (auth && *auth)
+    http_proxy_auth = auth;
+  else
+    http_proxy_auth.reset();
 }
 
 /* Returns the TCP/IP connection timeout. */

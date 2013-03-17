@@ -101,25 +101,8 @@ static void config_change(const void* ctx, const CfgChangeArgs& args)
 {
   if (ctx || args.New.proxy != args.Old.proxy || args.New.auth != args.Old.auth)
   { // set proxy and buffer settings statically in the xio library, not that nice, but working.
-    char buffer[1024];
-    char* cp = strchr(args.New.proxy, ':');
-    if (cp == NULL)
-    { xio_set_http_proxy_host(args.New.proxy);
-    } else
-    { size_t l = cp - args.New.proxy +1;
-      strlcpy(buffer, args.New.proxy, min(l, sizeof buffer));
-      xio_set_http_proxy_host(buffer);
-      xio_set_http_proxy_port(atoi(cp+1));
-    }
-    cp = strchr(args.New.auth, ':');
-    if (cp == NULL)
-    { xio_set_http_proxy_user(args.New.auth);
-    } else
-    { size_t l = cp - args.New.proxy +1;
-      strlcpy( buffer, args.New.proxy, min(l, sizeof buffer));
-      xio_set_http_proxy_user(buffer);
-      xio_set_http_proxy_pass(cp +1);
-    }
+    xio_set_http_proxy(args.New.proxy);
+    xio_set_http_proxy_auth(args.New.auth);
   }
   if ( ctx
     || args.New.buff_size != args.Old.buff_size

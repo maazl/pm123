@@ -37,10 +37,10 @@
 #include <stdio.h>
 
 #include "xio_ftp.h"
-#include "xio_url.h"
 #include "xio_socket.h"
 
 #include <interlocked.h>
+#include <cpp/url123.h>
 
 static int is_ftp_reply(const char* string)
 { return isdigit(string[0]) &&
@@ -100,9 +100,8 @@ int XIOftp::send_command(const char* command, const char* params)
 }
 
 /* Initiates the transfer of the file specified by filename. */
-int XIOftp::transfer_file(const char* filename, int64_t range)
+int XIOftp::transfer_file(int64_t range)
 {
-  char  host[XIO_MAX_HOSTNAME];
   char* p;
   int   rc;
   int   i;
@@ -142,35 +141,37 @@ int XIOftp::transfer_file(const char* filename, int64_t range)
   }
 
   // Connects to data port.
+  char  host[30];
   sprintf(host, "%d.%d.%d.%d", address[0], address[1], address[2], address[3]);
-  rc = s_datasocket.open(XIOsocket::get_address(host), address[4] * 256 + address[5]);
+  rc = s_datasocket.open(XIOsocket::get_address(host), (address[4] << 8) + address[5]);
 
   if (rc == -1)
     return FTP_PROTOCOL_ERROR;
 
   // Makes the server initiate the transfer.
-  return send_command("RETR", filename);
+  return send_command("RETR", s_location);
 }
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
 int XIOftp::open(const char* filename, XOFLAGS oflags)
 {
-  XURL* url = url_allocate(filename);
-  char* get = url_string(url, XURL_STR_REQUEST);
-  int   rc  = FTP_OK;
+  url123 url(filename);
+  xstringbuilder get;
+  url.appendComponentTo(get, url123::C_Request);
+  int rc = FTP_OK;
 
   for(;;)
   {
     s_socket.close();
     s_datasocket.close();
 
-    if (!url || !get)
+    if (!*get)
     { rc = FTP_PROTOCOL_ERROR;
       break;
     }
 
-    int rc2 = s_socket.open(XIOsocket::get_address(url->host), url->port ? url->port : 21);
+    int rc2 = s_socket.open(url.getHost("21"), XO_READWRITE);
 
     if (rc2 == -1)
     { rc = FTP_PROTOCOL_ERROR;
@@ -182,17 +183,28 @@ int XIOftp::open(const char* filename, XOFLAGS oflags)
       break;
 
     // Authenticate.
-    if (!url->username && !url->password)
-    { url->username = strdup(FTP_ANONYMOUS_USER);
-      url->password = strdup(FTP_ANONYMOUS_PASS);
+    const char* user;
+    const char* pass;
+    xstringbuilder tmp;
+    url.appendComponentTo(tmp, url123::C_Credentials);
+    if (tmp.length())
+    { tmp.erase(tmp.length()-1); // remove @
+      size_t p = tmp.find(':');
+      user = tmp;
+      pass = tmp + p;
+      if (*pass) // if have password
+      { tmp[p] = 0;
+        ++pass;
+      }
+    } else
+    { user = FTP_ANONYMOUS_USER;
+      pass = FTP_ANONYMOUS_PASS;
     }
 
-    if (url->username)
-    {
-      rc = send_command("USER", url->username);
-
-      if (url->password && rc == FTP_NEED_PASSWORD)
-        rc = send_command("PASS", url->password);
+    if (*user)
+    { rc = send_command("USER", user);
+      if (*pass && rc == FTP_NEED_PASSWORD)
+        rc = send_command("PASS", pass);
       if (rc != FTP_LOGGED_IN)
         break;
     }
@@ -205,17 +217,15 @@ int XIOftp::open(const char* filename, XOFLAGS oflags)
     if ((rc = send_command("SIZE", get)) == FTP_FILE_STATUS)
       s_size = strtoull(s_reply + 3, NULL, 10);
 
+    s_location = get.get();
     // Makes the server initiate the transfer.
-    if ((rc = transfer_file(get, 0)) != FTP_OPEN_DATA_CONNECTION)
+    if ((rc = transfer_file(0)) != FTP_OPEN_DATA_CONNECTION)
+    { s_location.reset();
       break;
-
-    s_location = strdup(get);
+    }
     rc = FTP_OK;
     break;
   }
-
-  url_free(url);
-  free(get);
 
   if (rc == FTP_OK)
     return 0;
@@ -298,7 +308,7 @@ int64_t XIOftp::seek(int64_t offset, XIO_SEEK origin)
     read_reply();
 
     if (s_location)
-    { if (transfer_file(s_location, range) == FTP_OPEN_DATA_CONNECTION)
+    { if (transfer_file(range) == FTP_OPEN_DATA_CONNECTION)
       { errno = error = 0;
         eof   = false;
         return range;
@@ -336,17 +346,16 @@ XIO_PROTOCOL XIOftp::protocol() const
 { return XIO_PROTOCOL_FTP;
 }
 
-/* Cleanups the ftp protocol. */
+/* Cleanups the ftp protocol.
 XIOftp::~XIOftp()
-{ free(s_location);
-}
+{
+}*/
 
 /* Initializes the ftp protocol. */
 XIOftp::XIOftp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
   s_pos(0),
-  s_size(-1),
-  s_location(NULL)
+  s_size(-1)
 { memset(s_reply, 0, sizeof s_reply);
   blocksize = 8192;
 }

@@ -120,11 +120,8 @@ int XIOsocket::get_service(const char* service)
 
 int XIOsocket::open(const char* uri, XOFLAGS oflags)
 { DEBUGLOG(("XIOsocket(%p)::open(%s, %x)\n", this, uri, oflags));
-  if (strnicmp(uri, "tcpip://", 8) != 0)
-  { seterror(SOCESOCKTNOSUPPORT);
-    return -1;
-  }
-  uri += 8;
+  if (strnicmp(uri, "tcpip://", 8) == 0)
+    uri += 8;
   const char* cp = strchr(uri, ':');
   if (cp == NULL)
   { seterror(SOCESOCKTNOSUPPORT);
@@ -138,7 +135,7 @@ int XIOsocket::open(const char* uri, XOFLAGS oflags)
   { error = errno;
     return -1;
   }
-  int port = get_service(cp);
+  int port = get_service(cp+1);
   if (port == -1)
   { error = errno;
     return -1;

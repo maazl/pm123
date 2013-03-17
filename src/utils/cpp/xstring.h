@@ -45,7 +45,7 @@
  * The class is thread-safe. Volatile instances are strongly thread safe.
  * The memory footprint is the same as for \c char*.
  * The storage overhead is two ints per unique string. */
-class xstring
+struct xstring
 {private:
   /** Data Structure for non-mutable strings.
    * It contains an intrusive reference count, the string length and the string data.
@@ -140,8 +140,10 @@ class xstring
 
   /// Length of the string. The string must not be NULL!
   size_t      length() const                { return Data->length(); }
+  /// Is NULL?
+  bool        operator!() const             { return !Data; }
   /// Is NULL? Strongly thread-safe.
-  bool        operator!() const volatile    { return !Data; }
+  bool        operator!() const volatile    { return !Data; } // Invokes another operator!
   /// @brief Explicit conversion to C style string.
   /// @details The returned string includes always an additional null terminator at the end.
   /// The returned pointer is valid as long as this string is owned by at least one xstring instance.
@@ -438,9 +440,9 @@ class xstringbuilder
   /// @brief Implicit conversion to C-style string, always null terminated, never NULL.
   operator    const char*() const           { return Data; }
   /// @brief Explicit conversion to \c xstring, never NULL.
-  xstring     get() const                   { return xstring(Data, Len); }
+  const xstring get() const                 { return xstring(Data, Len); }
   /// @brief Implicit conversion to \c xstring, never NULL.
-  operator    xstring() const               { return xstring(Data, Len); }
+  operator    const xstring() const         { return xstring(Data, Len); }
   /// Return a C style string that must be freed with \c delete[].
   /// This function implicitly resets the \c xstringbuilder to its initial state.
   char*       detach_array();

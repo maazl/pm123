@@ -35,6 +35,7 @@
 
 #include <cpp/cpputil.h>
 #include <cpp/mutex.h>
+#include <cpp/xstring.h>
 
 struct _XSTAT;
 
@@ -65,6 +66,16 @@ enum XSFLAGS
 FLAGSATTRIBUTE(XSFLAGS);
 
 
+extern volatile xstring http_proxy;
+extern volatile xstring http_proxy_auth;
+
+extern volatile int  buffer_size;
+extern volatile int  buffer_wait;
+extern volatile int  buffer_fill;
+extern volatile int  connect_timeout;
+extern volatile int  socket_timeout;
+
+
 /** Base interface of all protocol implementations.
    The buffer classes also derive from this protocol and act as a proxy
    to the underlying protocol class instance. 
@@ -90,9 +101,9 @@ class XPROTOCOL {
   };
  
  public: 
-  bool eof;       ///< End of input stream flag.
-  int  error;     ///< Last error that appies to the stream state.
-  int  blocksize; ///< Recommended Blocking factor of the protocol. Filled by Protocol implementation.
+  bool   eof;     ///< End of input stream flag.
+  int    error;   ///< Last error that appies to the stream state.
+  size_t blocksize; ///< Recommended Blocking factor of the protocol. Filled by Protocol implementation.
 
  protected:
   Iobserver*      observer;
@@ -167,7 +178,7 @@ class XPROTOCOL {
   /** Returns a specified meta information if it is provided by associated stream.
      The default implementation always return "".
      Precondition: size > 0 */
-  virtual char*   get_metainfo(XIO_META type, char* result, int size);
+  virtual xstring get_metainfo(XIO_META type);
 
   /** Set an observer that is called whenever a source updates the metadata.
      The function returns the previously set observer.

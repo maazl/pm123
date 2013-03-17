@@ -273,6 +273,16 @@ const url123 url123::normalizeURL(const char* str)
   return ret;
 }
 
+const xstring url123::getHost(const char* defaultport) const
+{ xstringbuilder host;
+  appendComponentTo(host, url123::C_Host);
+  if (!host.rfind(':'))
+  { host.append(':');
+    host.append(defaultport);
+  }
+  return host;
+}
+
 const xstring url123::getBasePath() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
@@ -405,4 +415,49 @@ const xstring url123::makeRelative(const char* root, bool useupdir) const
   memcpy(dp, sp1, len);
   DEBUGLOG(("url123::makeRelative: %s\n", ret.cdata()));
   return ret;
+}
+
+void url123::appendComponentTo(xstringbuilder& target, Component what) const
+{ DEBUGLOG(("url123(%p)::appendTo(, %x)\n", this, what));
+  const char* cp = cdata();
+  // Search scheme
+  const char* cp2 = strchr(cp, ':');
+  ASSERT(cp2);
+  while (*++cp2 == '/');
+  if (what & C_Scheme)
+    target.append(cp, cp2-cp);
+  cp = cp2;
+  // Search host and credentials
+  cp2 += strcspn(cp, "/@");
+  if (*cp2 == '@')
+  { // have credentials
+    ++cp2;
+    if (what & C_Credentials)
+      target.append(cp, cp2-cp);
+    cp = cp2;
+    cp2 += strcspn(cp, "/");
+  }
+  if (what & C_Host)
+    target.append(cp, cp2-cp);
+  if (!*cp2)
+    return;
+  cp = cp2;
+  // Search parameters
+  const char* cp3 = cp + strcspn(cp, "?");
+  // Search page name
+  cp2 = strnrchr(cp, '/', cp3 - cp);
+  ASSERT(cp2);
+  ++cp2;
+  if (what & C_Path)
+    target.append(cp, cp2-cp);
+  cp = cp2;
+  cp2 = strnrchr(cp, '.', cp3 - cp);
+  if (!cp2)
+    cp2 = cp3; // no extension
+  if (what & C_Name)
+    target.append(cp, cp2-cp);
+  if (what & C_Extension)
+    target.append(cp2, cp3-cp2);
+  if (what & C_Query)
+    target.append(cp3);
 }

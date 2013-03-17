@@ -77,10 +77,12 @@ struct ComboBox : ListBox
 { ComboBox(HWND hwnd)                               : ListBox(hwnd) {}
   // Emulate unsupported message
   void        InsertItems(const char*const* items, unsigned count, int where = LIT_END);
+  void        TextLimit(USHORT len)                 { PMRASSERT(WinSendMsg(Hwnd, EM_SETTEXTLIMIT, MPFROMSHORT(len), 0)); }
 };
 
 struct EntryField : ControlBase
 { EntryField(HWND hwnd)                             : ControlBase(hwnd) {}
+  void        TextLimit(USHORT len)                 { PMRASSERT(WinSendMsg(Hwnd, EM_SETTEXTLIMIT, MPFROMSHORT(len), 0)); }
 };
 
 struct MLE : ControlBase

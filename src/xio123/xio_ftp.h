@@ -33,6 +33,7 @@
 #include "xio.h"
 #include "xio_protocol.h"
 #include "xio_socket.h"
+#include <cpp/xstring.h>
 
 #ifndef FTPBASEERR
 #define FTPBASEERR 22000
@@ -72,7 +73,7 @@ class XIOftp : public XIOreadonly
   XIOsocket     s_socket;   // Connection.
   int64_t       s_pos;      // Current position of the stream pointer.
   int64_t       s_size;     // Size of the associated file.
-  char*         s_location; // Saved resource location.
+  xstring       s_location; // Saved resource location.
 
   XIOsocket     s_datasocket;
   char          s_reply[512];
@@ -83,12 +84,12 @@ class XIOftp : public XIOreadonly
   /// Sends a command to a FTP server and checks response.
   int send_command(const char* command, const char* params);
   /// Initiates the transfer of the file specified by filename.
-  int transfer_file(const char* filename, int64_t range);
+  int transfer_file(int64_t range);
 
  public:
   /// Initializes the ftp protocol.
   XIOftp();
-  virtual ~XIOftp();
+  //virtual ~XIOftp();
   virtual int open(const char* filename, XOFLAGS oflags);
   virtual int read(void* result, unsigned int count);
   virtual int close();

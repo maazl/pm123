@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include <utilfct.h>
+#include <cpp/xstring.h>
 #include <debuglog.h>
 
 #include "xio_buffer.h"
@@ -53,7 +54,6 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
   s_obs_head(NULL),
   s_obs_tail(NULL)
 { ASSERT(size);
-  *s_title = 0;
   blocksize = chain->blocksize;
   if (blocksize > buf_size)
     blocksize = buf_size;
@@ -157,16 +157,13 @@ int XIObuffer::chsize(int64_t size)
 { return chain->chsize(size);
 }
 
-char* XIObuffer::get_metainfo(XIO_META type, char* result, int size)
-{ if (type == XIO_META_TITLE && *s_title)
-  { CritSect cs;
-    if (s_title)
-      strlcpy(result, s_title, size);
-    else
-      *result = 0;
-    return result;
-  } else
-    return chain->get_metainfo( type, result, size );
+xstring XIObuffer::get_metainfo(XIO_META type)
+{ if (type == XIO_META_TITLE)
+  { xstring title(s_title);
+    if (title && title.length())
+      return title;
+  }
+  return chain->get_metainfo(type);
 }
 
 void XIObuffer::obs_clear()
@@ -202,14 +199,12 @@ void XIObuffer::obs_execute()
     { // set new title
       if (entry->metabuff)
       { // TODO: Well, it should be up to xio_http to decode Streaming metadata.
-        const char* titlepos = strstr( entry->metabuff, "StreamTitle='" );
-        if ( titlepos )
+        const char* titlepos = strstr(entry->metabuff, "StreamTitle='");
+        if (titlepos)
         { titlepos += 13;
-          unsigned i;
-          for( i = 0; i < sizeof( s_title ) - 1 && *titlepos
-                      && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-            s_title[i] = *titlepos++;
-          s_title[i] = 0;
+          const char* titleend = strstr(titlepos, "\';");
+          if (titleend)
+            s_title.assign(titlepos, titleend - titlepos);
         }
       }
       // execute the observer

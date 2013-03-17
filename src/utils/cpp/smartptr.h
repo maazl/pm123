@@ -178,42 +178,44 @@ class int_ptr
 {private:
   T*          Data;
  private:
-  // Strongly thread safe read
+  /// Strongly thread safe read
   T*          acquire() volatile const;
-  // Destructor core
+  /// Destructor core
   static void release(T* data);
-  // Transfer hold count to the main counter and return the data with hold count 0.
+  /// Transfer hold count to the main counter and return the data with hold count 0.
   static T*   transfer(T* data);
 
-  // Raw initialization
+  /// Raw initialization
   struct uninitialized_tag {};
   explicit    int_ptr(T* data, uninitialized_tag) : Data(data) { P0ASSERT(data); }
  public:
-  // Initialize a NULL pointer.
+  /// Initialize a NULL pointer.
               int_ptr()                 : Data(NULL) {}
-  // Store a new object under reference count control.
+  /// Store a new object under reference count control.
               int_ptr(T* ptr);
-  // Helper to disambiguate calls.
+  /// Helper to disambiguate calls.
               int_ptr(int_ptr<T>& r);
-  // Copy constructor
+  /// Copy constructor
               int_ptr(const int_ptr<T>& r);
-  // Copy constructor, strongly thread-safe.
+  /// Copy constructor, strongly thread-safe.
               int_ptr(volatile const int_ptr<T>& r);
-  // Destructor, frees the stored object if this is the last reference.
+  /// Destructor, frees the stored object if this is the last reference.
               ~int_ptr();
-  // swap instances (not thread safe)
+  /// swap instances (not thread safe)
   void        swap(int_ptr<T>& r)       { T* temp = r.Data; r.Data = Data; Data = temp; }
-  // Strongly thread safe swap
+  /// Strongly thread safe swap
   void        swap(volatile int_ptr<T>& r);
-  // Strongly thread safe swap
+  /// Strongly thread safe swap
   void        swap(int_ptr<T>& r) volatile;
-  // reset the current instance to NULL
+  /// reset the current instance to NULL
   void        reset();
+  /// reset the current instance to NULL, strongly thread-safe.
   void        reset() volatile;
   // Basic operators
   T*          get()         const       { return Data; }
               operator T*() const       { return Data; }
-  bool        operator!()   const volatile { return !Data; }
+  bool        operator!()   const       { return !Data; }
+  bool        operator!()   const volatile { return !((unsigned)Data & INT_PTR_POINTER_MASK); }
   T&          operator*()   const       { ASSERT(Data); return *Data; }
   T*          operator->()  const       { ASSERT(Data); return Data; }
   // assignment

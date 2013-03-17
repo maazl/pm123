@@ -491,14 +491,6 @@ static void copy_id3v2_tag(META_INFO& info, const mpg123_id3v2* tagv2)
 
 void MPG123::FillMetaInfo(META_INFO& meta)
 { DEBUGLOG(("MPG123(%p{%s})::FillMetaInfo(&%p)\n", this, Filename.cdata(), &meta));
-  char buffer[256];
-  if (xio_get_metainfo(XFile, XIO_META_TITLE, buffer, sizeof buffer) && *buffer)
-    meta.title = buffer;
-  if (xio_get_metainfo(XFile, XIO_META_GENRE, buffer, sizeof buffer) && *buffer)
-    meta.genre = buffer;
-  if (xio_get_metainfo(XFile, XIO_META_NAME, buffer, sizeof buffer) && *buffer)
-    meta.comment = buffer;
-
   if (cfg.tag_read_type == TAG_READ_NONE)
     return;
 

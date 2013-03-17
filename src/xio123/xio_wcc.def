@@ -4,21 +4,16 @@ OPTION DESCRIPTION 'PM123 XIO Library'
 
 EXPORT xio_buffer_size          .1
 EXPORT xio_buffer_wait          .2
-EXPORT xio_http_proxy_host      .3
-EXPORT xio_http_proxy_port      .4
-EXPORT xio_http_proxy_user      .5
-EXPORT xio_http_proxy_pass      .6
-EXPORT xio_http_proxy_addr      .7
+EXPORT xio_http_proxy           .3
+EXPORT xio_http_proxy_auth      .5
 EXPORT xio_buffer_fill          .8
 EXPORT xio_connect_timeout      .9
 EXPORT xio_socket_timeout       .10
 
 EXPORT xio_set_buffer_size      .21
 EXPORT xio_set_buffer_wait      .22
-EXPORT xio_set_http_proxy_host  .23
-EXPORT xio_set_http_proxy_port  .24
-EXPORT xio_set_http_proxy_user  .25
-EXPORT xio_set_http_proxy_pass  .26
+EXPORT xio_set_http_proxy       .23
+EXPORT xio_set_http_proxy_auth  .25
 EXPORT xio_set_observer         .27
 EXPORT xio_get_metainfo         .28
 EXPORT xio_can_seek             .29

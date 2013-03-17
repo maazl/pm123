@@ -43,7 +43,6 @@
 #include <eautils.h>
 
 #include "xio_file.h"
-#include "xio_url.h"
 
 #include <debuglog.h>
 
@@ -167,50 +166,23 @@ int XIOfile::open(const char* filename, XOFLAGS oflags)
     omode |= OPEN_FLAGS_SEQUENTIAL;
   
   if (strnicmp(filename, "file:", 5) == 0)
-  { XURL* url = url_allocate(filename);
-    char* p;
-
-    if (!url->path)
-    { url_free(url);
-      errno = error = ENOENT;
-      return -1;
-    }
-
-    // Converts leading drive letters of the form C| to C:
-    // and if a drive letter is present or we have UNC path
-    // strips off the slash that precedes path. Otherwise,
-    // the leading slash is used.
-
-    /* OS/2 does not require this
-    for( p = url->path; *p; p++ ) {
-      if( *p == '/'  ) {
-          *p = '\\';
+  { filename += 5;
+    switch (strspn(filename, "/\\"))
+    {case 5:
+      filename += 3;
+      break;
+     case 4:
+      filename += 2;
+      break;
+     case 3:
+      filename += 3;
+      if (isalpha(filename[0]) && filename[1] == '|')
+      { char* f = (char*)alloca(strlen(filename)+1);
+        strcpy(f, filename);
+        f[1] = ':';
+        filename = f;
       }
-    }*/
-
-    p = url->path;
-    //DEBUGLOG(("XIOfile::open %s\n", p));
-    // Convert file://server/share/path URLs to UNC path
-    if (*p != '/')
-    { char* f = (char*)alloca(strlen(p) + 3);
-      f[0] = f[1] = '/';
-      strcpy(f + 2, p);
-      filename = f;
-    } else {
-      // Converts leading drive letters of the form C| to C:
-      // and if a drive letter is present strips off the slash that precedes
-      // path. URLs starting with file://///server/share are also stripped.
-      // Otherwise, the leading slash is used.
-      if (isalpha(p[1]) && (p[2] == '|' || p[2] == ':'))
-      { p[2] = ':';
-        ++p;
-      } else if (p[1] == '/' && p[2] == '/')
-        ++p;
-      char* f = (char*)alloca(strlen(p) + 1);
-      strcpy(f, p);
-      filename = f;
     }
-    url_free(url);
   }
 
   #ifdef XIO_SERIALIZE_DISK_IO

@@ -38,8 +38,9 @@
 #include <snprintf.h>
 
 #include "xio_cddb.h"
-#include "xio_url.h"
 #include "xio_socket.h"
+
+#include <cpp/url123.h>
 
 #include <debuglog.h>
 
@@ -68,7 +69,7 @@ int XIOcddb::send_command(const char* format, ...)
   va_start (args, format);
   vsnprintf(buffer, sizeof(buffer), format, args);
 
-  if (s_socket.write( buffer, strlen(buffer)) == -1 )
+  if (s_socket.write(buffer, strlen(buffer)) == -1)
     return CDDB_PROTOCOL_ERROR;
 
   return read_reply();
@@ -104,75 +105,66 @@ static char* part_of_request(const char* request, const char* part, char* result
     }
   }
 
-  return url_decode( result );
+  result[url123::decode(result, result, size)] = 0;
+  return result;
 }
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
 int XIOcddb::open(const char* filename, XOFLAGS oflags)
 {
-  XURL* url = url_allocate(filename);
+  url123 url(filename);
   int   rc  = CDDB_OK;
 
   char  buffer[2048];
+
+  xstringbuilder query;
+  url.appendComponentTo(query, url123::C_Query);
 
   for(;;)
   {
     s_socket.close();
 
-    if( !url ) {
-      rc = CDDB_PROTOCOL_ERROR;
+    if (!*query)
+    { rc = CDDB_PROTOCOL_ERROR;
       break;
     }
 
-    if( !url->query ) {
-      rc = CDDB_PROTOCOL_ERROR;
-      break;
-    }
-
-    if( s_socket.open( XIOsocket::get_address( url->host ), url->port ? url->port : 8880 ) == -1 ) {
-      rc = CDDB_PROTOCOL_ERROR;
+    if (s_socket.open(url.getHost("8880"), XO_READWRITE))
+    { rc = CDDB_PROTOCOL_ERROR;
       break;
     }
 
     // Receive server sign-on banner.
     rc = read_reply();
 
-    if( rc != CDDB_OK && rc != CDDB_OK_READONLY ) {
+    if (rc != CDDB_OK && rc != CDDB_OK_READONLY)
       break;
-    }
 
     // Initial client-server handshake.
     rc = send_command( "cddb hello %s\n",
-                       part_of_request( url->query, "hello", buffer, sizeof( buffer )));
-    if( rc != CDDB_OK ) {
+                       part_of_request( query, "hello", buffer, sizeof( buffer )));
+    if (rc != CDDB_OK)
       break;
-    }
 
     // Sets the server protocol level.
     rc = send_command( "proto %s\n",
-                       part_of_request( url->query, "proto", buffer, sizeof( buffer )));
+                       part_of_request( query, "proto", buffer, sizeof( buffer )));
 
-    if( rc != CDDB_OK           &&
-        rc != CDDB_PROTO_OK     &&
-        rc != CDDB_PROTO_ALREADY )
-    {
+    if ( rc != CDDB_OK           &&
+         rc != CDDB_PROTO_OK     &&
+         rc != CDDB_PROTO_ALREADY )
       break;
-    }
 
     // Query. It is not necessary to parse last CDDB reply because it
     // should be read by the client side.
-    part_of_request( url->query, "cmd", buffer, sizeof( buffer ));
+    part_of_request( query, "cmd", buffer, sizeof( buffer ));
 
     if( s_socket.puts( buffer ) == -1 ||
         s_socket.puts( "\n" ) == -1 )
-    {
       rc = CDDB_PROTOCOL_ERROR;
-    }
     break;
   }
-
-  url_free( url );
 
   if( rc == CDDB_OK || rc == CDDB_OK_READONLY ) {
     return 0;

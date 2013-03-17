@@ -5,21 +5,16 @@ DATA MULTIPLE NONSHARED LOADONCALL
 EXPORTS
   xio_buffer_size          @1
   xio_buffer_wait          @2
-  xio_http_proxy_host      @3
-  xio_http_proxy_port      @4
-  xio_http_proxy_user      @5
-  xio_http_proxy_pass      @6
-  xio_http_proxy_addr      @7
+  xio_http_proxy           @3
+  xio_http_proxy_auth      @5
   xio_buffer_fill          @8
   xio_connect_timeout      @9
   xio_socket_timeout       @10
 
   xio_set_buffer_size      @21
   xio_set_buffer_wait      @22
-  xio_set_http_proxy_host  @23
-  xio_set_http_proxy_port  @24
-  xio_set_http_proxy_user  @25
-  xio_set_http_proxy_pass  @26
+  xio_set_http_proxy       @23
+  xio_set_http_proxy_auth  @25
   xio_set_observer         @27
   xio_get_metainfo         @28
   xio_can_seek             @29

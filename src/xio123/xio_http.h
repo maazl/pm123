@@ -33,6 +33,8 @@
 #include "xio.h"
 #include "xio_protocol.h"
 #include "xio_socket.h"
+#include <cpp/xstring.h>
+#include <cpp/url123.h>
 
 #ifndef HTTPBASEERR
 #define HTTPBASEERR 21000
@@ -95,12 +97,12 @@ class XIOhttp : public XIOreadonly
   time_t        s_mtime;    ///< modification time of the associated file.
   int           s_metaint;  ///< How often the meta data is sent in the stream.
   int           s_metapos;  ///< Used by Shoutcast and Icecast protocols.
-  char*         s_location; ///< Saved resource location.
+  url123        s_location; ///< Saved resource location.
 
-  char  s_genre[256];
-  char  s_name [256];
-  char  s_title[256];
-  char  s_type [XIO_MAX_FILETYPE];
+  xstring       s_genre;
+  xstring       s_name;
+  xstring       s_title;
+  xstring       s_type;
 
   // TODO: @@@@@ I think this is crap...
   Mutex mtx_access; /* Serializes access to the protocol's data. */
@@ -110,17 +112,16 @@ class XIOhttp : public XIOreadonly
   int http_read_reply();
   /// Appends basic authorization string of the specified type
   /// to the request.
-  static void http_basic_auth_to(xstringbuilder& result, const char* typname,
-                                 const char* username, const char* password);
+  static void http_basic_auth_to(xstringbuilder& result, const char* typname, const char* credentials);
   /// Opens the file specified by filename for reading. Returns 0 if it
   /// successfully opens the file. A return value of -1 shows an error.
-  int read_file(const char* filename, int64_t range);
+  int read_file(url123 url, int64_t range);
   int read_and_notify(void* result, unsigned int count);
 
  public:
   /// Initializes the http protocol.
   XIOhttp();
-  virtual ~XIOhttp();
+  //virtual ~XIOhttp();
   virtual int open(const char* filename, XOFLAGS oflags);
   virtual int read(void* result, unsigned int count);
   virtual int close();
@@ -128,7 +129,7 @@ class XIOhttp : public XIOreadonly
   virtual int64_t seek(int64_t, XIO_SEEK origin);
   virtual int64_t getsize();
   virtual int getstat(XSTATL* st);
-  virtual char* get_metainfo(XIO_META type, char* result, int size);
+  virtual xstring get_metainfo(XIO_META type);
   virtual Iobserver* set_observer(Iobserver* observer);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;

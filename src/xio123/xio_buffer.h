@@ -57,7 +57,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   // Entries for the observer
   obs_entry*   s_obs_head;
   obs_entry*   s_obs_tail;
-  char         s_title[128];
+  volatile xstring s_title;
 
  protected:
   // Clear the observer meta data buffer
@@ -86,7 +86,7 @@ class XIObuffer : public XIOreadonly, protected XPROTOCOL::Iobserver
   virtual int64_t getsize();
   virtual int getstat(XSTATL* st);
   virtual int chsize(int64_t size) = 0;
-  virtual char* get_metainfo(XIO_META type, char* result, int size);
+  virtual xstring get_metainfo(XIO_META type);
   virtual XSFLAGS supports() const;
   virtual XIO_PROTOCOL protocol() const;
 };
