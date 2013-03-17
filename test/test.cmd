@@ -90,8 +90,10 @@ DoTest: PROCEDURE EXPOSE summary.
   CALL CHAROUT , 'Testing' testcase '... '
   /* setup */
   CALL 'setup'
-  IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN
+  IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN DO
+    CALL 'teardown'
     CALL Error 29, "Failed to setup test case: "result
+    END
 
   INTERPRET("CALL '"ARG(1)"'")
   IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN DO
