@@ -187,7 +187,8 @@ MRESULT UrlDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       // populate drop down list
       Playable& mru = GUI::GetUrlMRU();
-      ListBox ctrl(GetCtrl(ENT_URL));
+      ComboBox ctrl(GetCtrl(ENT_URL));
+      ctrl.TextLimit(4096);
       int_ptr<PlayableInstance> pi;
       for(;;)
       { pi = mru.GetNext(pi);
