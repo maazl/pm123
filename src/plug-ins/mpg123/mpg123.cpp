@@ -325,6 +325,11 @@ ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
 mpg123_off_t MPG123::FSeek(void* that, mpg123_off_t offset, int seekmode)
 {
   #define this ((Decoder*)that)
+  if (seekmode & 0x100)
+  { if (!(xio_can_seek(this->XFile) & XIO_CAN_SEEK_FAST))
+      return -1;
+    seekmode &= ~0x100;
+  }
   return xio_fseekl(this->XFile, offset, (XIO_SEEK)seekmode);
   #undef this
 }
@@ -789,7 +794,7 @@ PLUGIN_RC Decoder::SetFast(float skipspeed)
     return PLUGIN_OK;
 
   Mutex::Lock lock(DecMutex);
-  if (!xio_can_seek(XFile)) // Support fast forward for unseekable streams?
+  if (!(xio_can_seek(XFile) & XIO_CAN_SEEK_FAST)) // Support fast forward for unseekable streams?
     return PLUGIN_UNSUPPORTED;
   NextFast = 0;
   SkipSpeed = skipspeed;

@@ -438,13 +438,13 @@ static mpg123_off_t get_fileinfo(mpg123_handle *fr)
 
 	if((len=io_seek(&fr->rdat,0,SEEK_END)) < 0)	return -1;
 
-	if(io_seek(&fr->rdat,-128,SEEK_END) < 0) return -1;
+	if(io_seek(&fr->rdat,-128,SEEK_END|0x100) < 0) goto notag; // Tag to seek only if is is fast.
 
 	if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
 
 	if(!strncmp((char*)fr->id3buf,"TAG",3))	len -= 128;
-
-	if(io_seek(&fr->rdat,0,SEEK_SET) < 0)	return -1;
+notag:
+	io_seek(&fr->rdat,0,SEEK_SET);
 
 	if(len <= 0)	return -1;
 
