@@ -210,16 +210,11 @@ class InfoState
     operator InfoFlags() const                { return What; }
     /// Try to add an additional information type to update.
     InfoFlags    Extend(InfoFlags what);
-    /// Commit and release all currently held information types.
-    /// @return Returns the info types that are not invalidated meanwhile.
-    InfoFlags    Commit();
-    /// Commit and release some of the currently held information types.
+    /// @brief Commit and release some of the currently held information types.
     /// @return Returns the info types that are previously held and not invalidated meanwhile.
-    InfoFlags    Commit(InfoFlags what);
-    /// Cancel all remaining updates.
-    void         Rollback();
+    InfoFlags    Commit(InfoFlags what = ~IF_None);
     /// Cancel some remaining updates.
-    void         Rollback(InfoFlags what);
+    InfoFlags    Rollback(InfoFlags what = ~IF_None);
     // Reset a worker to uninitialized state. This implicitly cancels any uncommitted updates.
     //void         Reset()                      { Rollback(); InfoStat = NULL; }
     /// Reset a worker an rebind it to another state mananger \a stat and try
@@ -291,7 +286,7 @@ inline InfoFlags InfoState::BeginUpdate(InfoFlags what)
 
 inline InfoState::Update::~Update()
 { if (What)
-  InfoStat->CancelUpdate(What);
+    InfoStat->CancelUpdate(What);
 }
 
 inline InfoFlags InfoState::Update::Extend(InfoFlags what)
@@ -300,26 +295,16 @@ inline InfoFlags InfoState::Update::Extend(InfoFlags what)
   return what;
 }
 
-inline InfoFlags InfoState::Update::Commit()
-{ InfoFlags ret = InfoStat->EndUpdate(What);
-  What = IF_None;
-  return ret;
-}
-
 inline InfoFlags InfoState::Update::Commit(InfoFlags what)
 { InfoFlags ret = InfoStat->EndUpdate(what & What);
   What &= ~what;
   return ret;
 }
 
-inline void InfoState::Update::Rollback()
-{ if (What) InfoStat->CancelUpdate(What);
-  What = IF_None;
-}
-
-inline void InfoState::Update::Rollback(InfoFlags what)
-{ InfoStat->CancelUpdate(what & What);
+inline InfoFlags InfoState::Update::Rollback(InfoFlags what)
+{ InfoFlags ret = InfoStat->CancelUpdate(what & What);
   What &= ~what;
+  return ret;
 }
 
 

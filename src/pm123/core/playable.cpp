@@ -346,18 +346,18 @@ InfoFlags Playable::DoRequestAI(const PlayableSetBase& exclude, const volatile A
   return what2;
 }
 
-void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
+bool Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
 { DEBUGLOG(("Playable(%p)::CalcRplInfo(, {%x}, , {%x,})\n", this, upd.GetWhat(), job.Pri));
   PASSERT(this);
   // The entire implementation of this function is basically lock-free.
   // This means that the result may not be valid after the function finished.
   // This is addressed by invalidating the rpl bits of cie.InfoStat by other threads.
   // When this happens the commit at the end of the function will not set the state to valid
-  // and the function will be called again when the rpl information is requested again.
+  // and the function will return true.
   // The calculation is not done in place to avoid visibility of intermediate results.
   InfoFlags whatok = upd & IF_Aggreg;
   if (whatok == IF_None)
-    return; // Nothing to do
+    return IF_None; // Nothing to do
 
   // Calculate exclusion list including this
   PlayableSet excluding(cie.Exclude.size() + 5); // Leave some space
@@ -390,19 +390,24 @@ void Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
     if ((Info.Attr.ploptions & PLO_ALTERNATION) && whatok && !(pi->GetInfo().tech->attributes & TATTR_INVALID))
       break;
   }
-  job.Commit();
+  bool delayed = job.Commit();
   DEBUGLOG(("Playable::CalcRplInfo: %x, RPL{%i, %i, %i, %i}, DRPL{%f, %i, %f, %i}\n", whatok,
     rpl.songs, rpl.lists, rpl.invalid, rpl.unknown, drpl.totallength, drpl.unk_length, drpl.totalsize, drpl.unk_size));
   // Update results
+
+
   upd.Rollback(~whatok & IF_Aggreg);
-  if (whatok == IF_None)
-    return; // All updates deferred
-  Mutex::Lock lock(Mtx);
-  if (whatok & IF_Rpl)
-    events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
-  if (whatok & IF_Drpl)
-    events.Changed |= IF_Drpl * cie.Drpl.CmpAssign(drpl);
-  events.Loaded |= upd.Commit(whatok);
+  InfoFlags whatdone = IF_None;
+  { Mutex::Lock lock(Mtx);
+    if (whatok & IF_Rpl)
+      events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
+    if (whatok & IF_Drpl)
+      events.Changed |= IF_Drpl * cie.Drpl.CmpAssign(drpl);
+    whatdone = upd.Commit(whatok);
+  }
+  events.Loaded |= whatdone;
+  // Everything committed successfully?
+  return (~whatdone & whatok) && !delayed;
 }
 
 struct deccbdata
@@ -423,7 +428,9 @@ void Playable::DoLoadInfo(JobSet& job)
 
   // get information
   InfoBundle info;
-  { InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
+  { CollectionChangeArgs args(*this);
+   retry1:
+    InfoFlags what2 = upd & IF_Decoder; // do not request RPL info from the decoder.
     if (what2)
     { // Keep some tech infos
       info.Tech.samplerate = Info.Tech.samplerate;
@@ -437,8 +444,7 @@ void Playable::DoLoadInfo(JobSet& job)
 
       // Update information, but only if still in service.
       Mutex::Lock lock(Mtx);
-      CollectionChangeArgs args(*this);
-      args.Changed = UpdateInfo(info, what2);
+      args.Changed |= UpdateInfo(info, what2);
       // update children
       if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
       { EnsurePlaylist();
@@ -454,12 +460,18 @@ void Playable::DoLoadInfo(JobSet& job)
         }
       }
       // Raise the first bunch of change events.
-      args.Loaded = upd.Commit(what2);
+      args.Loaded |= upd.Commit(what2);
+      if (~args.Loaded & what2)
+      { upd.Reset(Info.InfoStat, job.Pri);
+        goto retry1; // Information got invalidated during this step.
+      }
       if (!args.IsInitial())
         RaiseInfoChange(args);
     }
-    // Now only aggregate information should be incomplete.
-    ASSERT((upd & ~IF_Aggreg) == IF_None);
+    else if (!args.IsInitial())
+    { Mutex::Lock lock(Mtx);
+      RaiseInfoChange(args);
+    }
   }
 
   // The required basic information to calculate aggregate infos might be on the way by another thread.
@@ -478,6 +490,8 @@ void Playable::DoLoadInfo(JobSet& job)
     }
   }
 
+  CollectionChangeArgs args(*this);
+ retry2:
   if (Info.Tech.attributes & TATTR_INVALID)
   { // Always render aggregate info of invalid items, because this is cheap.
     info.Rpl.invalid = 1;
@@ -489,16 +503,16 @@ void Playable::DoLoadInfo(JobSet& job)
   } else if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
   { // handle aggregate information of playlist items
     // For the event below
-    CollectionChangeArgs args(*this);
     if (upd)
-    { // Request for default recursive playlist information (without exclusions)
+      // Request for default recursive playlist information (without exclusions)
       // is to be completed.
-      CalcRplInfo(Info, upd, args, job);
-    }
+      while (CalcRplInfo(Info, upd, args, job))
+        upd.Reset(Info.InfoStat, job.Pri);
     // Request Infos with exclusion lists
     for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
       // retrieve information
-      CalcRplInfo(*iep, upd, args, job);
+      while (CalcRplInfo(*iep, upd, args, job))
+        upd.Reset(iep->InfoStat, job.Pri);
 
     // Raise event if any
     if (!args.IsInitial())
@@ -513,7 +527,7 @@ void Playable::DoLoadInfo(JobSet& job)
     // Calculate RPL_INFO if not already done by dec_fileinfo.
     if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_SONG)
     { // Always calculate RPL info of song items, because this is cheap.
-      info.Rpl.songs   = 1;
+      info.Rpl.songs = 1;
       // ... the same does not apply to DRPL info.
       if (!Info.InfoStat.Check(IF_Obj, REL_Invalid))
       { // IF_Obj is available
@@ -543,9 +557,15 @@ void Playable::DoLoadInfo(JobSet& job)
   }
   // update information
   Mutex::Lock lock(Mtx);
-  InfoFlags changed = UpdateInfo(info, upd);
+  InfoFlags what2 = upd;
+  args.Changed = UpdateInfo(info, what2);
+  args.Loaded = upd.Commit(IF_Aggreg);
+  if (~args.Loaded & what2)
+  { // Invalidation happened
+    upd.Reset(Info.InfoStat, job.Pri);
+    goto retry2;
+  }
   // Raise event
-  CollectionChangeArgs args(*this, upd.Commit(), changed);
   if (!args.IsInitial())
     RaiseInfoChange(args);
 }
@@ -798,7 +818,8 @@ void Playable::InsertEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("Playable(%p{%s})::InsertEntry(%p{%s}, %p{%s})\n", this, DebugName().cdata(),
     entry, entry->DebugName().cdata(), before, before->DebugName().cdata()));
   // insert new item at the desired location
-  entry->Attach();
+  if (&entry->RefTo->GetPlayable() != this) // Do not track changes of ourself.
+    entry->Attach();
   Playlist->Items.insert(entry, before);
   Playlist->Invalidate(IF_Aggreg, &entry->GetPlayable());
 }

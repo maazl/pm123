@@ -149,6 +149,8 @@ void PlayableRef::OverrideItem(const ITEM_INFO* item)
   if (!item && !(Overridden & IF_Item))
     return; // This is a no-op.
   PlayableChangeArgs args(*this, this, IF_Item, IF_None, IF_None);
+  InfoFlags refinvalid = RefTo->RequestInfo(IF_Item, PRI_None);
+
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
   const ITEM_INFO& old_item = (Overridden & IF_Item) ? *Item : (const ITEM_INFO&)*RefTo->GetInfo().item;
   const ITEM_INFO& new_item = item ? *item : (const ITEM_INFO&)*RefTo->GetInfo().item;
@@ -182,7 +184,9 @@ void PlayableRef::OverrideItem(const ITEM_INFO* item)
     }
     Overridden |= IF_Item;
   } else
-  { StartCache.reset();
+  { if (refinvalid & IF_Item)
+      args.Loaded = IF_None;
+    StartCache.reset();
     StopCache.reset();
     args.Invalidated |= IF_Rpl|IF_Drpl;
     if (CIC)
@@ -197,10 +201,14 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
   if (!meta && !(Overridden & IF_Meta))
     return; // no-op
   PlayableChangeArgs args(*this, this, IF_Meta, IF_None, IF_None);
+  InfoFlags refinvalid = RefTo->RequestInfo(IF_Meta, PRI_None);
+
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
   const MetaInfo& current = Overridden & IF_Meta ? *Meta : *(const MetaInfo*)RefTo->GetInfo().meta;
   if (meta == NULL)
-  { // revoke overloading
+  { if (refinvalid & IF_Meta)
+      args.Loaded = IF_None;
+    // revoke overloading
     if (!current.IsInitial())
       args.Changed |= IF_Meta|IF_Display;
     Overridden &= ~IF_Meta;
@@ -215,8 +223,7 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
       *Meta = *meta;
     Overridden |= IF_Meta;
   }
-  if (!args.IsInitial())
-    RaiseInfoChange(args);
+  RaiseInfoChange(args);
 }
 
 void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
@@ -224,10 +231,14 @@ void PlayableRef::OverrideAttr(const ATTR_INFO* attr)
   if (!attr && !(Overridden & IF_Attr))
     return; // no-op
   PlayableChangeArgs args(*this, this, IF_Attr, IF_None, IF_None);
+  InfoFlags refinvalid = RefTo->RequestInfo(IF_Attr, PRI_None);
+
   Mutex::Lock lock(RefTo->GetPlayable().Mtx);
   const AttrInfo& current = Overridden & IF_Attr ? *Attr : *(const AttrInfo*)RefTo->GetInfo().attr;
   if (attr == NULL)
-  { // revoke overloading
+  { if (refinvalid & IF_Attr)
+      args.Loaded = IF_None;
+    // revoke overloading
     if (!current.IsInitial())
       args.Changed |= IF_Attr;
     Overridden &= ~IF_Attr;
@@ -282,17 +293,7 @@ void PlayableRef::InfoChangeHandler(const PlayableChangeArgs& args)
   { if (CIC)
       args2.Invalidated |= CIC->Invalidate(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
   }
-  if (Overridden & IF_Item)
-  { args2.Purge(IF_Item);
-  }
-  if (Overridden & IF_Meta)
-  { args2.Changed     &= ~IF_Meta;
-    args2.Invalidated &= ~IF_Meta;
-  }
-  if (Overridden & IF_Attr)
-  { args2.Changed     &= ~IF_Attr;
-    args2.Invalidated &= ~IF_Attr;
-  }
+  args2.Purge((InfoFlags)Overridden.get() & (IF_Item|IF_Meta|IF_Attr));
   if (!args2.IsInitial())
     RaiseInfoChange(args2);
 }
@@ -396,10 +397,10 @@ InfoFlags PlayableRef::DoRequestAI(const PlayableSetBase& exclude, const volatil
 }
 
 
-PlayableRef::CalcResult PlayableRef::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
+bool PlayableRef::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
 { xstring localstr = strloc;
   DEBUGLOG(("PlayableRef(%p)::CalcLoc(&%s, &%p, %x, {%x,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
-  CalcResult ret;
+  bool changed = false;
   if (localstr)
   { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
     int_ptr<Location> newvalue = new Location(&RefTo->GetPlayable());
@@ -407,9 +408,7 @@ PlayableRef::CalcResult PlayableRef::CalcLoc(const volatile xstring& strloc, vol
     const xstring& err = newvalue->Deserialize(job, cp);
     if (err)
     { if (err.length() == 0) // delayed
-      { ret = CR_Delayed;
         goto end;
-      }
       // TODO: Errors
       DEBUGLOG(("PlayableRef::CalcLoc: %s at %.20s\n", err.cdata(), cp));
     }
@@ -426,16 +425,16 @@ PlayableRef::CalcResult PlayableRef::CalcLoc(const volatile xstring& strloc, vol
     // commit
     int_ptr<Location> oldvalue = newvalue;
     oldvalue.swap(cache);
-    ret = oldvalue && *oldvalue == *newvalue ? CR_Nop : CR_Changed;
+    changed = !oldvalue || *oldvalue != *newvalue;
   } else
   { // Default location => NULL
     int_ptr<Location> oldvalue;
     oldvalue.swap(cache);
-    ret = oldvalue ? CR_Changed : CR_Nop;
+    changed = oldvalue != NULL;
   }
  end:
-  DEBUGLOG(("PlayableRef::CalcLoc: %u\n", ret));
-  return ret;
+  DEBUGLOG(("PlayableRef::CalcLoc: %u\n", changed));
+  return changed;
 }
 
 void PlayableRef::DoLoadInfo(JobSet& job)
@@ -450,27 +449,29 @@ void PlayableRef::DoLoadInfo(JobSet& job)
   DEBUGLOG(("PlayableRef::DoLoadInfo: update %x\n", upd.GetWhat()));
   // Prepare slice info.
   PlayableChangeArgs args(*this);
+ retry1:
   if (upd & IF_Slice)
-  { int cr = CalcLoc(Item->start, StartCache, Location::CO_Default, job);
-    job.Commit();
-    cr |= CalcLoc(Item->stop, StopCache, Location::CO_Reverse, job);
-    job.Commit();
-    if (cr & CR_Changed)
+  { if (CalcLoc(Item->start, StartCache, Location::CO_Default, job))
       args.Changed |= IF_Slice;
-    if (!(cr & CR_Delayed))
-      args.Loaded |= IF_Slice;
+    bool delayed = job.Commit();
+    if (CalcLoc(Item->stop, StopCache, Location::CO_Reverse, job))
+      args.Changed |= IF_Slice;
+    delayed |= job.Commit();
 
-    if (!args.IsInitial())
-    { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-      args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
-      if (!args.IsInitial())
-      { RaiseInfoChange(args);
-        args.Reset();
-      }
+    Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+    if (delayed)
+      upd.Rollback(IF_Slice);
+    else
+    { args.Loaded |= upd.Commit(IF_Slice);
+      if (!args.Loaded)
+        goto retry1;
     }
-    if (cr & CR_Delayed)
+    if (!args.IsInitial())
+      RaiseInfoChange(args);
+    if (delayed)
       return;
   }
+  args.Reset();
 
   // Load aggregate info if any.
   int_ptr<Location> start = StartCache;
@@ -482,30 +483,39 @@ void PlayableRef::DoLoadInfo(JobSet& job)
   do
   { { // retrieve information
       CollectionInfo& ci = iep ? *iep : CIC->DefaultInfo;
+     retry2:
       DEBUGLOG(("PlayableRef::DoLoadInfo: update aggregate info {%u}\n", ci.Exclude.size()));
       AggregateInfo ai(ci.Exclude);
       exclude = ci.Exclude; // copy exclusion list
       // We can be pretty sure that ITEM_INFO is overridden.
-      InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop, 0);
-      job.Commit();
-      upd.Rollback(whatnotok);
-
+      InfoFlags whatnotok = RefTo->AddSliceAggregate(ai, exclude, upd, job, start, stop);
       InfoFlags whatok = upd & IF_Aggreg & ~whatnotok;
-      if (whatok)
-      { // At least one info completed
-        Mutex::Lock lock(RefTo->GetPlayable().Mtx);
-        if ((whatok & IF_Rpl) && ci.Rpl.CmpAssign(ai.Rpl))
-          args.Changed |= IF_Rpl;
-        if ((whatok & IF_Drpl) && ci.Drpl.CmpAssign(ai.Drpl))
-          args.Changed |= IF_Drpl;
-        args.Loaded |= upd.Commit(whatok);
-        if (iep == NULL)
-          Overridden |= whatok;
-    } }
+      job.Commit();
+
+      Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+      if ((upd & IF_Rpl) && ci.Rpl.CmpAssign(ai.Rpl))
+        args.Changed |= IF_Rpl;
+      if ((upd & IF_Drpl) && ci.Drpl.CmpAssign(ai.Drpl))
+        args.Changed |= IF_Drpl;
+
+      upd.Rollback(whatnotok);
+      InfoFlags done = upd.Commit(whatok);
+      args.Loaded |= done;
+      if (~done & whatok)
+      { upd.Reset(ci.InfoStat, job.Pri);
+        goto retry2;
+      }
+
+      if (iep == NULL)
+        Overridden |= whatok;
+    }
    next:;
   } while (CIC->GetNextWorkItem(iep, job.Pri, upd));
+
   if (!args.IsInitial())
+  { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
     RaiseInfoChange(args);
+  }
 }
 
 const Playable& PlayableRef::DoGetPlayable() const

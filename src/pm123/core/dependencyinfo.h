@@ -230,7 +230,8 @@ class JobSet
   /// store \a target in the dependency list.
   volatile const AggregateInfo& RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what);
   /// Commit partial job.
-  void                      Commit()            { AllDepends.Join(Depends); }
+  /// @return true if there is anything to commit.
+  bool                      Commit();
   /// Discard partial job.
   void                      Rollback()          { Depends.Clear(); }
 };

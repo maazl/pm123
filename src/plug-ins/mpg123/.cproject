@@ -26,8 +26,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xio123}&quot;"/>
-									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
 									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/zlb123&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${OS2TK45}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1692024313" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
@@ -51,8 +51,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xio123}&quot;"/>
-									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
 									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/zlb123&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${OS2TK45}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.475381126" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
@@ -330,4 +330,5 @@
 			</profile>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 </cproject>

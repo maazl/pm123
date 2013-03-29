@@ -65,7 +65,9 @@ InfoFlags InfoState::Check(InfoFlags what, Reliability rel) const
 InfoFlags InfoState::Invalidate(InfoFlags what)
 { InService &= ~what;
   //Available |= what;
-  return (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
+  InfoFlags ret = (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
+  DEBUGLOG(("InfoState(%p)::Invalidate(%x) : %x\n", this, what, ret));
+  return ret;
 }
 
 /*InfoFlags InfoState::InvalidateSync(InfoFlags what)
@@ -105,7 +107,7 @@ InfoFlags InfoState::EndUpdate(InfoFlags what)
     ReqLow    &= ~ret;
     ReqHigh   &= ~ret;
   }
-  DEBUGLOG(("InfoState(%p)::EndUpdate(%x) -> %x\n", this, what, ret));
+  DEBUGLOG(("InfoState(%p)::EndUpdate(%x) : %x\n", this, what, ret));
   return ret;
 }
 

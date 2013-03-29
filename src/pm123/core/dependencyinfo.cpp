@@ -383,3 +383,11 @@ volatile const AggregateInfo& JobSet::RequestAggregateInfo(APlayable& target, co
     Depends.Add(target, what, &ret.Exclude);
   return ret;
 }
+
+bool JobSet::Commit()
+{ if (!Depends.Size())
+    return false;
+  AllDepends.Join(Depends);
+  return true;
+}
+

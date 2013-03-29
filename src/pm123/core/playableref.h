@@ -62,13 +62,6 @@ class PlayableRef : public APlayable
     //bool                    IsMine(const AggregateInfo& ai);
   };
 
- private:
-  enum CalcResult
-  { CR_Nop     = 0x00,
-    CR_Changed = 0x01,
-    CR_Delayed = 0x02
-  };
-
  public:  // Context
   const   int_ptr<APlayable> RefTo;
  protected:
@@ -86,7 +79,13 @@ class PlayableRef : public APlayable
 
  private:
           void              EnsureCIC()              { if (!CIC) CIC = new CICache(RefTo->GetPlayable()); }
-          CalcResult        CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job);
+  /// @brief Evaluate location string.
+  /// @param strloc String to evaluate.
+  /// @param cache Target.
+  /// @param type Options, @see CompareOptions.
+  /// @param job Place dependencies here.
+  /// @return \c true if the evaluation changed \a cache.
+          bool              CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job);
  protected:
   /// Compare two slice borders taking NULL iterators by default as
   /// at the start or the end, depending on \c Location::CO_Reverse.

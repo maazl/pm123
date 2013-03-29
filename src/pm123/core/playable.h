@@ -192,7 +192,9 @@ class Playable
   /// If a information from another object is required to complete the request these objects should be added
   /// to the dependency list by calling \c job.Depends.Add. This causes a reschedule of the request,
   /// once the dependencies are completed.
-  void                      CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job);
+  /// @return Returns true if the content were not successfully committed,
+  /// i.e the info has been invalidated during calculation.
+  bool                      CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job);
   /// @brief Replace list of children
   /// @details This function does a smart update of the current collection and return \c true
   /// if this actually caused a change in the list of children.

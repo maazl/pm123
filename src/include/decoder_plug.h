@@ -8,7 +8,7 @@
 #define PM123_DECODER_PLUG_H
 
 #define INCL_WIN
-#define INCL_BASE
+#define INCL_DOS
 #include <format.h>
 #include <output_plug.h>
 #include <os2.h>
