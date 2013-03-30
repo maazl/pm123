@@ -112,6 +112,7 @@ void frame_init_par(mpg123_handle *fr, mpg123_pars *mp)
 	fr->rdat.iohandle = NULL;
 	fr->rdat.r_read_handle = NULL;
 	fr->rdat.r_lseek_handle = NULL;
+	fr->rdat.r_lsize_handle = NULL;
 	fr->rdat.cleanup_handle = NULL;
 	fr->wrapperdata = NULL;
 	fr->wrapperclean = NULL;

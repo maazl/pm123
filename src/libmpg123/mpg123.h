@@ -1066,7 +1066,7 @@ EXPORT size_t mpg123_outblock(mpg123_handle *mh);
  *  used (active from next mpg123_open call on).
  *  Note: As it would be troublesome to mess with this while having a file open,
  *  this implies mpg123_close(). */
-EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void *, size_t), off_t (*r_lseek)(int, off_t, int));
+EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void *, size_t), mpg123_off_t (*r_lseek)(int, mpg123_off_t, int));
 
 /** Replace I/O functions with your own ones operating on some kind of handle instead of integer descriptors.
  *  The handle is a void pointer, so you can pass any data you want...
@@ -1077,7 +1077,7 @@ EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void
  *  \param r_read The callback for reading (behaviour like posix read).
  *  \param r_lseek The callback for seeking (like posix lseek).
  *  \param cleanup A callback to clean up an I/O handle on mpg123_close, can be NULL for none (you take care of cleaning your handles). */
-EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), off_t (*r_lseek)(void *, off_t, int), void (*cleanup)(void*));
+EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), mpg123_off_t (*r_lseek)(void *, mpg123_off_t, int), mpg123_off_t (*r_lsize)(void*), void (*cleanup)(void*));
 
 /* @} */
 

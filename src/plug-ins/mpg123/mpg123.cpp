@@ -275,7 +275,7 @@ PLUGIN_RC MPG123::OpenMPEG()
     return PLUGIN_ERROR;
   }
 
-  RASSERT(mpg123_replace_reader_handle(MPEG, &Decoder::FRead, &Decoder::FSeek, NULL) == MPG123_OK);
+  RASSERT(mpg123_replace_reader_handle(MPEG, &Decoder::FRead, &Decoder::FSeek, &Decoder::FSize, NULL) == MPG123_OK);
   // set some options
   RASSERT(mpg123_param(MPEG, MPG123_ADD_FLAGS, MPG123_FUZZY|MPG123_PLAIN_ID3TEXT, 0) == MPG123_OK);
   // now open the stream
@@ -310,29 +310,32 @@ void MPG123::CloseMPEG()
   }
 }
 
+#define this ((Decoder*)that)
 ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
 {
-  #define this ((Decoder*)that)
   size = xio_fread(buffer, 1, size, this->XFile);
   if (this->XSave && size > 0)
   { if (this->XSave)
       xio_fwrite(buffer, 1, size, this->XSave);
   }
   return size;
-  #undef this
 }
 
 mpg123_off_t MPG123::FSeek(void* that, mpg123_off_t offset, int seekmode)
 {
-  #define this ((Decoder*)that)
   if (seekmode & 0x100)
   { if (!(xio_can_seek(this->XFile) & XIO_CAN_SEEK_FAST))
       return -1;
     seekmode &= ~0x100;
   }
   return xio_fseekl(this->XFile, offset, (XIO_SEEK)seekmode);
-  #undef this
 }
+
+mpg123_off_t MPG123::FSize(void* that)
+{
+  return xio_fsizel(this->XFile);
+}
+#undef this
 
 inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
 { DEBUGLOG(("MPG123(%p{%s})::FillTechInfo(&%p, &%p)\n", this, Filename.cdata(), &tech, &obj));
