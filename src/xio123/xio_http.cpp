@@ -152,7 +152,13 @@ int XIOhttp::read_file(url123 url, int64_t range)
     request.clear();
     request.append("GET ");
     if (!proxy)
+    { size_t len = request.length();
       url.appendComponentTo(request, url123::C_Request);
+      // If there is no path at all append at least '/'.
+      // Maybe this should better be up to normalizeURL.
+      if (len == request.length())
+        request.append('/');
+    }
     else if (url.isScheme("ftp:"))
       url.appendComponentTo(request, url123::C_All);
     else
