@@ -177,6 +177,7 @@ enum mpg123_param_flags
 	,MPG123_SKIP_ID3V2 = 0x2000 /**< 10 0000 0000 0000 Do not parse ID3v2 tags, just skip them. */
 	,MPG123_IGNORE_INFOFRAME = 0x4000 /**< 100 0000 0000 0000 Do not parse the LAME/Xing info frame, treat it as normal MPEG data. */
 	,MPG123_AUTO_RESAMPLE = 0x8000 /**< 1000 0000 0000 0000 Allow automatic internal resampling of any kind (default on if supported). Especially when going lowlevel with replacing output buffer, you might want to unset this flag. Setting MPG123_DOWNSAMPLE or MPG123_FORCE_RATE will override this. */
+	,MPG123_NO_FILEINFO  = 0x10000 /**< Do not seek at file open to examine the V1.x tag and the file length. */
 };
 
 /** choices for MPG123_RVA */
@@ -1077,7 +1078,7 @@ EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void
  *  \param r_read The callback for reading (behaviour like posix read).
  *  \param r_lseek The callback for seeking (like posix lseek).
  *  \param cleanup A callback to clean up an I/O handle on mpg123_close, can be NULL for none (you take care of cleaning your handles). */
-EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), mpg123_off_t (*r_lseek)(void *, mpg123_off_t, int), mpg123_off_t (*r_lsize)(void*), void (*cleanup)(void*));
+EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), mpg123_off_t (*r_lseek)(void *, mpg123_off_t, int), void (*cleanup)(void*));
 
 /* @} */
 

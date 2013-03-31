@@ -67,7 +67,6 @@ struct reader_data
 	   They get picked if there's some iohandle set. */
 	ssize_t (*r_read_handle) (void *handle, void *buf, size_t count);
 	mpg123_off_t   (*r_lseek_handle)(void *handle, mpg123_off_t offset, int whence);
-	mpg123_off_t   (*r_lsize_handle)(void *handle);
 	/* An optional cleaner for the handle on closing the stream. */
 	void    (*cleanup_handle)(void *handle);
 	/* These two pointers are the actual workers (default map to POSIX read/lseek). */

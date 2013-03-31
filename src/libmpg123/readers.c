@@ -37,7 +37,6 @@ static ssize_t plain_fullread(mpg123_handle *fr,unsigned char *buf, ssize_t coun
 /* Wrapper to decide between descriptor-based and external handle-based I/O. */
 static mpg123_off_t io_seek(struct reader_data *rdat, mpg123_off_t offset, int whence);
 static ssize_t io_read(struct reader_data *rdat, void *buf, size_t count);
-static mpg123_off_t io_size(struct reader_data *rdat);
 
 #ifndef NO_FEEDER
 /* Bufferchain methods. */
@@ -435,11 +434,11 @@ static void stream_rewind(mpg123_handle *fr)
  */
 static mpg123_off_t get_fileinfo(mpg123_handle *fr)
 {
-	mpg123_off_t len = io_size(&fr->rdat);
+	mpg123_off_t len;
 
-	if(len == -2 && (len=io_seek(&fr->rdat,0,SEEK_END)) < 0)	return -1;
+	if((len=io_seek(&fr->rdat,0,SEEK_END)) < 0)	return -1;
 
-	if(io_seek(&fr->rdat,-128,SEEK_END|0x100) < 0) goto notag; // Tag to seek only if it is fast.
+	if(io_seek(&fr->rdat,-128,SEEK_END) < 0) goto notag;
 
 	if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
 
@@ -1050,7 +1049,8 @@ static int default_init(mpg123_handle *fr)
 	if(fr->p.icy_interval > 0) fr->rdat.lseek = nix_lseek;
 #endif
 
-	fr->rdat.filelen = get_fileinfo(fr);
+	if (!(fr->p.flags & MPG123_NO_FILEINFO))
+	  fr->rdat.filelen = get_fileinfo(fr);
 	fr->rdat.filepos = 0;
 	/*
 		Don't enable seeking on ICY streams, just plain normal files.
@@ -1233,12 +1233,4 @@ static ssize_t io_read(struct reader_data *rdat, void *buf, size_t count)
 	}
 	else
 	return rdat->read(rdat->filept, buf, count);
-}
-
-static mpg123_off_t io_size(struct reader_data *rdat)
-{
-  if ((rdat->flags & READER_HANDLEIO) && rdat->r_lsize_handle != NULL)
-    return rdat->r_lsize_handle(rdat->iohandle);
-
-  return -2;
 }

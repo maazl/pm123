@@ -141,7 +141,6 @@ class MPG123 : public ID3
   void          EndTrackInstance();
   static ssize_t FRead(void* that, void* buffer, size_t size);
   static mpg123_off_t FSeek(void* that, mpg123_off_t offset, int seekmode);
-  static mpg123_off_t FSize(void* that);
 
  protected:
   mpg123_off_t  Time2Sample(PM123_TIME time);

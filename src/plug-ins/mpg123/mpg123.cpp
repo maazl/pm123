@@ -275,9 +275,11 @@ PLUGIN_RC MPG123::OpenMPEG()
     return PLUGIN_ERROR;
   }
 
-  RASSERT(mpg123_replace_reader_handle(MPEG, &Decoder::FRead, &Decoder::FSeek, &Decoder::FSize, NULL) == MPG123_OK);
+  RASSERT(mpg123_replace_reader_handle(MPEG, &Decoder::FRead, &Decoder::FSeek, NULL) == MPG123_OK);
   // set some options
-  RASSERT(mpg123_param(MPEG, MPG123_ADD_FLAGS, MPG123_FUZZY|MPG123_PLAIN_ID3TEXT, 0) == MPG123_OK);
+  RASSERT(mpg123_param(MPEG, MPG123_ADD_FLAGS,
+    xio_can_seek(XFile) == XIO_CAN_SEEK_FAST ? MPG123_FUZZY|MPG123_PLAIN_ID3TEXT : MPG123_FUZZY|MPG123_PLAIN_ID3TEXT|MPG123_NO_FILEINFO,
+    0) == MPG123_OK);
   // now open the stream
   TrackInstance();
   if ((rc = mpg123_open_handle(MPEG, this)) != 0)
@@ -286,13 +288,13 @@ PLUGIN_RC MPG123::OpenMPEG()
     Ctx.plugin_api->message_display(MSG_ERROR, LastError);
     return PLUGIN_NO_PLAY;
   }
+  UpdateStreamLength();
 
   rc = mpg123_read(MPEG, NULL, 0, NULL);
   if (rc != MPG123_OK && rc != MPG123_NEW_FORMAT)
   { LastError.sprintf("Unable to read source with mpg123:\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
     return PLUGIN_NO_PLAY;
   }
-  UpdateStreamLength();
 
   if (!ReadFrameInfo())
   { LastError.sprintf("Unable to get frame info\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
@@ -329,11 +331,6 @@ mpg123_off_t MPG123::FSeek(void* that, mpg123_off_t offset, int seekmode)
     seekmode &= ~0x100;
   }
   return xio_fseekl(this->XFile, offset, (XIO_SEEK)seekmode);
-}
-
-mpg123_off_t MPG123::FSize(void* that)
-{
-  return xio_fsizel(this->XFile);
 }
 #undef this
 

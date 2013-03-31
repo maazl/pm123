@@ -474,7 +474,6 @@ int attribute_align_arg mpg123_replace_reader( mpg123_handle *mh,
 int attribute_align_arg mpg123_replace_reader_handle( mpg123_handle *mh,
                            ssize_t (*r_read) (void*, void *, size_t),
                            mpg123_off_t   (*r_lseek)(void*, mpg123_off_t, int),
-                           mpg123_off_t   (*r_lsize)(void*),
                            void    (*cleanup)(void*)  )
 {
 	if(mh == NULL) return MPG123_ERR;
@@ -482,7 +481,6 @@ int attribute_align_arg mpg123_replace_reader_handle( mpg123_handle *mh,
 	mpg123_close(mh);
 	mh->rdat.r_read_handle = r_read;
 	mh->rdat.r_lseek_handle = r_lseek;
-	mh->rdat.r_lsize_handle = r_lsize;
 	mh->rdat.cleanup_handle = cleanup;
 	return MPG123_OK;
 }
@@ -1256,6 +1254,9 @@ int attribute_align_arg mpg123_set_filesize(mpg123_handle *mh, mpg123_off_t size
 	if(mh == NULL) return MPG123_ERR;
 
 	mh->rdat.filelen = size;
+	if (size > 0)
+      mh->rdat.flags |= READER_SEEKABLE;
+
 	return MPG123_OK;
 }
 
