@@ -422,17 +422,21 @@ class sco_arr
  public:
   /// Initialize a empty array.
   sco_arr()                             : Ptr(NULL), Size(0) {};
-  /// Allocates an array of size.
+  /// Allocates an array of \a size elements.
   sco_arr(size_t size)                  : Ptr(new T[size]), Size(size) {}
   /// Store a new object under control.
+  /// @param ptr Pointer to the first item. Must be destructable with operator delete[].
+  /// @param size number of items at \a *ptr.
   sco_arr(T* ptr, size_t size)          : Ptr(ptr), Size(size) {};
   /// Destructor, frees the stored object if any.
   ~sco_arr()                            { delete[] Ptr; }
+
   /// Gets a pointer to the first array element.
   T*     get() const                    { return Ptr; }
   /// Gets the number of array elements.
   size_t size() const                   { return Size; }
   /// Access the i-th array element.
+  /// @pre \a idx < \c size()
   T&     operator[](size_t idx) const   { ASSERT(idx < Size); return Ptr[idx]; }
   /// Return start iterator
   T*     begin()                        { ASSERT(Ptr); return Ptr; }
@@ -445,10 +449,15 @@ class sco_arr
 
   /// Frees the stored array (if any) and sets size to 0,
   void   reset()                        { delete[] Ptr; Ptr = NULL; Size = 0; }
-  /// Frees the stored array (if any) and allocates a new array of size.
+  /// Frees the stored array (if any) and allocates a new array of \a size elements.
   void   reset(size_t size)             { delete[] Ptr; Ptr = new T[size]; Size = size; }
   /// Frees the stored array (if any) and assigns a new array.
+  /// @param ptr Pointer to the first item. Must be destructable with operator delete[].
+  /// @param size number of items at \a *ptr.
   void   assign(T* ptr, size_t size)    { delete[] Ptr; Ptr = ptr; Size = size; }
+  /// Remove the current content for further use outside this class.
+  /// This will not free any resources.
+  T*     detach()                       { T* ptr = Ptr; Size = 0; Ptr = NULL; return ptr; }
 };
 
 #endif

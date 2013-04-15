@@ -34,8 +34,6 @@
 #include <cpp/smartptr.h>
 
 
-class xstring;
-
 /** @brief Internal logically abstract base class of vector<T> with all non-template core implementations.
  * @details This class can only store reference type objects (pointers).
  * It does not handle the ownership of the referenced objects.

@@ -13,6 +13,7 @@ CFLAGS_USR=-fcheck-new -DPM123_CORE
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) url123$(CO) xstringbuilder$(CO)
 OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringmap$(CO)
+OBJECTS = $(OBJECTS) container\btree$(CO)
 OBJECTS = $(OBJECTS) pmutils_dnd$(CO) windowbase$(CO) dlgcontrols$(CO)
 
 OBJECTS2 = xstring_alloc$(CO)
@@ -29,14 +30,18 @@ cpputil_plugin$(LBO) : $(OBJECTS) $(OBJECTS3) debugmem$(CO)
 clean: $(MDUMMY)
 	-@del cpputil$(LBO) xstring$(LBO) $(OBJECTS) $(OBJECTS2) $(OBJECTS3) 2> nul
 
-OBJTEST = test\test_int_ptr$(CO)
 LIBTEST = cpputil$(LBO) ..\utilfct$(LBO)
 
-test: test\test_int_ptr.exe
+test: test\test_int_ptr.exe test\test_btree.exe
 	test\test_int_ptr.exe
+	test\test_btree.exe
 
-test\test_int_ptr.exe: $(OBJTEST) $(LIBTEST)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJTEST) $(LIBTEST) $(STDLIBS)$(LOBJ_SUFFX)
+test\test_int_ptr.exe: test\test_int_ptr$(CO) $(LIBTEST)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)test\test_int_ptr$(CO) $(LIBTEST) $(STDLIBS)$(LOBJ_SUFFX)
+	$(POSTLINKCMD)
+
+test\test_btree.exe: test\test_btree$(CO) $(LIBTEST)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)test\test_btree$(CO) $(LIBTEST) $(STDLIBS)$(LOBJ_SUFFX)
 	$(POSTLINKCMD)
 
 algorithm.cpp:	algorithm.h ..\debuglog.h
