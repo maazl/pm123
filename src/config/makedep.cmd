@@ -282,8 +282,9 @@ DoFile: PROCEDURE EXPOSE opt. rule.
    symname = SymName(filepath)
    IF opt.debug THEN
       SAY 'DoFile: 'file filepath SYMBOL(symname)
+   /* check fails on ../../
    IF POS('\..\', file) > 0 THEN
-      CALL Assert 'Invalid file name 'file
+      CALL Assert 'Invalid file name 'file */
    /*IF ABBREV(file, '\') | ABBREV(SUBSTR(file, 2), ':\') THEN
       CALL Assert 'DoFile resulted in absolute path 'file*/
    IF SYMBOL(symname) = 'VAR' THEN
@@ -327,7 +328,7 @@ DoFile: PROCEDURE EXPOSE opt. rule.
       IF inc \= '' THEN DO
          /* local include */
          path = STREAM(inc, "C", "QUERY EXISTS")
-         /*SAY "L:" inc path file*/
+         /*SAY "L: _"inc"_"path"_"file"_"*/
          IF path \= '' THEN DO
             /* found local => add dependency */
             path = NormPath(path, opt.cwd)
@@ -337,7 +338,7 @@ DoFile: PROCEDURE EXPOSE opt. rule.
                CALL DoFile inc
             END
          /* try non-local too */
-         ELSE IF \NonlocalInclude(file, symname) THEN DO
+         ELSE IF \NonlocalInclude(inc, symname) THEN DO
             IF opt.strict THEN
                CALL Warn "File "inc" included at line "line" of "file": does not exist."
             END
@@ -368,6 +369,8 @@ DoFile: PROCEDURE EXPOSE opt. rule.
  * RETURN true if succeded
  */
 NonlocalInclude: PROCEDURE EXPOSE opt. rule.
+   IF opt.debug THEN
+      SAY "NonlocalInclude: "ARG(1)", "ARG(2)
    /* nonlocal include */
    IF opt.include.0 = 0 THEN
       RETURN 0
@@ -376,6 +379,7 @@ NonlocalInclude: PROCEDURE EXPOSE opt. rule.
       filepath = opt.include.i||ARG(1)
       /* include found? */
       path = STREAM(filepath, "C", "QUERY EXISTS")
+      /* SAY "NL: "filepath"_"path*/
       IF path \= '' THEN DO
          /* found => add dependency */
          filepath = NormPath(filepath)
@@ -399,8 +403,11 @@ DoInclude: PROCEDURE EXPOSE rule. opt.
    inc = ARG(2)
    IF opt.debug THEN
       SAY "DoInclude: "ARG(1)", "inc
+   IF POS('.cpp', inc) = LENGTH(inc) - 3 THEN
+      CALL Assert 'The dependency on 'inc' is crap.'
+   /* check fail on valid ../../
    IF POS('\..\', inc) > 0 THEN
-      CALL Assert 'Invalid not normalized include dependency 'inc
+      CALL Assert 'Invalid not normalized include dependency 'inc */
    IF LEFT(inc, 1) = '\' | ABBREV(SUBSTR(inc, 2), ':') THEN
       CALL Assert 'Invalid absolute include dependency 'inc
    /* rules lookup */
@@ -422,7 +429,6 @@ NormPath: PROCEDURE EXPOSE opt.
    /* First we have to normalize slashes to make things easy. */
    path = TRANSLATE(ARG(1), '\', '/')
    /* reduce /xxx/../ */
-   /*SAY 'S:' path*/
    DO FOREVER
       p = POS('\..\', path)
       IF p <= 1 THEN
@@ -450,8 +456,8 @@ NormPath: PROCEDURE EXPOSE opt.
    ELSE
       path = SUBSTR(path, p)
    /* done */
-   /*SAY 'SX:' opt.cwd ARG(1) path
-   SAY*/
+   IF opt.debug THEN
+      SAY 'NormPath: 'ARG(1)', 'ARG(2)': 'path
    RETURN path
 
 /* Make path absolute
