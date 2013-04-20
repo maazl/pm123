@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,6 +28,7 @@
 
 
 #include "xstring.h"
+#include "container/btree.h"
 #include <string.h>
 #include <snprintf.h>
 
@@ -275,17 +276,40 @@ void xstring::sprintf(const char* fmt, ...) volatile
   va_end(va);
 }
 
-/*void xstring::assignCstr_safe(const char*volatile const& str)
-{
-  #if !defined DEBUG || DEBUG < 2
-  // This will fail with debug level 2
-  CritSect cs;
-  #endif
-  assignCstr(str);
-}*/
 
-/*const char* xstring::swapCstr(const char* str)
-{ StringData* ref = Data.swapCptr(str ? StringData::fromPtr((char*)str) : NULL);
-  return ref ? ref->Ptr() : NULL;
-}*/
 
+btree_string xstring::deduplicator::Repository;
+Mutex xstring::deduplicator::Mtx;
+
+void xstring::deduplicator::deduplicate(xstring& target)
+{ if (!target)
+    return;
+  xstring& entry = Repository.get(target);
+  DEBUGLOG(("xstring::deduplicator::deduplicate(%s) : %s\n", target.cdata(), entry.cdata()));
+  if (!entry)
+    entry = target;
+  else
+    target = entry;
+}
+void xstring::deduplicator::deduplicate(volatile xstring& target)
+{ xstring value(target);
+  if (!value)
+    return;
+  xstring& entry = Repository.get(value);
+  DEBUGLOG(("xstring::deduplicator::deduplicate(%s) : %s\n", value.cdata(), entry.cdata()));
+  if (!entry)
+    entry = value;
+  else
+    target.cmpassign(value, entry);
+}
+
+void xstring::deduplicator::cleanup()
+{ DEBUGLOG(("xstring::deduplicator::cleanup()\n"));
+  btree_string::iterator pos(Repository.begin());
+  while (!pos.isend())
+  { if (pos->Data->isUnique())
+      Repository.erase(pos);
+    else
+      ++pos;
+  }
+}

@@ -32,7 +32,7 @@
 
 static int data[65536]; // Must be a power of 2!
 
-static int inst_comparer(void* key, void* elem)
+static int inst_comparer(const void* key, const void* elem)
 { ASSERT(elem >= data && elem < data + sizeof data / sizeof *data);
   return (char*)key - (char*)elem;
 }
@@ -40,13 +40,16 @@ static int inst_comparer(void* key, void* elem)
 // untyped instance repository
 static void test_untyped()
 { unsigned i;
-  btree_base tree;
+  btree_base tree(inst_comparer);
 
   // create items
   unsigned scramble = rand() & (sizeof data / sizeof *data - 1);
   for (i = 0; i < sizeof data / sizeof *data; ++i)
   { DEBUGLOG(("test_untyped at %u\n", i));
-    RASSERT(!tree.insert(data + (i ^ scramble), inst_comparer).match);
+    void* key = data + (i ^ scramble);
+    void*& value = tree.get(key);
+    ASSERT(!value);
+    value = key;
     //tree.check();
   }
   tree.check();
@@ -74,7 +77,9 @@ static void test_untyped()
   for (i = 0; i < 10000; ++i)
   { unsigned n = rand() & (sizeof data / sizeof *data - 1);
     DEBUGLOG(("test_untyped update #%u at %u\n", i, n));
-    RASSERT(tree.insert(data + n, inst_comparer).match);
+    void* key = data + n;
+    void*& value = tree.get(key);
+    RASSERT(value == key);
   }
   tree.check();
 
@@ -82,7 +87,7 @@ static void test_untyped()
   scramble = rand() & (sizeof data / sizeof *data - 1) & ~1;
   for (i = 0; i < sizeof data / sizeof *data; i += 2)
   { void* key = data + (i ^ scramble);
-    RASSERT(tree.erase(key, inst_comparer) == key);
+    RASSERT(tree.erase(key) == key);
   }
   tree.check();
 
@@ -97,7 +102,7 @@ static void test_untyped()
   scramble = rand() & (sizeof data / sizeof *data - 1);
   for (i = 0; i < sizeof data / sizeof *data; ++i)
   { void* key = data + (i ^ scramble);
-    RASSERT(tree.erase(key, inst_comparer) == ((i ^ scramble) & 1 ? key : NULL));
+    RASSERT(tree.erase(key) == ((i ^ scramble) & 1 ? key : NULL));
     //tree.check();
   }
   tree.check();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2012 M.Mueller
+ * Copyright 2007-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,8 @@
 #include <cpp/smartptr.h>
 
 
+class btree_string;
+
 /** @brief Java like string class.
  * @details Copying is cheap.
  * The class is thread-safe. Volatile instances are strongly thread safe.
@@ -78,13 +80,17 @@ struct xstring
     /// Return the current strings length.
            size_t length() const            { return this[-1].Len; }
     /// Return the current strings content.
-    /// Note that the special handling of the this pointer in the class causes this function
+    /// @remarks Note that the special handling of the this pointer in the class causes this function
     /// to be valid even if this == NULL.
            char* ptr() const                { return (char*)this; }
     /// Convert a C string previously returned by ptr() back to StringData*.
     static StringData* fromPtr(char* str)   { return (StringData*)str; }
     /// Access the ix-th character in the string. No range checking is made here.
            char& operator[](size_t ix)      { return ((char*)(this))[ix]; }
+    /// Check whether this instance is unique.
+    /// @return true if the \c StringData is referenced only once,
+    /// false if it is shared between different \c xstring instances.
+           bool  isUnique()                 { return Count == INT_PTR_ALIGNMENT; }
    public: // allocators, they are replaced in plug-in builds.
     // Note that the allocators must not be inlined because they are redirected for plug-ins.
     #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
@@ -153,6 +159,7 @@ struct xstring
   operator const char*() const              { return cdata(); }
   /// Return the i-th character.
   const char  operator[](size_t i) const    { ASSERT(i <= length()); return (*Data)[i]; } // Access to \0 terminator allowed
+
   /// Test for equality with another instance.
   bool        equals(const xstring& r) const;
   /// Test for equality with C style string.
@@ -203,6 +210,7 @@ struct xstring
   bool        endsWithI(const char* r) const { return endsWithI(r, strlen(r)); }
   bool        endsWithI(const char* r, size_t len) const;
   bool        endsWithI(char c) const       { return length() && tolower((*Data)[length()-1]) == tolower(c); }
+
   /// Swap two instances.
   void        swap(xstring& r)              { Data.swap(r.Data); }
   /// Swap two instances. Strongly thread-safe with respect to the right xstring.
@@ -247,6 +255,15 @@ struct xstring
   /// @brief Assign and return \c true if changed.
   /// @details \c *this is not assigned if the value is equal.
   bool        cmpassign(const xstring& r)   { return !equals(r) && (Data = r.Data, true); }
+  /// Atomically replace the string.
+  /// @param oldval Replace the string only if its value is still \a oldval.
+  /// @param newval New value to set.
+  /// @return true if the value has been changed from \a oldval to \a newval.
+  /// False if the comparison failed and the string is unchanged.
+  /// @remarks For the function to succeed is is essential that \a oldval points to the same instance
+  /// of the string value rather than only be semantically equal. This means in practice that
+  /// you only should pass strings to \a oldval that you have been retrieved from *this before.
+  bool        cmpassign(const xstring& oldval, const xstring& newval) volatile { return Data.cmpassign(oldval.Data, newval.Data); }
   /// Initialize to new string with defined length and undefined content.
   /// @return The return value points to the newly allocated content.
   /// The storage in the range [0,len) must not be modified after the current instance is either modified
@@ -288,6 +305,7 @@ struct xstring
   xstring&    vsprintf(const char* fmt, va_list va) { Data = sprintfcore(fmt, va); return *this; }
   /// vsprintf, well...
   void        vsprintf(const char* fmt, va_list va) volatile { Data = sprintfcore(fmt, va); }
+
   /// @brief Interface to C API.
   /// @details Detach the current content from the instance and return a pointer to a C style string.
   /// The reference to the content is kept active until it is placed back to a \c xstring object
@@ -295,11 +313,50 @@ struct xstring
   const char* toCstr()                      { return Data.toCptr()->ptr(); }
   /// @brief Assign the current instance from a C style string pointer, taking the ownership.
   /// @details This MUST be a pointer initially retrieved by \c toCstr().
-  void        fromCstr(const char* str)     { Data.fromCptr(StringData::fromPtr((char*)str)); }
-  /// @brief Assign the current instance from a C style string pointer, taking a reference copy.
+  xstring&    fromCstr(const char* str)     { Data.fromCptr(StringData::fromPtr((char*)str)); return *this; }
+  /*// @brief Assign the current instance from a C style string pointer, taking a reference copy.
   /// @details This MUST be a pointer initially retrieved by toCstr() and
   /// the pointer must be passed to \c fromCstr later for cleanup.
-  void        assignCstr(const char* str)   { StringData::fromPtr((char*)str); }
+  void        assignCstr(const char* str)   { StringData::fromPtr((char*)str); }*/
+
+  /// @brief Helper class to deduplicate identical strings in memory.
+  /// @details Deduplication saves memory. The price is a slight memory overhead
+  /// and less memory locality. So strings that are not likely to be twice in memory
+  /// should not be deduplicated. Furthermore small strings that are heavily copied
+  /// around by different threads should also not be deduplicated, because this
+  /// could slow down things by cache lines jumping from one CPU core to another.
+  /// @remarks The class is non-copyable.
+  class deduplicator
+  {private:
+    static btree_string Repository;
+    static Mutex Mtx;
+   private:
+    Mutex::Lock Lock;
+
+   public:
+    /// @brief Create a \c deduplicator instance.
+    /// @remarks This acquires a mutex. You should not hold the deduplicator instance
+    /// longer than required, and you should not acquire other mutexes
+    /// while the instance exists to prevent deadlocks.
+    deduplicator()                          : Lock(Mtx) {}
+    /// @brief Deduplicate a string.
+    /// @details This function never changes the value of \a target.
+    /// Instead it either replaces the value by a reference to the same value
+    /// in other instances of the same string or store the current value in the deduplication
+    /// repository for further use.
+    void      deduplicate(xstring& target);
+    /// @brief Deduplicate a volatile string.
+    /// @details This function never changes the value of \a target.
+    /// Instead it either replaces the value by a reference to the same value
+    /// in other instances of the same string or store the current value in the deduplication
+    /// repository for further use.
+    /// @note This implementation uses a CAS instruction to update target.
+    /// If the volatile string changed meanwhile, the deduplication does not take place.
+    void      deduplicate(volatile xstring& target);
+    /// @brief Remove unused strings from the repository.
+    /// This will clean up strings that are only used by the deduplication repository.
+    void      cleanup();
+  };
 };
 
 inline bool operator==(const xstring& l, const xstring& r)

@@ -126,7 +126,7 @@ T* inst_index<T,K,C>::RemoveWithKey(const T& elem, K& key)
   // instance to remove is really our own one.
   Mutex::Lock lock(Mtx);
   size_t pos;
-  if (Index.binary_search(key, pos))
+  if (Index.locate(key, pos))
   { //DEBUGLOG(("inst_index::~inst_index: found at %i - %p\n", pos, Index[pos]));
     if (Index[pos] == &elem)
       return Index.erase(pos);

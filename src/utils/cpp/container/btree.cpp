@@ -42,7 +42,7 @@ void*& btree_base::Leaf::insert(size_t pos)
   void** where = Content + pos;
   memmove(where + 1, where, (size() - pos) * sizeof *Content);
   ++Size;
-  return *where;
+  return *where = NULL;
 }
 
 void*& btree_base::Node::insert(size_t pos)
@@ -273,31 +273,50 @@ void btree_base::Node::join(Node& src)
   }
 }
 
-void btree_base::Leaf::destroy(void (*cleanup)(void*))
-{ DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::destroy(%p)\n", this, Parent, ParentPos, isLeaf(), size(), cleanup));
-  if (cleanup)
-  { void** pp = Content;
-    void** ppe = pp + size();
-    while (pp != ppe)
-      cleanup(*pp++);
-  }
+btree_base::Leaf* btree_base::Leaf::clone(Node* parent) const
+{ Leaf* ret;
   // polymorphic call
   if (!isLeaf())
-  { ((Node*)this)->destroy(cleanup);
-    delete (Node*)this;
-  } else
+    ret = ((Node*)this)->clone();
+  else
+    ret = new Leaf(Size);
+  ret->Parent = parent;
+  ret->ParentPos = ParentPos;
+  memcpy(ret->Content, Content, size() * sizeof *Content);
+  return ret;
+}
+
+btree_base::Node* btree_base::Node::clone() const
+{ Node* ret = new Node(Size);
+  Leaf*const* src = SubNodes;
+  Leaf** dst = ret->SubNodes;
+  Leaf*const* end = dst + Size;
+  do
+  { *dst = (*src)->clone(ret);
+    ++src;
+  } while (dst++ != end);
+  return ret;
+}
+
+void btree_base::Leaf::destroy()
+{ DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::destroy()\n", this, Parent, ParentPos, isLeaf(), size()));
+  // polymorphic call
+  if (!isLeaf())
+    ((Node*)this)->destroy();
+  else
     delete this;
 }
 
-void btree_base::Node::destroy(void (*cleanup)(void*))
-{ DEBUGLOG2(("btree_base::Node(%p{%p,%u, %u})::destroy(%p)\n", this, Parent, ParentPos, Size, cleanup));
+void btree_base::Node::destroy()
+{ DEBUGLOG2(("btree_base::Node(%p{%p,%u, %u})::destroy()\n", this, Parent, ParentPos, Size));
   // destroy children
   Leaf** lp = SubNodes;
   Leaf** lpe = lp + Size;
   do
-    (*lp)->destroy(cleanup);
+    (*lp)->destroy();
   while (lp++ != lpe);
-  //Leaf::destroy(cleanup);
+  //Leaf::destroy();
+  delete this;
 }
 
 #ifdef DEBUG
@@ -336,38 +355,6 @@ void btree_base::Node::check() const
   }
 }
 #endif
-
-/*btree_base::Link btree_base::Link::split(size_t count)
-{ ASSERT(!!*this);
-  Leaf* leaf(asLeaf());
-  if (isLeaf())
-  { Leaf* newleaf = new Leaf();
-    newleaf->Size = count;
-    leaf->split(*newleaf);
-    leaf->Parent->SubNodes[newleaf->ParentPos] = newleaf;
-    return newleaf;
-  } else
-  { Node* newnode = new Node();
-    newnode->Size = count;
-    asNode()->split(*newnode);
-    leaf->Parent->SubNodes[newnode->ParentPos] = newnode;
-    return newnode;
-  }
-}
-
-void btree_base::Link::join(Link src)
-{ if (isLeaf())
-  { ASSERT(src.isLeaf());
-    Leaf* leaf = src.asLeaf();
-    asLeaf()->join(*leaf);
-    delete leaf;
-  } else
-  { ASSERT(src.isNode());
-    Node* node = src.asNode();
-    asNode()->join(*node);
-    delete node;
-  }
-}*/
 
 /* Class btree_base::iterator */
 
@@ -427,6 +414,7 @@ void btree_base::iterator::prev()
   --Pos;
 }
 
+/* class btree_base */
 
 void btree_base::rebalanceOrSplit(iterator& where)
 { Leaf* leaf = where.Ptr;
@@ -587,6 +575,30 @@ btree_base::iterator btree_base::begin() const
   return iterator(leftmost, 0);
 }
 
+bool btree_base::locate(const void* key, iterator& where) const
+{ DEBUGLOG2(("btree_base(%p{%p})::find(%p,)\n", this, Root, key));
+  where.Ptr = Root;
+  if (!where.Ptr)
+  { where.Pos = 0;
+    return false;
+  }
+  while (true)
+  { // locate key within *result.where.Ptr
+    if (binary_search(key, where.Pos, where.Ptr->Content, where.Ptr->size(), Comparer))
+      return true;
+    if (where.Ptr->isLeaf())
+      return false;
+    where.Ptr = ((Node*)where.Ptr)->SubNodes[where.Pos];
+  }
+}
+
+void btree_base::clear()
+{ if (Root)
+  { Root->destroy();
+    Root = NULL;
+  }
+}
+
 void*& btree_base::insert(iterator& where)
 { DEBUGLOG2(("btree_base(%p{%p})::insert(&{%p,%u})\n", this, Root, where.Ptr, where.Pos));
   if (!where.Ptr)
@@ -611,20 +623,6 @@ void*& btree_base::insert(iterator& where)
   }
   ASSERT(where.Ptr->isLeaf());
   return where.Ptr->insert(where.Pos);
-}
-
-btree_base::findresult btree_base::find(void* key, int (*cmp)(void* key, void* elem)) const
-{ DEBUGLOG2(("btree_base(%p{%p})::find(%p,)\n", this, Root, key));
-  btree_base::findresult result(iterator(Root, 0));
-  if (!!result.where.Ptr)
-    while (true)
-    { // locate key within *result.where.Ptr
-      result.match = binary_search(key, result.where.Pos, result.where.Ptr->Content, result.where.Ptr->size(), cmp);
-      if (result.match || result.where.Ptr->isLeaf())
-        break;
-      result.where.Ptr = ((Node*)result.where.Ptr)->SubNodes[result.where.Pos];
-    }
-  return result;
 }
 
 void* btree_base::erase(iterator& where)
@@ -676,4 +674,9 @@ void* btree_base::erase(iterator& where)
     where.next();
  done:
   return delvalue;
+}
+
+
+int btree_string::Compare(const void* key, const void* elem)
+{ return xstring::compare(*(xstring*)&key, *(xstring*)&elem);
 }

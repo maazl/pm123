@@ -31,6 +31,7 @@
 
 #include <cpp/smartptr.h>
 #include <cpp/container/sorted_vector.h> // for sort_comparer
+#include <cpp/xstring.h>
 #include <limits.h>
 #include <debuglog.h>
 
@@ -38,8 +39,10 @@
 /** @brief Non-generic base implementation of a binary tree.
  * @details The class stores only untyped reference type objects.
  * All mutating functions invalidate all iterators except for the ones
- * passed by reference or returned by the function.
- * @remarks In general you should prefer the strongly typed version \c \see btree<>.
+ * passed by reference or returned by the function. The container
+ * does not take any ownership of the elements inside.
+ * Look at \c \see btree_own&lt;&gt; or \c \see btree_int&lt;&gt; for this purpose.
+ * @remarks In general you should prefer the strongly typed version \c \see btree&lt;&gt;.
  * @note The implementation uses a rather small memory footprint.
  * Amortized you have a total size of approximately 48 bits per entry.
  * This consists of 32 bits for the pointer, about 4 bits for the tree structure
@@ -52,43 +55,6 @@ class btree_base
   enum { BTREE_NODE_SIZE = 32 };
 
  private:
-  /*struct Leaf;
-  struct Node;
-  /// @brief Polymorphic link to a \c Node or a \c Leaf.
-  /// @remarks Instead of making the referred object runtime polymorphic
-  /// the class uses an unused bit in the pointer to distinguish the types.
-  struct Link
-  {private:
-    Leaf*           Ptr;
-   public:
-    bool            operator!() const               { return Ptr == NULL; }
-    bool            isLeaf() const                  { return (unsigned)Ptr & 1; }
-    bool            isNode() const                  { return Ptr && !((unsigned)Ptr & 1); }
-    Leaf*           asLeaf() const                  { ASSERT(Ptr); return (Leaf*)((unsigned)Ptr & ~1); }
-    Node*           asNode() const                  { ASSERT(isNode()); return (Node*)Ptr; }
-    void            reset()                         { Ptr = NULL; }
-    void            operator=(Leaf* leaf)           { Ptr = (Leaf*)((unsigned)leaf|1); }
-    void            operator=(Node* node)           { Ptr = node; }
-                    Link()                          {}
-                    Link(Leaf* leaf)                { *this = leaf; }
-                    Link(Node* node)                { *this = node; }
-    //size_t          count() const                   { return !Data.Ptr ? 0 : Data.Type.IsLeaf ? Data.Ptr->Size : ((Node*)Data.Ptr)->Count; }
-    friend bool     operator==(Link l, Link r)      { return l.Ptr == r.Ptr; }
-    friend bool     operator!=(Link l, Link r)      { return l.Ptr != r.Ptr; }
-
-   public: // polymorphic forwarders
-    inline void     rebalanceR2L(Link src, size_t count);
-    inline void     rebalanceL2R(Link dst, size_t count);
-    Link            split(size_t count);
-    void            join(Link src);
-    inline void     destroy(void (*cleanup)(void*));
-    #ifdef DEBUG
-    void            check() const;
-    #endif
-    #ifdef DEBUG_LOG
-    void*           raw() const                     { return Ptr; }
-    #endif
-  };*/
   struct Node;
   struct Leaf
   { Node*           Parent;                         ///< Link to the node that contains this one or \c NULL in case of the root.
@@ -97,6 +63,9 @@ class btree_base
     size_t          Size;                           ///< Number of used entries in this node.
    public:
     void*           Content[BTREE_NODE_SIZE];       ///< Entries
+   private: // non-copyable
+                    Leaf(const Leaf&);
+    void            operator=(const Leaf&);
    protected:
                     Leaf()                          {}
    public:
@@ -119,7 +88,10 @@ class btree_base
     Leaf*           split(size_t count);
     /// Join two siblings.
     void            join(Leaf& src);
-    void            destroy(void (*cleanup)(void*));
+    /// Clone this node.
+    Leaf*           clone(Node* parent) const;
+    /// Destroy this node.
+    void            destroy();
     #ifdef DEBUG
     void            check() const;
     #endif
@@ -147,19 +119,25 @@ class btree_base
     void            split(Node& dst);
     /// Join two siblings.
     void            join(Node& src);
-    void            destroy(void (*cleanup)(void*));
+    /// Clone this node.
+    Node*           clone() const;
+    /// Destroy this node.
+    void            destroy();
     #ifdef DEBUG
     void            check() const;
     #endif
   };
  public:
+  /// Iterator to enumerate the content of the container or to perform partial scans.
   class iterator
   { friend class btree_base;
    private:
     Leaf*           Ptr;
     size_t          Pos;
    protected:
+                    iterator()                      {}
                     iterator(Leaf* link, size_t pos) : Ptr(link), Pos(pos) {}
+    void*&          get() const                     { return Ptr->Content[Pos]; }
    public:
     /// Advance to the next key.
     /// @pre \c !isend()
@@ -191,14 +169,10 @@ class btree_base
     /// Compare two iterators for inequality.
     friend bool     operator!=(iterator l, iterator r) { return l.Ptr != r.Ptr || l.Pos != r.Pos; }
   };
-  struct findresult
-  { iterator        where;
-    bool            match;
-                    findresult(iterator where)      : where(where), match(false) {}
-  };
 
  private:
   Leaf*             Root;
+  int               (*const Comparer)(const void* key, const void* elem);
 
  private:
   void              rebalanceOrSplit(iterator& where);
@@ -215,29 +189,59 @@ class btree_base
   /// and should not be exposed public.
   void*&            insert(iterator& where);
  public:
-                    btree_base()                    : Root(NULL) {}
-  // Copy constructor.
-  //btree(const btree<T,K,C>& r);
+  /// Create empty btree.
+                    btree_base(int (*cmp)(const void* key, const void* elem)) : Root(NULL), Comparer(cmp) {}
+  /// Copy constructor. O(n)
+                    btree_base(const btree_base& r) : Root(r.Root ? r.Root->clone(NULL) : NULL), Comparer(r.Comparer) {}
+  /// Swap two instances. O(1)
   void              swap(btree_base& r)             { ::swap(Root, r.Root); }
-  //iterator          at(size_t where) const;
-  //void*&            operator[](size_t where) const { return at(where); }
+  /// Assignment. O(n)
+  btree_base&       operator=(const btree_base& r);
+  /// Iterator to the start of the collection. O(log n)
   iterator          begin() const;
+  /// Iterator to the end of the collection. O(1)
   iterator          end() const                     { return iterator(Root, !!Root ? Root->size() : 0); }
+  /// Check whether the collection has no elements. O(1)
   bool              empty() const                   { return !Root; }
-  /*// @brief Return the number of elements in the container.
-  /// @details This is not equal to the storage capacity.
-  size_t            size() const                    { return Root.count(); }*/
-  findresult        find(void* key, int (*cmp)(void* key, void* elem)) const;
-  findresult        insert(void* key, int (*cmp)(void* key, void* elem));
-  /// Remove all elements
-  void              clear()                         { Root->destroy(NULL); }
-  /// @brief Removes an element from the tree.
+  /// @brief Locate an element in the container. O(log n)
+  /// @param key Key of the element to locate.
+  /// @param where [out] The location of the first element >= key is always returned in the output parameter \a where.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The function could be used as upper/lower bound also if the comparer never returns equal.
+  /// @return The function returns a flag whether you got an exact match or not.
+  bool              locate(const void* key, iterator& where) const;
+  /// @brief Find an element by it's key. O(log n)
+  /// @return The function will return \c NULL if no such element is in the container.
+  void*             find(const void* key) const;
+  /// @brief Ensure an element with a particular key. O(log n)
+  /// @param key Key of the new element.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The container can store multiple elements with the same key, if the comparer never returns equal.
+  /// @return This will either return a reference to a pointer to an existing object which equals \a key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
+  /// to \c btree_base functions have undefined behavior. It is also an error not to assign
+  /// a element if the function returned a reference to NULL.
+  void*&            get(const void* key);
+  /// Remove all elements.
+  void              clear();
+  /// @brief Removes an element from the tree. O(log n)
   /// @param where The \a where pointer is set to the next item after the removed one.
   /// @pre \a where &isin; [begin(),end())
-  /// @details Performance: O(log(n))
   void*             erase(iterator& where);
-  void*             erase(void* key, int (*cmp)(void* key, void* elem));
+  /// Erase an element with a given key. O(log n)
+  /// @param key Key of the element to erase.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// @return Element that just have been removed or \c NULL if no element matches \a key.
+  void*             erase(const void* key);
+  /// Destroy container
+  /// @remarks This will will free the tree structure but not the elements referenced by the content.
                     ~btree_base()                   { clear(); }
+  /// Check container for integrity. (Debug builds only.)
   #ifdef DEBUG
   void              check() const                   { if (Root) { ASSERT(Root->Parent == NULL); Root->check(); } }
   #else
@@ -245,94 +249,283 @@ class btree_base
   #endif
 };
 
+inline btree_base& btree_base::operator=(const btree_base& r)
+{ clear();
+  Root = r.Root ? r.Root->clone(NULL) : NULL;
+  return *this;
+}
+
+inline void* btree_base::find(const void* key) const
+{ iterator where;
+  if (!locate(key, where))
+    return NULL;
+  else
+    return *where;
+}
+
+inline void*& btree_base::get(const void* key)
+{ iterator where;
+  if (!locate(key, where))
+    return insert(where);
+  else
+    return where.Ptr->Content[where.Pos];
+}
+
+inline void* btree_base::erase(const void* key)
+{ iterator where;
+  if (!locate(key, where))
+    return NULL;
+  else
+    return erase(where);
+}
+
+
+/** @brief Strongly typed binary tree.
+ * @details The class stores only typed reference objects of type \a T.
+ * All mutating functions invalidate all iterators except for the ones
+ * passed by reference or returned by the function. The container
+ * does not take any ownership of the elements inside.
+ * Look at \c \see btree_own&lt;&gt; or \c \see btree_int&lt;&gt; for this purpose.
+ * @tparam T Element type in the container.
+ * @tparam K Key type of the elements. This is the same than \a T if the container is used as a set,
+ * and a distinct type if the container stores elements with an intrinsic key.
+ * @tparam C Comparer used to compare keys against elements.
+ * @remarks The class does not know how to extract a key from an element.
+ * It is up to the (asymmetric) comparer to handle this.
+ */
 template <class T, class K, sort_comparer>
 class btree : btree_base
 {public:
+  /// Iterator to enumerate the content of the container or to perform partial scans.
+  /// @note Instances of this class are never created. Instead they are simply casted
+  /// by a reinterpret_cast from \c btree_base::iterator which is in fact binary the same.
+  /// The class exists only for type safety in \c operator*.
   class iterator : public btree_base::iterator
   {public:
-    iterator&       operator++()                    { next(); return *this; }
-    iterator&       operator--()                    { prev(); return *this; }
-    friend bool     operator==(iterator l, iterator r) { return l.Ptr == r.Ptr && l.Pos == r.Pos; }
-    friend bool     operator!=(iterator l, iterator r) { return l.Ptr != r.Ptr || l.Pos != r.Pos; }
+    /// Advance to the next key.
+    /// @pre \c !isend()
+    const iterator& operator++()                    { next(); return *this; }
+    /// Go back to the previous key.
+    /// @pre \c !isbegin()
+    const iterator& operator--()                    { prev(); return *this; }
+    /// Return the data where the current iterator points to.
+    /// @pre \c !isend()
+    T*              operator*() const               { return (T*)btree_base::iterator::operator*(); }
+   private:
+    iterator();
   };
  public:
-  // Copy constructor.
-  btree(const btree<T,K,C>& r);
-  void              swap(vector<T>& r)             { vector_base::swap(r); }
-  //T*                at(size_t where) const         { ASSERT(where < Size); return Data[where]; }
-  //T*                operator[](size_t where) const { return (T*)at(where); }
-  //iterator          begin() const                  { return (T*const*)vector_base::begin(); }
-  //iterator          end() const                    { return !Root iterator(); }
-  /// Find an element by it's key.
-  /// The function will return NULL if no such element is in the container.
-  /// Performance: O(log(n))
-  T*                find(const K& key) const;
-  /// Ensure an element with a particular key.
-  /// This will either return a reference to a pointer to an existing object which equals key
-  /// or a reference to a NULL pointer which is automatically created at the location in the container
-  /// where a new object with key should be inserted. So you can store the Pointer to this object after the function returned.
-  /// Performance: O(log(n))
-  T*&               get(const K& key);
-  /// Erase the element which equals key and return the removed pointer.
-  /// If no such element exists the function returns NULL.
-  /// Performance: O(log(n))
-  T*                erase(const K& key);
+                    btree()                         : btree_base((int (*)(const void*, const void*))C) {}
+  /// Swap two instances. O(1)
+  void              swap(btree<T,K,C>& r)           { btree_base::swap(r); }
+  /// Iterator to the start of the collection. O(log n)
+  iterator          begin() const                   { return (iterator)btree_base::begin(); }
+  /// Iterator to the end of the collection. O(1)
+  iterator          end() const                     { return (iterator)btree_base::end(); }
+  /// @brief Locate an element in the container. O(log n)
+  /// @param key Key of the element to locate.
+  /// @param where [out] The index of the first element >= key is always returned in the output parameter \a where.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The function could be used as upper/lower bound also if the comparer never returns equal.
+  /// @return The function returns a flag whether you got an exact match or not.
+  bool              locate(void* key, iterator& where) const { return btree_base::locate(key, (btree_base::iterator&)where); }
+  /// @brief Find an element by it's key. O(log n)
+  /// @return The function will return \c NULL if no such element is in the container.
+  T*                find(const K& key) const        { return (T*)btree_base::find(&key); }
+  /// @brief Ensure an element with a particular key. O(log n)
+  /// @param key Key of the new element.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The container can store multiple elements with the same key, if the comparer never returns equal.
+  /// @return This will either return a reference to a pointer to an existing object which equals \a key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
+  /// to \c btree_base functions have undefined behavior. It is also an error not to assign
+  /// a element if the function returned a reference to NULL.
+  T*&               get(const K& key)               { return (T*&)btree_base::get(&key); }
+  /// @brief Removes an element from the tree. O(log(n))
+  /// @param where The \a where pointer is set to the next item after the removed one.
+  /// @pre \a where &isin; [begin(),end())
+  T*                erase(iterator& where)          { return (T*)btree_base::erase((btree_base::iterator&)where); }
+  /// Erase an element with a given key. O(log(n))
+  /// @param key Key of the element to erase.
+  /// @return Element that just have been removed or \c NULL if no element matches \a key.
+  T*                erase(const K& key)             { return (T*)btree_base::erase(&key); }
 };
 
 
-/*inline void btree_base::Link::rebalanceR2L(Link src, size_t count)
-{ if (isLeaf())
-  { ASSERT(src.isLeaf());
-    asLeaf()->rebalanceR2L(*src.asLeaf(), count);
-  } else
-  { ASSERT(src.isNode());
-    asNode()->rebalanceR2L(*src.asNode(), count);
-  }
+template <class T, class K, sort_comparer>
+class btree_own : public btree<T,K,C>
+{private: // non-copyable
+  btree_own(const btree_own<T,K,C>&);
+  void operator=(const btree_own<T,K,C>&);
+ public:
+                    btree_own()                     {}
+  /// Remove and delete all elements.
+  void              clear();
+                    ~btree_own()                    { clear(); }
+};
+
+template <class T, class K, sort_comparer>
+void btree_own<T,K,C>::clear()
+{ typename btree_own<T,K,C>::iterator where(begin());
+  while (!where.isend())
+    delete *where;
+  btree<T,K,C>::clear();
 }
 
-inline void btree_base::Link::rebalanceL2R(Link dst, size_t count)
-{ if (isLeaf())
-  { ASSERT(dst.isLeaf());
-    asLeaf()->rebalanceL2R(*dst.asLeaf(), count);
-  } else
-  { ASSERT(dst.isNode());
-    asNode()->rebalanceL2R(*dst.asNode(), count);
-  }
+
+template <class T, class K, sort_comparer>
+class btree_int : public btree_base
+{public:
+  /// Iterator to enumerate the content of the container or to perform partial scans.
+  /// @note Instances of this class are never created. Instead they are simply casted
+  /// by a reinterpret_cast from \c btree_base::iterator which is in fact binary the same.
+  /// The class exists only for type safety in \c operator*.
+  class iterator : public btree_base::iterator
+  {public:
+    /// Advance to the next key.
+    /// @pre \c !isend()
+    const iterator& operator++()                    { next(); return *this; }
+    /// Go back to the previous key.
+    /// @pre \c !isbegin()
+    const iterator& operator--()                    { prev(); return *this; }
+    /// Return the data where the current iterator points to.
+    /// @pre \c !isend()
+    T*              operator*() const               { return (T*)btree_base::iterator::operator*(); }
+   private:
+    iterator();
+  };
+ public:
+                    btree_int()                     : btree_base((int (*)(const void*, const void*))C) {}
+  /// Swap two instances. O(1)
+  void              swap(btree_int<T,K,C>& r)       { btree_base::swap(r); }
+  /// Iterator to the start of the collection. O(log n)
+  iterator          begin() const                   { return (iterator)btree_base::begin(); }
+  /// Iterator to the end of the collection. O(1)
+  iterator          end() const                     { return (iterator)btree_base::end(); }
+  /// @brief Locate an element in the container. O(log n)
+  /// @param key Key of the element to locate.
+  /// @param where [out] The index of the first element >= key is always returned in the output parameter \a where.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The function could be used as upper/lower bound also if the comparer never returns equal.
+  /// @return The function returns a flag whether you got an exact match or not.
+  bool              locate(void* key, iterator& where) const { return btree_base::locate(key, (btree_base::iterator&)where); }
+  /// @brief Find an element by it's key. O(log n)
+  /// @return The function will return \c NULL if no such element is in the container.
+  T*                find(const K& key) const        { return (T*)btree_base::find(&key); }
+  /// @brief Ensure an element with a particular key. O(log n)
+  /// @param key Key of the new element.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The container can store multiple elements with the same key, if the comparer never returns equal.
+  /// @return This will either return a reference to a pointer to an existing object which equals \a key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
+  /// to \c btree_base functions have undefined behavior. It is also an error not to assign
+  /// a element if the function returned a reference to NULL.
+  int_ptr<T>&       get(const K& key)               { return (int_ptr<T>&)btree_base::get(&key); }
+  /// @brief Removes an element from the tree. O(log(n))
+  /// @param where The \a where pointer is set to the next item after the removed one.
+  /// @pre \a where &isin; [begin(),end())
+  int_ptr<T>        erase(iterator& where)          { return int_ptr<T>().fromCptr((T*)btree_base::erase((btree_base::iterator&)where)); }
+  /// Erase an element with a given key. O(log(n))
+  /// @param key Key of the element to erase.
+  /// @return Element that just have been removed or \c NULL if no element matches \a key.
+  int_ptr<T>        erase(const K& key)             { return int_ptr<T>().fromCptr((T*)btree_base::erase(&key)); }
+  /// Remove and delete all elements.
+  void              clear();
+                    ~btree_int()                    { clear(); }
+};
+
+template <class T, class K, sort_comparer>
+void btree_int<T,K,C>::clear()
+{ typename btree_int<T,K,C>::iterator where(begin());
+  int_ptr<T> ptr;
+  while (!where.isend())
+    ptr.fromCptr(*where);
+  btree_base::clear();
 }
 
-inline void btree_base::Link::destroy(void (*cleanup)(void*))
-{ if (isLeaf())
-    asLeaf()->destroy(cleanup);
-  else if (isNode())
-    asNode()->destroy(cleanup);
-}*/
 
+class btree_string : public btree_base
+{public:
+  /// Iterator to enumerate the content of the container or to perform partial scans.
+  class iterator : public btree_base::iterator
+  { friend class btree_string;
+   private:
+    iterator();
+    iterator(const btree_base::iterator& r)         : btree_base::iterator(r) {}
+   public:
+    /// Advance to the next key.
+    /// @pre \c !isend()
+    const iterator& operator++()                    { next(); return *this; }
+    /// Go back to the previous key.
+    /// @pre \c !isbegin()
+    const iterator& operator--()                    { prev(); return *this; }
+    /// Return the data where the current iterator points to.
+    /// @pre \c !isend()
+    const xstring&  operator*() const               { return (xstring&)btree_base::iterator::get(); }
+    /// Access the data where the current iterator points to.
+    /// @pre \c !isend()
+    const xstring*  operator->() const              { return &(xstring&)btree_base::iterator::get(); }
+  };
 
-inline btree_base::findresult btree_base::insert(void* key, int (*cmp)(void* key, void* elem))
-{ findresult result(find(key, cmp));
-  if (!result.match)
-    insert(result.where) = key;
+ private:
+  static int        Compare(const void* key, const void* elem);
+ public:
+                    btree_string()                  : btree_base(&btree_string::Compare) {}
+  /// Swap two instances. O(1)
+  void              swap(btree_string& r)           { btree_base::swap(r); }
+  /// Iterator to the start of the collection. O(log n)
+  iterator          begin() const                   { return (iterator)btree_base::begin(); }
+  /// Iterator to the end of the collection. O(1)
+  iterator          end() const                     { return (iterator)btree_base::end(); }
+  /// @brief Locate an element in the container. O(log n)
+  /// @param key Key of the element to locate.
+  /// @param where [out] The index of the first element >= key is always returned in the output parameter \a where.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The function could be used as upper/lower bound also if the comparer never returns equal.
+  /// @return The function returns a flag whether you got an exact match or not.
+  bool              locate(const xstring& key, iterator& where) const { return btree_base::locate((const void*)key, (btree_base::iterator&)where); }
+  /// @brief Find an element by it's key. O(log n)
+  /// @return The function will return \c NULL if no such element is in the container.
+  xstring           find(const xstring& key) const;
+  /// @brief Ensure an element with a particular key. O(log n)
+  /// @param key Key of the new element.
+  /// @param cmp Comparer to be used to compare the key against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The container can store multiple elements with the same key, if the comparer never returns equal.
+  /// @return This will either return a reference to a pointer to an existing object which equals \a key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
+  /// to \c btree_base functions have undefined behavior. It is also an error not to assign
+  /// a element if the function returned a reference to NULL.
+  xstring&          get(const xstring& key)         { return (xstring&)btree_base::get((const void*)key); }
+  /// @brief Removes an element from the tree. O(log(n))
+  /// @param where The \a where pointer is set to the next item after the removed one.
+  /// @pre \a where &isin; [begin(),end())
+  xstring           erase(iterator& where)          { return xstring().fromCstr((const char*)btree_base::erase((btree_base::iterator&)where)); }
+  /// Erase an element with a given key. O(log(n))
+  /// @param key Key of the element to erase.
+  /// @return Element that just have been removed or \c NULL if no element matches \a key.
+  xstring           erase(const xstring& key)       { return xstring().fromCstr((const char*)btree_base::erase((void*)key.cdata())); }
+};
+
+inline xstring btree_string::find(const xstring& key) const
+{ iterator where;
+  if (!locate(key, where))
+    return xstring();
   else
-    result.where.Ptr->Content[result.where.Pos] = key;
-  return result;
+    return *where;
 }
 
-inline void* btree_base::erase(void* key, int (*cmp)(void* key, void* elem))
-{ findresult result(find(key, cmp));
-  if (result.match)
-    return erase(result.where);
-  else
-    return NULL;
-}
 
-/*#ifdef DEBUG
-inline void btree_base::Link::check() const
-{ if (isLeaf())
-    asLeaf()->check();
-  else if (isNode())
-    asNode()->check();
-}
-
-#endif*/
 
 #endif

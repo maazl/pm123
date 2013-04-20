@@ -58,25 +58,24 @@ class sorted_vector : public vector<T>
   sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
   /// Copy constructor, O(n).
   sorted_vector(const sorted_vector<T,K,C>& r, size_t spare = 0) : vector<T>(r, spare) {}
-  /// @brief Search for a given key.
-  /// @return The function returns an index whether you got an exact match or not.
-  /// The index of the first element >= key is always returned in the output parameter pos.
-  /// @details Complexity: O(log(n))
-  bool               binary_search(const K& key, size_t& pos) const
+  /// @brief Search for a given key. O(log n)
+  /// @return The function returns a flag whether you got an exact match or not.
+  /// @param pos [out] The index of the first element >= key is always returned in the output parameter \a pos.
+  bool               locate(const K& key, size_t& pos) const
                      { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
-  /// @brief Find an element by it's key.
+  /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
-  /// @details Complexity: O(log(n))
   T*                 find(const K& key) const;
-  /// @brief Ensure an element with a particular key.
+  /// @brief Ensure an element with a particular key. O(n)
   /// @return This will either return a reference to a pointer to an existing object which equals \a key
   /// or a reference to a \c NULL pointer which is automatically created at the location in the container
   /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
-  /// @details Complexity: O(log(n))
+  /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
+  /// to \c btree_base functions have undefined behavior. It is also an error not to assign
+  /// a element if the function returned a reference to NULL.
   T*&                get(const K& key);
-  /// Erase the element which equals key and return the removed pointer.
-  /// If no such element exists the function returns NULL.
-  /// @details Complexity: O(log(n))
+  /// Erase the element which equals key and return the removed pointer. O(n)
+  /// @return If no such element exists the function returns NULL.
   T*                 erase(const K& key);
   // IBM VAC++ can't parse using...
   T*                 erase(T*const*& where)         { return vector<T>::erase(where); }
@@ -88,19 +87,19 @@ class sorted_vector : public vector<T>
 template <class T, class K, sort_comparer>
 inline T* sorted_vector<T,K,C>::find(const K& key) const
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : NULL;
+  return locate(key, pos) ? (*this)[pos] : NULL;
 }
 
 template <class T, class K, sort_comparer>
 inline T*& sorted_vector<T,K,C>::get(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : (vector<T>::insert(pos) = NULL);
+  return locate(key, pos) ? (*this)[pos] : (vector<T>::insert(pos) = NULL);
 }
 
 template <class T, class K, sort_comparer>
 inline T* sorted_vector<T,K,C>::erase(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
+  return locate(key, pos) ? vector<T>::erase(pos) : NULL;
 }
 
 
@@ -153,7 +152,7 @@ class sorted_vector_int : public vector_int<T>
   // The function returns whether you got an exact match or not.
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
-  bool               binary_search(const K& key, size_t& pos) const
+  bool               locate(const K& key, size_t& pos) const
                      { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
@@ -178,20 +177,20 @@ class sorted_vector_int : public vector_int<T>
 template <class T, class K, sort_comparer>
 inline int_ptr<T> sorted_vector_int<T,K,C>::find(const K& key) const
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : NULL;
+  return locate(key, pos) ? (*this)[pos] : NULL;
 }
 
 template <class T, class K, sort_comparer>
 inline int_ptr<T>& sorted_vector_int<T,K,C>::get(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? (*this)[pos] : vector_int<T>::insert(pos);
+  return locate(key, pos) ? (*this)[pos] : vector_int<T>::insert(pos);
 }
 
 template <class T, class K, sort_comparer>
 int_ptr<T> sorted_vector_int<T,K,C>::erase(const K& key)
 { size_t pos;
   int_ptr<T> ret;
-  if (binary_search(key, pos))
+  if (locate(key, pos))
     ret = vector_int<T>::erase(pos);
   return ret;
 }

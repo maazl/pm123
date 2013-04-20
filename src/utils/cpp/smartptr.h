@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 Marcel Müller
+ * Copyright 2007-2013 Marcel Müller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -101,16 +101,14 @@ inline void sco_ptr<T>::swap(sco_ptr<T>& r)
 template <class T> class int_ptr;
 /* Interface to make a class reference countable */
 class Iref_count
-{ 
+{private:
+  volatile unsigned Count;
+  // This function is the interface to int_ptr<T>
+  volatile unsigned& access_counter()   { return Count; }
   #ifndef __WATCOMC__
   template <class T>
   #endif
   friend class int_ptr;
-  //  template <class T> friend class int_ptr;
- private:
-  volatile unsigned Count;
-  // This function is the interface to int_ptr<T>
-  volatile unsigned& access_counter()   { return Count; }
  private: // non-copyable
   Iref_count(const Iref_count&);
   void operator=(const Iref_count&);
@@ -120,14 +118,16 @@ class Iref_count
   Iref_count(unsigned count) : Count(count<<INT_PTR_STOLEN_BITS) {}
   ~Iref_count() {} // You must not call the non-virtual destructor directly.
  public:
-  // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
-  // you can safely assume that it is your's, unless you pass the reference explicitly or implicitly
-  // to another thread or int_ptr instance.
-  bool RefCountIsUnique() const         { return (Count & ~INT_PTR_ALIGNMENT) == 0; }
-  // Checks whether the object is not under control of a int_ptr.
-  // This is the case when the object is just constructed and not yet assigned to an int_ptr instance or
-  // if the object is about to be deleted. You should be able to distinguish thes two cases
-  // from the context of the call. Be very careful in multi-threaded environments.
+  /// @brief Checks whether the object is currently unique.
+  /// @details If you currently hold an int_ptr with the object you can safely assume
+  /// that it is your's, unless you pass the reference explicitly or implicitly
+  /// to another thread or shared \c int_ptr instance.
+  bool RefCountIsUnique() const         { return Count == INT_PTR_ALIGNMENT; }
+  /// @brief Checks whether the object is not under control of a int_ptr.
+  /// @details This is the case when the object is just constructed and not yet assigned
+  /// to an int_ptr instance or if the object is about to be deleted.
+  /// You should be able to distinguish the two cases from the context of the call.
+  /// @note Be very careful in multi-threaded environments.
   bool RefCountIsUnmanaged() const      { return Count == 0; }
 
 #if INT_PTR_ALIGNMENT > CLIB_ALIGNMENT
@@ -171,7 +171,7 @@ class IVref_count : public Iref_count
  * All objects of type T must implement a function called access_counter() that
  * provides access to the reference counter. The easiest way to do so is to derive
  * from Iref_count.
- * Note that all objects of type T MUST be aligned to INT_PTR_ALIGNMENT in memory!
+ * @note Note that all objects of type T MUST be aligned to INT_PTR_ALIGNMENT in memory!
  */
 template <class T>
 class int_ptr
@@ -211,6 +211,17 @@ class int_ptr
   void        reset();
   /// reset the current instance to NULL, strongly thread-safe.
   void        reset() volatile;
+  /// @brief Atomic copmare and swap.
+  /// @details replaces the current value of this instance by  \a newval
+  /// if and only if the current value equals \a oldval.
+  /// @param oldval Old object to be replaced.
+  /// @param newval New object to be assigned.
+  /// @return Returns true if the swap has been done, i.e. the value changed from
+  /// \a oldval to \a newval. Otherwise if the current value is no longer \a oldval
+  /// nothing is changed and the return value is false.
+  /// @remarks The pointers \a oldval and \a newval must be valid before and after the call,
+  /// regardless of the result. I.e. you must hold strong references to both values.
+  bool        cmpassign(T* oldval, T* newval) volatile;
   // Basic operators
   T*          get()         const       { return Data; }
               operator T*() const       { return Data; }
@@ -227,9 +238,6 @@ class int_ptr
   void        operator=(int_ptr<T>& r) volatile; // Helper to disambiguate calls.
   void        operator=(const int_ptr<T>& r) volatile;
   void        operator=(volatile const int_ptr<T>& r) volatile;
-  /*// equality
-  friend bool operator==(const int_ptr<T>& l, const int_ptr& r);
-  friend bool operator!=(const int_ptr<T>& l, const int_ptr& r);*/
   // manual resource management for adaption of C libraries.
   T*          toCptr()                  { T* ret = Data; Data = NULL; return ret; }
   T*          toCptr() volatile;
@@ -355,6 +363,17 @@ inline void int_ptr<T>::reset()
 template <class T>
 inline void int_ptr<T>::reset() volatile
 { release((T*)InterlockedXch((volatile unsigned*)&Data, 0));
+}
+
+template <class T>
+bool int_ptr<T>::cmpassign(T* oldval, T* newval) volatile
+{ T* prevval = (T*)InterlockedCxc((volatile unsigned*)Data, (unsigned)oldval, (unsigned)newval);
+  if (prevval != oldval)
+    return false;
+  // update reference counts.
+  InterlockedAdd(&newval->access_counter(), INT_PTR_ALIGNMENT);
+  release(oldval);
+  return true;
 }
 
 template <class T>
