@@ -78,11 +78,14 @@ const int_ptr<PlaylistBase> PlaylistManager::GetSame(Playable& obj)
 
 void PlaylistManager::DestroyAll()
 { RepositoryType::IXAccess index;
-  DEBUGLOG(("PlaylistManager::DestroyAll() - %d\n", index->size()));
+  DEBUGLOG(("PlaylistManager::DestroyAll()\n"));
   // The instances deregister itself from the repository.
-  // Starting at the end avoids the memcpy calls for shrinking the vector.
-  while (index->size())
-    (*index)[index->size()-1]->Destroy();
+  for (;;)
+  { RepositoryType::IndexType::iterator pp(index->begin());
+    if (pp.isend())
+      break;
+    (*pp)->Destroy();
+  }
 }
 
 

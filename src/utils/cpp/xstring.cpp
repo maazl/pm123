@@ -299,7 +299,7 @@ void xstring::deduplicator::deduplicate(volatile xstring& target)
   DEBUGLOG(("xstring::deduplicator::deduplicate(%s) : %s\n", value.cdata(), entry.cdata()));
   if (!entry)
     entry = value;
-  else
+  else if (!value.instEquals(entry))
     target.cmpassign(value, entry);
 }
 

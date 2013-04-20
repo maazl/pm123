@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#undef DEBUG_LOG
-#define DEBUG_LOG 2
+//#undef DEBUG_LOG
+//#define DEBUG_LOG 2
 
 #include "btree.h"
 #include <cpp/cpputil.h>

@@ -82,7 +82,7 @@ void debuglog( const char* fmt, ... )
   vsnprintf(buffer+28, 512, fmt, va );
   DosWrite(2, buffer, 28 + strnlen(buffer+28, 512), &dummy);
   va_end(va);
-  #ifdef DEBUG_MEM
+  #if defined(DEBUG_MEM) && DEBUG_MEM > 1
   ASSERT(_heapchk() == _HEAPOK);
   #endif
   // Dirty hack to enforce threading issues to occur.

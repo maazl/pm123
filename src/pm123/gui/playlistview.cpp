@@ -77,11 +77,14 @@ int PlaylistView::Comparer(const Playable& key, const PlaylistView& pl)
 
 void PlaylistView::DestroyAll()
 { RepositoryType::IXAccess index;
-  DEBUGLOG(("PlaylistView::DestroyAll() - %d\n", index->size()));
+  DEBUGLOG(("PlaylistView::DestroyAll()\n"));
   // The instances deregister itself from the repository.
-  // Starting at the end avoids the memcpy calls for shrinking the vector.
-  while (index->size())
-    (*index)[index->size()-1]->Destroy();
+  for (;;)
+  { RepositoryType::IndexType::iterator pp(index->begin());
+    if (pp.isend())
+      break;
+    (*pp)->Destroy();
+  }
 }
 
 InfoFlags PlaylistView::FilterRecordRequest(RecordBase* const rec, InfoFlags& filter)

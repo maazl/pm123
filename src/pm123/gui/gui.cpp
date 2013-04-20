@@ -692,6 +692,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case TID_CLEANUP:
       Playable::Cleanup();
+      xstring::deduplicator().cleanup();
       return 0;
     }
     break;
@@ -1735,7 +1736,7 @@ void GUIImp::AutoSave()
   { // Keep saves out of the mutex.
     vector<Playable> tosave;
     { Playable::RepositoryAccess rep;
-      foreach (Playable,*const*, ppp, *rep)
+      for (Playable::RepositoryType::iterator ppp(rep->begin()); !ppp.isend(); ++ppp)
       { Playable& p = **ppp;
         if (!p.IsModified())
           continue;

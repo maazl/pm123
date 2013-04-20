@@ -30,7 +30,7 @@
 #define CPP_CONTAINER_BTREE_H
 
 #include <cpp/smartptr.h>
-#include <cpp/container/sorted_vector.h> // for sort_comparer
+#include <cpp/algorithm.h> // for sort_comparer
 #include <cpp/xstring.h>
 #include <limits.h>
 #include <debuglog.h>
@@ -178,16 +178,6 @@ class btree_base
   void              rebalanceOrSplit(iterator& where);
   bool              joinOrRebalance(iterator& where);
   void              autoshrink();
- protected:
-  /// @brief Insert a new element in the tree.
-  /// @param where where to insert the
-  /// @return The function does not take the value of the new element.
-  /// Instead it returns a reference to the new location that should be assigned later.
-  /// @details The reference is valid until the next non-const member function call.
-  /// The initial value is NULL. Performance: O(log(n))
-  /// @remarks The function is neither type safe nor ensures the sort order
-  /// and should not be exposed public.
-  void*&            insert(iterator& where);
  public:
   /// Create empty btree.
                     btree_base(int (*cmp)(const void* key, const void* elem)) : Root(NULL), Comparer(cmp) {}
@@ -214,6 +204,14 @@ class btree_base
   /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
   void*             find(const void* key) const;
+  /// @brief Insert a new element in the tree.
+  /// @param where where to insert the new slot.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL. Performance: O(log(n))
+  /// @remarks The function does not ensure the sort order. So be careful.
+  void*&            insert(iterator& where);
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
   /// @param cmp Comparer to be used to compare the key against elements.
@@ -226,8 +224,6 @@ class btree_base
   /// to \c btree_base functions have undefined behavior. It is also an error not to assign
   /// a element if the function returned a reference to NULL.
   void*&            get(const void* key);
-  /// Remove all elements.
-  void              clear();
   /// @brief Removes an element from the tree. O(log n)
   /// @param where The \a where pointer is set to the next item after the removed one.
   /// @pre \a where &isin; [begin(),end())
@@ -238,6 +234,8 @@ class btree_base
   /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
   /// @return Element that just have been removed or \c NULL if no element matches \a key.
   void*             erase(const void* key);
+  /// Remove all elements.
+  void              clear();
   /// Destroy container
   /// @remarks This will will free the tree structure but not the elements referenced by the content.
                     ~btree_base()                   { clear(); }
@@ -297,11 +295,12 @@ template <class T, class K, sort_comparer>
 class btree : btree_base
 {public:
   /// Iterator to enumerate the content of the container or to perform partial scans.
-  /// @note Instances of this class are never created. Instead they are simply casted
-  /// by a reinterpret_cast from \c btree_base::iterator which is in fact binary the same.
-  /// The class exists only for type safety in \c operator*.
   class iterator : public btree_base::iterator
-  {public:
+  { friend class btree;
+   private:
+    iterator(const btree_base::iterator& r)         : btree_base::iterator(r) {}
+   public:
+    iterator()                                      {}
     /// Advance to the next key.
     /// @pre \c !isend()
     const iterator& operator++()                    { next(); return *this; }
@@ -311,8 +310,6 @@ class btree : btree_base
     /// Return the data where the current iterator points to.
     /// @pre \c !isend()
     T*              operator*() const               { return (T*)btree_base::iterator::operator*(); }
-   private:
-    iterator();
   };
  public:
                     btree()                         : btree_base((int (*)(const void*, const void*))C) {}
@@ -329,10 +326,18 @@ class btree : btree_base
   /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
   /// The function could be used as upper/lower bound also if the comparer never returns equal.
   /// @return The function returns a flag whether you got an exact match or not.
-  bool              locate(void* key, iterator& where) const { return btree_base::locate(key, (btree_base::iterator&)where); }
+  bool              locate(const K& key, iterator& where) const { return btree_base::locate(&key, (btree_base::iterator&)where); }
   /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
   T*                find(const K& key) const        { return (T*)btree_base::find(&key); }
+  /// @brief Insert a new element in the tree.
+  /// @param where where to insert the new slot.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL. Performance: O(log(n))
+  /// @remarks The function does not ensure the sort order. So be careful.
+  T*&               insert(iterator& where)         { return (T*&)btree_base::insert((btree_base::iterator&)where); }
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
   /// @param cmp Comparer to be used to compare the key against elements.
@@ -381,11 +386,12 @@ template <class T, class K, sort_comparer>
 class btree_int : public btree_base
 {public:
   /// Iterator to enumerate the content of the container or to perform partial scans.
-  /// @note Instances of this class are never created. Instead they are simply casted
-  /// by a reinterpret_cast from \c btree_base::iterator which is in fact binary the same.
-  /// The class exists only for type safety in \c operator*.
   class iterator : public btree_base::iterator
-  {public:
+  { friend class btree_int;
+   private:
+    iterator(const btree_base::iterator& r)         : btree_base::iterator(r) {}
+   public:
+    iterator()                                      {}
     /// Advance to the next key.
     /// @pre \c !isend()
     const iterator& operator++()                    { next(); return *this; }
@@ -395,8 +401,6 @@ class btree_int : public btree_base
     /// Return the data where the current iterator points to.
     /// @pre \c !isend()
     T*              operator*() const               { return (T*)btree_base::iterator::operator*(); }
-   private:
-    iterator();
   };
  public:
                     btree_int()                     : btree_base((int (*)(const void*, const void*))C) {}
@@ -417,6 +421,14 @@ class btree_int : public btree_base
   /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
   T*                find(const K& key) const        { return (T*)btree_base::find(&key); }
+  /// @brief Insert a new element in the tree.
+  /// @param where where to insert the new slot.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL. Performance: O(log(n))
+  /// @remarks The function does not ensure the sort order. So be careful.
+  int_ptr<T>&       insert(iterator& where)         { return (int_ptr<T>&)btree_base::insert((btree_base::iterator&)where); }
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
   /// @param cmp Comparer to be used to compare the key against elements.
@@ -458,9 +470,9 @@ class btree_string : public btree_base
   class iterator : public btree_base::iterator
   { friend class btree_string;
    private:
-    iterator();
     iterator(const btree_base::iterator& r)         : btree_base::iterator(r) {}
    public:
+    iterator()                                      {}
     /// Advance to the next key.
     /// @pre \c !isend()
     const iterator& operator++()                    { next(); return *this; }
@@ -496,6 +508,14 @@ class btree_string : public btree_base
   /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
   xstring           find(const xstring& key) const;
+  /// @brief Insert a new element in the tree.
+  /// @param where where to insert the new slot.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL. Performance: O(log(n))
+  /// @remarks The function does not ensure the sort order. So be careful.
+  xstring&          insert(iterator& where)         { return (xstring&)btree_base::insert((btree_base::iterator&)where); }
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
   /// @param cmp Comparer to be used to compare the key against elements.
@@ -525,7 +545,6 @@ inline xstring btree_string::find(const xstring& key) const
   else
     return *where;
 }
-
 
 
 #endif

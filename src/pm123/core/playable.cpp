@@ -1287,30 +1287,28 @@ int_ptr<Location> Playable::GetStopLoc() const
 *
 ****************************************************************************/
 
-Playable* Playable::Factory(const xstring& url)
-{ int_ptr<Playable> ppf = new Playable(url);
-  // keep reference count alive
-  // The opposite function is at Cleanup().
-  return ppf.toCptr();
+int Playable::Comparer(const xstring& key, const Playable& elem)
+{ return key.compareToI(elem.URL);
 }
 
-int Playable::Comparer(const xstring& l, const Playable& r)
-{ return l.compareToI(r.URL);
-}
-
+Playable::RepositoryType Playable::RPIndex;
+Mutex Playable::RPMtx;
 clock_t Playable::LastCleanup = 0;
 
 #ifdef DEBUG_LOG
 void Playable::RPDebugDump()
 { RepositoryAccess rp;
-  for (Playable*const* ppp = rp->begin(); ppp != rp->end(); ++ppp)
-    DEBUGLOG(("Playable::RPDump: %p{%s}\n", *ppp, (*ppp)->URL.cdata()));
+  for (RepositoryType::iterator pos(rp->begin()); !pos.isend(); ++pos)
+    DEBUGLOG(("Playable::RPDump: %p{%s}\n", *pos, (*pos)->URL.cdata()));
 }
 #endif
 
 int_ptr<Playable> Playable::FindByURL(const xstring& url)
 { DEBUGLOG(("Playable::FindByURL(%s)\n", url.cdata()));
-  int_ptr<Playable> ret = Repository::FindByKey(url);
+  int_ptr<Playable> ret;
+  { Mutex::Lock lock(RPMtx);
+    ret = RPIndex.find(url);
+  }
   if (ret)
     ret->LastAccess = clock();
   return ret;
@@ -1318,19 +1316,20 @@ int_ptr<Playable> Playable::FindByURL(const xstring& url)
 
 int_ptr<Playable> Playable::GetByURL(const url123& url)
 { DEBUGLOG(("Playable::GetByURL(%s)\n", url.cdata()));
+  Playable* ret;
   // Repository lookup
-  int_ptr<Playable> ret = Repository::GetByKey(url, &Playable::Factory);
+  { Mutex::Lock lock(RPMtx);
+    Playable*& pp = RPIndex.get(url);
+    if (!pp)
+    { int_ptr<Playable> ppf = new Playable(url);
+      // keep reference count alive
+      // The opposite function is at Cleanup().
+      pp = ppf.toCptr();
+    }
+    ret = pp;
+  }
   ret->LastAccess = clock();
   return ret;
-}
-
-void Playable::DetachObjects(const vector<Playable>& list)
-{ DEBUGLOG(("Playable::DetachObjects({%u,})\n", list.size()));
-  int_ptr<Playable> killer;
-  for (Playable*const* ppp = list.begin(); ppp != list.end(); ++ppp)
-  { DEBUGLOG(("Playable::DetachObjects - detaching %p{%s}\n", *ppp, (*ppp)->URL.cdata()));
-    killer.fromCptr(*ppp);
-  }
 }
 
 void Playable::Cleanup()
@@ -1339,41 +1338,29 @@ void Playable::Cleanup()
   vector<Playable> todelete;
   // search for unused items, remove them from the repository and put them into todelete.
   // All of that in an atomic operation.
-  { RepositoryAccess rp;
-    Playable*const* src = rp->begin();
-    Playable** dst = (Playable**)src; // Hack! Bypass constness of RepositoryAccess
-    Playable*const*const end = rp->end();
-    while (src != end)
-    { Playable& p = **src;
+  { Mutex::Lock lock(RPMtx);
+    RepositoryType::iterator pos(RPIndex.begin());
+    while (!pos.isend())
+    { Playable& p = **pos;
       if (p.RefCountIsUnique() && !p.Modified && (long)(p.LastAccess - LastCleanup) <= 0)
-        todelete.append() = &p;
-      else
-        *dst++ = &p;
-      ++src;
+      { todelete.append() = &p;
+        RPIndex.erase(pos);
+      } else
+        ++pos;
     }
-    Repository::SetSize(dst - rp->begin());
   }
   // Destroy items
-  DetachObjects(todelete);
+  { int_ptr<Playable> killer;
+    foreach (Playable, *const*, ppp, todelete)
+    { Playable& p = **ppp;
+      DEBUGLOG(("Playable::Cleanup - detaching %p{%s}\n", &p, p.URL.cdata()));
+      killer.fromCptr(&p);
+    }
+  }
+  DEBUGLOG(("Playable::Cleanup: destroyed %u items.\n", todelete.size()));
   // prepare next run
   LastCleanup = clock();
 }
-
-/*void Playable::ForEach(void (*callback)(Playable& item))
-{ Repository::IXAccess rp;
-  foreach (Playable*const*, ppp, *rp)
-    (*callback)(**ppp);
-}*/
-
-/*int_ptr<Playable> Playable::Iterate(Playable* cur)
-{ Repository::IXAccess rp;
-  size_t pos = 0;
-  if (cur && rp->binary_search(cur->URL, pos))
-    ++pos;
-  if (pos >= rp->size())
-    return int_ptr<Playable>();
-  return rp[pos];
-}*/
 
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
@@ -1383,8 +1370,15 @@ void Playable::Uninit()
   // However, for debug builds it is helpful if there ore not thousands
   // of memory objects left.
   #ifdef DEBUG
-  RepositoryAccess rp;
-  DetachObjects(*rp);
-  Repository::SetSize(0);
+  //vector<Playable> todelete;
+  int_ptr<Playable> killer;
+  { Mutex::Lock lock(RPMtx);
+    RepositoryType::iterator pos(RPIndex.begin());
+    while (!pos.isend())
+      killer.fromCptr(RPIndex.erase(pos));
+  }
+  /*int_ptr<Playable> killer;
+  foreach (Playable, *const*, ppp, todelete)
+    killer.fromCptr(*ppp);*/
   #endif
 }

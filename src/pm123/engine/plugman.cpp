@@ -177,8 +177,8 @@ class ModuleImp : private Module
   static Module* Factory(const KeyType& key, const xstring& name);
   class Repository : public inst_index2<Module,const KeyType,&ModuleImp::Comparer,const xstring>
   {public:
-    static Mutex& GetMtx()                  { return Mtx; }
-    static const vector<Module>& GetIndex() { return Index; }
+    static Mutex& GetMtx()             { return Mtx; }
+    static const IndexType& GetIndex() { return Index; }
   };
 
  private: // Configuration dialog hook
@@ -463,15 +463,15 @@ int_ptr<Module> Module::GetByKey(const char* name)
 
 void Module::CopyAllInstancesTo(vector_int<Module>& target)
 { target.clear();
-  const vector<Module>& modules = ModuleImp::Repository::GetIndex();
+  const ModuleImp::Repository::IndexType& modules(ModuleImp::Repository::GetIndex());
   Mutex::Lock lock(ModuleImp::Repository::GetMtx());
-  target.reserve(modules.size());
-  Module*const* mpp = modules.begin();
-  Module*const*const mpe = modules.end();
-  while (mpp != mpe)
-  { Module* mp = *mpp++;
+  //target.reserve(modules.size());
+  ModuleImp::Repository::IndexType::iterator mpp(modules.begin());
+  while (!mpp.isend())
+  { Module* mp = *mpp;
     if (mp && !mp->RefCountIsUnmanaged())
       target.append() = mp;
+    ++mpp;
   }
 }
 

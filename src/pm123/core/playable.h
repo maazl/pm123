@@ -39,7 +39,7 @@
 #include <cpp/smartptr.h>
 #include <cpp/cpputil.h>
 #include <cpp/container/inst_index.h>
-#include <cpp/container/sorted_vector.h>
+#include <cpp/container/btree.h>
 #include <cpp/container/list.h>
 #include <cpp/url123.h>
 
@@ -341,23 +341,27 @@ class Playable
 
  // Repository
  private:
-  static  Playable*         Factory(const xstring& url);
   static  int               Comparer(const xstring& l, const Playable& r);
-  class Repository : public inst_index<Playable, const xstring, &Playable::Comparer>
-  {public:
-    /// Adjust new repository size.
-    /// Internal use only! Not synchronized!
-    static void             SetSize(size_t size) { Index.set_size(size); }
-  };
-  static  clock_t           LastCleanup;   // Time index of last cleanup run
-          clock_t           LastAccess;    // Time index of last access to this instance (used by Cleanup)
- private:
   #ifdef DEBUG_LOG
   static  void              RPDebugDump();
   #endif
-  /// The repository owns the objects. This function will effectively cancel the ownership
-  /// for a list of objects.
-  static  void              DetachObjects(const vector<Playable>& list);
+ public:
+  typedef btree<Playable,const xstring,&Playable::Comparer> RepositoryType;
+  /// Access the repository exclusively and read only.
+  class RepositoryAccess
+  { Mutex::Lock             Lock;
+   public:
+    RepositoryAccess()                       : Lock(RPMtx) {}
+    operator const RepositoryType*() const   { return &RPIndex; }
+    const RepositoryType& operator*() const  { return RPIndex; }
+    const RepositoryType* operator->() const { return &RPIndex; }
+  };
+ private:
+  /// Object repository
+  static  RepositoryType    RPIndex;
+  static  Mutex             RPMtx;
+  static  clock_t           LastCleanup;   // Time index of last cleanup run
+          clock_t           LastAccess;    // Time index of last access to this instance (used by Cleanup)
  public:
   /// Seek whether an URL is already loaded.
   static  int_ptr<Playable> FindByURL(const xstring& url);
@@ -367,23 +371,6 @@ class Playable
   /// @remarks One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
   /// So the distance between the calls to Cleanup defines the minimum cache lifetime.
   static  void              Cleanup();
-  /*// @brief Enumerate all items in the current playable cache.
-  /// @details The function calls \c *callback for each item in the cache.
-  /// YOU MUST NOT DO ANYTHING TIME CONSUMING IN THE CALLBACK,
-  /// because the entire repository is locked. Especially you must not call
-  /// any non constant function of \a item from the callback.
-  static  void              ForEach(void (*callback)(Playable& item));*/
-  /*// Iterate over the current repository content.
-  /// @param cur Current \c Playable object or \c NULL for the first call.
-  /// @return Next \c Playable object or \c NULL if there are no more.
-  /// @remarks The iteration itself is not thread-safe in the way that the content
-  /// of the repository may change meanwhile. But calling \c Iterate is always valid.
-  /// And regardless of the changes to the repository, the iteration will always end
-  /// and never return duplicate items.
-  /// The price is that the complexity of an entire iteration is O(n log n).
-  static  int_ptr<Playable> Iterate(Playable* cur);*/
-  /// Access the repository exclusively and read only.
-  typedef Repository::IXAccess RepositoryAccess;
   /// Destroy worker
   static  void              Uninit();
 };
