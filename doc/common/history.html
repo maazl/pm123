@@ -30,6 +30,8 @@ restart
 memory.</li>
   <li>Removed most length restrictions of meta data and reduced memory
 footprint of song and playlist objects in PM123.</li>
+  <li>Support for memory deduplication to conserve even more memory.<br>
+  </li>
   <li>Reset high decoder thread priority after 20 seconds to prevent
 from unresponsive UI with single core CPUs.</li>
   <li>Reasonable resizing of most dialogs.</li>
@@ -37,6 +39,9 @@ from unresponsive UI with single core CPUs.</li>
   <li>Added several dozens of new test cases.</li>
   <li>Changed plug-in API to use strongly typed user parameters.
 (binary compatible)</li>
+  <li>Use of B-tree structures for playable object repository for
+better scalability with large playlists.<br>
+  </li>
 </ul>
 <blockquote>
   <h4>MPG123</h4>
@@ -44,12 +49,14 @@ from unresponsive UI with single core CPUs.</li>
 <ul>
   <li>Rewrote MPG123 plug-in. Now uses <em>libmpg123 1.15.1</em></li>
   <li><em>Gap-less playback</em> support for MP3.</li>
+  <li>Added support for files &gt; 2GB.</li>
 </ul>
 <blockquote>
   <h4>FLAC123</h4>
 </blockquote>
 <ul>
   <li>FLAC decoder is now shipped by default. This decoder supersedes <tt>FLACPLAY.DLL</tt>.</li>
+  <li>Added support for files &gt; 2GB.</li>
 </ul>
 <blockquote>
   <h4>PLIST123</h4>
@@ -78,6 +85,7 @@ introspection API.</li>
 <ul>
   <li>Upgrade to libogg 1.3.0 and <em>libvorbis 1.3.3</em> with some
 patches.</li>
+  <li>Added support for files &gt; 2GB.</li>
 </ul>
 <blockquote>
   <h4>OS2AUDIO</h4>
@@ -91,6 +99,7 @@ patches.</li>
 </blockquote>
 <ul>
   <li>Upgrade to <em>libsndfile 1.0.23</em>.</li>
+  <li>Added support for files &gt; 2GB.</li>
 </ul>
 <blockquote>
   <h4>WAVOUT</h4>
@@ -103,7 +112,7 @@ patches.</li>
   <h4>XIO123</h4>
 </blockquote>
 <ul>
-  <li>Fixed string length restrictions in http communication and meta
+  <li>Removed string length restrictions in http communication and meta
 data.</li>
 </ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>

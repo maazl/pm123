@@ -130,7 +130,7 @@ bool CollectionInfoCache::GetNextWorkItem(CollectionInfo*& item, Priority pri, I
     CacheEntry*const* cipp = Cache.begin();
     if (item)
     { size_t pos;
-      RASSERT(Cache.binary_search(item->Exclude, pos));
+      RASSERT(Cache.locate(item->Exclude, pos));
       cipp += pos +1;
     }
     for (CacheEntry*const*const cepp = Cache.end(); cipp != cepp; ++cipp)

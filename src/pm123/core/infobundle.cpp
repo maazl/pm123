@@ -86,6 +86,7 @@ void PhysInfo::Assign(const volatile PHYS_INFO& r)
   attributes = r.attributes;
 }
 
+
 /****************************************************************************
 *
 *  class TechInfo
@@ -200,6 +201,17 @@ bool MetaInfo::CmpAssign(const META_INFO& r)
        | track.cmpassign(r.track.cdata())
        | copyright.cmpassign(r.copyright.cdata())
        | (memcmpcpy(&track_gain, &r.track_gain, sizeof *this - offsetof(META_INFO, track_gain)) != ~0U);
+}
+
+void MetaInfo::Deduplicate(xstring::deduplicator& dedup)
+{ // Titles are not very likely to match more than a few times. dedup.deduplicate(title);
+  dedup.deduplicate(artist);
+  dedup.deduplicate(album);
+  dedup.deduplicate(year);
+  dedup.deduplicate(comment);
+  dedup.deduplicate(genre);
+  dedup.deduplicate(track);
+  dedup.deduplicate(copyright);
 }
 
 bool operator==(const META_INFO& l, const META_INFO& r)
@@ -348,7 +360,7 @@ bool ItemInfo::CmpAssign(const ITEM_INFO& r)
   gain    = r.gain;
   return ret;
 }
-  
+
 bool operator==(const ITEM_INFO& l, const ITEM_INFO& r)
 { return l.alias == r.alias
       && l.start == r.start

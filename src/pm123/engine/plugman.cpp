@@ -361,7 +361,7 @@ int ModuleImp::HookComparer(const HWND& key, const ModuleImp& mod)
 PROXYFUNCIMP(void APIENTRY, ModuleImp)
 DestroyWindowHook(HAB hab, HWND hwnd, ULONG reserved)
 { size_t pos;
-  if (HookList.binary_search(hwnd, pos))
+  if (HookList.locate(hwnd, pos))
   { ModuleImp* mp = HookList[pos];
     HookList.erase(pos);
     mp->ConfigWindow = NULLHANDLE;

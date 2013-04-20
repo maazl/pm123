@@ -141,10 +141,10 @@ void PlayableRef::OverrideItem(const ITEM_INFO* item)
 {
   #ifdef DEBUG
   if (item)
-    DEBUGLOG(("PlayableRef(%p)::OverrideSlice({%s, %s,%s, %f,%f, %f})\n", this,
+    DEBUGLOG(("PlayableRef(%p)::OverrideItem({%s, %s,%s, %f,%f, %f})\n", this,
       item->alias.cdata(), item->start.cdata(), item->stop.cdata(), item->pregap, item->postgap, item->gain));
   else
-    DEBUGLOG(("PlayableRef(%p)::OverrideSlice(<NULL>)\n", this));
+    DEBUGLOG(("PlayableRef(%p)::OverrideItem(<NULL>)\n", this));
   #endif
   if (!item && !(Overridden & IF_Item))
     return; // This is a no-op.
@@ -183,6 +183,9 @@ void PlayableRef::OverrideItem(const ITEM_INFO* item)
         CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
     }
     Overridden |= IF_Item;
+    // Deduplicate strings
+    xstring::deduplicator dedup;
+    Item->Deduplicate(dedup);
   } else
   { if (refinvalid & IF_Item)
       args.Loaded = IF_None;
@@ -222,6 +225,9 @@ void PlayableRef::OverrideMeta(const META_INFO* meta)
     else
       *Meta = *meta;
     Overridden |= IF_Meta;
+    // Deduplicate strings
+    xstring::deduplicator dedup;
+    Meta->Deduplicate(dedup);
   }
   RaiseInfoChange(args);
 }

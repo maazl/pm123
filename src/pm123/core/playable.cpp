@@ -260,6 +260,7 @@ void Playable::RaiseInfoChange(CollectionChangeArgs& args)
 InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
 { DEBUGLOG(("Playable(%p)::UpdateInfo(%p&, %x)\n", this, &info, what));
   ASSERT(Mtx.GetStatus() > 0);
+  // set new values
   InfoFlags ret = IF_None;
   if (what & IF_Phys)
     ret |= IF_Phys * Info.Phys.CmpAssign(*info.phys);
@@ -275,6 +276,14 @@ InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
     ret |= IF_Rpl  * Info.Rpl. CmpAssign(*info.rpl );
   if (what & IF_Drpl)
     ret |= IF_Drpl * Info.Drpl.CmpAssign(*info.drpl);
+  // deduplicate strings
+  if (ret & (IF_Tech|IF_Meta))
+  { xstring::deduplicator dedup;
+    if (what & IF_Tech)
+      Info.Tech.Deduplicate(dedup);
+    if (what & IF_Meta)
+      Info.Meta.Deduplicate(dedup);
+  }
   return ret;
 }
 

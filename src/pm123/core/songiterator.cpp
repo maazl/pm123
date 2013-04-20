@@ -29,6 +29,7 @@
 #include "songiterator.h"
 #include "playable.h"
 #include "dependencyinfo.h"
+#include <cpp/algorithm.h>
 #include <stdint.h>
 
 #include <debuglog.h>
@@ -105,7 +106,7 @@ void ShuffleWorker::UpdateItem(PlayableInstance& item)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::UpdateItem(&%p)\n", this, Playlist.get(), &item));
   KeyType key(MakeKey(item));
   size_t pos;
-  if (Items.binary_search(key, pos))
+  if (Items.locate(key, pos))
   { // Item is in the list.
     if (item.GetIndex() == 0)
       // But it should no longer be.
@@ -149,7 +150,7 @@ void ShuffleWorker::Update()
 int ShuffleWorker::GetIndex(PlayableInstance& item)
 { Update();
   size_t pos;
-  if (!Items.binary_search(MakeKey(item), pos))
+  if (!Items.locate(MakeKey(item), pos))
     return -1;
   return pos;
 }
@@ -158,7 +159,7 @@ int_ptr<PlayableInstance> ShuffleWorker::Next(PlayableInstance* pi)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::Next(%p)\n", this, Playlist.get(), pi));
   Update();
   size_t index = 0;
-  if (pi && Items.binary_search(MakeKey(*pi), index))
+  if (pi && Items.locate(MakeKey(*pi), index))
     ++index;
   return index < Items.size() ? Items[index] : NULL;
 }
@@ -169,7 +170,7 @@ int_ptr<PlayableInstance> ShuffleWorker::Prev(PlayableInstance* pi)
   size_t index = Items.size() -1;
   if (pi)
   { size_t pos;
-    Items.binary_search(MakeKey(*pi), pos);
+    Items.locate(MakeKey(*pi), pos);
     if (pos)
       index = pos -1;
   }

@@ -248,7 +248,7 @@ USHORT PlaylistMenu::AllocateID()
 { DEBUGLOG(("PlaylistMenu(%p)::AllocateID()\n", this));
   // Start searching after ID1stfree. This is an optimization.
   size_t pos;
-  if (!MenuMap.binary_search(ID1stfree, pos))
+  if (!MenuMap.locate(ID1stfree, pos))
   { DEBUGLOG(("PlaylistMenu::AllocateID: %u\n", ID1stfree));
     return ID1stfree++; // immediate match
   }

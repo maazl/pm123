@@ -102,7 +102,7 @@ core\playableref.h:	core\aplayable.h core\collectioninfocache.h core\location.h
 core\collectioninfocache.h:	core\aplayable.h core\infobundle.h core\playableset.h
 core\location.h:	core\aplayable.h
 gui\dialog.h:	gui\filedlg.h
-..\xio123\xio.h:	..\include\config.h
+..\xio123\xio.h:	..\include\config.h ..\utils\cpp\xstring.h
 ..\utils\debuglog.h:	..\utils\errorstr.h
 core\aplayable.cpp:	core\aplayable.h core\playable.h core\playableset.h core\waitinfo.h core\dependencyinfo.h core\location.h pm123.h configuration.h
 core\waitinfo.h:	core\aplayable.h
