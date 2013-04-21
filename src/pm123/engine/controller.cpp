@@ -481,7 +481,6 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
   //CurrentSongDelegate.detach();
   // Events
   UpdateStackUsage(Current()->Loc.GetCallstack(), si.GetCallstack());
-  AttachCurrentSong();
   Pending |= EV_Song|EV_Location;
 
   // restart decoder immediately?
@@ -489,6 +488,7 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
   { PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + Glue::DecMaxPos(), Current()->Loc);
     pep->Loc.Swap(si);
     PrefetchList.append() = pep;
+    AttachCurrentSong();
     ULONG rc = DecoderStart(*pep, false);
     if (rc)
     { OutputStop();
@@ -499,7 +499,9 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
   } else
   { Current()->Offset = 0;
     Current()->Loc.Swap(si);
+    AttachCurrentSong();
   }
+  DEBUGLOG(("Ctrl::NavigateCore succeeded - %s -> %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
   Reply(RC_OK);
   return NR_OK;
 }
@@ -968,7 +970,6 @@ void CtrlImp::MsgLoad()
  ok:
   Reply(RC_OK);
 }
-
 
 /* saving the currently played stream. */
 void CtrlImp::MsgSave()

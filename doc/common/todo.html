@@ -299,7 +299,8 @@ open</em> </td>
 speed. </td>
       <td valign="top">When playing the last song of a playlist, the
 total remaining time counts down 2 seconds per second. In other
-situation the field stays blank. </td>
+situation the field stays blank. Furthermore the last song is missing
+if not in playback mode. </td>
     </tr>
     <tr class="cancel">
       <td valign="top">33 minor bug,<br>
@@ -309,9 +310,9 @@ won't fix </td>
 This is well known to cause problems on cyclic references. In practice
 recursive playlists are unusual. </td>
     </tr>
-    <tr class="open">
+    <tr class="open fixed">
       <td valign="top"><strong>33 major bug,<br>
-open</strong></td>
+fixed</strong></td>
       <td valign="top">When loading a playlist the player does not
 start playback, even if <i>'start playing on file load'</i> is
 activated.</td>
@@ -332,6 +333,18 @@ open</td>
 the total playing time is sometimes not displayed in the main window.</td>
       <td valign="top">There seems to be some problem with the update
 notification.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top">36 minor todo,<br>
+open</td>
+      <td valign="top">When a large playlist or a http stream is
+currently loading and the user requests another object while the first
+request has not yet completed, PM123 waits until the first object is
+available until it proceeds the second request.</td>
+      <td valign="top">There should be an option to cancel incomplete
+requests to the controller.<br>
+The core engine does not support cancels. The controller needs to
+schedule the requests asynchronously to meet this requirement.</td>
     </tr>
   </tbody>
 </table>
