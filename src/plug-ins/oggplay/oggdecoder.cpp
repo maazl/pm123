@@ -401,7 +401,7 @@ ULONG OggDecoderThread::DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* pa
       Status = DECODER_STOPPING;
       StopRq = true;
 
-      if (File) xio_fabort(File);
+      //if (File) xio_fabort(File);
 
       Play.Set();
       /*w->status = DECODER_STOPPED;

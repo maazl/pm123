@@ -323,8 +323,8 @@ decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* info)
       w->Stop = true;
       w->status = DECODER_STOPPING;
 
-      if (w->XFile)
-        xio_fabort(w->XFile);
+      //if (w->XFile)
+      //  xio_fabort(w->XFile);
 
       DosPostEventSem( w->play );
       DosReleaseMutexSem( w->mutex );
