@@ -29,39 +29,44 @@
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody>
     <tr align="left" bgcolor="#cccccc">
-      <th width="15%">Attributes</th>
+      <th width="140">Attributes</th>
       <th width="25%">Topic</th>
-      <th width="55%">Details</th>
+      <th>Details</th>
     </tr>
     <tr class="test">
-      <td width="15%">3 minor todo, untested</td>
+      <td>3 minor todo,<br>
+untested</td>
       <td>Handling of start and stop positions in nested playlists</td>
       <td>There are several complications when start/stop
 iterators of nested playlists have conflicting settings.</td>
     </tr>
     <tr class="open">
-      <td width="15%">12 minor bug, open</td>
+      <td>12 minor bug,<br>
+open</td>
       <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
       <td>When playback starts at a non-zero starting point the
 slider jumps to zero for the time of the initialization.</td>
     </tr>
     <tr class="test">
-      <td width="15%"><em>13 medium todo, untested</em></td>
+      <td><em>13 medium todo,<br>
+untested</em></td>
       <td>M3U8 support</td>
       <td>PM123 1.32 also support Unicode playlist files. This
 has to be ported.</td>
     </tr>
     <tr class="work">
-      <td width="15%">14 minor todo, in work </td>
+      <td>14 minor todo,<br>
+in work </td>
       <td>Feature: continue playing when loading an enclosing
 playlist.</td>
       <td>If the currently playing item is part of the actually
 loaded playlist, playing should not be aborted. This is a configuration
 option.</td>
     </tr>
-    <tr class="open">
-      <td width="15%">15 minor todo, open</td>
+    <tr class="open fixed">
+      <td>15 minor todo,<br>
+fixed (1.41a) </td>
       <td>playlist with alternate items for HTTP streams</td>
       <td>For live streams&nbsp;it is quite common to provide
 a playlist with a set of alternative streaming servers instead of a
@@ -71,7 +76,8 @@ playlists to another playlist, because all of the contained items are
 equivalent.</td>
     </tr>
     <tr class="cancel">
-      <td width="15%">17 minor todo, won't fix </td>
+      <td>17 minor todo,<br>
+won't fix </td>
       <td>Write ID3 tags and Vorbis comments always in place to
 preserve additional file properties.</td>
       <td>Currently PM123 creates a copy of the file and then
@@ -82,39 +88,85 @@ or hard links to the file. There should be an in-place option to work
 around this.</td>
     </tr>
     <tr class="open">
-      <td width="15%">20 minor todo, open</td>
+      <td>20 minor todo,<br>
+open</td>
       <td>ogg123: support padding of vorbis comments</td>
       <td>Newer
 libvorbis can change vorbis comments in place. ogg123 should use this
 to avoid unnecessary file replacements. This may supersede #17.</td>
     </tr>
     <tr class="open">
-      <td width="15%">22 minor bug, open</td>
+      <td>22 minor bug,<br>
+open</td>
       <td>Time display is sometimes jumpy and not monotonous.</td>
       <td>The function output_playing_pos of os2audio.dll does
 not always hit the nail on the head. Reason unknown.</td>
     </tr>
     <tr class="cancel">
-      <td valign="top" width="15%">26 minor todo, won't fix </td>
+      <td valign="top">26 minor todo,<br>
+won't fix </td>
       <td valign="top">Implement buffering for write access in xio.dll.
       </td>
       <td valign="top">xio.dll currently disables the buffer if an
 object is opened for write access. </td>
     </tr>
     <tr class="open">
-      <td valign="top">30 minor todo, open </td>
-      <td valign="top">PULSE123: checkbox&nbsp; "keep context alive"
+      <td valign="top">30 minor todo,<br>
+open </td>
+      <td valign="top">PULSE123: checkbox&nbsp; <i>'keep context alive'</i>
 does not work. </td>
       <td> Not yet implemented.</td>
     </tr>
     <tr class="open">
-      <td valign="top">31 minor bug, open</td>
-      <td valign="top">Holding the mouse over "browse content" while
+      <td valign="top"><em>31 medium bug,<br>
+open</em></td>
+      <td valign="top">Holding the mouse over <i>'browse content' </i>while
 this sub menu is disabled because the information is not yet ready
 causes PM123 to crash.</td>
       <td valign="top">Although the sub menu is disabled the content
 could be opened by the XWP setting to open sub menus automatically. But
 there is no content so far.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><em>32 medium bug,<br>
+open</em> </td>
+      <td valign="top">Remaining playlist time counts down with double
+speed. </td>
+      <td valign="top">When playing the last song of a playlist, the
+total remaining time counts down 2 seconds per second. In other
+situation the field stays blank. </td>
+    </tr>
+    <tr class="cancel">
+      <td valign="top">33 minor bug,<br>
+won't fix </td>
+      <td valign="top">Memory of recursive playlists is never freed. </td>
+      <td valign="top">PM123 uses reference counted memory management.
+This is well known to cause problems on cyclic references. In practice
+recursive playlists are unusual. </td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><strong>33 major bug,<br>
+open</strong></td>
+      <td valign="top">When loading a playlist the player does not
+start playback, even if <i>'start playing on file load'</i> is
+activated.</td>
+      <td valign="top">Reason unknown.</td>
+    </tr>
+    <tr class="open fixed">
+      <td valign="top"><em>34 medium bug,<br>
+fixed</em></td>
+      <td valign="top">When loading large playlists, the sub items are
+not loaded in parallel by different worker threads.</td>
+      <td valign="top">This causes significant delays on http streams.<br>
+Most likely the TrySync option overshot the mark.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top">35 minor bug,<br>
+open</td>
+      <td valign="top">When loading a playlist without active playback,
+the total playing time is sometimes not displayed in the main window.</td>
+      <td valign="top">There seems to be some problem with the update
+notification.</td>
     </tr>
   </tbody>
 </table>
