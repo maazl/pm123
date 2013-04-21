@@ -368,9 +368,13 @@ void WaitDependencyInfo::OnCompleted()
 *
 ****************************************************************************/
 
+inline Priority JobSet::GetRequestPriority(APlayable& target)
+{ return SyncOnly && SyncOnly != &target.GetPlayable() ? Pri & ~PRI_TrySync : Pri;
+}
+
 InfoFlags JobSet::RequestInfo(APlayable& target, InfoFlags what)
 { DEBUGLOG(("JobSet::RequestInfo(&%p, %x)\n", &target, what));
-  what = target.RequestInfo(what, Pri);
+  what = target.RequestInfo(what, GetRequestPriority(target));
   if (what)
     Depends.Add(target, what);
   return what;
@@ -378,7 +382,7 @@ InfoFlags JobSet::RequestInfo(APlayable& target, InfoFlags what)
 
 volatile const AggregateInfo& JobSet::RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what)
 { DEBUGLOG(("JobSet::RequestAggregateInfo(&%p, {%u,}, %x)\n", &target, excluding.size(), what));
-  volatile const AggregateInfo& ret = target.RequestAggregateInfo(excluding, what, Pri);
+  volatile const AggregateInfo& ret = target.RequestAggregateInfo(excluding, what, GetRequestPriority(target));
   if (what)
     Depends.Add(target, what, &ret.Exclude);
   return ret;

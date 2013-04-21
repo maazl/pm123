@@ -374,7 +374,7 @@ void APlayable::ScheduleRequest(Priority pri)
 void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%x)\n", this, DebugName().cdata(), pri));
   int old_pri = -1;
-  JobSet job((pri & ~PRI_Sync) | PRI_TrySync); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
+  JobSet job((pri & ~PRI_Sync) | PRI_TrySync, &GetPlayable()); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
   if (pri & PRI_Low)
   { AsyncRequest = 0;
     if (Cfg::Get().low_priority_workers)
