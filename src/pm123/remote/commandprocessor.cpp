@@ -498,6 +498,22 @@ void CommandProcessor::DoOption(cfg_button amp_cfg::* option)
     Cfg::ChangeAccess().*option = mp->Val;
   }
 }
+void CommandProcessor::DoOption(cfg_action amp_cfg::* option)
+{ static const strmap<10,cfg_action> map[] =
+  { { "enqueue",  CFG_ACTION_QUEUE }
+  , { "load",     CFG_ACTION_LOAD  }
+  , { "navigate", CFG_ACTION_NAVTO }
+  };
+  Reply.append(map[ReadCfg().*option].Str);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (Request)
+  { const strmap<10,cfg_action>* mp = mapsearch(map, Request);
+    if (!mp)
+      throw SyntaxException("Expected {enqueue|load|navigate} but found \"%s\".", Request);
+    Cfg::ChangeAccess().*option = mp->Val;
+  }
+}
 void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
 { Reply.append(dispmap[3 - ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
@@ -1490,6 +1506,8 @@ void CommandProcessor::XVersion()
 const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 { { "altslider",       &amp_cfg::altnavig       }
 , { "altbutton",       &amp_cfg::altbutton      }
+, { "autorestart",     &amp_cfg::restartonstart }
+, { "autosave",        &amp_cfg::autosave       }
 , { "autouse",         &amp_cfg::autouse        }
 , { "bufferlevel",     &amp_cfg::buff_fill      }
 , { "buffersize",      &amp_cfg::buff_size      }
@@ -1498,9 +1516,11 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "dndrecurse",      &amp_cfg::recurse_dnd    }
 , { "dockmargin",      &amp_cfg::dock_margin    }
 , { "dockwindows",     &amp_cfg::dock_windows   }
+, { "floatontop",      &amp_cfg::floatontop     }
 , { "foldersfirst",    &amp_cfg::folders_first  }
 , { "font",            &CommandProcessor::DoFontOption }
 , { "pipe",            &amp_cfg::pipe_name      }
+, { "pldefaultaction", &amp_cfg::itemaction     }
 , { "playlistwrap",    &amp_cfg::autoturnaround }
 , { "playonload",      &amp_cfg::playonload     }
 , { "proxyserver",     &amp_cfg::proxy          }

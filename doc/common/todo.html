@@ -347,6 +347,16 @@ requests to the controller.<br>
 The core engine does not support cancels. The controller needs to
 schedule the requests asynchronously to meet this requirement.</td>
     </tr>
+    <tr class="open">
+      <td valign="top">37 minor todo,<br>
+open</td>
+      <td valign="top">Player does not save enclosing playlist on exit.</td>
+      <td valign="top">When a playlist item is currently selected the
+player will refer to the song behind that item rather than the playlist
+entry. This will fail if the item is a song slice or a binary file
+referred by a cue sheet. Everything is fine if the entire cue sheet is
+selected to play.</td>
+    </tr>
   </tbody>
 </table>
 </body>
