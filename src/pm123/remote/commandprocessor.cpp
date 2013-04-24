@@ -942,7 +942,8 @@ void CommandProcessor::XPlCallstack()
 void CommandProcessor::XPlIndex()
 { if (CurSI.GetRoot())
   { AggregateInfo ai(PlayableSetBase::Empty);
-    CurSI.AddFrontAggregate(ai, IF_Rpl, SyncJob);
+    OwnedPlayableSet exclude;
+    CurSI.GetRoot()->AddSliceAggregate(ai, exclude, IF_Rpl, SyncJob, NULL, &CurSI);
     Reply.appendd(ai.Rpl.songs + 1);
   }
 }

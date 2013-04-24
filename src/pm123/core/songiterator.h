@@ -199,17 +199,6 @@ class SongIterator : public Location
 
   /// Set new Shuffle seed
   void                        Reshuffle() { ShuffleSeed = rand() ^ (rand() << 16); ShuffleWorkerCache.clear(); }
-
-  /// Calculate the Aggregate from the start of root to the current location.
-  /// @param target Store the result here.
-  /// The exclusion list in \a target is currently not supported and must be empty.
-  /// @param what Kind of information to request. Only \c IF_Rpl or \c IF_Drpl is allowed.
-  /// @param job Priority and \c DependencySet of asynchronous requests if the action could not be completed
-  /// because of missing informations on sub items.
-  /// @return The bits of what that could not be completed because of missing information.
-  /// Note that the function always returns something in \a target,
-  /// but the information is not reliable if the return value is not \c IF_None.
-  InfoFlags                   AddFrontAggregate(AggregateInfo& target, InfoFlags what, JobSet& job);
 };
 
 #endif

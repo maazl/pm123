@@ -184,9 +184,9 @@ class GUIImp : private GUI, private DialogBase
   static bool      ShowHideInfoDlg(APlayable& p, AInfoDialog::PageNo page, DialogAction action);
   static bool      ShowHidePlaylist(PlaylistBase* plp, DialogAction action);
   /// Refresh current playing time, remaining time and slider.
-  /// @param index Song index in the current flattened root, counting from 0.
-  /// @param offset Time offset in the current flattened root.
-  static void      RefreshTimers(HPS hps, int index, PM123_TIME offset);
+  /// @param index Remaining number of songs to play or -1 if not available..
+  /// @param offset Remaining playlist time or < 0 if not available.
+  static void      RefreshTimers(HPS hps, int rem_songs, PM123_TIME rem_time);
   static void      PrepareText();         ///< Constructs a information text for currently loaded file and selects it for displaying.
   /// Execute screen updates from \c WMP_PAINT.
   static void      Paint(HPS hps, UpdateFlags mask);
@@ -1557,8 +1557,8 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
 }
 
 
-void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
-{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, index, offset, Cfg::Get().mode));
+void GUIImp::RefreshTimers(HPS hps, int rem_song, PM123_TIME rem_time)
+{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, rem_song, rem_time, Cfg::Get().mode));
 
   APlayable* root = CurrentIter->GetRoot();
   if (!root)
@@ -1574,15 +1574,9 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
   PM123_TIME total_song = cur ? cur->GetInfo().drpl->totallength : -1;
   PM123_TIME total_time = is_playlist ? root->GetInfo().drpl->totallength : -1;
 
-  PM123_TIME list_left = -1;
-  PM123_TIME play_left = total_song;
   PM123_TIME position = CurrentIter->GetTime();
   if (position < 0)
     position = 0;
-  if (play_left > 0)
-    play_left -= position;
-  if (total_time > 0)
-    list_left = total_time - offset - position;
 
   double pos = -1.;
   if (!IsAltSlider)
@@ -1595,12 +1589,12 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = index / (double)(total_items-1);
+        pos = 1 - (rem_song-1) / (double)(total_items-1);
     }
     break;
    case CFG_ANAV_TIME:
     if (root->GetInfo().drpl->totallength > 0)
-    { pos = (offset + position) / root->GetInfo().drpl->totallength;
+    { pos = 1 - rem_time / root->GetInfo().drpl->totallength;
       break;
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
@@ -1609,7 +1603,7 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = index;
+        pos = total_items - rem_song;
       else break;
       // Add current song time
       if (total_song > 0)
@@ -1620,8 +1614,8 @@ void GUIImp::RefreshTimers(HPS hps, int index, PM123_TIME offset)
   bmp_draw_slider(hps, pos, IsAltSlider);
   bmp_draw_timer (hps, position);
 
-  bmp_draw_tiny_timer(hps, POS_TIME_LEFT, play_left);
-  bmp_draw_tiny_timer(hps, POS_PL_LEFT,   list_left);
+  bmp_draw_tiny_timer(hps, POS_TIME_LEFT, total_song - position);
+  bmp_draw_tiny_timer(hps, POS_PL_LEFT,   rem_time);
 }
 
 /* Constructs a information text for currently loaded file
@@ -1686,23 +1680,26 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   APlayable* cur = CurrentIter->GetCurrent();
 
   if (mask & (UPD_TIMERS|UPD_PLINDEX))
-  { int index = -1;
-    PM123_TIME offset = -1;
+  { int back_index = -1;
+    PM123_TIME back_offset = -1;
     if (root)
     { AggregateInfo ai(PlayableSetBase::Empty);
-      JobSet job(PRI_Normal); // The job is discarded, because the update notification will call this function again anyways.
+      JobSet job(PRI_Low); // The job is discarded, because the update notification will call this function again anyways.
       InfoFlags what = mask & UPD_TIMERS ? IF_Aggreg : IF_Rpl;
-      what &= ~CurrentIter->AddFrontAggregate(ai, what, job);
+      OwnedPlayableSet exclude;
+      what &= ~root->AddSliceAggregate(ai, exclude, what, job, CurrentIter, NULL);
       if (what & IF_Rpl)
-        index = ai.Rpl.songs;
+        back_index = ai.Rpl.songs;
       if (what & IF_Drpl)
-        offset = ai.Drpl.totallength;
+        back_offset = ai.Drpl.totallength;
     }
     if (mask & UPD_TIMERS)
-      RefreshTimers(hps, index, offset);
+      RefreshTimers(hps, back_index, back_offset);
     if (mask & UPD_PLINDEX)
       if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
-        bmp_draw_plind(hps, index, root->GetInfo().rpl->songs);
+      { int total = root->GetInfo().rpl->songs;
+        bmp_draw_plind(hps, (total|back_index) != -1 ? total - back_index + 1 : -1, total);
+      }
       else
         bmp_draw_plind(hps, -1, -1);
   }

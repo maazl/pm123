@@ -225,7 +225,8 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
 
   if (psp == pep)
   { if (psp)
-    { // Even if the pointers are equal, the list itself counts.
+    { // Both slices point to the same playlist entry => enter next level of start and stop.
+      // Even if the pointers are equal, the list itself counts.
       ++ai.Rpl.lists;
       exclude.add(GetPlayable());
       ++level;
@@ -233,7 +234,7 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
     } else
     { // both are NULL
       // Either because start and stop is NULL
-      // or because both locations point to the same object
+      // or because both locations point to the same object and we entered the next level.
       // or because one location points to a song while the other one is NULL.
       InfoFlags what2 = what;
       volatile const AggregateInfo& sai = job.RequestAggregateInfo(*this, exclude, what2);
@@ -262,12 +263,14 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
       }
     }
   } else
-  { Playable& pc = GetPlayable();
+  { // psp and pep point to different objects
+    // or one of them is null => we need to process the range [psp..pep].
+    Playable& pc = GetPlayable();
     exclude.add(pc);
     if (psp)
     { // Check for negative slice
       if (pep && psp->GetIndex() > pep->GetIndex())
-        return whatnotok;
+        goto empty;
       if (!exclude.contains(psp->GetPlayable()))
         whatnotok |= psp->AddSliceAggregate(ai, exclude, what, job, start, NULL, level+1);
       // else: item in the call stack => ignore entire sub tree.
@@ -278,7 +281,7 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
       // else: item in the call stack => ignore entire sub tree.
     }
 
-    // Add the range (psp, pep). Exclusive interval!
+    // Add the range (psp..pep). Exclusive interval!
     if (job.RequestInfo(*this, IF_Child))
       return what;
     while ((psp = pc.GetNext(psp)) != pep)
@@ -292,6 +295,7 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
       if (what & IF_Drpl)
         ai.Drpl += lai.Drpl;
     }
+   empty:
     // Restore previous state.
     exclude.erase(GetPlayable());
     // We just processed a list

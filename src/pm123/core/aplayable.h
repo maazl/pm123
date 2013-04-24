@@ -239,7 +239,10 @@ class APlayable
   /// I.e. \a cur is not the root of \a start/stop but at level in the call stack of \a start/stop.
   /// @return Returns the kind of information that is \e not successfully obtained.
   /// If nonzero then some information depends on other objects. The dependencies in \a job have been adjusted.
-          InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level = 0);
+  /// @remarks Slices are always calculated inclusively, i.e. if the start position is at the first song,
+  /// but not \e inside the first song, the first song is part of the slice. The same applies to the stop position.
+          InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job,
+                                                const Location* start, const Location* stop, unsigned level = 0);
 
  private:
   /// @brief Place a request for the kind informations identified by the bit vector \a what

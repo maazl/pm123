@@ -397,14 +397,3 @@ bool SongIterator::IsShuffle() const
  done:
   return !(IsShuffleCache & PLO_NO_SHUFFLE);
 }
-
-InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& target, InfoFlags what, JobSet& job)
-{ DEBUGLOG(("SongIterator(%p)::AddFrontAggregate(&%p, %x, )\n", this, &job, &target, what));
-  ASSERT(target.Exclude.size() == 0);
-
-  if (!Root || !what)
-    return what;
-
-  OwnedPlayableSet exclude;
-  return Root->AddSliceAggregate(target, exclude, what, job, NULL, this);
-}
