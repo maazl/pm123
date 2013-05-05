@@ -417,7 +417,7 @@ class btree_int : public btree_base
   /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
   /// The function could be used as upper/lower bound also if the comparer never returns equal.
   /// @return The function returns a flag whether you got an exact match or not.
-  bool              locate(void* key, iterator& where) const { return btree_base::locate(key, (btree_base::iterator&)where); }
+  bool              locate(const K& key, iterator& where) const { return btree_base::locate(&key, (btree_base::iterator&)where); }
   /// @brief Find an element by it's key. O(log n)
   /// @return The function will return \c NULL if no such element is in the container.
   T*                find(const K& key) const        { return (T*)btree_base::find(&key); }

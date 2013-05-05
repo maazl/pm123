@@ -55,7 +55,7 @@ class PlayableInstance : public PlayableRef
   /// Weak reference to the parent Collection.
   const Playable* volatile Parent;
   /// Index within the collection.
-  int                      Index;
+  unsigned                 Index;
 
  private: // non-copyable
   PlayableInstance(const PlayableInstance& r);
@@ -83,7 +83,7 @@ class PlayableInstance : public PlayableRef
   /// Returns the index within the current collection counting from 1.
   /// A return value of 0 indicates the the instance does no longer belong to a collection.
   /// The return value is only reliable while the collection is locked.
-  int                      GetIndex() const    { return Index; }
+  unsigned                 GetIndex() const    { return Index; }
 
   /*// Swap instance properties (fast)
   // You must not swap instances that belong to different PlayableCollection objects or

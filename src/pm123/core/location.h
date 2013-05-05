@@ -165,8 +165,6 @@ class Location : public Iref_count
   #ifdef DEBUG
   virtual                     ~Location()                  { DEBUGLOG(("Location(%p)::~Location()\n", this)); }
   #endif
-  /// Check whether this Location has assigned a root.
-  bool                        operator!() const            { return !Root; }
   /// Swap two instances.
   virtual void                Swap(Location& r);
   /// Assign other instance

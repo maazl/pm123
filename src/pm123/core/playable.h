@@ -131,9 +131,9 @@ class Playable
     void                    Detach()         { DEBUGLOG(("Playable::Entry(%p)::Detach()\n", this)); InstDelegate.detach(); Parent = NULL; Index = 0; }
     /// Update Index in Collection
     #ifdef DEBUG_LOG
-    void                    SetIndex(int index) { Index = index; InvalidateDebugName(); }
+    void                    SetIndex(unsigned index) { Index = index; InvalidateDebugName(); }
     #else
-    void                    SetIndex(int index) { Index = index; }
+    void                    SetIndex(unsigned index) { Index = index; }
     #endif
   };
 
@@ -180,7 +180,7 @@ class Playable
   /// @brief Renumber the entries in the range [from,to[ starting with \a index.
   /// @details If \a to is NULL all remaining entries are renumbered.
   /// @remarks The list must be locked before calling this Function.
-  void                      RenumberEntries(Entry* from, const Entry* to, int index);
+  void                      RenumberEntries(Entry* from, const Entry* to, unsigned index);
 
   /// Calculate the recursive playlist information.
   /// @param cie Information to calculate.
@@ -224,8 +224,6 @@ class Playable
   /// @brief Create Playable object.
   /// @details Use Factory \c GetByURL to create Playable objects.
   Playable(const url123& url);
-  /// Implement \c GetOverridden private, because it makes no sense for \c Playable.
-  virtual InfoFlags         GetOverridden() const;
   /// Mark the object as modified (or not)
           void              SetModified(bool modified, APlayable* origin);
 
@@ -309,10 +307,11 @@ class Playable
   bool                      MoveItem(PlayableInstance& item, PlayableInstance* before);
   /// Remove an item from the playlist.
   /// @param item Item to remove from this playlist.
-  /// @return The function fails with returning false if the PlayableInstance is no longer valid
-  /// or the update flags cannot be locked.
+  /// @return The function returns the next item \e after \a item. If the call fails
+  /// because the PlayableInstance is no longer valid or the update flags cannot be locked.
+  /// The return value is \a &item.
   /// @pre item must belong to this playlist.
-  bool                      RemoveItem(PlayableInstance& item);
+  int_ptr<PlayableInstance> RemoveItem(PlayableInstance& item);
   /// Remove all items from the playlist.
   /// @return The function returns \c false if the update flags cannot be locked.
   bool                      Clear();

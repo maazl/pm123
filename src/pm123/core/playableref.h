@@ -64,7 +64,7 @@ class PlayableRef : public APlayable
 
  public:  // Context
   const   int_ptr<APlayable> RefTo;
- protected:
+ private:
           AtomicUnsigned    Overridden;
   mutable INFO_BUNDLE_CV    Info;
           sco_ptr<ItemInfo> Item;
@@ -86,12 +86,10 @@ class PlayableRef : public APlayable
   /// @param job Place dependencies here.
   /// @return \c true if the evaluation changed \a cache.
           bool              CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job);
- protected:
   /// Compare two slice borders taking NULL iterators by default as
   /// at the start or the end, depending on \c Location::CO_Reverse.
   /// Otherwise the same as \c Location::CopareTo.
   static  int               CompareSliceBorder(const Location* l, const Location* r, Location::CompareOptions type);
-                            PlayableRef();
  public:
   explicit                  PlayableRef(APlayable& pp);
                             PlayableRef(const PlayableRef& r);
@@ -108,8 +106,6 @@ class PlayableRef : public APlayable
 
   /// Return the overridden information.
           InfoFlags         GetOverridden() const    { return (InfoFlags)Overridden.get(); }
-  /// Return true if the current instance is different from *RefTo.
-          bool              IsSlice() const          { return (Overridden & IF_Item) && (Item->start || Item->stop); }
   /// @brief Override the item information.
   /// @param item New item information. If \c NULL then the overriding is canceled.
   /// @remarks Note that since the start and stop locations may not be verified immediately
@@ -142,12 +138,12 @@ class PlayableRef : public APlayable
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void              PeekRequest(RequestState& req) const;
 
- protected: // Event handler
-  virtual void              InfoChangeHandler(const PlayableChangeArgs& args);
+ private:
+  /// Event handler, called when *RefTo changes.
+          void              InfoChangeHandler(const PlayableChangeArgs& args);
 
  private: // APlayable interface implementations
   virtual InfoFlags         DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel);
-  //virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
   virtual InfoFlags         DoRequestAI(const PlayableSetBase& exclude, const volatile AggregateInfo*& aip,
                                         InfoFlags& what, Priority pri, Reliability rel);
   virtual void              DoLoadInfo(JobSet& job);

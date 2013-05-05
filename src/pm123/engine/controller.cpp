@@ -553,9 +553,7 @@ void CtrlImp::CheckPrefetch(double pos)
         PlayableInstance* item = Current()->Loc.GetCallstack()[0];
         PlayableInstance* stop = keep->Loc.GetCallstack()[0];
         while (item != stop)
-        { default_pl.RemoveItem(*item);
-          item = default_pl.GetNext(item);
-        }
+          item = default_pl.RemoveItem(*item);
       }
 
       // Cleanup prefetch list
@@ -1254,7 +1252,7 @@ void Ctrl::Uninit()
   { Queue.Purge();
     SendCommand(MkLocation(LM_UpdatePos));
     int_ptr<SongIterator> last(CurLoc);
-    if (!!*last)
+    if (last->GetRoot())
     { state.current_root = last->GetRoot()->GetPlayable().URL;
       // save location only if the current item has definite length.
       state.current_iter = last->Serialize(Cfg::Get().retainonexit && last->GetCurrent()->GetInfo().obj->songlength >= 0);

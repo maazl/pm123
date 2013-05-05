@@ -41,7 +41,7 @@
 *
 */
 
-ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
+SongIterator::ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
 : Playlist(&playlist)
 , Seed(seed)
 , PlaylistDeleg(*this, &ShuffleWorker::PlaylistChangeNotification)
@@ -51,7 +51,7 @@ ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
   playlist.GetInfoChange() += PlaylistDeleg;
 }
 
-long ShuffleWorker::CalcHash(const PlayableInstance& item, long seed)
+long SongIterator::ShuffleWorker::CalcHash(const PlayableInstance& item, long seed)
 { uint64_t key = ((uint64_t)seed << 32) + (long)&item;
   key += ~key << 18;
   key ^= key >> 31;
@@ -62,7 +62,7 @@ long ShuffleWorker::CalcHash(const PlayableInstance& item, long seed)
   return (long)key;
 }
 
-int ShuffleWorker::ItemComparer(const KeyType& key, const PlayableInstance& item)
+int SongIterator::ShuffleWorker::ItemComparer(const KeyType& key, const PlayableInstance& item)
 { long pikey = CalcHash(item, key.Seed);
   if (key.Value > pikey)
     return 1;
@@ -71,11 +71,11 @@ int ShuffleWorker::ItemComparer(const KeyType& key, const PlayableInstance& item
   return (int)&key.Item - (int)&item;
 }
 
-int ShuffleWorker::ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item)
+int SongIterator::ShuffleWorker::ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item)
 { return (int)&key - (int)&item;
 }
 
-void ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
+void SongIterator::ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::PlaylistChangeNotification({&%p, %p, %x..., %u})\n",
     this, Playlist.get(), &args.Instance, args.Origin, args.Changed, args.Type));
   if (args.Changed & IF_Child)
@@ -102,7 +102,7 @@ void ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
   }
 }
 
-void ShuffleWorker::UpdateItem(PlayableInstance& item)
+void SongIterator::ShuffleWorker::UpdateItem(PlayableInstance& item)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::UpdateItem(&%p)\n", this, Playlist.get(), &item));
   KeyType key(MakeKey(item));
   size_t pos;
@@ -119,7 +119,7 @@ void ShuffleWorker::UpdateItem(PlayableInstance& item)
   }
 }
 
-void ShuffleWorker::Update()
+void SongIterator::ShuffleWorker::Update()
 { DEBUGLOG(("ShuffleWorker(%p{%p})::Update()\n", this, Playlist.get()));
   if (!ChangeSet.size()) // Double check below
     return;
@@ -135,6 +135,9 @@ void ShuffleWorker::Update()
    case 1:
     if (changes[0] == NULL)
     { // Full update
+      int count = Playlist->GetInfo().obj->num_items;
+      if (Items.size() < count)
+        Items.reserve(count);
       int_ptr<PlayableInstance> pi;
       while ((pi = Playlist->GetNext(pi)) != NULL)
         UpdateItem(*pi);
@@ -147,7 +150,7 @@ void ShuffleWorker::Update()
   }
 }
 
-int ShuffleWorker::GetIndex(PlayableInstance& item)
+unsigned SongIterator::ShuffleWorker::GetIndex(PlayableInstance& item)
 { Update();
   size_t pos;
   if (!Items.locate(MakeKey(item), pos))
@@ -155,7 +158,7 @@ int ShuffleWorker::GetIndex(PlayableInstance& item)
   return pos;
 }
 
-int_ptr<PlayableInstance> ShuffleWorker::Next(PlayableInstance* pi)
+int_ptr<PlayableInstance> SongIterator::ShuffleWorker::Next(PlayableInstance* pi)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::Next(%p)\n", this, Playlist.get(), pi));
   Update();
   size_t index = 0;
@@ -164,7 +167,7 @@ int_ptr<PlayableInstance> ShuffleWorker::Next(PlayableInstance* pi)
   return index < Items.size() ? Items[index] : NULL;
 }
 
-int_ptr<PlayableInstance> ShuffleWorker::Prev(PlayableInstance* pi)
+int_ptr<PlayableInstance> SongIterator::ShuffleWorker::Prev(PlayableInstance* pi)
 { DEBUGLOG(("ShuffleWorker(%p{%p})::Prev(%p)\n", this, Playlist.get(), pi));
   Update();
   size_t index = Items.size() -1;

@@ -153,6 +153,7 @@ class APlayable
   virtual int_ptr<Location>   GetStopLoc() const = 0;
 
   /// Current object is identified as playlist.
+  /// @remarks Note that the result is only reliable if IF_Tech has been requested.
           bool                IsPlaylist() const  { return GetInfo().tech->attributes & TATTR_PLAYLIST; }
 
   /// @brief Request Information
@@ -217,9 +218,6 @@ class APlayable
   /// @remarks It might look that you get not the desired result if some consumer has registered
   /// to the invalidate event and requests the information as soon as it has been invalidated.
   virtual InfoFlags           Invalidate(InfoFlags what, const Playable* source = NULL) = 0;
-
-  /// Return the overridden information.
-  virtual InfoFlags           GetOverridden() const = 0;
 
   /// Access the InfoChange event, but only the public part.
   event_pub<const PlayableChangeArgs>& GetInfoChange() { return InfoChange; }

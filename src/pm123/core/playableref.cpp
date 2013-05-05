@@ -374,7 +374,7 @@ InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability 
 InfoFlags PlayableRef::DoRequestAI(const PlayableSetBase& exclude, const volatile AggregateInfo*& ai, InfoFlags& what, Priority pri, Reliability rel)
 { DEBUGLOG(("PlayableRef(%p)::DoRequestAI({%s},, %x, %x, %d)\n", this, exclude.DebugDump(), what, pri, rel));
 
-  if ( !IsSlice()
+  if ( !((Overridden & IF_Item) && (Item->start || Item->stop))
     && (!(Overridden & IF_Attr) || (Attr && (Attr->ploptions & PLO_ALTERNATION))) )
   { //return CallDoAILookup(*RefTo, exclude);
     ai = &RefTo->RequestAggregateInfo(exclude, what, pri, rel);

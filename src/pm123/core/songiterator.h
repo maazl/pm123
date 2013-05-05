@@ -32,85 +32,9 @@
 
 #include "location.h"
 #include "playable.h"
+#include <cpp/container/btree.h>
 #include <cpp/event.h>
 
-
-/** Helper class to provide a deterministic shuffle algorithm for a playlist.
- */
-class ShuffleWorker : public Iref_count
-{private:
-  /// Hack to inject the seed into the comparer without making CacheComparer
-  /// a member function. Instances of this class are immutable.
-  struct KeyType
-  { /// Playlist item to seek for.
-    const PlayableInstance&   Item;
-    /// Hash value of this item.
-    const long                Value;
-    /// Seed used for calculation of hash.
-    const long                Seed;
-    /// Create a KeyType.
-    KeyType(PlayableInstance& item, long value, long seed) : Item(item), Value(value), Seed(seed) {}
-  };
- public:
-  /// Playlist for which this instance provides shuffle support.
-  const int_ptr<Playable>     Playlist;
-  /// Seed that is used for the random sequence calculation. Using the same seed results in the same sequence.
-  const long                  Seed;
- private:
-  /// Calculate the hash value for a playlist item.
-  /// @param item Playlist item.
-  /// @param seed Use this seed.
-  /// @return Hash value for this item. The hash of an item never changes in context of a \a seed.
-  static long                 CalcHash(const PlayableInstance& item, long seed);
-  /// Factory for KeyType
-  KeyType                     MakeKey(PlayableInstance& item) { return KeyType(item, CalcHash(item, Seed), Seed); }
-  /// Comparer used to compare entries in the \c Items array.
-  static int                  ItemComparer(const KeyType& key, const PlayableInstance& item);
-  /// Comparer used to compare entries in the \c ChangeSet array.
-  static int                  ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item);
-  /// Event handler for changes of the underlying Playlist.
-  void                        PlaylistChangeNotification(const CollectionChangeArgs& args);
-  /// Update the cache entry for \a item.
-  /// This might add or remove cache entries, depending on whether the item
-  /// still belongs to a playlist.
-  void                        UpdateItem(PlayableInstance& item);
-  /// Proceed and clear the ChangeSet.
-  void                        Update();
-
- private:
-  typedef sorted_vector_int<PlayableInstance,KeyType,&ShuffleWorker::ItemComparer> ItemsType;
-  typedef sorted_vector_int<PlayableInstance,PlayableInstance,&ShuffleWorker::ChangeSetComparer> ChangeSetType;
- private:
-  /// Collection of playlist items in the order of the calculated hash.
-  /// @remarks The has value is the key of this sorted list, but the key is not actually stored
-  /// in the collection neither there is sufficient information to calculate the key.
-  /// The hash values are calculated on demand by the \c ItemComparer.
-  /// The necessary information to do so is passed to the \c ItemComparer in the \c KeyType structure.
-  ItemsType                   Items;
-  /// @brief List of changes of the underlying playlist since the last call to \c Update.
-  /// @details The list may either
-  /// - be empty, which means that there is nothing to update, or
-  /// - contain a list of added or removed children ordered by their memory address or
-  /// - contain a single \c NULL reference meaning
-  ///   that the entire \c Items array should be recreated from scratch.
-  /// Initially the \c ChangeSet is in a single NULL reference. This causes
-  /// the population of the \c Items array to be deferred until it is really needed.
-  ChangeSetType               ChangeSet;
-  /// Delegate to observer playlist changes.
-  class_delegate<ShuffleWorker,const CollectionChangeArgs> PlaylistDeleg;
-
- public:
-  /// Create a \c ShuffleWorker instance for a playlist using a given \a seed.
-  ShuffleWorker(Playable& playlist, long seed);
-  /// Query the zero based index of a playlist item in the randomized sequence.
-  int                         GetIndex(PlayableInstance& item);
-  /// Advance from one playlist item to the next one, following the individual
-  /// sequence of this instance.
-  int_ptr<PlayableInstance>   Next(PlayableInstance* pi);
-  /// Advance from one playlist item to the previous one, following the individual
-  /// sequence of this instance.
-  int_ptr<PlayableInstance>   Prev(PlayableInstance* pi);
-};
 
 /** A \c SongIterator is a \c Location intended to be used to play a \c APlayable object.
  * In contrast to \c Location it owns it's root and it can be attached to \c APlayable rather than \c Playable only.
@@ -129,6 +53,82 @@ class SongIterator : public Location
     void                      ListChangeHandler(const PlayableChangeArgs& args);
    public:
     OffsetCacheEntry();
+  };
+  /** Helper class to provide a deterministic shuffle algorithm for a playlist.
+   */
+  class ShuffleWorker : public Iref_count
+  {private:
+    /// Hack to inject the seed into the comparer without making CacheComparer
+    /// a member function. Instances of this class are immutable.
+    struct KeyType
+    { /// Playlist item to seek for.
+      const PlayableInstance&   Item;
+      /// Hash value of this item.
+      const long                Value;
+      /// Seed used for calculation of hash.
+      const long                Seed;
+      /// Create a KeyType.
+      KeyType(PlayableInstance& item, long value, long seed) : Item(item), Value(value), Seed(seed) {}
+    };
+   public:
+    /// Playlist for which this instance provides shuffle support.
+    const int_ptr<Playable>     Playlist;
+    /// Seed that is used for the random sequence calculation. Using the same seed results in the same sequence.
+    const long                  Seed;
+   private:
+    /// Calculate the hash value for a playlist item.
+    /// @param item Playlist item.
+    /// @param seed Use this seed.
+    /// @return Hash value for this item. The hash of an item never changes in context of a \a seed.
+    static long                 CalcHash(const PlayableInstance& item, long seed);
+    /// Factory for KeyType
+    KeyType                     MakeKey(PlayableInstance& item) { return KeyType(item, CalcHash(item, Seed), Seed); }
+    /// Comparer used to compare entries in the \c Items array.
+    static int                  ItemComparer(const KeyType& key, const PlayableInstance& item);
+    /// Comparer used to compare entries in the \c ChangeSet array.
+    static int                  ChangeSetComparer(const PlayableInstance& key, const PlayableInstance& item);
+    /// Event handler for changes of the underlying Playlist.
+    void                        PlaylistChangeNotification(const CollectionChangeArgs& args);
+    /// Update the cache entry for \a item.
+    /// This might add or remove cache entries, depending on whether the item
+    /// still belongs to a playlist.
+    void                        UpdateItem(PlayableInstance& item);
+    /// Proceed and clear the ChangeSet.
+    void                        Update();
+
+   private:
+    typedef sorted_vector_int<PlayableInstance,KeyType,&ShuffleWorker::ItemComparer> ItemsType;
+    typedef sorted_vector_int<PlayableInstance,PlayableInstance,&ShuffleWorker::ChangeSetComparer> ChangeSetType;
+   private:
+    /// Collection of playlist items in the order of the calculated hash.
+    /// @remarks The has value is the key of this sorted list, but the key is not actually stored
+    /// in the collection neither there is sufficient information to calculate the key.
+    /// The hash values are calculated on demand by the \c ItemComparer.
+    /// The necessary information to do so is passed to the \c ItemComparer in the \c KeyType structure.
+    ItemsType                   Items;
+    /// @brief List of changes of the underlying playlist since the last call to \c Update.
+    /// @details The list may either
+    /// - be empty, which means that there is nothing to update, or
+    /// - contain a list of added or removed children ordered by their memory address or
+    /// - contain a single \c NULL reference meaning
+    ///   that the entire \c Items array should be recreated from scratch.
+    /// Initially the \c ChangeSet is in a single NULL reference. This causes
+    /// the population of the \c Items array to be deferred until it is really needed.
+    ChangeSetType               ChangeSet;
+    /// Delegate to observer playlist changes.
+    class_delegate<ShuffleWorker,const CollectionChangeArgs> PlaylistDeleg;
+
+   public:
+    /// Create a \c ShuffleWorker instance for a playlist using a given \a seed.
+    ShuffleWorker(Playable& playlist, long seed);
+    /// Query the zero based index of a playlist item in the randomized sequence.
+    unsigned                    GetIndex(PlayableInstance& item);
+    /// Advance from one playlist item to the next one, following the individual
+    /// sequence of this instance.
+    int_ptr<PlayableInstance>   Next(PlayableInstance* pi);
+    /// Advance from one playlist item to the previous one, following the individual
+    /// sequence of this instance.
+    int_ptr<PlayableInstance>   Prev(PlayableInstance* pi);
   };
 
  private:

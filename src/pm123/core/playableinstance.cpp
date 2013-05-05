@@ -48,7 +48,7 @@ PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
 }
 
 xstring PlayableInstance::DoDebugName() const
-{ return xstring().sprintf("@%i:%s", Index, RefTo.get()->DebugName().cdata());
+{ return xstring().sprintf("@%u:%s", Index, RefTo.get()->DebugName().cdata());
 }
 
 /*void PlayableInstance::Swap(PlayableRef& r)

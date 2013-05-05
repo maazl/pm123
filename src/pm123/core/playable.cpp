@@ -178,10 +178,6 @@ xstring Playable::GetDisplayName() const
   return ret;
 }
 
-InfoFlags Playable::GetOverridden() const
-{ return IF_None;
-}
-
 InfoFlags Playable::Invalidate(InfoFlags what, const Playable* source)
 { DEBUGLOG(("Playable(%p)::Invalidate(%x, %p)\n", this, what, source));
   InfoFlags inval = Info.InfoStat.Invalidate(what);
@@ -848,7 +844,7 @@ void Playable::RemoveEntry(Entry* entry)
   Playlist->Items.remove(entry);
 }
 
-void Playable::RenumberEntries(Entry* from, const Entry* to, int index)
+void Playable::RenumberEntries(Entry* from, const Entry* to, unsigned index)
 { while (from != to)
   { ASSERT(from); // passed NULL or [from,to[ is no valid range
     from->SetIndex(index++);
@@ -1013,23 +1009,24 @@ bool Playable::MoveItem(PlayableInstance& item, PlayableInstance* before)
   return true;
 }
 
-bool Playable::RemoveItem(PlayableInstance& item)
+int_ptr<PlayableInstance> Playable::RemoveItem(PlayableInstance& item)
 { DEBUGLOG(("Playable(%p{%s})::RemoveItem(&%p{%s})\n", this, DebugName().cdata(),
     &item, item.DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
   if (!item.HasParent(this))
   { DEBUGLOG(("Playable::RemoveItem: Bad item or bad parent.\n"));
-    return false;
+    return int_ptr<PlayableInstance>();
   }
   InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj);
   if (!(upd & IF_Child))
     // TODO: Hmm, normally we should wait
-    return false;
+    return int_ptr<PlayableInstance>();
 
   // now detach the item from the container
-  RenumberEntries(Playlist->Items.next(&(const Entry&)item), NULL, item.GetIndex());
+  Entry* next = Playlist->Items.next(&(const Entry&)item);
+  RenumberEntries(next, NULL, item.GetIndex());
   RemoveEntry(&(Entry&)item);
   --Info.Obj.num_items;
 
@@ -1045,7 +1042,7 @@ bool Playable::RemoveItem(PlayableInstance& item)
   args.Invalidated = Info.InfoStat.Invalidate(IF_Aggreg)
                    | Playlist->Invalidate(IF_Aggreg, &item.GetPlayable());
   RaiseInfoChange(args);
-  return true;
+  return next;
 }
 
 bool Playable::Clear()
