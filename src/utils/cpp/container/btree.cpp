@@ -31,6 +31,7 @@
 
 #include "btree.h"
 #include <cpp/cpputil.h>
+#include <cpp/container/vector.h>
 #include <memory.h>
 
 
@@ -38,7 +39,7 @@
 
 void*& btree_base::Leaf::insert(size_t pos)
 { DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::insert(%u)\n", this, Parent, ParentPos, isLeaf(), size(), pos));
-  ASSERT(pos <= size() && size() < BTREE_NODE_SIZE);
+  ASSERT(pos <= size() && size() < NODE_SIZE);
   void** where = Content + pos;
   memmove(where + 1, where, (size() - pos) * sizeof *Content);
   ++Size;
@@ -87,7 +88,7 @@ void btree_base::Leaf::rebalanceR2L(Leaf& src, size_t count)
 { DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::rebalanceR2L(%p{%p,%u, %u,%u}&, %u)\n", this, Parent, ParentPos, isLeaf(), size(), &src, src.Parent, src.ParentPos, src.isLeaf(), src.size(), count));
   ASSERT(Parent == src.Parent && ParentPos +1 == src.ParentPos);
   ASSERT(Size <= src.Size);
-  ASSERT(size() + count <= BTREE_NODE_SIZE);
+  ASSERT(size() + count <= NODE_SIZE);
   ASSERT(count && count <= src.size());
   // New delimiting key
   void*& parentkey = Parent->Content[ParentPos];
@@ -139,7 +140,7 @@ void btree_base::Leaf::rebalanceL2R(Leaf& dst, size_t count)
 { DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::rebalanceL2R(%p{%p,%u, %u,%u}&, %u)\n", this, Parent, ParentPos, isLeaf(), size(), &dst, dst.Parent, dst.ParentPos, dst.isLeaf(), dst.size(), count));
   ASSERT(Parent == dst.Parent && ParentPos +1 == dst.ParentPos);
   ASSERT(Size >= dst.Size);
-  ASSERT(dst.size() + count <= BTREE_NODE_SIZE);
+  ASSERT(dst.size() + count <= NODE_SIZE);
   ASSERT(count && count <= size());
   // Move dst.Content[0..dst.Size-1] to dst.Content[count..].
   memmove(dst.Content + count, dst.Content, dst.size() * sizeof *Content);
@@ -231,7 +232,7 @@ void btree_base::Node::split(Node& dst)
 void btree_base::Leaf::join(Leaf& src)
 { DEBUGLOG2(("btree_base::Leaf(%p{%p,%u, %u,%u})::join(%p{%p,%u, %u,%u}&)\n", this, Parent, ParentPos, isLeaf(), size(), &src, src.Parent, src.ParentPos, src.isLeaf(), src.size()));
   ASSERT(Parent == src.Parent && ParentPos + 1 == src.ParentPos);
-  ASSERT(size() + src.size() < BTREE_NODE_SIZE); // +1 for the delimiter
+  ASSERT(size() + src.size() < NODE_SIZE); // +1 for the delimiter
   // Move delimiter to Content[Size]
   void** where = Content + size();
   *where = Parent->Content[ParentPos];
@@ -322,7 +323,7 @@ void btree_base::Node::destroy()
 #ifdef DEBUG
 void btree_base::Leaf::check() const
 { // do not exceed the size of the array
-  ASSERT(size() <= BTREE_NODE_SIZE);
+  ASSERT(size() <= NODE_SIZE);
   // no empty nodes
   ASSERT(size());
   // All nodes except for the root should be at least half filled
@@ -414,12 +415,70 @@ void btree_base::iterator::prev()
   --Pos;
 }
 
+int btree_base::iterator::compare(iterator r)
+{ // If both comperands points to end() of an empty container,
+  // the iterators are most likely equal.
+  // If only one of the is NULL then they must be unrelated.
+  if (!Ptr)
+    return !r.Ptr ? 0 : INT_MIN;
+  if (Ptr == r.Ptr)
+    return Pos - r.Pos;
+  if (!r.Ptr)
+    return INT_MIN;
+  // Now both iterators are non-zero and do not point to the same node.
+  // => They are not equal.
+
+  Node* csl[MAX_DEPTH-1];
+  Node* csr[MAX_DEPTH-1];
+
+  Node* node = Ptr->Parent;
+  // No Parent (and iterators not equal) => unrelated
+  if (!node)
+    return INT_MIN;
+  Node** cspl = csl;
+  do
+  { *cspl++ = node;
+    node = node->Parent;
+  } while (node);
+
+  node = r.Ptr->Parent;
+  // No Parent (and iterators not equal) => unrelated
+  if (!node)
+    return INT_MIN;
+  Node** cspr = csr;
+  do
+  { *cspr++ = node;
+    node = node->Parent;
+  } while (node);
+
+  // If the root is not equal the iterators are unrelated.
+  if (*--cspl != *--cspr)
+    return INT_MIN;
+
+  // go down until the first call stack entry is distinct or on of the iterators is reached.
+  do
+  { if (cspl == csl)
+    { // left iterator reached
+      if (cspr == csr)
+        // both iterators reached, i.e. their nodes are different but share the same parent.
+        // => compare location within parent.
+        return Ptr->ParentPos - r.Ptr->ParentPos;
+      // right iterator is in a sub node of left->Ptr.
+      return Pos < (*cspr)->ParentPos ? -1 : 1;
+    } else if (cspr == csr)
+      // left iterator is in a sub node of right->Ptr.
+      return (*cspl)->ParentPos <= r.Pos ? -1 : 1;
+  } while (*--cspl == *--cspr);
+  // call stacks are different at this level
+  return (*cspl)->ParentPos - (*cspr)->ParentPos;
+}
+
 /* class btree_base */
 
 void btree_base::rebalanceOrSplit(iterator& where)
 { Leaf* leaf = where.Ptr;
   DEBUGLOG2(("btree_base(%p{%p})::rebalanceOrSplit({%p{%p,%u, %u,%u},%u}&)\n", this, Root, leaf, leaf->Parent, leaf->ParentPos, leaf->isLeaf(), leaf->size(), where.Pos));
-  ASSERT(leaf->size() == BTREE_NODE_SIZE);
+  ASSERT(leaf->size() == NODE_SIZE);
 
   // Try rebalance
   Node* parent = leaf->Parent;
@@ -429,19 +488,19 @@ void btree_base::rebalanceOrSplit(iterator& where)
     if (parentpos)
     { // Try rebalance with left sibling.
       Leaf* left(parent->SubNodes[parentpos - 1]);
-      size_t count = (BTREE_NODE_SIZE - left->size()) >> (where.Pos < BTREE_NODE_SIZE);
+      size_t count = (NODE_SIZE - left->size()) >> (where.Pos < NODE_SIZE);
       if (!count)
         count = 1;
-      if (left->size() + count < BTREE_NODE_SIZE)
+      if (left->size() + count < NODE_SIZE)
       { left->rebalanceR2L(*where.Ptr, count);
-        ASSERT(BTREE_NODE_SIZE - leaf->size() == count);
+        ASSERT(NODE_SIZE - leaf->size() == count);
         if (where.Pos < count)
         { // Mover insert position to left sibling.
           where.Ptr = left;
           where.Pos += left->size() + 1;
         }
         where.Pos -= count;
-        ASSERT(where.Ptr->size() < BTREE_NODE_SIZE);
+        ASSERT(where.Ptr->size() < NODE_SIZE);
         return;
       }
     }
@@ -449,25 +508,25 @@ void btree_base::rebalanceOrSplit(iterator& where)
     if (parentpos < parent->size())
     { // Try rebalance with right sibling.
       Leaf* right(parent->SubNodes[parentpos + 1]);
-      if (right->size() < BTREE_NODE_SIZE)
-      { size_t count = (BTREE_NODE_SIZE - right->size()) >> (where.Pos > 0);
+      if (right->size() < NODE_SIZE)
+      { size_t count = (NODE_SIZE - right->size()) >> (where.Pos > 0);
         if (!count)
           count = 1;
-        if (right->size() + count < BTREE_NODE_SIZE)
+        if (right->size() + count < NODE_SIZE)
         { where.Ptr->rebalanceL2R(*right, count);
           if (where.Pos > leaf->size())
           { // Move insert position to right sibling.
             where.Pos -= leaf->size() + 1;
             where.Ptr = right;
           }
-          ASSERT(where.Ptr->size() < BTREE_NODE_SIZE);
+          ASSERT(where.Ptr->size() < NODE_SIZE);
           return;
         }
       }
     }
 
     // rebalance failed => ensure space in the parent node
-    if (parent->size() == BTREE_NODE_SIZE)
+    if (parent->size() == NODE_SIZE)
     { iterator parentiter(parent, parentpos);
       rebalanceOrSplit(parentiter);
     }
@@ -490,7 +549,7 @@ void btree_base::rebalanceOrSplit(iterator& where)
   {case 0:
     splitcount = leaf->size() - 1;
     break;
-   case BTREE_NODE_SIZE:
+   case NODE_SIZE:
     splitcount = 0;
     break;
    default:
@@ -512,7 +571,7 @@ bool btree_base::joinOrRebalance(iterator& where)
   { // try join with left sibling
     Leaf* left(parent->SubNodes[leaf->ParentPos - 1]);
     size_t size(left->size() + 1);
-    if (size + leaf->size() <= BTREE_NODE_SIZE)
+    if (size + leaf->size() <= NODE_SIZE)
     { where.Pos += size;
       left->join(*where.Ptr);
       where.Ptr = left;
@@ -522,12 +581,12 @@ bool btree_base::joinOrRebalance(iterator& where)
   if (leaf->ParentPos < parent->size())
   { Leaf* right(parent->SubNodes[leaf->ParentPos + 1]);
     size_t size(right->size());
-    if (leaf->size() + size <= BTREE_NODE_SIZE - 1)
+    if (leaf->size() + size <= NODE_SIZE - 1)
     { where.Ptr->join(*right);
       return true;
     }
     // rebalance right?
-    if (size > BTREE_NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos))
+    if (size > NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos))
     { size_t count((size - leaf->size()) >> 1);
       if (count >= size)
         count = size - 1;
@@ -539,7 +598,7 @@ bool btree_base::joinOrRebalance(iterator& where)
   { Leaf* left(parent->SubNodes[leaf->ParentPos - 1]);
     size_t size(left->size());
     // rebalance left?
-    if (size > BTREE_NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos < leaf->size()))
+    if (size > NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos < leaf->size()))
     { size_t count((size - leaf->size()) >> 1);
       if (count >= leaf->size())
         count = leaf->size() - 1;
@@ -610,13 +669,13 @@ void*& btree_base::insert(iterator& where)
     where.Ptr = leaf;
     where.Pos = 0;
   } else
-  { if (!where.Ptr->isLeaf() && where.Pos < BTREE_NODE_SIZE)
+  { if (!where.Ptr->isLeaf() && where.Pos < NODE_SIZE)
     { where.prev();
       ++where.Pos;
       // where.Pos might point beyond the end of the current leaf here.
       ASSERT(where.Ptr->isLeaf());
     }
-    if (where.Ptr->size() == BTREE_NODE_SIZE)
+    if (where.Ptr->size() == NODE_SIZE)
     { // leaf is full
       rebalanceOrSplit(where);
     }
@@ -655,7 +714,7 @@ void* btree_base::erase(iterator& where)
       break;
     }
     // Node has enough entries
-    if (iter.Ptr->size() >= BTREE_NODE_SIZE / 2)
+    if (iter.Ptr->size() >= NODE_SIZE / 2)
       break;
     bool joined = joinOrRebalance(iter);
     //iter.Ptr->check();

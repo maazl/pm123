@@ -50,28 +50,32 @@
  */
 class btree_base
 {protected:
-  /// Number of entries in tree nodes.
-  /// @remarks Making this a constant saves another set of storage.
-  enum { BTREE_NODE_SIZE = 32 };
+  enum
+  { NODE_SIZE = 32  ///< Number of entries in tree nodes. (32767 max!) @remarks Making this a constant saves another set of storage.
+  , MAX_DEPTH = 6   ///< Maximum depth of the tree. @remarks The limit comes from the maximum memory size and the \c NODE_SIZE.
+  };
 
  private:
   struct Node;
   struct Leaf
-  { Node*           Parent;                         ///< Link to the node that contains this one or \c NULL in case of the root.
-    size_t          ParentPos;                      ///< Position in the parent node.
-   protected:
-    size_t          Size;                           ///< Number of used entries in this node.
+  {public:
+    typedef unsigned short pos_t;
    public:
-    void*           Content[BTREE_NODE_SIZE];       ///< Entries
+    Node*           Parent;                         ///< Link to the node that contains this one or \c NULL in case of the root.
+    pos_t           ParentPos;                      ///< Position in the parent node.
+   protected:
+    pos_t           Size;                           ///< Number of used entries in this node.
+   public:
+    void*           Content[NODE_SIZE];             ///< Entries
    private: // non-copyable
                     Leaf(const Leaf&);
     void            operator=(const Leaf&);
    protected:
                     Leaf()                          {}
    public:
-                    Leaf(size_t size)               : Size(size | INT_MIN) {}
-    bool            isLeaf() const                  { return (int)Size < 0; }
-    size_t          size() const                    { return Size & INT_MAX; }
+                    Leaf(size_t size)               : Size(size | SHRT_MIN) {}
+    bool            isLeaf() const                  { return (short)Size < 0; }
+    size_t          size() const                    { return Size & SHRT_MAX; }
 
     /// Insert a key at \a pos.
     /// @pre \a pos &le; \c size() && size() < BTREE_NODE_SIZE
@@ -99,10 +103,10 @@ class btree_base
   struct Node : public Leaf
   {friend struct Leaf;
     //size_t          Count;                          ///< Number of entries in this node and all sub nodes.
-    Leaf*           SubNodes[BTREE_NODE_SIZE+1];    ///< Sub nodes around key elements of base class.
+    Leaf*           SubNodes[NODE_SIZE+1];          ///< Sub nodes around key elements of base class.
    public:
                     Node(size_t size)               { Size = size; }
-    size_t          size() const                    { return Size; }
+    pos_t           size() const                    { return Size; }
     /// Insert a key at \a pos.
     /// @pre \a pos &le; \c size() && size() < BTREE_NODE_SIZE
     void*&          insert(size_t pos);
@@ -132,7 +136,11 @@ class btree_base
   class iterator
   { friend class btree_base;
    private:
+    /// Pointer to the leaf or node where the current element resides.
+    /// \c NULL if the container is empty.
     Leaf*           Ptr;
+    /// Position of the current element within \c *Ptr.
+    /// Equals \c Ptr->size() if the iterator is end(). In the latter case \c Ptr->Parent should be \c NULL.
     size_t          Pos;
    protected:
                     iterator()                      {}
@@ -168,6 +176,14 @@ class btree_base
     friend bool     operator==(iterator l, iterator r) { return l.Ptr == r.Ptr && l.Pos == r.Pos; }
     /// Compare two iterators for inequality.
     friend bool     operator!=(iterator l, iterator r) { return l.Ptr != r.Ptr || l.Pos != r.Pos; }
+    /// Relational compare to another iterator. O(log n)
+    /// @param r right comperand.
+    /// @return &lt;&nbsp;0 := \c *this &lt; \a r, =&nbsp;0 := \c *this == \a r, &gt;&nbsp;0 := \c *this &gt; \a r, \c INT_MIN := unrelated.
+    int             compare(iterator r);
+    friend bool     operator<(iterator l, iterator r) { return r.compare(l) > 0; }
+    friend bool     operator<=(iterator l, iterator r) { return r.compare(l) >= 0; }
+    friend bool     operator>(iterator l, iterator r) { return l.compare(r) > 0; }
+    friend bool     operator>=(iterator l, iterator r) { return l.compare(r) >= 0; }
   };
 
  private:
