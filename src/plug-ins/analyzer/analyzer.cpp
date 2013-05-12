@@ -913,7 +913,7 @@ HWND DLLENTRY vis_init( const VISPLUGININIT* init )
   memcpy( &plug, init, sizeof( VISPLUGININIT ));
 
   cfg.update_delay    = 31;
-  cfg.default_mode    = SHOW_BARS;
+  cfg.default_mode    = SHOW_LOGSPECSCOPE;
   cfg.falloff         = 1;
   cfg.falloff_speed   = 2;
   cfg.display_freq    = -1;
