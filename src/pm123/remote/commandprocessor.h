@@ -32,7 +32,7 @@
 #include "acommandprocessor.h"
 #include "../configuration.h"
 #include "../core/songiterator.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include "../engine/controller.h"
 #include "../engine/plugman.h"
 #include <cpp/cppvdelegate.h>
@@ -104,9 +104,6 @@ class CommandProcessor : public ACommandProcessor
   /// Current command in service
   const char*                 Command;
   bool                        CommandType;
-
- private: // Working set
-  JobSet                      SyncJob;
 
  private: // Helper functions
   /// escape newline characters

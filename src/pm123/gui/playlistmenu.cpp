@@ -35,7 +35,7 @@
 #include "pm123.rc.h"
 #include "playlistmenu.h"
 #include "../core/playable.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include <cpp/cppvdelegate.h>
 #include <utilfct.h>
 
@@ -227,10 +227,9 @@ void PlaylistMenu::SelectEntry(const MapEntry* mapp) const
   // contains all sub items within this root.
 
   // Create location object
-  JobSet noblockjob(PRI_None);
   MenuCtrlData loc(mapp->Data->GetPlayable(), mapp->User);
   for (size_t i = callstack.size(); i--; )
-  { if (loc.Item.NavigateInto(noblockjob))
+  { if (loc.Item.NavigateInto(Job::NoBlockJob))
     { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateInto failed."));
       return;
     }

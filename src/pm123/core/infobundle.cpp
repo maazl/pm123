@@ -411,6 +411,12 @@ AggregateInfo& AggregateInfo::operator=(const volatile AggregateInfo& r)
   return *this;
 }
 
+void AggregateInfo::Add(const volatile AggregateInfo& r, unsigned what)
+{ if (what & INFO_RPL)
+    Rpl += r.Rpl;
+  if (what & INFO_DRPL)
+    Drpl += r.Drpl;
+}
 
 /****************************************************************************
 *

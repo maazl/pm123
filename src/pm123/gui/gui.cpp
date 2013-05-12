@@ -32,6 +32,7 @@
 
 #include "gui.h"
 #include "../core/songiterator.h"
+#include "../core/job.h"
 #include "../engine/visual.h"
 #include "../engine/decoder.h"
 #include "../engine/filter.h"
@@ -530,7 +531,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         WinSendDlgItemMsg(HPlayer, BMP_REW,     Ctrl::GetScan() < 0 ? WM_PRESS : WM_DEPRESS, 0, 0);
       }
       if (flags & Ctrl::EV_Shuffle)
-        WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
+      { WinSendDlgItemMsg(HPlayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
+        // Update remaining time because playback sequence changed.
+        UpdAtLocMsg |= UPD_TIMERS|UPD_PLINDEX;
+      }
       if (flags & Ctrl::EV_Repeat)
         WinSendDlgItemMsg(HPlayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
       if (flags & (Ctrl::EV_Root|Ctrl::EV_Song))
@@ -1572,7 +1576,6 @@ void GUIImp::RefreshTimers(HPS hps, int rem_song, PM123_TIME rem_time)
 
   const bool is_playlist = !!(root->GetInfo().tech->attributes & TATTR_PLAYLIST);
   PM123_TIME total_song = cur ? cur->GetInfo().drpl->totallength : -1;
-  PM123_TIME total_time = is_playlist ? root->GetInfo().drpl->totallength : -1;
 
   PM123_TIME position = CurrentIter->GetTime();
   if (position < 0)
@@ -1680,27 +1683,29 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   APlayable* cur = CurrentIter->GetCurrent();
 
   if (mask & (UPD_TIMERS|UPD_PLINDEX))
-  { int back_index = -1;
+  { int front_index = -1;
+    int back_index = -1;
     PM123_TIME back_offset = -1;
     if (root)
     { AggregateInfo ai(PlayableSetBase::Empty);
       JobSet job(PRI_Low); // The job is discarded, because the update notification will call this function again anyways.
       InfoFlags what = mask & UPD_TIMERS ? IF_Aggreg : IF_Rpl;
-      OwnedPlayableSet exclude;
-      what &= ~root->AddSliceAggregate(ai, exclude, what, job, CurrentIter, NULL);
+      what &= ~CurrentIter->AddBackAggregate(ai, what, job);
       if (what & IF_Rpl)
         back_index = ai.Rpl.songs;
       if (what & IF_Drpl)
         back_offset = ai.Drpl.totallength;
+      ai.Reset();
+      if (!CurrentIter->AddFrontAggregate(ai, IF_Rpl, job))
+        front_index = ai.Rpl.songs;
     }
     if (mask & UPD_TIMERS)
       RefreshTimers(hps, back_index, back_offset);
     if (mask & UPD_PLINDEX)
       if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
       { int total = root->GetInfo().rpl->songs;
-        bmp_draw_plind(hps, (total|back_index) != -1 ? total - back_index + 1 : -1, total);
-      }
-      else
+        bmp_draw_plind(hps, front_index + 1, total);
+      } else
         bmp_draw_plind(hps, -1, -1);
   }
   if (mask & UPD_PLMODE)

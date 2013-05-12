@@ -33,7 +33,7 @@
 #define INCL_PM
 #include "commandprocessor.h"
 #include "../core/location.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include "../engine/plugman.h"
 #include "../engine/loadhelper.h"
 #include "../gui/dialog.h"
@@ -191,7 +191,6 @@ CommandProcessor::SyntaxException::SyntaxException(const char* fmt, ...)
 CommandProcessor::CommandProcessor()
 : CurSI(&GUI::GetDefaultPL())
 , Command(NULL)
-, SyncJob(PRI_Sync|PRI_Normal)
 , vd_message(&CommandProcessor::MessageHandler, this)
 , vd_message2(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
@@ -869,32 +868,32 @@ void CommandProcessor::XPlaylist()
 void CommandProcessor::XPlNext()
 { NavParams par = { 1, TATTR_SONG };
   ParsePrevNext(Request, par);
-  NavigationResult(CurSI.NavigateCount(SyncJob, par.Count, par.StopAt));
+  NavigationResult(CurSI.NavigateCount(Job::SyncJob, par.Count, par.StopAt));
 }
 
 void CommandProcessor::XPlPrev()
 { NavParams par = { 1, TATTR_SONG };
   ParsePrevNext(Request, par);
-  NavigationResult(CurSI.NavigateCount(SyncJob, -par.Count, par.StopAt));
+  NavigationResult(CurSI.NavigateCount(Job::SyncJob, -par.Count, par.StopAt));
 }
 
 void CommandProcessor::XPlNextItem()
 { NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
   ParsePrevNext(Request, par);
   const size_t depth = CurSI.GetLevel();
-  NavigationResult(CurSI.NavigateCount(SyncJob, par.Count, par.StopAt, depth, depth ? depth : 1));
+  NavigationResult(CurSI.NavigateCount(Job::SyncJob, par.Count, par.StopAt, depth, depth ? depth : 1));
 }
 
 void CommandProcessor::XPlPrevItem()
 { NavParams par = { 1, TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID };
   ParsePrevNext(Request, par);
   const size_t depth = CurSI.GetLevel();
-  NavigationResult(CurSI.NavigateCount(SyncJob, -par.Count, par.StopAt, depth, depth ? depth : 1));
+  NavigationResult(CurSI.NavigateCount(Job::SyncJob, -par.Count, par.StopAt, depth, depth ? depth : 1));
 }
 
 void CommandProcessor::XPlEnter()
 { XPlItem();
-  Location::NavigationResult ret = CurSI.NavigateInto(SyncJob);
+  Location::NavigationResult ret = CurSI.NavigateInto(Job::SyncJob);
   if (ret)
   { Messages.appendf("E %s\n", ret.cdata());
     Reply.clear();
@@ -908,7 +907,7 @@ void CommandProcessor::XPlLeave()
 
 void CommandProcessor::XPlNavigate()
 { const char* cp = Request;
-  const Location::NavigationResult& result = CurSI.Deserialize(SyncJob, cp);
+  const Location::NavigationResult& result = CurSI.Deserialize(Job::SyncJob, cp);
   if (result)
     Messages.appendf("E %s at %.30s\n", result.cdata(), cp);
   else
@@ -958,8 +957,7 @@ void CommandProcessor::XPlCallstack()
 void CommandProcessor::XPlIndex()
 { if (CurSI.GetRoot())
   { AggregateInfo ai(PlayableSetBase::Empty);
-    OwnedPlayableSet exclude;
-    CurSI.GetRoot()->AddSliceAggregate(ai, exclude, IF_Rpl, SyncJob, NULL, &CurSI);
+    CurSI.AddFrontAggregate(ai, IF_Rpl, Job::SyncJob);
     Reply.appendd(ai.Rpl.songs + 1);
   }
 }
@@ -1073,7 +1071,7 @@ void CommandProcessor::PlDir(bool recursive)
       dir->RequestInfo(IF_Rpl, PRI_Sync|PRI_Normal);
       { // get all songs
         class Location iter(dir);
-        while (iter.NavigateCount(SyncJob, 1, TATTR_SONG) == NULL)
+        while (iter.NavigateCount(Job::SyncJob, 1, TATTR_SONG) == NULL)
         { APlayable* cur = iter.GetCurrent();
           if (&cur->GetPlayable() != root) // Do not create recursion
             list.append() = cur;

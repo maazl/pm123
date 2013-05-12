@@ -111,7 +111,7 @@ class Location : public Iref_count
   /// @param direction \c true := forward, \c false := backward.
   /// @return false: failed because of job dependencies.
   /// @pre \c Callstack.size() is at least 1. Child information of \c GetPlaylist() is available.
-  virtual bool                PrevNextCore(JobSet& job, bool direction);
+  virtual bool                PrevNextCore(Job& job, bool direction);
   /// Navigate to the next or previous matching item.
   /// @param dir \c true := forward, \c false := backward.
   /// @param stopat Only stop at items that have at least one bit of this parameter set.
@@ -128,7 +128,7 @@ class Location : public Iref_count
   /// @return See \c NavigationResult.
   /// @post If the function returned \c NULL then \c GetCurrent() points to an item
   /// with \c tech->attributes \c & \a stopat.
-  NavigationResult            NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
+  NavigationResult            NavigateCountCore(Job& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = UINT_MAX);
 
   /// Helper for double dispatch at \c Swap.
   virtual void                Swap2(Location& l);
@@ -247,7 +247,7 @@ class Location : public Iref_count
   /// PrevNextCore will not enter this list. It will return or skip the nested list,
   /// depending on whether \c TATTR_PLAYLIST is set in \a stopat.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateCount(JobSet& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = INT_MAX);
+  NavigationResult            NavigateCount(Job& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth = 0, unsigned maxdepth = INT_MAX);
   /// @brief Navigate to the parent \a index times.
   /// @param index Number of navigations. It must be <= \c GetLevel().
   ///        Of course, you cannot navigate up from the root.
@@ -259,7 +259,7 @@ class Location : public Iref_count
   /// This results in a \c NULL entry at the end of the call stack.
   /// You can't enter sons or invalid items.
   /// @return See \c NavigationResult.
-  NavigationResult            NavigateInto(JobSet& job);
+  NavigationResult            NavigateInto(Job& job);
   /// Restart the current song if any.
   void                        NavigateRewindSong()         { if (Position >= 0) Position = -1; }
   /// Navigate explicitly to a given PlayableInstance.
@@ -289,7 +289,7 @@ class Location : public Iref_count
   /// @return See \c NavigationResult.
   /// @remarks \c Navigate will automatically enter the root playlist if necessary.
   /// It will not enter any other playlist.
-  NavigationResult            Navigate(JobSet& job, APlayable* pp, int index, unsigned mindepth, unsigned maxdepth);
+  NavigationResult            Navigate(Job& job, APlayable* pp, int index, unsigned mindepth, unsigned maxdepth);
   /// Navigate to an occurrence of \c Playable or \c PlayableInstance within the current deepmost playlist.
   /// @param pp Navigation target.
   /// If the \a target is \c NULL only the index is used to count the items (see NavigateCount).
@@ -304,14 +304,14 @@ class Location : public Iref_count
   /// @return See \c NavigationResult.
   /// @remarks \c Navigate will automatically enter the root playlist if necessary.
   /// It will not enter any other playlist.
-  NavigationResult            Navigate(JobSet& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth);
+  NavigationResult            Navigate(Job& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth);
   /// Move the current location and song as time offset.
   /// @param offset If the offset is less than zero it counts from the back.
   /// The navigation starts from the current location.
   /// @return See \c NavigationResult.
   /// @remarks If you want to navigate within the root call Reset before.
   /// If Navigate succeeds, the current item is always a song.
-  NavigationResult            NavigateTime(JobSet& job, PM123_TIME offset, int mindepth = 0, bool absolute = false);
+  NavigationResult            NavigateTime(Job& job, PM123_TIME offset, int mindepth = 0, bool absolute = false);
   
   /// Serialize the iterator into a string.
   /// @param withpos \c true: include the time offset within the deepest item.
@@ -331,7 +331,7 @@ class Location : public Iref_count
   /// at the priority level \a pri and you have to retry the deserialization later.
   /// Note that the value of \c *this is undefined in this case and must restore
   /// the previous value in case of relative navigation.
-  NavigationResult            Deserialize(JobSet& job, const char*& str);
+  NavigationResult            Deserialize(Job& job, const char*& str);
 
   /// @brief Relational comparison
   /// @return - The return value is zero if the locations are equal.

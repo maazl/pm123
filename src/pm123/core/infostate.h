@@ -50,7 +50,7 @@ enum InfoFlags // must be aligned to INFOTYPE in format.h!
 , IF_Obj     = 0x0004U ///< applies to GetInfo().obj
 , IF_Meta    = 0x0008U ///< applies to GetInfo().meta
 , IF_Attr    = 0x0010U ///< applies to GetInfo().attr and GetAtLoc()
-, IF_Child   = 0x0080U ///< applies to GetNext() and GetPre()
+, IF_Child   = 0x0080U ///< applies to GetNext() and GetPrev()
 , IF_Decoder = IF_Phys|IF_Tech|IF_Obj|IF_Meta|IF_Attr|IF_Child
   // Aggregate information
 , IF_Rpl     = 0x0100U ///< applies to GetInfo().rpl and RequestAggregateInfo(...)

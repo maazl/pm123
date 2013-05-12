@@ -1,5 +1,5 @@
 /*  
- * Copyright 2010-2011 Marcel Mueller
+ * Copyright 2010-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -201,55 +201,5 @@ class DependencyInfoWorker
                             WaitDependencyInfo(DependencyInfoQueue& data);
   bool                      Wait(long ms = -1)  { EventSem.Wait(ms); return QueueData.IsEmpty() && NowWaitingFor == IF_None; }
 };*/
-
-
-/// @brief Represents a worker job.
-/// @details A Job is the priority of the job and a set of dependencies
-/// that prevents the job from being executed completely.
-/// If a job is applied to an \c APlayable object all previously requested tasks
-/// at the given or higher priority should be executed.
-/// The methods \c RequestInfo and \c RequestAggregateInfo provide a convenient way
-/// to ensure this.
-class JobSet
-{private:
-  /// Next dependency set.
-  DependencyInfoPath        Depends;
- public:
-  /// Priority of the job.
-  const Priority            Pri;
- private:
-  /// Do not execute requests on objects other than this synchronously.
-  /// @remarks The pointer does not take a strong reference to the referred object
-  /// and should only be used foe instance equality checks.
-  const Playable* const     SyncOnly;
- public:
-  /// Dependencies of uncompleted tasks. If this is not initial
-  /// after the job completed, a \c DependencyInfoWorker will wait
-  /// for the dependencies, and once it signals, the job will be
-  /// rescheduled.
-  DependencyInfoSet         AllDepends;
-
- private:
-  Priority                  GetRequestPriority(APlayable& target);
- public:
-  /// Create a \c JobSet for the given priority level.
-  /// @param pri Priority of the requests placed by this job.
-                            JobSet(Priority pri) : Pri(pri), SyncOnly(NULL) {}
-  /// Create a \c JobSet for the given priority level.
-  /// @param pri Priority of the requests placed by this job.
-  /// @param synconly If this parameter is not \c NULL requests do not inherit the \c TrySync flag.
-  /// if they refer <em>not</em> to the object \a synconly.
-                            JobSet(Priority pri, Playable* synconly) : Pri(pri), SyncOnly(synconly) {}
-  /// Request information for \a target and if unsuccessful store \a target in the dependency list.
-  InfoFlags                 RequestInfo(APlayable& target, InfoFlags what);
-  /// Request aggregate information for \a target and if unsuccessful
-  /// store \a target in the dependency list.
-  volatile const AggregateInfo& RequestAggregateInfo(APlayable& target, const PlayableSetBase& excluding, InfoFlags& what);
-  /// Commit partial job.
-  /// @return true if there is anything to commit.
-  bool                      Commit();
-  /// Discard partial job.
-  void                      Rollback()          { Depends.Clear(); }
-};
 
 #endif

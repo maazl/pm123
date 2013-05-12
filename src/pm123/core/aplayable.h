@@ -82,6 +82,7 @@ class Location;
 class PlayableSetBase;
 class OwnedPlayableSet;
 class DependencyInfoSet;
+class Job;
 class JobSet;
 //class DependencyInfoWorker;
 /** @brief Common interface of \c Playable objects as well as references to \c Playable objects.
@@ -239,7 +240,7 @@ class APlayable
   /// If nonzero then some information depends on other objects. The dependencies in \a job have been adjusted.
   /// @remarks Slices are always calculated inclusively, i.e. if the start position is at the first song,
   /// but not \e inside the first song, the first song is part of the slice. The same applies to the stop position.
-          InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job,
+          InfoFlags           AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, Job& job,
                                                 const Location* start, const Location* stop, unsigned level = 0);
 
  private:

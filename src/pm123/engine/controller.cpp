@@ -29,7 +29,7 @@
 #define INCL_WIN
 #define INCL_BASE
 #include "controller.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include "../core/songiterator.h"
 #include "../configuration.h"
 #include "decoder.h"
@@ -97,7 +97,6 @@ class CtrlImp
 
   // Occasionally used constants.
   static const vector_int<PlayableInstance> EmptyStack;
-  static JobSet SyncJob;
 
  private: // internal functions, not thread safe
   /// Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
@@ -244,7 +243,6 @@ delegate<void, const OUTEVENTTYPE>       CtrlImp::OutEventDelegate(&CtrlImp::Out
 delegate<void, const PlayableChangeArgs> CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
 
 const vector_int<PlayableInstance> CtrlImp::EmptyStack;
-JobSet CtrlImp::SyncJob(PRI_Sync|PRI_Normal);
 
 int_ptr<APlayable> Ctrl::GetCurrentSong()
 { return int_ptr<SongIterator>(CurLoc)->GetCurrent();
@@ -407,7 +405,7 @@ void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const v
 
 bool CtrlImp::SkipCore(SongIterator& si, int count)
 { DEBUGLOG(("Ctrl::SkipCore({%s}, %i)\n", si.Serialize().cdata(), count));
-  const SongIterator::NavigationResult& rc = si.NavigateCount(SyncJob, count, TATTR_SONG);
+  const SongIterator::NavigationResult& rc = si.NavigateCount(Job::SyncJob, count, TATTR_SONG);
   if (rc)
   { StrArg = rc;
     Flags = RC_BadIterator;
@@ -673,7 +671,7 @@ void CtrlImp::MsgScan()
       // Going back in the stream to what is currently playing.
       SongIterator si(Current()->Loc);
       si.NavigateRewindSong();
-      si.NavigateTime(SyncJob, FetchCurrentSongTime(), si.GetCallstack().size());
+      si.NavigateTime(Job::SyncJob, FetchCurrentSongTime(), si.GetCallstack().size());
       if (NavigateCore(si, newscan) == NR_Failed)
         return;
     } else
@@ -751,7 +749,7 @@ void CtrlImp::MsgPlayStop()
       && si.GetCurrent()->GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
       if (time >= 0)
-        si.NavigateTime(SyncJob, time, si.GetCallstack().size(), true);
+        si.NavigateTime(Job::SyncJob, time, si.GetCallstack().size(), true);
     }
 
     // stop playback
@@ -795,7 +793,7 @@ void CtrlImp::MsgNavigate()
     sip->SetOptions(PLO_NONE);
     sip->NavigateRewindSong();
     if (time >= 0)
-      sip->NavigateTime(SyncJob, time);
+      sip->NavigateTime(Job::SyncJob, time);
   } else
   { sip = new SongIterator(Current()->Loc);
     sip->SetOptions(PLO_NONE);
@@ -803,7 +801,7 @@ void CtrlImp::MsgNavigate()
 
   if (StrArg && StrArg.length())
   { const char* cp = StrArg.cdata();
-    const SongIterator::NavigationResult rc = sip->Deserialize(SyncJob, cp);
+    const SongIterator::NavigationResult rc = sip->Deserialize(Job::SyncJob, cp);
     if (rc && !(Flags & NT_Partial))
     { StrArg = rc;
       NumArg = cp - StrArg.cdata();
@@ -813,7 +811,7 @@ void CtrlImp::MsgNavigate()
   } else
   { if (!(Flags & 0x01))
       sip->NavigateRewindSong();
-    const SongIterator::NavigationResult rc = sip->NavigateTime(SyncJob, NumArg);
+    const SongIterator::NavigationResult rc = sip->NavigateTime(Job::SyncJob, NumArg);
     if (rc && !(Flags & NT_Partial))
     { StrArg = rc;
       NumArg = -1;
@@ -870,7 +868,7 @@ void CtrlImp::MsgSkip()
       {case 1:
        case -1:
         si.Reset();
-        if (!si.NavigateCount(SyncJob, (int)NumArg, TATTR_SONG))
+        if (!si.NavigateCount(Job::SyncJob, (int)NumArg, TATTR_SONG))
           goto ok;
       }
     }
@@ -1021,7 +1019,7 @@ void CtrlImp::MsgLocation()
   *CurLocShadow = Current()->Loc; // copy
   if (pos >= 0)
   { CurLocShadow->NavigateRewindSong();
-    CurLocShadow->NavigateTime(SyncJob, pos, CurLocShadow->GetCallstack().size(), true);
+    CurLocShadow->NavigateTime(Job::SyncJob, pos, CurLocShadow->GetCallstack().size(), true);
   }
   // Return a value?
   if (Flags != LM_UpdatePos)
@@ -1067,14 +1065,14 @@ void CtrlImp::MsgDecStop()
   int dir = Scan < 0 ? -1 : 1;
 
   // Navigation
-  if (pep->Loc.NavigateCount(SyncJob, dir, TATTR_SONG))
+  if (pep->Loc.NavigateCount(Job::SyncJob, dir, TATTR_SONG))
   { // End of current root
     if (!Repeat)
     { delete pep;
       goto eol;
     }
     pep->Loc.Reset();
-    if ( (!root_is_song && pep->Loc.NavigateCount(SyncJob, dir, TATTR_SONG))
+    if ( (!root_is_song && pep->Loc.NavigateCount(Job::SyncJob, dir, TATTR_SONG))
       || pep->Loc.GetCurrent() == LastStart ) // Stop if there are no playable items
     { delete pep;
       goto eol;
@@ -1122,7 +1120,7 @@ void CtrlImp::MsgOutStop()
   // Reset the iterator to the first song.
   pe->Loc.Reset();
   // move to the first song.
-  pe->Loc.NavigateCount(SyncJob, 0, TATTR_SONG);
+  pe->Loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
   // In any case stop the engine
   Flags = Op_Reset;
   MsgPlayStop();
@@ -1175,8 +1173,6 @@ void CtrlImp::Worker()
       } else
       { // Do the work
         (((CtrlImp*)ccp)->*cmds[ccp->Cmd])();
-        // Always clear dependencies - they make no sense anyway.
-        SyncJob.Rollback();
       }
       DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", ccp->Cmd, ccp->Flags));
       fail = ccp->Flags != RC_OK;

@@ -69,14 +69,14 @@ class PlayableInstance : public PlayableRef
   /// Calling this method with NULL will check whether the instance does no longer belong to a collection.
   /// In this case only the return value true is reliable.
   #ifdef DEBUG_LOG
-  virtual bool             HasParent(const Playable* parent) const
+  bool                     HasParent(const Playable* parent) const
                            { if (Parent == parent)
                                return true;
                              DEBUGLOG(("PlayableInstnace(%p)::HasParent(%p) - %p\n", this, parent, Parent));
                              return false;
                            }
   #else
-  virtual bool             HasParent(const Playable* parent) const
+  bool                     HasParent(const Playable* parent) const
                            { return Parent == parent; }
   #endif
 

@@ -85,7 +85,7 @@ class PlayableRef : public APlayable
   /// @param type Options, @see CompareOptions.
   /// @param job Place dependencies here.
   /// @return \c true if the evaluation changed \a cache.
-          bool              CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job);
+          bool              CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, Job& job);
   /// Compare two slice borders taking NULL iterators by default as
   /// at the start or the end, depending on \c Location::CO_Reverse.
   /// Otherwise the same as \c Location::CopareTo.

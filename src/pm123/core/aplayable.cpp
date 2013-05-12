@@ -32,6 +32,7 @@
 #include "playableset.h"
 #include "waitinfo.h"
 #include "dependencyinfo.h"
+#include "job.h"
 #include "location.h"
 #include "../pm123.h"
 #include "../configuration.h"
@@ -188,7 +189,7 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   return *ai;
 }
 
-InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, unsigned level)
+InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& exclude, InfoFlags what, Job& job, const Location* start, const Location* stop, unsigned level)
 { DEBUGLOG(("APlayable(%p{%s})::AddSliceAggregate(, {%s}, %x, {%x,}, %p, %p, %i)\n", this, DebugName().cdata(),
     exclude.DebugDump(), what, job.Pri, start, stop, level));
   InfoFlags whatnotok = IF_None;
@@ -290,10 +291,7 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
       InfoFlags what2 = what;
       const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
       whatnotok |= what2;
-      if (what & IF_Rpl)
-        ai.Rpl += lai.Rpl;
-      if (what & IF_Drpl)
-        ai.Drpl += lai.Drpl;
+      ai.Add(lai, what);
     }
    empty:
     // Restore previous state.
@@ -303,7 +301,6 @@ InfoFlags APlayable::AddSliceAggregate(AggregateInfo& ai, OwnedPlayableSet& excl
   }
   return whatnotok;
 }
-
 
 /**
  * Worker classes that keeps track of requested informations that are not
@@ -378,7 +375,7 @@ void APlayable::ScheduleRequest(Priority pri)
 void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p{%s})::HandleRequest(%x)\n", this, DebugName().cdata(), pri));
   int old_pri = -1;
-  JobSet job((pri & ~PRI_Sync) | PRI_TrySync, &GetPlayable()); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
+  RecursiveJobSet job(pri, &GetPlayable()); // Avoid recursive propagation of PRI_Sync that can cause deadlocks.
   if (pri & PRI_Low)
   { AsyncRequest = 0;
     if (Cfg::Get().low_priority_workers)

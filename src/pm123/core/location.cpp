@@ -28,7 +28,7 @@
 
 #include "location.h"
 #include "playable.h"
-#include "dependencyinfo.h"
+#include "job.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -156,7 +156,7 @@ void Location::Leave()
   Callstack.erase(Callstack.size()-1);
 }
 
-bool Location::PrevNextCore(JobSet& job, bool direction)
+bool Location::PrevNextCore(Job& job, bool direction)
 { size_t cssize = Callstack.size();
   ASSERT(cssize);
   int_ptr<PlayableInstance>& pi = Callstack[cssize-1];
@@ -168,7 +168,7 @@ bool Location::PrevNextCore(JobSet& job, bool direction)
   return true;
 }
 
-Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
+Location::NavigationResult Location::NavigateCountCore(Job& job, bool dir, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
 { DEBUGLOG(("Location(%p)::NavigateCountCore({%u,}, %u, %x, %u, %u) - %u\n", this, job.Pri, dir, stopat, mindepth, maxdepth, Callstack.size()));
   ASSERT(stopat);
   ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth && maxdepth >= Callstack.size());
@@ -219,7 +219,7 @@ Location::NavigationResult Location::NavigateCountCore(JobSet& job, bool dir, TE
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::NavigateCount(JobSet& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
+Location::NavigationResult Location::NavigateCount(Job& job, int count, TECH_ATTRIBUTES stopat, unsigned mindepth, unsigned maxdepth)
 { Location::NavigationResult ret;
   if (!count)
   { // adjust next
@@ -263,7 +263,7 @@ Location::NavigationResult Location::NavigateUp(unsigned count)
   return ret;
 }
 
-Location::NavigationResult Location::NavigateInto(JobSet& job)
+Location::NavigationResult Location::NavigateInto(Job& job)
 { DEBUGLOG(("Location(%p)::NavigateInto({%u,})\n", job.Pri));
   APlayable* cur = GetCurrent();
   if (!cur)
@@ -312,7 +312,7 @@ Location::NavigationResult Location::NavigateTo(const Location& target)
   return xstring();
 }
 
-Location::NavigationResult Location::Navigate(JobSet& job, APlayable* target, int index, unsigned mindepth, unsigned maxdepth)
+Location::NavigationResult Location::Navigate(Job& job, APlayable* target, int index, unsigned mindepth, unsigned maxdepth)
 { DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i, %i)\n", this,
     job.Pri, target->DebugName().cdata(), index, mindepth, maxdepth));
   ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth);
@@ -351,7 +351,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, APlayable* target, in
   }
   return ret;
 }
-Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth)
+Location::NavigationResult Location::Navigate(Job& job, const xstring& url, int index, unsigned mindepth, unsigned maxdepth)
 { DEBUGLOG(("Location(%p)::Navigate({%u,}, %s, %i, %i, %i)\n", this,
     job.Pri, url.cdata(), index, mindepth, maxdepth));
   ASSERT(Callstack.size() >= mindepth && maxdepth >= mindepth);
@@ -423,7 +423,7 @@ Location::NavigationResult Location::Navigate(JobSet& job, const xstring& url, i
   return ret;
 }
 
-Location::NavigationResult Location::NavigateTime(JobSet& job, PM123_TIME offset, int mindepth, bool absolute)
+Location::NavigationResult Location::NavigateTime(Job& job, PM123_TIME offset, int mindepth, bool absolute)
 { DEBUGLOG(("Location(%p)::NavigateTime({%u,}, %f, %i, %u) - %u\n", this,
     job.Pri, offset, mindepth, absolute, Callstack.size()));
   
@@ -544,7 +544,7 @@ xstring Location::Serialize(bool withpos, char delimiter) const
   return ret;
 }
 
-Location::NavigationResult Location::Deserialize(JobSet& job, const char*& str)
+Location::NavigationResult Location::Deserialize(Job& job, const char*& str)
 { DEBUGLOG(("Location(%p)::Deserialize({%u, }, %s) - %s\n", this, job.Pri, str, Serialize(true).cdata()));
   NavigationResult ret;
   int flat = 0;

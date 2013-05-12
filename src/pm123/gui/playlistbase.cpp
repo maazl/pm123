@@ -34,7 +34,7 @@
 #define  INCL_DOS
 
 #include "playlistbase.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include "../engine/plugman.h"
 #include "../engine/loadhelper.h"
 #include "playlistmanager.h"
@@ -1274,10 +1274,9 @@ void PlaylistBase::UserNavigate(const RecordBase* rec)
   // Now callstack contains all sub items within this root.
 
   // Create location object
-  JobSet noblockjob(PRI_None);
   sco_ptr<Location> loc(new Location(Content));
   for (size_t i = callstack.size(); i--; )
-  { if (loc->NavigateInto(noblockjob))
+  { if (loc->NavigateInto(Job::NoBlockJob))
     { DEBUGLOG(("PlaylistMenu::SelectEntry -> NavigateInto failed."));
       return;
     }

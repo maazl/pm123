@@ -33,7 +33,7 @@
 #define INCL_BASE
 #define INCL_PM
 #include "infodialog.h"
-#include "../core/dependencyinfo.h"
+#include "../core/job.h"
 #include "../pm123.h"
 #include "gui.h"
 #include "pm123.rc.h"

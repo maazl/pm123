@@ -30,7 +30,7 @@
 #include "playableref.h"
 #include "playable.h"
 #include "location.h"
-#include "dependencyinfo.h"
+#include "job.h"
 #include <string.h>
 
 #include <debuglog.h>
@@ -403,7 +403,7 @@ InfoFlags PlayableRef::DoRequestAI(const PlayableSetBase& exclude, const volatil
 }
 
 
-bool PlayableRef::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, JobSet& job)
+bool PlayableRef::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, Location::CompareOptions type, Job& job)
 { xstring localstr = strloc;
   DEBUGLOG(("PlayableRef(%p)::CalcLoc(&%s, &%p, %x, {%x,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
   bool changed = false;

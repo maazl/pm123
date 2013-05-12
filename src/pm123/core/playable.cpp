@@ -32,7 +32,7 @@
 #include "playable.h"
 #include "../eventhandler.h"
 #include "../engine/decoder.h"
-#include "dependencyinfo.h"
+#include "job.h"
 #include "location.h"
 #include "waitinfo.h"
 #include <strutils.h>
@@ -370,9 +370,8 @@ bool Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
     excluding.append() = cie.Exclude[i]; // At this point the sort order is implied.
   excluding.add(*this);
 
-  RplInfo rpl;
-  DrplInfo drpl;
-  rpl.lists = 1; // At least one list: our own.
+  AggregateInfo ai(excluding);
+  ai.Rpl.lists = 1; // At least one list: our own.
 
   // Iterate over children
   int_ptr<PlayableInstance> pi;
@@ -383,31 +382,27 @@ bool Playable::CalcRplInfo(AggregateInfo& cie, InfoState::Update& upd, PlayableC
       continue;
     }
     InfoFlags what2 = upd & IF_Aggreg;
-    const volatile AggregateInfo& ai = job.RequestAggregateInfo(*pi, excluding, what2);
+    const volatile AggregateInfo& lai = job.RequestAggregateInfo(*pi, excluding, what2);
     DEBUGLOG(("Playable(%p)::CalcRplInfo - got sub info: %p %x\n", this, &ai, what2));
     whatok &= ~what2;
     // TODO: Increment unk_* counters instead of ignoring incomplete subitems?
-    if (whatok & IF_Rpl)
-      rpl += ai.Rpl;
-    if (whatok & IF_Drpl)
-      drpl += ai.Drpl;
+    ai.Add(lai, whatok);
     // Alternation lists: stop at the first successful item.
     if ((Info.Attr.ploptions & PLO_ALTERNATION) && whatok && !(pi->GetInfo().tech->attributes & TATTR_INVALID))
       break;
   }
   bool delayed = job.Commit();
   DEBUGLOG(("Playable::CalcRplInfo: %x, RPL{%i, %i, %i, %i}, DRPL{%f, %i, %f, %i}\n", whatok,
-    rpl.songs, rpl.lists, rpl.invalid, rpl.unknown, drpl.totallength, drpl.unk_length, drpl.totalsize, drpl.unk_size));
+    ai.Rpl.songs, ai.Rpl.lists, ai.Rpl.invalid, ai.Rpl.unknown, ai.Drpl.totallength, ai.Drpl.unk_length, ai.Drpl.totalsize, ai.Drpl.unk_size));
   // Update results
-
 
   upd.Rollback(~whatok & IF_Aggreg);
   InfoFlags whatdone = IF_None;
   { Mutex::Lock lock(Mtx);
     if (whatok & IF_Rpl)
-      events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
+      events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(ai.Rpl);
     if (whatok & IF_Drpl)
-      events.Changed |= IF_Drpl * cie.Drpl.CmpAssign(drpl);
+      events.Changed |= IF_Drpl * cie.Drpl.CmpAssign(ai.Drpl);
     whatdone = upd.Commit(whatok);
   }
   events.Loaded |= whatdone;

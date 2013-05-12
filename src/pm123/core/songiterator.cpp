@@ -28,7 +28,7 @@
 
 #include "songiterator.h"
 #include "playable.h"
-#include "dependencyinfo.h"
+#include "job.h"
 #include <cpp/algorithm.h>
 #include <stdint.h>
 
@@ -42,12 +42,11 @@
 */
 
 SongIterator::ShuffleWorker::ShuffleWorker(Playable& playlist, long seed)
-: Playlist(&playlist)
+: Playlist(playlist)
 , Seed(seed)
-, PlaylistDeleg(*this, &ShuffleWorker::PlaylistChangeNotification)
+, PlaylistDeleg(*this, &ShuffleWorker::ListChangeHandler)
 { // Set marker for full update on the first request.
   ChangeSet.append();
-  // Observe playlist changes
   playlist.GetInfoChange() += PlaylistDeleg;
 }
 
@@ -75,9 +74,9 @@ int SongIterator::ShuffleWorker::ChangeSetComparer(const PlayableInstance& key, 
 { return (int)&key - (int)&item;
 }
 
-void SongIterator::ShuffleWorker::PlaylistChangeNotification(const CollectionChangeArgs& args)
-{ DEBUGLOG(("ShuffleWorker(%p{%p})::PlaylistChangeNotification({&%p, %p, %x..., %u})\n",
-    this, Playlist.get(), &args.Instance, args.Origin, args.Changed, args.Type));
+void SongIterator::ShuffleWorker::ListChangeHandler(const CollectionChangeArgs& args)
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::ListChangeHandler({&%p, %p, %x..., %u})\n",
+    this, &Playlist, &args.Instance, args.Origin, args.Changed, args.Type));
   if (args.Changed & IF_Child)
   { switch (args.Type)
     {case PCT_Insert:
@@ -103,9 +102,9 @@ void SongIterator::ShuffleWorker::PlaylistChangeNotification(const CollectionCha
 }
 
 void SongIterator::ShuffleWorker::UpdateItem(PlayableInstance& item)
-{ DEBUGLOG(("ShuffleWorker(%p{%p})::UpdateItem(&%p)\n", this, Playlist.get(), &item));
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::UpdateItem(&%p)\n", this, &Playlist, &item));
   KeyType key(MakeKey(item));
-  size_t pos;
+  Iterator pos;
   if (Items.locate(key, pos))
   { // Item is in the list.
     if (item.GetIndex() == 0)
@@ -120,13 +119,13 @@ void SongIterator::ShuffleWorker::UpdateItem(PlayableInstance& item)
 }
 
 void SongIterator::ShuffleWorker::Update()
-{ DEBUGLOG(("ShuffleWorker(%p{%p})::Update()\n", this, Playlist.get()));
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Update()\n", this, &Playlist));
   if (!ChangeSet.size()) // Double check below
     return;
   // Get changes
   ChangeSetType changes;
   { // Synchronize to Playlist to avoid collisions with PlaylistChangeNotification.
-    Mutex::Lock lock(Playlist->Mtx);
+    Mutex::Lock lock(Playlist.Mtx);
     changes.swap(ChangeSet);
   }
   switch (changes.size())
@@ -135,11 +134,8 @@ void SongIterator::ShuffleWorker::Update()
    case 1:
     if (changes[0] == NULL)
     { // Full update
-      int count = Playlist->GetInfo().obj->num_items;
-      if (Items.size() < count)
-        Items.reserve(count);
       int_ptr<PlayableInstance> pi;
-      while ((pi = Playlist->GetNext(pi)) != NULL)
+      while ((pi = Playlist.GetNext(pi)) != NULL)
         UpdateItem(*pi);
       break;
     }
@@ -150,57 +146,87 @@ void SongIterator::ShuffleWorker::Update()
   }
 }
 
-unsigned SongIterator::ShuffleWorker::GetIndex(PlayableInstance& item)
+SongIterator::ShuffleWorker::Iterator SongIterator::ShuffleWorker::GetLocation(PlayableInstance& item)
 { Update();
-  size_t pos;
-  if (!Items.locate(MakeKey(item), pos))
-    return -1;
+  Iterator pos;
+  Items.locate(MakeKey(item), pos);
   return pos;
 }
 
 int_ptr<PlayableInstance> SongIterator::ShuffleWorker::Next(PlayableInstance* pi)
-{ DEBUGLOG(("ShuffleWorker(%p{%p})::Next(%p)\n", this, Playlist.get(), pi));
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Next(%p)\n", this, &Playlist, pi));
   Update();
-  size_t index = 0;
-  if (pi && Items.locate(MakeKey(*pi), index))
+  if (Items.empty())
+    return NULL;
+  if (!pi)
+    return *Items.begin();
+  Iterator index;
+  if (Items.locate(MakeKey(*pi), index))
     ++index;
-  return index < Items.size() ? Items[index] : NULL;
+  return !index.isend() ? *index : NULL;
 }
 
 int_ptr<PlayableInstance> SongIterator::ShuffleWorker::Prev(PlayableInstance* pi)
-{ DEBUGLOG(("ShuffleWorker(%p{%p})::Prev(%p)\n", this, Playlist.get(), pi));
+{ DEBUGLOG(("ShuffleWorker(%p{%p})::Prev(%p)\n", this, &Playlist, pi));
   Update();
-  size_t index = Items.size() -1;
-  if (pi)
-  { size_t pos;
-    Items.locate(MakeKey(*pi), pos);
-    if (pos)
-      index = pos -1;
+  if (Items.empty())
+    return NULL;
+  Iterator index;
+  if (!pi)
+  { index = Items.end();
+  } else
+  { Items.locate(MakeKey(*pi), index);
+    if (index.isbegin())
+      return NULL;
   }
-  return index < Items.size() ? Items[index] : NULL;
+  return *--index;
 }
 
 
 /*
-*
-*  class SongIterator
-*
+*  class SongIterator::OffsetCacheEntry
 */
 
-SongIterator::OffsetCacheEntry::OffsetCacheEntry()
-: Offset(Exclude)
-, ListChangeDeleg(*this, &OffsetCacheEntry::ListChangeHandler)
-{}
+SongIterator::OffsetCacheEntry::OffsetCacheEntry(APlayable& root, const vector<PlayableInstance> callstack, unsigned level)
+: Parent(level ? *callstack[level-1] : root)
+, Front(Exclude)
+, Back(Exclude)
+, Valid(IF_None)
+, PlaylistDeleg(*this, &OffsetCacheEntry::ListChangeHandler)
+{ // Prepare exclude
+  if (level)
+  { Exclude.reserve(level-1);
+    Exclude.add(root.GetPlayable());
+    for (unsigned i; i < level-1; ++i)
+      Exclude.add(callstack[i]->GetPlayable());
+  }
+  // activate delegate after Exclude is frozen.
+  Parent.GetInfoChange() += PlaylistDeleg;
+}
+SongIterator::OffsetCacheEntry::OffsetCacheEntry(const OffsetCacheEntry& r)
+: Parent(r.Parent)
+, Exclude(r.Exclude)
+, Front(Exclude)
+, Back(Exclude)
+, Valid(r.Valid)
+, PlaylistDeleg(Parent.GetInfoChange(), *this, &OffsetCacheEntry::ListChangeHandler)
+{ // Be sure not to miss an invalidation event
+  Valid &= r.Valid;
+}
 
 void SongIterator::OffsetCacheEntry::ListChangeHandler(const PlayableChangeArgs& args)
-{ DEBUGLOG(("SongIterator::OffsetCacheEntry(%p)::ListChangeHandler({, %x, %x, %x}) - %x\n", this,
-    args.Loaded, args.Changed, args.Invalidated, Valid.get()));
+{ DEBUGLOG(("SongIterator::OffsetCacheEntry(%p{%p})::ListChangeHandler({, %x, %x, %x}) - %x\n", this,
+    &Parent, args.Loaded, args.Changed, args.Invalidated, Valid.get()));
   InfoFlags what = args.Changed | args.Invalidated;
   if (what & IF_Child)
     what |= IF_Aggreg;
   Valid &= ~what;
 }
 
+
+/*
+*  class SongIterator
+*/
 
 SongIterator::SongIterator(APlayable* root)
 : Location(root ? &root->GetPlayable() : NULL)
@@ -217,11 +243,22 @@ SongIterator::SongIterator(const SongIterator& r)
 , ShuffleSeed(r.ShuffleSeed)
 , ShuffleWorkerCache(r.ShuffleWorkerCache)
 , IsShuffleCache(r.IsShuffleCache)
+, OffsetCache(r.OffsetCache)
 {}
 
 SongIterator::~SongIterator()
 { // Discard Root of Location before Playable might die.
   Location::SetRoot(NULL);
+}
+
+SongIterator::ShuffleWorker& SongIterator::EnsureShuffleWorker(unsigned depth)
+{ if (depth >= ShuffleWorkerCache.size())
+    ShuffleWorkerCache.set_size(depth+1);
+  int_ptr<ShuffleWorker>& swp(ShuffleWorkerCache[depth]);
+  if (!swp)
+    // Cache miss
+    swp = new ShuffleWorker(depth ? GetCallstack()[depth-1]->GetPlayable() : *Location::GetRoot(), ShuffleSeed);
+  return *swp;
 }
 
 void SongIterator::ShuffleWorkerCacheCleanup()
@@ -232,7 +269,7 @@ void SongIterator::ShuffleWorkerCacheCleanup()
   while (list && level < ShuffleWorkerCache.size())
   { ShuffleWorker* sw = ShuffleWorkerCache[level];
     if (sw)
-    { if (sw->Playlist != &list->GetPlayable())
+    { if (&sw->Playlist != &list->GetPlayable())
         break;
       maxvalid = level; // cache is valid
     }
@@ -254,16 +291,14 @@ void SongIterator::Enter()
 
 void SongIterator::Leave()
 { IsShuffleCache = PLO_NONE;
-  size_t depth = GetCallstack().size();
-  if (ShuffleWorkerCache.size() > depth)
-    ShuffleWorkerCache.set_size(depth);
   Location::Leave();
-  depth = GetCallstack().size();
+  ShuffleWorkerCacheCleanup();
+  size_t depth = GetCallstack().size();
   if (OffsetCache.size() > depth)
     OffsetCache.set_size(depth);
 }
 
-bool SongIterator::PrevNextCore(JobSet& job, bool direction)
+bool SongIterator::PrevNextCore(Job& job, bool direction)
 { DEBUGLOG(("SongIterator(%p)::PrevNextCore(,%u)\n", this, direction));
   const vector<PlayableInstance>& callstack = GetCallstack();
   size_t depth = callstack.size();
@@ -285,21 +320,16 @@ bool SongIterator::PrevNextCore(JobSet& job, bool direction)
     }
   }
 
-  if (!IsShuffle())
+  // Optimization: ignore shuffle option for very small playlists.
+  if ((unsigned)list->GetInfo().obj->num_items <= 1 || !IsShuffle())
     return Location::PrevNextCore(job, direction);
   // Prev/next in shuffle mode
   DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
   // Shuffle cache lookup
-  ShuffleWorkerCache.set_size(depth);
-  ShuffleWorker* sw = ShuffleWorkerCache[--depth];
-  if (!sw)
-    // Cache miss
-    ShuffleWorkerCache[depth] = sw = new ShuffleWorker(list->GetPlayable(), ShuffleSeed);
-  else
-    ASSERT(sw->Playlist == (depth ? &callstack[depth-1]->GetPlayable() : Location::GetRoot()));
+  ShuffleWorker& sw = EnsureShuffleWorker(--depth);
   // Navigate
   PlayableInstance* pi = callstack[depth];
-  pi = direction ? sw->Next(pi) : sw->Prev(pi);
+  pi = direction ? sw.Next(pi) : sw.Prev(pi);
   NavigateTo(pi);
   return true;
 }
@@ -325,14 +355,13 @@ SongIterator& SongIterator::operator=(const Location& r)
   ShuffleWorkerCacheCleanup();
   return *this;
 }
-SongIterator& SongIterator::operator=(const SongIterator& r)
+/*SongIterator& SongIterator::operator=(const SongIterator& r)
 { DEBUGLOG(("SongIterator(%p)::operator=(SongIterator&%p)\n", this, &r));
   Root = r.Root;
   Location::operator=(r);
-  IsShuffleCache = PLO_NONE;
-  ShuffleWorkerCacheCleanup();
+  Options =
   return *this;
-}
+}*/
 
 void SongIterator::Swap2(Location& l)
 { DEBUGLOG(("SongIterator(%p)::Swap2(&%p)\n", this, &l));
@@ -383,6 +412,18 @@ void SongIterator::SetOptions(PL_OPTIONS options)
   }
 }
 
+bool SongIterator::IsShuffle(unsigned depth) const
+{ if (Options & PLO_NO_SHUFFLE)
+    return false;
+  const vector<PlayableInstance>& callstack = GetCallstack();
+  while (depth)
+  { unsigned options = callstack[--depth]->GetInfo().attr->ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE);
+    if (options)
+      return !(options & PLO_NO_SHUFFLE);
+  }
+  return !!(Options & PLO_SHUFFLE);
+}
+
 bool SongIterator::IsShuffle() const
 { if (Options & PLO_NO_SHUFFLE)
     return false;
@@ -399,4 +440,161 @@ bool SongIterator::IsShuffle() const
   }
  done:
   return !(IsShuffleCache & PLO_NO_SHUFFLE);
+}
+
+SongIterator::OffsetCacheEntry& SongIterator::EnsureOffsetCache(size_t level)
+{ ASSERT(level < GetCallstack().size());
+  if (OffsetCache.size() <= level)
+    OffsetCache.set_size(level +1);
+  int_ptr<OffsetCacheEntry>& cep(OffsetCache[level]);
+  if (!cep)
+    cep = new OffsetCacheEntry(*Root, GetCallstack(), level);
+  return *cep;
+}
+
+InfoFlags SongIterator::CalcOffsetCacheEntry(Job& job, unsigned level, InfoFlags what)
+{ DEBUGLOG(("SongIterator(%p)::CalcOffsetCacheEntry({%x,}, %u, %x)\n", this, level, what, job.Pri));
+  OffsetCacheEntry& ce = EnsureOffsetCache(level);
+  // Cleanup before start
+  what &= (InfoFlags)~ce.Valid;
+  if (!what)
+    return IF_None;
+  if (what & IF_Rpl)
+  { ce.Front.Rpl.Reset();
+    ce.Back.Rpl.Reset();
+  }
+  if (what & IF_Drpl)
+  { ce.Front.Drpl.Reset();
+    ce.Back.Drpl.Reset();
+  }
+  ce.Valid |= what;
+  InfoFlags whatnotok = IF_None;
+  PlayableInstance& current = *GetCallstack()[level];
+
+ recurse:
+  int_ptr<PlayableInstance> psp; // start element
+  PM123_TIME ss = -1; // start position
+  /* TODO: slicing
+  if (start)
+  { DEBUGLOG(("SongIterator::AddSliceAggregate start: %s\n", start->Serialize().cdata()));
+    size_t size = start->GetCallstack().size();
+    if (size > level)
+      psp = start->GetCallstack()[level];
+    else if (size == level)
+    { if (job.RequestInfo(*this, IF_Tech))
+        whatnotok = what;
+      else if (GetInfo().tech->attributes & TATTR_SONG)
+        ss = start->GetPosition();
+    }
+  }*/
+  int_ptr<PlayableInstance> pep; // stop element
+  PM123_TIME es = -1; // stop position
+  /* TODO slicing
+  if (stop)
+  { DEBUGLOG(("APlayable::AddSliceAggregate stop: %s\n", stop->Serialize().cdata()));
+    size_t size = stop->GetCallstack().size();
+    if (size > level)
+      pep = stop->GetCallstack()[level];
+    else if (size == level)
+    { if (job.RequestInfo(*this, IF_Tech))
+        whatnotok = what;
+      else if (GetInfo().tech->attributes & TATTR_SONG)
+        es = stop->GetPosition();
+    }
+  }*/
+
+  { Playable& pc = ce.Parent.GetPlayable();
+    /* TODO: slicing
+    if (psp)
+    { // Check for negative slice
+      if (pep && psp->GetIndex() > pep->GetIndex())
+        goto empty;
+      if (!ce.Exclude.contains(psp->GetPlayable()))
+        whatnotok |= psp->AddSliceAggregate(ai, exclude, what, job, start, NULL, level+1);
+      // else: item in the call stack => ignore entire sub tree.
+    }
+    if (pep)
+    { if (!ce.Exclude.contains(pep->GetPlayable()))
+        whatnotok |= pep->AddSliceAggregate(ai, exclude, what, job, NULL, stop, level+1);
+      // else: item in the call stack => ignore entire sub tree.
+    }*/
+
+    // Add the range (psp..pep). Exclusive interval!
+    if (job.RequestInfo(pc, IF_Child))
+      return what;
+    bool shuffle_checked = false;
+    ShuffleWorker* swp = NULL;
+    ShuffleWorker::Iterator currentloc;
+
+    while ((psp = pc.GetNext(psp)) != pep)
+    { // Always skip current item.
+      if (psp == &current)
+        continue;
+      Playable& p = psp->GetPlayable();
+      if (&p == &pc || ce.Exclude.contains(p))
+        continue;
+      InfoFlags what2 = what;
+      const volatile AggregateInfo& ai = job.RequestAggregateInfo(*psp, ce.Exclude, what2);
+      whatnotok |= what2;
+      // Is shuffle?
+      if (!shuffle_checked)
+      { shuffle_checked = true;
+        if (IsShuffle(level))
+        { swp = &EnsureShuffleWorker(level);
+          currentloc = swp->GetLocation(current);
+        }
+      }
+      // Check whether *psp is before or after current.
+      bool isbefore = swp ? swp->GetLocation(*psp) < currentloc : psp->GetIndex() < current.GetIndex();
+      AggregateInfo& target = (isbefore ? ce.Front : ce.Back);
+      target.Add(ai, what);
+    }
+   empty:;
+  }
+  return whatnotok;
+}
+
+InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& ai, InfoFlags what, Job& job)
+{ DEBUGLOG(("SongIterator(%p)::AddFrontAggregate(, %x, &{%x,})\n", this, what, job.Pri));
+  ASSERT((what & ~IF_Aggreg) == 0);
+  InfoFlags whatnotok = IF_None;
+  if (what)
+  { const vector<PlayableInstance>& callstack = GetCallstack();
+    for (unsigned i = 0; i < callstack.size(); ++i)
+    { CalcOffsetCacheEntry(job, i, what);
+      ai.Add(OffsetCache[i]->Front, what);
+    }
+    if ((what & IF_Drpl) && GetPosition() > 0)
+      ai.Drpl.totallength += GetPosition();
+  }
+  return whatnotok;
+}
+
+InfoFlags SongIterator::AddBackAggregate(AggregateInfo& ai, InfoFlags what, Job& job)
+{ DEBUGLOG(("SongIterator(%p)::AddBackAggregate(, %x, &{%x,})\n", this, what, job.Pri));
+  ASSERT((what & ~IF_Aggreg) == 0);
+  InfoFlags whatnotok = IF_None;
+  if (what)
+  { const vector<PlayableInstance>& callstack = GetCallstack();
+    for (unsigned i = 0; i < callstack.size(); ++i)
+    { whatnotok |= CalcOffsetCacheEntry(job, i, what);
+      ai.Add(OffsetCache[i]->Back, what);
+    }
+    APlayable* cur = GetCurrent();
+    if (cur)
+    { InfoFlags what2 = what;
+      PlayableSet exclude(callstack.size()-1);
+      if (callstack.size())
+      { exclude.add(*Location::GetRoot());
+        for (unsigned i = 0; i < callstack.size()-1; ++i)
+          exclude.add(callstack[i]->GetPlayable());
+      }
+      const volatile AggregateInfo& lai = job.RequestAggregateInfo(*cur, exclude, what2);
+      whatnotok |= what2;
+      ai.Add(lai, what);
+      if (GetPosition() > 0 && (what & IF_Drpl))
+        ai.Drpl.totallength -= GetPosition();
+    }
+  }
+  return whatnotok;
 }

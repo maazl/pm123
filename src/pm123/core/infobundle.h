@@ -240,10 +240,7 @@ struct AggregateInfo
   void                   Reset()                  { Rpl.Reset(); Drpl.Reset(); }
   AggregateInfo&         operator=(const AggregateInfo& r);
   AggregateInfo&         operator=(const volatile AggregateInfo& r);
-  //AggregateInfo&         operator+=(const AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
-  AggregateInfo&         operator+=(const volatile AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
-  //AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
-  AggregateInfo&         operator-=(const volatile AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
+  void                   Add(const volatile AggregateInfo& r, unsigned what);
 };
 
 // TODO: remove this class
