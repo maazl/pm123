@@ -218,6 +218,7 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       CheckBox(+GetCtrl(CB_RETAINONEXIT)).CheckState(cfg.retainonexit);
       CheckBox(+GetCtrl(CB_RETAINONSTOP)).CheckState(cfg.retainonstop);
       CheckBox(+GetCtrl(CB_RESTARTONSTART)).CheckState(cfg.restartonstart);
+      CheckBox(+GetCtrl(CB_DISCARDSEED)).CheckState(cfg.discardseed);
 
       CheckBox(+GetCtrl(CB_TURNAROUND)).CheckState(cfg.autoturnaround);
       CheckBox(+GetCtrl(RB_SONGONLY + cfg.altnavig)).CheckState(true);
@@ -231,6 +232,7 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       cfg.retainonexit = CheckBox(GetCtrl(CB_RETAINONEXIT)).CheckState();
       cfg.retainonstop = CheckBox(GetCtrl(CB_RETAINONSTOP)).CheckState();
       cfg.restartonstart = CheckBox(GetCtrl(CB_RESTARTONSTART)).CheckState();
+      cfg.discardseed = CheckBox(GetCtrl(CB_DISCARDSEED)).CheckState();
 
       cfg.autoturnaround = CheckBox(GetCtrl(CB_TURNAROUND)).CheckState();
       cfg.altnavig = (cfg_anav)RadioButton(GetCtrl(RB_SONGONLY)).CheckIndex();

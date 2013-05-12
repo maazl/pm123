@@ -313,6 +313,7 @@
 #define CB_RETAINONEXIT    1261
 #define CB_RETAINONSTOP    1262
 #define CB_RESTARTONSTART  1263
+#define CB_DISCARDSEED     1265
 
 #define CB_TURNAROUND      1270
 #define RB_SONGONLY        1271
@@ -328,6 +329,7 @@
 #define CB_RECURSEDND      1311
 #define CB_FOLDERSFIRST    1313
 #define CB_AUTOSAVEPL      1314
+
 #define RB_ITEMNAVTO       1315
 #define RB_ITEMLOAD        1316
 #define RB_ITEMQUEUE       1317

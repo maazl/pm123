@@ -1514,6 +1514,7 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "buffersize",      &amp_cfg::buff_size      }
 , { "bufferwait",      &amp_cfg::buff_wait      }
 , { "conntimeout",     &amp_cfg::conn_timeout   }
+, { "discardseed",     &amp_cfg::discardseed    }
 , { "dndrecurse",      &amp_cfg::recurse_dnd    }
 , { "dockmargin",      &amp_cfg::dock_margin    }
 , { "dockwindows",     &amp_cfg::dock_windows   }

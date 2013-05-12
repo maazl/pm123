@@ -273,19 +273,22 @@ DLGTEMPLATE CFG_SETTINGS1
   DIALOG         "",                                    CFG_SETTINGS1,      0,  0, 260,148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 54, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 54, 248, 48, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 70, 112, 12, WS_GROUP
+    AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 82, 112, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
-    AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 70, 112, 12
+    AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 82, 112, 12
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 2,4,0,1)
-    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 58, 112, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 70, 112, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 58,  52, 12, WS_GROUP
+    AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 70,  52, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 1,4,0,1)
-    AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 58,  52, 12
+    AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 70,  52, 12
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(3,4,0,1, 1,4,0,1)
+    AUTOCHECKBOX "~Discard shuffle sequence when shuffle is disabled",
+                                                        CB_DISCARDSEED,    12, 58, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
 
     GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 48, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)

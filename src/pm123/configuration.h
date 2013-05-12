@@ -127,6 +127,7 @@ struct amp_cfg
   bool     retainonexit;       ///< Retain playing position on exit.
   bool     retainonstop;       ///< Retain playing position on stop.
   bool     restartonstart;     ///< Restart playing on startup.
+  bool     discardseed;        ///< Discard shuffle seed when shuffle is disabled.
   cfg_anav altnavig;           ///< Alternate navigation method
   cfg_button altbutton;        ///< Alternate navigation button
   bool     autoturnaround;     ///< Turn around at prev/next when at the end of a playlist

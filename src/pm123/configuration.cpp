@@ -63,6 +63,7 @@ const amp_cfg Cfg::Default =
 , true
 , false
 , false
+, false
 , CFG_ANAV_SONG
 , CFG_BUT_ALT
 , true
@@ -186,6 +187,7 @@ void Cfg::LoadIni()
   load_ini_int(HIni, cfg.retainonexit);
   load_ini_int(HIni, cfg.retainonstop);
   load_ini_int(HIni, cfg.restartonstart);
+  load_ini_int(HIni, cfg.discardseed);
   load_ini_int(HIni, cfg.altnavig);
   load_ini_int(HIni, cfg.altbutton);
   load_ini_int(HIni, cfg.autoturnaround);
@@ -260,6 +262,7 @@ void Cfg::SaveIni()
     save_ini_bool (HIni, cfg.retainonexit);
     save_ini_bool (HIni, cfg.retainonstop);
     save_ini_bool (HIni, cfg.restartonstart);
+    save_ini_bool (HIni, cfg.discardseed);
     save_ini_value(HIni, cfg.altnavig);
     save_ini_value(HIni, cfg.altbutton);
     save_ini_bool (HIni, cfg.autoturnaround);

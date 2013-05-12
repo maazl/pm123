@@ -991,8 +991,13 @@ void CtrlImp::MsgShuffle()
   if (SetFlag(Shuffle))
     Pending |= EV_Shuffle;
   const PL_OPTIONS options = Shuffle * PLO_SHUFFLE;
+  const bool reshuffle = !Shuffle && Cfg::Get().discardseed;
   foreach (PrefetchEntry,**, pepp, PrefetchList)
-    (*pepp)->Loc.SetOptions(options);
+  { SongIterator& si = (*pepp)->Loc;
+    si.SetOptions(options);
+    if (reshuffle)
+      si.Reshuffle();
+  }
 }
 
 void CtrlImp::MsgRepeat()
