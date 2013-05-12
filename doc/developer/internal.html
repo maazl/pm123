@@ -13,7 +13,8 @@ timeout.</p>
 <p>The components are:</p>
 <ul>
   <li>the <a href="#play_controller">Play Controller</a>,</li>
-  <li>the <a href="#decoder_engine">Playback Engine</a>,</li>
+  <li>the <a href="#decoder_engine">Playback Engine</a> (also called
+decoder engine),</li>
   <li>the <a href="#user_interface">User Interface</a>,</li>
   <li>the <a href="#pipe_interface">Pipe Interface</a> and</li>
   <li>the <a href="#object_repository">Object Repository</a>.</li>
@@ -41,11 +42,12 @@ play-back relevant activities. These are:</p>
   <li>Invocation of decoders, filters and output plug-ins.</li>
   <li>Advance to the next item in playlist mode.</li>
   <li>Prefetch items in playlist mode.</li>
-  <li>Keep the playing position.</li>
+  <li>Keep track of the playing position.</li>
 </ul>
 <p>The Play Controller receives all instructions by a <em>command queue</em>.
 The queue is always processed in order. Multiple commands may be linked
-together. Linked commands are placed as unit in the queue and cannot be
+together. Linked commands are placed as single item in the queue and
+cannot be
 intercepted by commands from another source.</p>
 <p>Changes in the play status are immediately reflected to all
 observers
@@ -57,7 +59,7 @@ Controller immediately starts to decode the next playlist item even if
 the current item is not yet played completely. This results in a <em>pipeline
 of prefetched items</em> which may contain multiple items if they are
 short enough.</p>
-<h3><a name="decoder_engine" id="decoder_engine"></a>The Player Engine</h3>
+<h3><a name="decoder_engine" id="decoder_engine"></a>The Playback Engine</h3>
 <p>Once a decoder plug-in begins to decode an item, it starts a <em>separate
 thread</em> that sends the decoded data through the data interface to
 the filter plug-ins and finally to the output plug-in. The plug-in
@@ -67,10 +69,12 @@ to prevent gaps between songs. But different decoders may be attached
 to input of the chain when the played item changes.</p>
 <p>The decoder engine always has exactly one active decoder. If
 playback is stopped, the decoder engine terminates.</p>
-<p>PM123 always works internally with 32 bits per sample and channel
+<p>PM123 always works internally with 32 bits per sample (since 1.41)
+and channel
 PCM data,
-to keep the complexity of the filter plug-ins low. If an older decoder
-returns data in a different format it is converted on the fly.</p>
+to keep the complexity of the filter plug-ins low. If an older plug-in
+returns or receives data in a different format it is converted on the
+fly.</p>
 <h3><a name="user_interface"></a>The User Interface</h3>
 <p>The User Interfaces controls the <em>application windows</em> like
 <a href="../manual/mainwin.html">Main Window</a>, <a
@@ -110,7 +114,7 @@ Repository.</p>
 couple of <em>worker threads</em> which receive their commands by a <em>Request
 Queue</em>. The Request Queue handles information requests on playable
 objects at <em>two priorities</em>. High priority requests are used if
-the <a href="#play_controller">Play Controller</a> or a user action or
+the <a href="#play_controller">Play Controller</a>, a user action or
 a pipe command requires the desired information. Low priority requests
 are used for prefetching information on items that are likely to be
 used soon or if some information change requires dependent information
