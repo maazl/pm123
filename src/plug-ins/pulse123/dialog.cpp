@@ -92,7 +92,10 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_COMMAND:
     DEBUGLOG(("IntrospectBase::DlgProc:WM_COMMAND(%i,%i, %p)\n", SHORT1FROMMP(mp1), SHORT2FROMMP(mp1), mp2));
     switch (SHORT1FROMMP(mp1))
-    {case DID_OK:
+    {case PB_UPDATE:
+      PostMsg(UM_CONNECT, 0,0);
+      return 0;
+     case DID_OK:
       { ComboBox cb(GetCtrl(CB_SERVER));
         const xstring& server = cb.Text();
         Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);

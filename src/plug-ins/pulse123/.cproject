@@ -25,7 +25,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/pulseaudio}&quot;"/>
-									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
+									<listOptionValue builtIn="false" value="&quot;${OS2TK45}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.359593948" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_System"/>
@@ -223,4 +223,5 @@
 		</scannerConfigBuildInfo>
 	</storageModule>
 	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 </cproject>

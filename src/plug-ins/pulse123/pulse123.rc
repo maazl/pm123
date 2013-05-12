@@ -43,8 +43,10 @@ DLGTEMPLATE DLG_CONFIG
     COMBOBOX        "",                     CB_SERVER,   64, 28, 160, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT           "~Context",             ST_GENERIC,   8, 88,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
-    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 88, 160,  8, WS_TABSTOP
+    AUTOCHECKBOX    "~keep alive",          CB_PBKEEP,   64, 88, 100,  8, WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    PUSHBUTTON      "Connect",              PB_UPDATE,  172, 84,  52, 12, WS_GROUP
+      PRESPARAMS                   MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     LTEXT           "Status"                ST_GENERIC,   8, 76,  52,  8, DT_BOTTOM|WS_GROUP
     LTEXT           "enter server name above",ST_STATUS, 64, 76, 160,  8, DT_BOTTOM|WS_TABSTOP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)

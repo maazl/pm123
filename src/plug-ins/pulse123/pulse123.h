@@ -46,6 +46,7 @@ extern PLUGIN_CONTEXT Ctx;
 #define CB_SERVER     2000
 #define CB_PBKEEP     2001
 #define ST_STATUS     2005
+#define PB_UPDATE     2006
 #define CB_SINKSRC    2010
 #define CB_PORT       2011
 #define SB_MINLATENCY 2015
