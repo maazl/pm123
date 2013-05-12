@@ -132,7 +132,11 @@ open</td>
       <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
       <td>When playback starts at a non-zero starting point the
-slider jumps to zero for the time of the initialization.</td>
+slider jumps to zero for the time of the initialization.<br>
+The problem at start is fixed, but when seeking the slider may still
+jump, because there will be played some samples that do not belong to
+the new location. Buffers already passed to the audio device can't be
+undone.</td>
     </tr>
     <tr class="test">
       <td><em>13 medium todo,<br>
@@ -292,7 +296,7 @@ causes PM123 to crash.</td>
 could be opened by the XWP setting to open sub menus automatically. But
 there is no content so far.</td>
     </tr>
-    <tr class="open fixed">
+    <tr class="fixed">
       <td valign="top"><em>32 medium bug,<br>
 fixed</em> </td>
       <td valign="top">Remaining playlist time counts down with double
@@ -310,7 +314,7 @@ won't fix </td>
 This is well known to cause problems on cyclic references. In practice
 recursive playlists are unusual. </td>
     </tr>
-    <tr class="open fixed">
+    <tr class="fixed">
       <td valign="top"><strong>33 major bug,<br>
 fixed</strong></td>
       <td valign="top">When loading a playlist the player does not
@@ -318,7 +322,7 @@ start playback, even if <i>'start playing on file load'</i> is
 activated.</td>
       <td valign="top">Reason unknown.</td>
     </tr>
-    <tr class="open fixed">
+    <tr class="fixed">
       <td valign="top"><em>34 medium bug,<br>
 fixed</em></td>
       <td valign="top">When loading large playlists, the sub items are
@@ -326,9 +330,9 @@ not loaded in parallel by different worker threads.</td>
       <td valign="top">This causes significant delays on http streams.<br>
 Most likely the TrySync option overshot the mark.</td>
     </tr>
-    <tr class="open">
+    <tr class="fixed">
       <td valign="top">35 minor bug,<br>
-open</td>
+fixed</td>
       <td valign="top">When loading a playlist without active playback,
 the total playing time is sometimes not displayed in the main window.</td>
       <td valign="top">There seems to be some problem with the update
@@ -356,6 +360,14 @@ player will refer to the song behind that item rather than the playlist
 entry. This will fail if the item is a song slice or a binary file
 referred by a cue sheet. Everything is fine if the entire cue sheet is
 selected to play.</td>
+    </tr>
+    <tr class="fixed">
+      <td valign="top"><em>38 medium bug,<br>
+fixed</em></td>
+      <td valign="top">Total remaining time and remaining playlist
+items in shuffle mode wrong.</td>
+      <td valign="top">The displayed differences do not care about the
+shuffle sequence.</td>
     </tr>
   </tbody>
 </table>
