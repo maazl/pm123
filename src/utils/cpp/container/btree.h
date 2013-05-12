@@ -75,7 +75,7 @@ class btree_base
    public:
                     Leaf(size_t size)               : Size(size | SHRT_MIN) {}
     bool            isLeaf() const                  { return (short)Size < 0; }
-    size_t          size() const                    { return Size & SHRT_MAX; }
+    size_t          size() const                    { ASSERT((Size & SHRT_MAX) <= NODE_SIZE); return Size & SHRT_MAX; }
 
     /// Insert a key at \a pos.
     /// @pre \a pos &le; \c size() && size() < BTREE_NODE_SIZE
@@ -393,7 +393,9 @@ template <class T, class K, sort_comparer>
 void btree_own<T,K,C>::clear()
 { typename btree_own<T,K,C>::iterator where(begin());
   while (!where.isend())
-    delete *where;
+  { delete *where;
+    ++where;
+  }
   btree<T,K,C>::clear();
 }
 
@@ -418,8 +420,13 @@ class btree_int : public btree_base
     /// @pre \c !isend()
     T*              operator*() const               { return (T*)btree_base::iterator::operator*(); }
   };
+ private:
+  void              inc_refs();
+  void              dec_refs();
  public:
                     btree_int()                     : btree_base((int (*)(const void*, const void*))C) {}
+                    btree_int(const btree_int<T,K,C>& r) : btree_base(r) { inc_refs(); }
+  btree_int<T,K,C>& operator=(const btree_int<T,K,C>& r);
   /// Swap two instances. O(1)
   void              swap(btree_int<T,K,C>& r)       { btree_base::swap(r); }
   /// Iterator to the start of the collection. O(log n)
@@ -465,20 +472,39 @@ class btree_int : public btree_base
   /// @param key Key of the element to erase.
   /// @return Element that just have been removed or \c NULL if no element matches \a key.
   int_ptr<T>        erase(const K& key)             { return int_ptr<T>().fromCptr((T*)btree_base::erase(&key)); }
-  /// Remove and delete all elements.
-  void              clear();
-                    ~btree_int()                    { clear(); }
+  /// Remove and release all elements.
+  void              clear()                         { dec_refs(); btree_base::clear(); }
+                    ~btree_int()                    { dec_refs(); }
 };
 
 template <class T, class K, sort_comparer>
-void btree_int<T,K,C>::clear()
+void btree_int<T,K,C>::inc_refs()
 { typename btree_int<T,K,C>::iterator where(begin());
   int_ptr<T> ptr;
   while (!where.isend())
-    ptr.fromCptr(*where);
-  btree_base::clear();
+  { ptr = *where;
+    ptr.toCptr();
+    ++where;
+  }
 }
 
+template <class T, class K, sort_comparer>
+void btree_int<T,K,C>::dec_refs()
+{ typename btree_int<T,K,C>::iterator where(begin());
+  int_ptr<T> ptr;
+  while (!where.isend())
+  { ptr.fromCptr(*where);
+    ++where;
+  }
+}
+
+template <class T, class K, sort_comparer>
+btree_int<T,K,C>& btree_int<T,K,C>::operator=(const btree_int<T,K,C>& r)
+{ dec_refs();
+  btree_base::operator=(r);
+  inc_refs();
+  return *this;
+}
 
 class btree_string : public btree_base
 {public:
@@ -505,8 +531,12 @@ class btree_string : public btree_base
 
  private:
   static int        Compare(const void* key, const void* elem);
+  void              inc_refs();
+  void              dec_refs();
  public:
                     btree_string()                  : btree_base(&btree_string::Compare) {}
+                    btree_string(const btree_string& r) : btree_base(r) { inc_refs(); }
+  btree_string&     operator=(const btree_string& r);
   /// Swap two instances. O(1)
   void              swap(btree_string& r)           { btree_base::swap(r); }
   /// Iterator to the start of the collection. O(log n)
@@ -552,6 +582,9 @@ class btree_string : public btree_base
   /// @param key Key of the element to erase.
   /// @return Element that just have been removed or \c NULL if no element matches \a key.
   xstring           erase(const xstring& key)       { return xstring().fromCstr((const char*)btree_base::erase((void*)key.cdata())); }
+  /// Remove and release all elements.
+  void              clear()                         { dec_refs(); btree_base::clear(); }
+                    ~btree_string()                 { dec_refs(); }
 };
 
 inline xstring btree_string::find(const xstring& key) const

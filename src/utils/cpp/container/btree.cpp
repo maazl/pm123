@@ -739,3 +739,29 @@ void* btree_base::erase(iterator& where)
 int btree_string::Compare(const void* key, const void* elem)
 { return xstring::compare(*(xstring*)&key, *(xstring*)&elem);
 }
+
+void btree_string::inc_refs()
+{ iterator where(begin());
+  xstring ptr;
+  while (!where.isend())
+  { ptr = *where;
+    ptr.toCstr();
+    ++where;
+  }
+}
+
+void btree_string::dec_refs()
+{ iterator where(begin());
+  xstring ptr;
+  while (!where.isend())
+  { ptr.fromCstr(*where);
+    ++where;
+  }
+}
+
+btree_string& btree_string::operator=(const btree_string& r)
+{ dec_refs();
+  btree_base::operator=(r);
+  inc_refs();
+  return *this;
+}
