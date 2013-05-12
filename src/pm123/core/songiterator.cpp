@@ -469,7 +469,7 @@ InfoFlags SongIterator::CalcOffsetCacheEntry(Job& job, unsigned level, InfoFlags
   }
   ce.Valid |= what;
   InfoFlags whatnotok = IF_None;
-  PlayableInstance& current = *GetCallstack()[level];
+  PlayableInstance* current = GetCallstack()[level];
 
  recurse:
   int_ptr<PlayableInstance> psp; // start element
@@ -528,7 +528,7 @@ InfoFlags SongIterator::CalcOffsetCacheEntry(Job& job, unsigned level, InfoFlags
 
     while ((psp = pc.GetNext(psp)) != pep)
     { // Always skip current item.
-      if (psp == &current)
+      if (psp == current)
         continue;
       Playable& p = psp->GetPlayable();
       if (&p == &pc || ce.Exclude.contains(p))
@@ -541,11 +541,12 @@ InfoFlags SongIterator::CalcOffsetCacheEntry(Job& job, unsigned level, InfoFlags
       { shuffle_checked = true;
         if (IsShuffle(level))
         { swp = &EnsureShuffleWorker(level);
-          currentloc = swp->GetLocation(current);
+          if (current)
+            currentloc = swp->GetLocation(*current);
         }
       }
       // Check whether *psp is before or after current.
-      bool isbefore = swp ? swp->GetLocation(*psp) < currentloc : psp->GetIndex() < current.GetIndex();
+      bool isbefore = current && (swp ? swp->GetLocation(*psp) < currentloc : psp->GetIndex() < current->GetIndex());
       AggregateInfo& target = (isbefore ? ce.Front : ce.Back);
       target.Add(ai, what);
     }

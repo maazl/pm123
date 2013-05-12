@@ -527,7 +527,7 @@ void CtrlImp::PrefetchClear(bool keep)
 }
 
 void CtrlImp::CheckPrefetch(double pos)
-{ DEBUGLOG(("Ctrl::CheckPrefetch(%g)\n", pos));
+{ DEBUGLOG(("Ctrl::CheckPrefetch(%g) - %u\n", pos, PrefetchList.size()));
   if (PrefetchList.size())
   { size_t n = 1;
     // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
@@ -946,8 +946,6 @@ void CtrlImp::MsgLoad()
       // assign change event handler
       //Current()->Iter.Change += SongIteratorDelegate;
       Pending |= EV_Root|EV_Song|EV_Location;
-      // Raise events early, because load may take some time.
-      RaiseControlEvents();
     }
     play->SetInUse(1);
     // Load the required information as fast as possible
@@ -1185,10 +1183,9 @@ void CtrlImp::Worker()
       else
         delete ccp;
 
+      // done, raise control event
+      RaiseControlEvents();
     } while (CurCmd);
-
-    // done, raise control event
-    RaiseControlEvents();
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);

@@ -446,7 +446,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WMP_CTRL_EVENT_CB:
     { Ctrl::ControlCommand* cmd = (Ctrl::ControlCommand*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
       switch (cmd->Cmd)
       {case Ctrl::Cmd_Load:
         // Successful? if not display error.
@@ -510,7 +510,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WMP_CTRL_EVENT:
     { // Event from the controller
       Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
-      DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT %x\n", flags));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_CTRL_EVENT %x\n", flags));
       UpdateFlags inval = UPD_NONE;
       if (flags & Ctrl::EV_PlayStop)
       { if (Ctrl::IsPlaying())
@@ -541,21 +541,24 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { CurrentIter = Ctrl::GetLoc();
         APlayable* root = CurrentIter->GetRoot();
         if (flags & Ctrl::EV_Root)
-        { // New root => attach observer
+        { // New root => request some infos, attach observer
           RootDeleg.detach();
           DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root));
           if (root)
+          { root->RequestInfo(IF_Aggreg, PRI_Low);
             root->GetInfoChange() += RootDeleg;
-          UpdAtLocMsg |= UPD_TIMERS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
+          }
+          inval |= UPD_TIMERS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
         }
         // New song => attach observer
         CurrentDeleg.detach();
         int_ptr<APlayable> song = Ctrl::GetCurrentSong();
         DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new song: %p\n", song.get()));
+        ASSERT(!root || song);
         if (song && song != root) // Do not observe song items twice.
           song->GetInfoChange() += CurrentDeleg;
         // Refresh display text
-        UpdAtLocMsg |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
+        inval |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
       } else if (flags & Ctrl::EV_Location)
         UpdAtLocMsg |= UPD_TIMERS;
 
@@ -564,7 +567,6 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       if (inval)
         Invalidate(inval);
-
       if (UpdAtLocMsg)
         ForceLocationMsg();
     }
@@ -577,6 +579,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       APlayable* ap = (APlayable*)mp1;
       InfoFlags changed = (InfoFlags)SHORT1FROMMP(mp2);
+      InfoFlags touched = changed | (InfoFlags)SHORT2FROMMP(mp2);
       //InfoFlags loaded  = (InfoFlags)SHORT2FROMMP(mp2);
       // Dependency map:
       // UPD_TIMERS   <- current | current.obj.songlength | root.obj.songlength | seek end | WM_TIMER
@@ -592,12 +595,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       UpdateFlags upd = UPD_NONE;
       if (root == ap)
       { // Root change event
-        if (changed & IF_Rpl)
-          upd |= UPD_PLINDEX;
-          // TODO: needed? ForceLocationMsg();
-        if (changed & IF_Drpl)
-          upd |= UPD_TIMERS;
-          // TODO: needed? ForceLocationMsg();
+        if (touched & IF_Rpl)
+          UpdAtLocMsg |= UPD_PLINDEX;
+        if (touched & IF_Drpl)
+          UpdAtLocMsg |= UPD_TIMERS;
         if (changed & IF_Tech)
           upd |= UPD_PLMODE;
       }
@@ -606,7 +607,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (changed & IF_Obj)
           upd |= UPD_RATE;
         if (changed & IF_Drpl)
-          upd |= UPD_TIMERS;
+          UpdAtLocMsg |= UPD_TIMERS;
         if (changed & IF_Tech)
           upd |= Cfg::Get().viewmode == CFG_DISP_FILEINFO ? UPD_CHANNELS|UPD_TEXT : UPD_CHANNELS;
         if ((changed & IF_Meta) && Cfg::Get().viewmode == CFG_DISP_ID3TAG)
@@ -620,7 +621,10 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         upd &= UPD_TEXT; // reduced update in small mode
        default:;
       }
-      Invalidate(upd);
+      if (upd)
+        Invalidate(upd);
+      if (UpdAtLocMsg)
+        ForceLocationMsg();
     }
     return 0;
     
