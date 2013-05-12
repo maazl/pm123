@@ -1310,7 +1310,7 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
     PMRASSERT(WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0));
 
   if (args.New.mode != args.Old.mode)
-  { bmp_reflow_and_resize(HFrame);
+  { bmp_reflow_and_resize(HPlayer);
     Invalidate(UPD_ALL);
   } else
     Invalidate(UPD_TEXT);
