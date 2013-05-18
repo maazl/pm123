@@ -64,7 +64,7 @@ void operator delete(void* ptr)
   DEBUGLOG(("operator delete(%p)\n", ptr));
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == SCALAR_MAGIC);
-  ASSERT(*(unsigned*)((char*)ptr+storage->length) == SCALAR_MAGIC);
+  ASSERT(*(unsigned*)((char*)ptr+storage->length) == SCALAR_MAGIC && storage->length <= 0x8000000);
   storage->magic = FREE_MAGIC;
   *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
   memset(ptr, 0xbb, storage->length);
@@ -90,7 +90,7 @@ void operator delete[](void* ptr)
   DEBUGLOG(("operator delete[](%p)\n", ptr));
   preamble* storage = (preamble*)ptr -1;
   ASSERT(storage->magic == ARRAY_MAGIC);
-  ASSERT(*(unsigned*)((char*)ptr+storage->length) == ARRAY_MAGIC);
+  ASSERT(*(unsigned*)((char*)ptr+storage->length) == ARRAY_MAGIC && storage->length <= 0x8000000);
   storage->magic = FREE_MAGIC;
   *(unsigned*)((char*)ptr+storage->length) = FREE_MAGIC;
   memset(ptr, 0xbb, storage->length);

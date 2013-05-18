@@ -36,12 +36,12 @@
 
 
 vector_base::vector_base(size_t capacity)
-: Data(capacity ? (void**)malloc(capacity * sizeof *Data) : NULL),
+: Data(capacity ? new void*[capacity] : NULL),
   Size(0),
   Capacity(capacity)
 {}
 vector_base::vector_base(size_t size, void* elem, size_t spare)
-: Data(size + spare ? (void**)malloc((size + spare) * sizeof *Data) : NULL),
+: Data(size + spare ? new void*[size + spare] : NULL),
   Size(size),
   Capacity(size + spare)
 { void** dp = Data;
@@ -51,7 +51,7 @@ vector_base::vector_base(size_t size, void* elem, size_t spare)
   }
 }
 vector_base::vector_base(const vector_base& r, size_t spare)
-: Data(r.Size + spare ? (void**)malloc((r.Size + spare) * sizeof *Data) : NULL),
+: Data(r.Size + spare ? new void*[r.Size + spare] : NULL),
   Size(r.Size),
   Capacity(r.Size + spare)
 { DEBUGLOG(("vector_base(%p)::vector_base(&%p, %u)\n", this, &r, spare));
@@ -59,7 +59,7 @@ vector_base::vector_base(const vector_base& r, size_t spare)
 }
 
 vector_base::~vector_base()
-{ free(Data);
+{ delete[] Data;
 }
 
 void vector_base::operator=(const vector_base& r)
@@ -116,15 +116,19 @@ void* vector_base::erase(void**& where)
   ASSERT(where >= Data && where < Data+Size);
   --Size;
   void* ret = *where;
-  memmove(where, where+1, (char*)(Data+Size) - (char*)where);
   if (Size+16 < (Capacity>>2))
   { Capacity >>= 2;
-    void** newdata = (void**)realloc(Data, Capacity * sizeof *Data);
+    void** newdata = new void*[Capacity];
     ASSERT(newdata);
+    size_t len = (char*)where - (char*)Data;
+    memcpy(newdata, Data, len);
+    memcpy((char*)newdata + len, where+1, (char*)(Data+Size) - (char*)where);
     // relocate where
     (char*&)where += (char*)newdata - (char*)Data;
+    delete[] Data;
     Data = newdata;
-  }
+  } else
+    memmove(where, where+1, (char*)(Data+Size) - (char*)where);
   return ret;
 }
 
@@ -143,17 +147,23 @@ void vector_base::move(size_t from, size_t to)
 
 void vector_base::reserve(size_t size)
 { ASSERT(size >= Size);
-  Capacity = size;
-  Data = size ? (void**)realloc(Data, Capacity * sizeof *Data) : NULL;
-  ASSERT(Data != NULL || Capacity == 0);
+  if (Capacity < size)
+  { Capacity = size;
+    void** newdata = size ? new void*[Capacity] : NULL;
+    ASSERT(newdata != NULL || Capacity == 0);
+    memcpy(newdata, Data, Size * sizeof *Data);
+    delete[] Data;
+    Data = newdata;
+  }
 }
 
 void vector_base::prepare_assign(size_t size)
 { if (size > Capacity || size+16 < Capacity>>2)
   { // Do not use reserve directly because the data is not needed here
-    free(Data);
+    delete[] Data;
     Data = NULL;
     Size = 0;
+    Capacity = 0;
     reserve(size);
   }
   Size = size;
