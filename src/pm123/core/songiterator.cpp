@@ -583,13 +583,13 @@ InfoFlags SongIterator::AddBackAggregate(AggregateInfo& ai, InfoFlags what, Job&
     }
     APlayable* cur = GetCurrent();
     if (cur)
-    { InfoFlags what2 = what;
-      PlayableSet exclude(callstack.size()-1);
+    { PlayableSet exclude(callstack.size() ? callstack.size()-1 : 0);
       if (callstack.size())
       { exclude.add(*Location::GetRoot());
         for (unsigned i = 0; i < callstack.size()-1; ++i)
           exclude.add(callstack[i]->GetPlayable());
       }
+      InfoFlags what2 = what;
       const volatile AggregateInfo& lai = job.RequestAggregateInfo(*cur, exclude, what2);
       whatnotok |= what2;
       ai.Add(lai, what);
