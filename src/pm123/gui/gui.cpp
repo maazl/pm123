@@ -478,7 +478,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Invalidate(UPD_VOLUME);
         break;
        case Ctrl::Cmd_Jump:
-        delete (SongIterator*)cmd->PtrArg;
+        delete (Location*)cmd->PtrArg;
         break;
        case Ctrl::Cmd_Save:
         if (cmd->Flags != Ctrl::RC_OK)
