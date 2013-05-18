@@ -330,7 +330,7 @@ proxy_1_output_playing_pos( OutputProxy1* op, void* a )
 
 MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { OutputProxy1* op = (OutputProxy1*)WinQueryWindowPtr(hwnd, QWL_USER);
-  DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModuleName.cdata()));
+  DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModRef->Key.cdata()));
   switch (msg)
   {case WM_PLAYERROR:
     (*op->voutput_event)(op->voutput_w, OUTEVENT_PLAY_ERROR);
@@ -348,7 +348,7 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
 proxy_1_output_playing_samples(OutputProxy1* op, void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
 { DEBUGLOG2(("proxy_1_output_playing_samples(%p{%s}, %p, %f, %p, %p) - %p \n",
-    op, op == NULL ? NULL : op->ModuleName.cdata(), a, offset, cb, param));
+    op, op == NULL ? NULL : op->ModRef->Key.cdata(), a, offset, cb, param));
   FORMAT_INFO fmt = { sizeof(FORMAT_INFO) };
   union
   { float f[4096];

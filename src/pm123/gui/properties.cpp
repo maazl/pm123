@@ -903,7 +903,7 @@ void PropertyDialog::PluginPage::PlugmanNotification(const PluginEventArgs& args
 
 /* Processes messages of the plug-ins pages of the setup notebook. */
 MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("PropertyDialog::PluginPage::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+{ DEBUGLOG2(("PropertyDialog::PluginPage::DlgProc(%p, %x, %x, %x)\n", GetHwnd(), msg, mp1, mp2));
   LONG i;
   switch (msg)
   {case CFG_REFRESH:
