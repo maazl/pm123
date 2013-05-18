@@ -54,21 +54,19 @@ extern "C" {
 /* Structure describing the ID3 tag. */
 typedef struct _ID3V2_TAG
 {
-  int    id3_oflags;            /* Flags from open call */
-  int    id3_flags;             /* Flags from tag header */
-  int    id3_altered;           /* Set when tag has been altered */
-  int    id3_newtag;            /* Set if this is a new tag */
+  int    id3_oflags;            ///< Flags from open call
+  int    id3_flags;             ///< Flags from tag header
+  int    id3_altered;           ///< Set when tag has been altered
+  int    id3_newtag;            ///< Set if this is a new tag
 
-  int    id3_version;           /* Major ID3 version number */
-  int    id3_revision;          /* ID3 revision number */
-  int    id3_size;              /* Size of ID3 tag (as dictated by header) */
+  int    id3_version;           ///< Major ID3 version number
+  int    id3_revision;          ///< ID3 revision number
+  int    id3_size;              ///< Size of ID3 tag (as dictated by header)
 
-  int    id3_totalsize;         /* Total size of ID3 tag (including header, footer and padding) */
-  int    id3_pos;               /* Current position within tag. */
-  //int    id3_started;           /* Position of the tag within file (must be 0). */
+  int    id3_totalsize;         ///< Total size of ID3 tag (including header, footer and padding)
+  int    id3_pos;               ///< Current position within tag.
 
-  char*  id3_error_msg;         /* Last error message */
-  char   id3_buffer[256];       /* Used for various strings */
+  const char* id3_error_msg;    ///< Last error message
 
   void*  id3_file;
   void*  id3_filedata;

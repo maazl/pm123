@@ -44,7 +44,6 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
-#include <malloc.h>
 
 #include <utilfct.h>
 #include <format.h>

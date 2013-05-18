@@ -36,7 +36,6 @@
 #include <snprintf.h>
 #include <os2.h>
 
-#include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #include <process.h>

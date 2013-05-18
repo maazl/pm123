@@ -43,7 +43,6 @@
 #include <os2.h>
 
 #include <unistd.h>
-#include <malloc.h>
 #include <process.h>
 #include <fileutil.h>
 

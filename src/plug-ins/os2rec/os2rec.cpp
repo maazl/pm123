@@ -230,7 +230,7 @@ static BOOL parseURL(const char* url, PARAMETERS* params)
 
 int DLLENTRY decoder_init(OS2RECORD **A)
 {
-  OS2RECORD* a = (OS2RECORD*)malloc(sizeof(OS2RECORD));
+  OS2RECORD* a = new OS2RECORD;
   *A = a;
   DEBUGLOG(("os2rec:decoder_init(%p) - %p\n", A, a));
 
@@ -252,7 +252,7 @@ int DLLENTRY decoder_init(OS2RECORD **A)
 ULONG DLLENTRY decoder_uninit(OS2RECORD *a)
 {
   DEBUGLOG(("os2rec:decoder_uninit(%p)\n", a));
-  free(a);
+  delete a;
 
   return 0;
 }

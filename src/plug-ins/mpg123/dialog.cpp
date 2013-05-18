@@ -45,7 +45,6 @@
 #include <os2.h>
 
 #include <stdio.h>
-#include <malloc.h>
 #include <errno.h>
 #include <ctype.h>
 
