@@ -321,9 +321,8 @@ InfoFlags PlayableRef::DoRequestInfo(InfoFlags& what, Priority pri, Reliability 
 
   // IF_Item is always available if we got beyond IsItemOverridden.
   what &= ~(IF_Item|IF_Usage);
-  InfoFlags what2 = what;
-  // Forward all remaining requests to *RefTo.
-  // TODO Forward aggregate only if no slice?
+  InfoFlags what2 = what & ~IF_Aggreg;
+  // Forward all remaining requests except for aggregate to *RefTo.
   //InfoFlags async = CallDoRequestInfo(*RefTo, what2, pri, rel);
   //InfoFlags async = RefTo->RequestInfo(what2, pri, rel);
   what2 &= RefTo->RequestInfo(what2, pri, rel);
@@ -506,6 +505,7 @@ void PlayableRef::DoLoadInfo(JobSet& job)
 
       upd.Rollback(whatnotok);
       InfoFlags done = upd.Commit(whatok);
+      DEBUGLOG(("PlayableRef::DoLoadInfo: notok=%x, ok=%x, done = %x\n", whatnotok, whatok, done));
       args.Loaded |= done;
       if (~done & whatok)
       { upd.Reset(ci.InfoStat, job.Pri);
