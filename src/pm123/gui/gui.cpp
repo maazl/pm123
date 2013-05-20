@@ -66,6 +66,20 @@
 #include <stdio.h>
 
 
+#ifdef DEBUG_MEM
+#ifdef __GNUC__
+static size_t heap_sum[2];
+static unsigned heap_count[2];
+static int heap_walker(const void* ptr, size_t size, int flag, int status, const char* file, unsigned line)
+{
+  ++heap_count[flag&1];
+  heap_sum[flag&1] += size;
+  debuglog("HEAP %p(%u) %i %i - %s %u\n", ptr, size, flag, status, file, line);
+  return 0;
+}
+#endif
+#endif
+
 static void vis_InitAll(HWND owner)
 { int_ptr<PluginList> visuals(Plugin::GetPluginList(PLUGIN_VISUAL));
   foreach (const int_ptr<Plugin>,*, vpp, *visuals)
@@ -1061,8 +1075,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WM_CHAR:
-    { // Force heap dumps by the D key
-      USHORT fsflags = SHORT1FROMMP(mp1);
+    { USHORT fsflags = SHORT1FROMMP(mp1);
       DEBUGLOG(("GUIImp::DlgProc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags,
         SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (fsflags & KC_VIRTUALKEY)
@@ -1073,6 +1086,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
       }
+      // Force heap dumps by the D key
+      #ifdef DEBUG_MEM
       #ifdef __DEBUG_ALLOC__
       if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
       { if (fsflags & KC_SHIFT)
@@ -1080,6 +1095,14 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         else
           _dump_allocated(0);
       }
+      #elif defined(__GNUC__)
+      if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
+      { heap_sum[0] = heap_sum[1] = 0;
+        heap_count[0] = heap_count[1] = 0;
+        _heap_walk(heap_walker);
+        debuglog("HEAP sum %u/%u, count %u/%u\n", heap_sum[0], heap_sum[1], heap_count[0], heap_count[1]);
+      }
+      #endif
       #endif
       break;
     }
@@ -2054,7 +2077,7 @@ void GUIImp::Uninit()
     WinDestroyHelpInstance(HHelp);
 
   // Eat user messages from the queue
-  // TODO: causes memory leaks, but who cares on termination.
+  // Causes memory leaks, but who cares on termination.
   QMSG   qmsg;
   while (WinPeekMsg(amp_player_hab, &qmsg, HFrame, WM_USER, 0xbfff, PM_REMOVE));
 
