@@ -147,7 +147,7 @@ void vector_base::move(size_t from, size_t to)
 
 void vector_base::reserve(size_t size)
 { ASSERT(size >= Size);
-  if (Capacity < size)
+  if (Capacity != size)
   { Capacity = size;
     void** newdata = size ? new void*[Capacity] : NULL;
     ASSERT(newdata != NULL || Capacity == 0);
