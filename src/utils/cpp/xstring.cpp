@@ -307,6 +307,7 @@ void xstring::deduplicator::cleanup()
 { DEBUGLOG(("xstring::deduplicator::cleanup()\n"));
   #ifdef DEBUG_LOG
   unsigned keep = 0, del = 0;
+  #endif
   btree_string::iterator pos(Repository.begin());
   while (!pos.isend())
   { if (pos->Data->isUnique())
