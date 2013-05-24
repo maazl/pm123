@@ -1713,7 +1713,7 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
   { int front_index = -1;
     int back_index = -1;
     PM123_TIME back_offset = -1;
-    if (root && cur && root != cur)
+    if (root && root->IsPlaylist())
     { AggregateInfo ai(PlayableSetBase::Empty);
       JobSet job(PRI_Low); // The job is discarded, because the update notification will call this function again anyways.
       InfoFlags what = mask & UPD_TIMERS ? IF_Aggreg : IF_Rpl;
