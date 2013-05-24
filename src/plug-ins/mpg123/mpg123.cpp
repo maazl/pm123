@@ -491,6 +491,7 @@ static void copy_id3v2_tag(META_INFO& info, const mpg123_id3v2* tagv2)
     return;
   ID3V2_TAG* tag = id3v2_load_tag((char*)tagv2->tagdata, tagv2->taglen, ID3V2_GET_NOCHECK);
   copy_id3v2_tag(info, tag);
+  id3v2_free_tag(tag);
 }
 
 void MPG123::FillMetaInfo(META_INFO& meta)
@@ -1076,7 +1077,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
       replace_id3v2_string( tagv2, ID3V2_TCOP, NULL );
       replace_id3v2_string( tagv2, ID3V2_TRCK, NULL );
     case TAG_SAVE_ID3V2_WRITE:
-      if ( tagv2->id3_frames_count )
+      if ( tagv2->id3_frames.size() )
         goto write;
     case TAG_SAVE_ID3V2_DELETE:
       if ( have_tagv2 )

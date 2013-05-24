@@ -759,7 +759,7 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinCheckButton(hwnd, RB_UPDATE+data->write_tagv1, TRUE);
         WinCheckButton(hwnd, RB_UPDATE2+data->write_tagv2, TRUE);
         WinEnableControl(hwnd, RB_UPDATE, !data->tagv1.IsClean());
-        WinEnableControl(hwnd, RB_UPDATE2, data->tagv2->id3_frames_count != 0);
+        WinEnableControl(hwnd, RB_UPDATE2, data->tagv2->id3_frames.size() != 0);
         WinCheckButton(hwnd, CB_AUTOWRITE, data->autowrite_tagv1);
         WinCheckButton(hwnd, CB_AUTOWRITE2, data->autowrite_tagv2);
         tagv1 = &data->tagv1;
@@ -839,7 +839,7 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if (data->write_tagv2 == WR_UPDATE)
       { unsigned what = data->modified;
         // if the ID3V2 tag is new always store all fields
-        if (what && !data->tagv2->id3_frames_count)
+        if (what && !data->tagv2->id3_frames.size())
           what = ~0;
         id3v2_store( hwnd, data->tagv2, what, cfg.tag_save_id3v2_encoding );
       }
@@ -1300,7 +1300,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* url )
         if ((frame = id3v2_get_frame( tagv2, ID3V2_TRCK, 1 )) != NULL)
           id3v2_delete_frame( frame );
       case WR_UPDATE:
-        if (tagv2->id3_frames_count)
+        if (tagv2->id3_frames.size())
         { if (!tagv2->id3_altered)
             tagv2 = NULL;
           break;

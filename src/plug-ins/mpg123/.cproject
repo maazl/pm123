@@ -37,6 +37,7 @@
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
+									<listOptionValue builtIn="false" value="size_t=unsigned"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1966020844" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -62,6 +63,7 @@
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
+									<listOptionValue builtIn="false" value="size_t=unsigned"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1168340237" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

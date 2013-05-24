@@ -1328,6 +1328,9 @@ void Playable::Cleanup()
 { DEBUGLOG(("Playable::Cleanup() - %u\n", LastCleanup));
   // Keep destructor calls out of the mutex
   vector<Playable> todelete;
+  #ifdef DEBUG_LOG
+  unsigned keep = 0;
+  #endif
   // search for unused items, remove them from the repository and put them into todelete.
   // All of that in an atomic operation.
   { Mutex::Lock lock(RPMtx);
@@ -1338,7 +1341,11 @@ void Playable::Cleanup()
       { todelete.append() = &p;
         RPIndex.erase(pos);
       } else
-        ++pos;
+      { ++pos;
+        #ifdef DEBUG_LOG
+        ++keep;
+        #endif
+      }
     }
   }
   // Destroy items
@@ -1349,7 +1356,7 @@ void Playable::Cleanup()
       killer.fromCptr(&p);
     }
   }
-  DEBUGLOG(("Playable::Cleanup: destroyed %u items.\n", todelete.size()));
+  DEBUGLOG(("Playable::Cleanup: destroyed %u items, keep %u items.\n", todelete.size(), keep));
   // prepare next run
   LastCleanup = clock();
 }

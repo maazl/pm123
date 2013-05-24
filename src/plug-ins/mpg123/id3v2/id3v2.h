@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 Marcel Mueller
+ * Copyright (C) 2010-2013 Marcel Mueller
  * Copyright (C) 2007 Dmitry A.Steklenev
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 1998, 1999, 2002 Espen Skoglund
@@ -26,6 +26,8 @@
 
 #include <string.h>
 #include <xio.h>
+#include <cpp/smartptr.h>
+#include <cpp/container/vector.h>
 
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
@@ -50,9 +52,10 @@ extern "C" {
 /* The size of the read/write buffer used by file operations. */
 #define ID3V2_FILE_BUFSIZE  32768
 
+struct ID3V2_FRAME;
 
 /* Structure describing the ID3 tag. */
-typedef struct _ID3V2_TAG
+struct ID3V2_TAG
 {
   int    id3_oflags;            ///< Flags from open call
   int    id3_flags;             ///< Flags from tag header
@@ -69,17 +72,18 @@ typedef struct _ID3V2_TAG
   const char* id3_error_msg;    ///< Last error message
 
   void*  id3_file;
-  void*  id3_filedata;
+  sco_arr<char> id3_filedata;
 
   /* Functions for doing operations within ID3 tag. */
-  int    (*id3_seek)( struct _ID3V2_TAG*, int );
-  void*  (*id3_read)( struct _ID3V2_TAG*, void*, int );
+  int    (*id3_seek)( ID3V2_TAG*, int );
+  void*  (*id3_read)( ID3V2_TAG*, void*, int );
 
   /* List of ID3 frames. */
-  struct _ID3V2_FRAME** id3_frames;
-  int    id3_frames_count;
+  vector<ID3V2_FRAME> id3_frames;
 
-} ID3V2_TAG;
+  ID3V2_TAG();
+  ~ID3V2_TAG();
+};
 
 typedef uint32_t ID3V2_ID;
 
@@ -94,9 +98,9 @@ typedef struct _ID3V2_FRAMEDESC
 } ID3V2_FRAMEDESC;
 
 /* Structure describing an ID3 frame. */
-typedef struct _ID3V2_FRAME
+struct ID3V2_FRAME
 {
-  ID3V2_TAG*       fr_owner;
+  ID3V2_TAG* const fr_owner;
   const ID3V2_FRAMEDESC* fr_desc;
   int              fr_flags;
   unsigned char    fr_encryption;
@@ -112,7 +116,9 @@ typedef struct _ID3V2_FRAME
   void*            fr_data_z;   /* The decompressed compressed frame */
   unsigned int     fr_size_z;   /* Size of decompressed compressed frame */
 
-} ID3V2_FRAME;
+  ID3V2_FRAME(ID3V2_TAG* owner);
+  ~ID3V2_FRAME();
+};
 
 /* Text encodings. */
 #define ID3V2_ENCODING_ISO_8859_1 0x00

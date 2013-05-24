@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 Marcel Mueller
+ * Copyright (C) 2010-2013 Marcel Mueller
  * Copyright (C) 2007 Dmitry A.Steklenev
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 1998, 1999, 2002 Espen Skoglund
@@ -35,6 +35,7 @@
 #include <charset.h>
 #include <debuglog.h>
 #include <minmax.h>
+#include <xio.h>
 
 #include "../mpg123.h"
 #include "id3v2/id3v2.h"
@@ -99,7 +100,9 @@ static void* id3v2_read( ID3V2_TAG* id3, void* buf, int size )
     if( size > ID3V2_FILE_BUFSIZE ) {
       return NULL;
     }
-    buf = id3->id3_filedata;
+    if (!id3->id3_filedata.size())
+      id3->id3_filedata.reset(ID3V2_FILE_BUFSIZE);
+    buf = id3->id3_filedata.get();
   }
 
   // Try reading from file.
@@ -141,7 +144,9 @@ static void* id3v2_mem_read( ID3V2_TAG* id3, void* buf, int size )
     if( size > ID3V2_FILE_BUFSIZE ) {
       return NULL;
     }
-    buf = id3->id3_filedata;
+    if (!id3->id3_filedata.size())
+      id3->id3_filedata.reset(ID3V2_FILE_BUFSIZE);
+    buf = id3->id3_filedata.get();
   }
 
   memcpy(buf, (char*)id3->id3_file + id3->id3_pos, size);
@@ -149,6 +154,25 @@ static void* id3v2_mem_read( ID3V2_TAG* id3, void* buf, int size )
   return buf;
 }
 
+
+ID3V2_TAG::ID3V2_TAG()
+: id3_oflags(0)
+, id3_flags(0)
+, id3_altered(0)
+, id3_newtag(0)
+, id3_version(0)
+, id3_revision(0)
+, id3_size(0)
+, id3_totalsize(0)
+, id3_pos(0)
+, id3_error_msg(0)
+, id3_file(NULL)
+, id3_seek(NULL)
+, id3_read(NULL)
+{}
+
+ID3V2_TAG::~ID3V2_TAG()
+{}
 
 /* Initialize an empty ID3 tag. */
 static void id3v2_init_tag( ID3V2_TAG* id3 )
@@ -165,8 +189,8 @@ static void id3v2_init_tag( ID3V2_TAG* id3 )
   //id3->id3_started   = 0;
 
   // Initialize frames.
-  id3->id3_frames = NULL;
-  id3->id3_frames_count = 0;
+  id3v2_delete_all_frames(id3);
+  id3->id3_frames.reserve(0);
 }
 
 
@@ -177,11 +201,9 @@ ID3V2_TAG* id3v2_new_tag( void )
   ID3V2_TAG* id3;
 
   // Allocate ID3 structure. */
-  id3 = (ID3V2_TAG*)calloc( 1, sizeof( ID3V2_TAG ));
+  id3 = new ID3V2_TAG;
 
-  if( id3 != NULL ) {
-    id3v2_init_tag( id3 );
-  }
+  id3v2_init_tag( id3 );
 
   return id3;
 }
@@ -282,7 +304,7 @@ static int id3v2_read_tag( ID3V2_TAG* id3 )
 ID3V2_TAG* id3v2_get_tag( XFILE* file, int flags )
 {
   // Allocate ID3 structure.
-  ID3V2_TAG* id3 = (ID3V2_TAG*)calloc( 1, sizeof( ID3V2_TAG ));
+  ID3V2_TAG* id3 = new ID3V2_TAG;
 
   // Initialize access pointers.
   id3->id3_seek    = id3v2_seek;
@@ -292,15 +314,11 @@ ID3V2_TAG* id3v2_get_tag( XFILE* file, int flags )
   id3->id3_file    = file;
   //id3->id3_started = xio_ftell( file );
 
-  // Allocate buffer to hold read data.
-  id3->id3_filedata = malloc( ID3V2_FILE_BUFSIZE );
-
   // Try reading ID3 tag.
   if( id3v2_read_tag( id3 ) == -1 ) {
     if( ~flags & ID3V2_GET_CREATE )
     {
-      free( id3->id3_filedata );
-      free( id3 );
+      delete id3;
       return NULL;
     }
     id3v2_init_tag( id3 );
@@ -312,7 +330,7 @@ ID3V2_TAG* id3v2_get_tag( XFILE* file, int flags )
 ID3V2_TAG* id3v2_load_tag( char* tagdata, size_t taglen, int flags )
 {
   // Allocate ID3 structure.
-  ID3V2_TAG* id3 = (ID3V2_TAG*)calloc( 1, sizeof( ID3V2_TAG ));
+  ID3V2_TAG* id3 = new ID3V2_TAG;
 
   // Initialize access pointers.
   id3->id3_seek    = id3v2_mem_seek;
@@ -323,15 +341,11 @@ ID3V2_TAG* id3v2_load_tag( char* tagdata, size_t taglen, int flags )
   id3->id3_totalsize = taglen-3;
   //id3->id3_started = xio_ftell( file );
 
-  // Allocate buffer to hold read data.
-  id3->id3_filedata = malloc( ID3V2_FILE_BUFSIZE );
-
   // Try reading ID3 tag.
   if( id3v2_read_tag( id3 ) == -1 ) {
     if( ~flags & ID3V2_GET_CREATE )
     {
-      free( id3->id3_filedata );
-      free( id3 );
+      delete id3;
       return NULL;
     }
     id3v2_init_tag( id3 );
@@ -343,9 +357,10 @@ ID3V2_TAG* id3v2_load_tag( char* tagdata, size_t taglen, int flags )
 /* Free all resources associated with the ID3 tag. */
 void id3v2_free_tag( ID3V2_TAG* id3 )
 {
-  free( id3->id3_filedata );
+  if (!id3)
+    return;
   id3v2_delete_all_frames( id3 );
-  free( id3 );
+  delete id3;
 }
 
 /* When altering a file, some ID3 tags should be discarded. As the ID3
@@ -382,7 +397,6 @@ int id3v2_wipe_tag( XFILE* file, const char* savename )
   ID3V2_TAG* old_id3;
   int        old_totalsize;
   XFILE*     save;
-  char*      buffer;
   int        rc = 0;
 
   // Figure out how large the current tag is.
@@ -397,22 +411,18 @@ int id3v2_wipe_tag( XFILE* file, const char* savename )
     return 0;
   }
 
-  if(( buffer = (char*)malloc( ID3V2_FILE_BUFSIZE )) == NULL ) {
-    return -1;
-  }
+  sco_arr<char> buffer(ID3V2_FILE_BUFSIZE);
 
   if(( save = xio_fopen( savename, "wbU" )) == NULL ) {
-    free( buffer );
     return -1;
   }
 
   // And now, copy all the data to the new file.
   if( xio_fseek( file, old_totalsize, XIO_SEEK_SET ) != -1 ) {
     size_t bytes;
-    while(( bytes = xio_fread( buffer, 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
-      if( xio_fwrite( buffer, 1, bytes, save ) != bytes ) {
+    while(( bytes = xio_fread( buffer.get(), 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
+      if( xio_fwrite( buffer.get(), 1, bytes, save ) != bytes )
         break;
-      }
     }
     rc = xio_ferror( save ) ? -1 : 0;
   } else {
@@ -420,15 +430,14 @@ int id3v2_wipe_tag( XFILE* file, const char* savename )
   }
 
   xio_fclose( save );
-  free( buffer );
   return rc;
 }
 
 /* Write the ID3 tag to the indicated file descriptor. Return 0
    upon success, or -1 if an error occurred. */
-static int id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
+static int id3v2_write_tag( XFILE* file, const ID3V2_TAG* id3 )
 {
-  int  i;
+  unsigned i;
   char buf[ID3V2_TAGHDR_SIZE];
 
   ID3V2_FRAME* fr;
@@ -456,7 +465,7 @@ static int id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
   }
 #endif
 
-  for( i = 0; i < id3->id3_frames_count; i++ )
+  for( i = 0; i < id3->id3_frames.size(); i++ )
   {
     char fhdr[ID3V2_FRAMEHDR_SIZE];
 
@@ -498,15 +507,13 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
   int        old_totalsize;
   int        new_totalsize;
   int        old_startdata;
-  int        i;
+  unsigned   i;
   XFILE*     save = NULL;
-  char*      buffer;
   size_t     remaining;
   int        rc = 0;
 
-  if(( buffer = (char*)calloc( 1, ID3V2_FILE_BUFSIZE )) == NULL ) {
-    return -1;
-  }
+  sco_arr<char> buffer(ID3V2_FILE_BUFSIZE);
+  memset(buffer.get(), 0, buffer.size());
 
   // Figure out how large the current tag is.
   xio_rewind( file );
@@ -541,7 +548,7 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
   // Figure out how large the new tag will be.
   new_totalsize = ID3V2_TAGHDR_SIZE + 3;
 
-  for( i = 0; i < id3->id3_frames_count; i++ ) {
+  for( i = 0; i < id3->id3_frames.size(); i++ ) {
     new_totalsize += id3->id3_frames[i]->fr_raw_size + ID3V2_FRAMEHDR_SIZE;
   }
 
@@ -554,7 +561,6 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
     new_totalsize = old_totalsize;
   } else {
     if(( save = xio_fopen( savename, "wbU" )) == NULL ) {
-      free( buffer );
       return -1;
     }
     // Use padding.
@@ -564,7 +570,7 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
   // Zero-out the ID3v2 tag area.
   xio_rewind( save );
   for( remaining = new_totalsize; remaining > 0; remaining -= min( remaining, ID3V2_FILE_BUFSIZE )) {
-    xio_fwrite( buffer, 1, min( remaining, ID3V2_FILE_BUFSIZE ), save );
+    xio_fwrite( buffer.get(), 1, min( remaining, ID3V2_FILE_BUFSIZE ), save );
   }
 
   // Write the new tag.
@@ -582,8 +588,8 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
     // And now, copy all the data to the new file.
     if( xio_fseek( file, old_startdata, XIO_SEEK_SET ) != -1 ) {
       if( xio_fseek( save, new_totalsize, XIO_SEEK_SET ) != -1 ) {
-        while(( bytes = xio_fread( buffer, 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
-          if( xio_fwrite( buffer, 1, bytes, save ) != bytes ) {
+        while(( bytes = xio_fread( buffer.get(), 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
+          if( xio_fwrite( buffer.get(), 1, bytes, save ) != bytes ) {
             break;
           }
         }
@@ -597,7 +603,6 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
   if( save != file ) {
     xio_fclose( save );
   }
-  free( buffer );
   return rc;
 }
 

@@ -266,6 +266,24 @@ id3v2_find_v24_id( ID3V2_ID22 v22 )
   return ID3V2_NULL;
 }
 
+ID3V2_FRAME::ID3V2_FRAME(ID3V2_TAG* owner)
+: fr_owner(owner)
+, fr_desc(NULL)
+, fr_flags(0)
+, fr_encryption(0)
+, fr_grouping(0)
+, fr_altered(0)
+, fr_data(NULL)
+, fr_size(0)
+, fr_raw_data(NULL)
+, fr_raw_size(0)
+, fr_data_z(NULL)
+, fr_size_z(0)
+{}
+
+ID3V2_FRAME::~ID3V2_FRAME()
+{}
+
 static int
 id3v2_frame_extra_headers( ID3V2_FRAME* frame )
 {
@@ -333,14 +351,13 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
   }
 
   // Allocate frame.
-  frame = (ID3V2_FRAME*)calloc( 1, sizeof( *frame ));
+  frame = new ID3V2_FRAME(id3);
 
-  frame->fr_owner    = id3;
   frame->fr_raw_size = size;
   frame->fr_desc     = id3v2_find_frame_description( idv24 );
 
   if( frame->fr_raw_size > 1000000 ) {
-    free( frame );
+    delete frame;
     return -1;
   }
 
@@ -354,7 +371,7 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
   if( id3->id3_read( id3, frame->fr_raw_data, frame->fr_raw_size ) == NULL )
   {
     free( frame->fr_raw_data );
-    free( frame );
+    delete frame;
     return -1;
   }
 
@@ -362,8 +379,7 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
   frame->fr_size = frame->fr_raw_size;
 
   // Insert frame into list.
-  id3->id3_frames = (ID3V2_FRAME**)realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
-  id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
+  id3->id3_frames.append() = frame;
 
   DEBUGLOG(( "id3v2: read frame %.4s [%.3s], fl=%04X, size=%08d\n",
              &idv24, buf, frame->fr_flags, frame->fr_raw_size));
@@ -437,9 +453,8 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   }
 
   // Allocate frame.
-  frame = (ID3V2_FRAME*)calloc( 1, sizeof( *frame ));
+  frame = new ID3V2_FRAME(id3);
 
-  frame->fr_owner    = id3;
   frame->fr_flags    = buf[8] << 8 | buf[9];
   frame->fr_desc     = id3v2_find_frame_description( id );
   frame->fr_raw_size = raw_size;
@@ -448,7 +463,7 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   if( frame->fr_desc == NULL ) {
     // No. Ignore the frame.
     if( id3->id3_seek( id3, frame->fr_raw_size ) < 0 ) {
-      free( frame );
+      delete frame;
       return -1;
     }
     return 0;
@@ -464,7 +479,7 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   if( id3->id3_read( id3, frame->fr_raw_data, frame->fr_raw_size ) == NULL )
   {
     free( frame->fr_raw_data );
-    free( frame );
+    delete frame;
     return -1;
   }
 
@@ -475,8 +490,7 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   }
 
   // Insert frame into list.
-  id3->id3_frames = (ID3V2_FRAME**)realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
-  id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
+  id3->id3_frames.append() = frame;
 
   DEBUGLOG(( "id3v2: read frame %.4s [%.4s], fl=%04X, size=%08d\n",
              &id, buf, frame->fr_flags, frame->fr_raw_size));
@@ -490,8 +504,8 @@ id3v2_read_frame( ID3V2_TAG* id3 )
 ID3V2_FRAME*
 id3v2_get_frame( const ID3V2_TAG* id3, ID3V2_ID type, int num )
 {
-  int  i;
-  for( i = 0; i < id3->id3_frames_count; i++ )
+  unsigned i;
+  for( i = 0; i < id3->id3_frames.size(); i++ )
   {
     ID3V2_FRAME* fr = id3->id3_frames[i];
     if(( fr->fr_desc ) && ( fr->fr_desc->fd_id == type )) {
@@ -617,16 +631,12 @@ id3v2_delete_frame( ID3V2_FRAME* frame )
 {
   ID3V2_TAG* id3 = frame->fr_owner;
   int        ret = -1;
-  int        i;
+  unsigned   i;
 
   // Search for frame in list.
-  for( i = 0; i < id3->id3_frames_count; i++ ) {
+  for( i = 0; i < id3->id3_frames.size(); i++ ) {
     if( id3->id3_frames[i] == frame ) {
-      if( i < id3->id3_frames_count - 1 ) {
-        memmove( id3->id3_frames + i, id3->id3_frames + i + 1,
-               ( id3->id3_frames_count - i - 1 ) * sizeof( ID3V2_FRAME* ));
-      }
-      id3->id3_frames = (ID3V2_FRAME**)realloc( id3->id3_frames, --id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
+      id3->id3_frames.erase(i);
       id3->id3_altered = 1;
       ret = 0;
     }
@@ -640,7 +650,7 @@ id3v2_delete_frame( ID3V2_FRAME* frame )
     free( frame->fr_data_z );
   }
 
-  free( frame );
+  delete frame;
   return ret;
 }
 
@@ -651,10 +661,9 @@ id3v2_add_frame( ID3V2_TAG* id3, ID3V2_ID type )
 {
   ID3V2_FRAME* frame;
   // Allocate frame.
-  frame = (ID3V2_FRAME*)calloc( 1, sizeof( *frame ));
+  frame = new ID3V2_FRAME(id3);
 
   // Initialize frame.
-  frame->fr_owner = id3;
 
   // Try finding the correct frame descriptor.
   for( size_t i = 0; i < sizeof( framedesc ) / sizeof( ID3V2_FRAMEDESC ); i++ )
@@ -666,8 +675,7 @@ id3v2_add_frame( ID3V2_TAG* id3, ID3V2_ID type )
   }
 
   // Insert frame into list.
-  id3->id3_frames = (ID3V2_FRAME**)realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
-  id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
+  id3->id3_frames.append() = frame;
   id3->id3_altered = 1;
 
   return frame;
@@ -725,8 +733,8 @@ ID3V2_FRAME* id3v2_copy_frame( ID3V2_TAG* id3, const ID3V2_FRAME* frame )
 void
 id3v2_delete_all_frames( ID3V2_TAG* id3 )
 {
-  int  i;
-  for( i = 0; i < id3->id3_frames_count; i++ )
+  unsigned i;
+  for( i = 0; i < id3->id3_frames.size(); i++ )
   {
     ID3V2_FRAME* frame = id3->id3_frames[i];
 
@@ -737,12 +745,10 @@ id3v2_delete_all_frames( ID3V2_TAG* id3 )
     if( frame->fr_data_z ) {
       free( frame->fr_data_z );
     }
-    free( frame );
+    delete frame;
   }
 
-  free( id3->id3_frames );
-  id3->id3_frames = NULL;
-  id3->id3_frames_count = 0;
+  id3->id3_frames.set_size(0);
 }
 
 /* Release memory occupied by frame data. */

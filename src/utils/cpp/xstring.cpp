@@ -305,11 +305,21 @@ void xstring::deduplicator::deduplicate(volatile xstring& target)
 
 void xstring::deduplicator::cleanup()
 { DEBUGLOG(("xstring::deduplicator::cleanup()\n"));
+  #ifdef DEBUG_LOG
+  unsigned keep = 0, del = 0;
   btree_string::iterator pos(Repository.begin());
   while (!pos.isend())
   { if (pos->Data->isUnique())
-      Repository.erase(pos);
-    else
-      ++pos;
+    { Repository.erase(pos);
+      #ifdef DEBUG_LOG
+      ++del;
+      #endif
+    } else
+    { ++pos;
+      #ifdef DEBUG_LOG
+      ++keep;
+      #endif
+    }
   }
+  DEBUGLOG(("xstring::deduplicator::cleanup: destroyed %u, kept %u\n", del, keep));
 }
