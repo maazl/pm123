@@ -272,9 +272,10 @@ bmp_cy( int id )
   return hdr.cy;
 }
 
-/* Reads a bitmap file data into memory. */
-static BOOL
-bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData )
+/* Reads a bitmap file data into memory.
+ * The result must be released with operator delete[]. */
+static unsigned char*
+bmp_read_bitmap(const char* filename, GBM* gbm, GBMRGB* gbmrgb)
 {
   int   file;
   int   filetype;
@@ -283,47 +284,46 @@ bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData 
 
   if( gbm_guess_filetype( filename, &filetype ) != GBM_ERR_OK ) {
     EventHandler::PostFormat(MSG_ERROR, "Unable deduce bitmap format from file extension:\n%s\n", filename);
-    return FALSE;
+    return NULL;
   }
 
   file = gbm_io_open( filename, GBM_O_RDONLY );
 
   if( file == -1 ) {
     EventHandler::PostFormat(MSG_ERROR, "Unable open bitmap file:\n%s\n", filename);
-    return FALSE;
+    return NULL;
   }
 
   if( gbm_read_header( filename, file, filetype, gbm, opt ) != GBM_ERR_OK ) {
     gbm_io_close( file );
     EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file header:\n%s\n", filename);
-    return FALSE;
+    return NULL;
   }
 
   if( gbm_read_palette( file, filetype, gbm, gbmrgb ) != GBM_ERR_OK ) {
     gbm_io_close( file );
     EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file palette:\n%s\n", filename);
-    return FALSE;
+    return NULL;
   }
 
   cb = (( gbm->w * gbm->bpp + 31 ) / 32 ) * 4 * gbm->h;
 
-  *ppbData = new BYTE[cb];
+  sco_arr<unsigned char> pbData(cb);
 
-  if( gbm_read_data( file, filetype, gbm, (byte*)*ppbData ) != GBM_ERR_OK )
+  if( gbm_read_data( file, filetype, gbm, pbData.get() ) != GBM_ERR_OK )
   {
-    delete[] *ppbData;
     gbm_io_close( file );
     EventHandler::PostFormat(MSG_ERROR, "Unable read bitmap file data:\n%s\n", filename);
-    return FALSE;
+    return NULL;
   }
 
   gbm_io_close( file );
-  return TRUE;
+  return pbData.detach();
 }
 
 /* Creates a native OS/2 bitmap from specified data. */
 static BOOL
-bmp_make_bitmap( HWND hwnd, GBM* gbm, GBMRGB* gbmrgb, BYTE* pbData, HBITMAP* phbm )
+bmp_make_bitmap( HWND hwnd, GBM* gbm, GBMRGB* gbmrgb, const void* pbData, HBITMAP* phbm )
 {
   HAB hab = WinQueryAnchorBlock( hwnd );
 
@@ -400,14 +400,14 @@ bmp_load_bitmap( const char* filename )
 {
   GBM     gbm;
   GBMRGB  gbmrgb[0x100];
-  BYTE*   pbData;
   HBITMAP hbmBmp = NULLHANDLE;
 
   gbm_init();
 
-  if( bmp_read_bitmap( filename, &gbm, gbmrgb, &pbData )) {
-    bmp_make_bitmap( HWND_DESKTOP, &gbm, gbmrgb, pbData, &hbmBmp );
-    free( pbData );
+  unsigned char* pbData = bmp_read_bitmap(filename, &gbm, gbmrgb);
+  if (pbData)
+  { bmp_make_bitmap(HWND_DESKTOP, &gbm, gbmrgb, pbData, &hbmBmp);
+    delete[] pbData;
   }
 
   gbm_deinit();
@@ -1777,7 +1777,7 @@ static int bmp_map_bitmap_id( unsigned i )
   if (i >= 1830 && i <= 1839)
     return i + DIG_BPS-1830;
   if (i >= 1900 && i < 1900 + sizeof misc1900_map / sizeof *misc1900_map)
-    return misc1900_map[i-1600];
+    return misc1900_map[i-1900];
   if (i >= 4400 && i <= 4499)
     return i + BMP_FONT2-4400;
   if (i >= 5500 && i < 5000 + sizeof button_map / sizeof *button_map)
