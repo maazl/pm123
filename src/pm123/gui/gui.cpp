@@ -1802,7 +1802,7 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
     if (item.VerifyRMF("DRM_123LST", NULL))
       drag = DOR_DROP;
     else if (item.VerifyRMF("DRM_OS2FILE", NULL))
-    { if (item.VerifyType("UniformResourceLocator"))
+    { if (item.VerifyType("UniformResourceLocator") || item.SourceName().endsWithI(".skn"))
         op = DO_COPY;
       drag = DOR_DROP;
     } else
@@ -1873,6 +1873,11 @@ void GUIImp::DragDrop(PDRAGINFO pdinfo_)
           fullname = amp_url_from_file(fullname);
           if (!fullname)
             continue;
+        } else if (fullname.endsWithI(".skn"))
+        { // Dropped skin file
+          Cfg::ChangeAccess().defskin = fullname;
+          dt.EndConversation();
+          continue;
         }
         // Hopefully this criterion is sufficient to identify folders.
         if (item->fsControl & DC_CONTAINER)
