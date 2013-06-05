@@ -154,6 +154,31 @@ top to bottom, empty on error.</td>
 to current playlist&gt;</var></tt>'.</td>
       <td>Result code, non-zero = <a href="error.html">error</a>.</td>
     </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_load"></a>pl load</tt></td>
+      <td valign="top">Use the current playlist item as new root to
+play.</td>
+      <td valign="top">Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_enqueue"></a>pl enqueue</tt></td>
+      <td valign="top">Plays the current playlist item after the
+current playback has completed. This command will always
+append to the default playlist. If the default playlist is not yet in
+use it is cleared and the currently loaded object is placed as first
+element if any. This will never intercept any active playback.</td>
+      <td valign="top">Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="pl_navto"></a>pl navto</tt></td>
+      <td valign="top">Navigate to the current playlist item. If the
+current playlist item is just playing, nothing happens. If the
+currently loaded playlist is in the call stack of the current playlist
+item or the other way around, then the command causes only a
+navigation. In all other cases&nbsp; the command will also load the
+current root as playlist.</td>
+      <td valign="top">Result code, non-zero = <a href="error.html">error</a>.</td>
+    </tr>
   </tbody>
 </table>
 <h3>Notes</h3>
