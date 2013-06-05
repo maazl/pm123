@@ -242,6 +242,9 @@ class CommandProcessor : public ACommandProcessor
   void XPlIndex();
   void XPlItemIndex();
   void XUse();
+  void XPlLoad();
+  void XPlEnqueue();
+  void XPlNavTo();
 
   // PLAYLIST MODIFICATION
   /// Prepare playlist edit operation. Do some checks.

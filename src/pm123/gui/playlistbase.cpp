@@ -1288,7 +1288,7 @@ void PlaylistBase::UserNavigate(const RecordBase* rec)
   callstack.clear();
 
   DEBUGLOG(("PlaylistBase::UserNavigate - %s\n", loc->Serialize().cdata()));
-  Ctrl::PostCommand(Ctrl::MkJump(loc.detach()), &PlaylistBase::MsgJumpCompleted);
+  Ctrl::PostCommand(Ctrl::MkJump(loc.detach(), true), &PlaylistBase::MsgJumpCompleted);
 }
 
 void PlaylistBase::UserOpenTreeView(Playable& p)

@@ -312,9 +312,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (!target.GetCurrent()) // Do not enter playlists if not necessary.
         target.NavigateUp();
       const volatile amp_cfg& cfg = Cfg::Get();
-      if ( cfg.itemaction == CFG_ACTION_NAVTO && CurrentIter
-        && !CurrentIter->NavigateTo(target) ) // Try to navigate to target
-        GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
+      if (cfg.itemaction == CFG_ACTION_NAVTO)
+        GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(target), true));
       else
       { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
         lhp.AddItem(*target.GetCurrent());
@@ -619,11 +618,11 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (CurrentIter->GetCurrent() == ap)
       { // Current change event
         if (changed & IF_Obj)
-          upd |= UPD_RATE;
+          upd |= UPD_RATE|UPD_TIMERS;
         if (changed & IF_Drpl)
           UpdAtLocMsg |= UPD_TIMERS;
         if (changed & IF_Tech)
-          upd |= Cfg::Get().viewmode == CFG_DISP_FILEINFO ? UPD_CHANNELS|UPD_TEXT : UPD_CHANNELS;
+          upd |= UPD_CHANNELS|UPD_TEXT;
         if ((changed & IF_Meta) && Cfg::Get().viewmode == CFG_DISP_ID3TAG)
           upd |= UPD_TEXT;
       }
@@ -1147,7 +1146,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         DelayedAltSliderDragWorker.Start(job.AllDepends, HPlayer, WMP_SLIDERDRAG, mp1, mp2);
       } else if (SHORT1FROMMP(mp2))
       { // Set new position
-        PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter)));
+        PostCtrlCommand(Ctrl::MkJump(new Location(*CurrentIter), false));
         IsSliderDrag = false;
       } else
         // Show new position
@@ -1670,7 +1669,7 @@ void GUIImp::PrepareText()
   switch (cfg.viewmode)
   {case CFG_DISP_ID3TAG:
     if (!(invalid & IF_Meta))
-    { text = ConstructTagString(&info);
+    { text = ConstructTagString(*info.meta);
       if (text.length())
         break;
       text.reset();
@@ -1694,7 +1693,11 @@ void GUIImp::PrepareText()
       break;
     }
    case CFG_DISP_FILEINFO:
-    text = info.tech->info;
+    // In case the information is pending display a message
+    if (invalid & IF_Tech)
+      text = text + " - loading...";
+    else
+      text = info.tech->info;
     if (cfg.restrict_meta && text.length() > cfg.restrict_length)
       text = xstring(text, 0, cfg.restrict_length) + "...";
     break;
@@ -2117,7 +2120,7 @@ HWND              GUI::HHelp   = NULLHANDLE;
 
 
 /* Constructs a string of the displayable text from the file information. */
-const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
+const xstring GUI::ConstructTagString(const volatile META_INFO& meta)
 {
   unsigned maxlen = 0;
   { const volatile amp_cfg& cfg = Cfg::Get();
@@ -2127,8 +2130,8 @@ const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
 
   xstringbuilder result;
 
-  xstring tmp1(info->meta->artist);
-  xstring tmp2(info->meta->title);
+  xstring tmp1(meta.artist);
+  xstring tmp2(meta.title);
   if (tmp1 && *tmp1)
   { append_restricted(result, tmp1, maxlen);
     if (tmp2 && *tmp2)
@@ -2137,8 +2140,8 @@ const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
   if (tmp2 && *tmp2)
     append_restricted(result, tmp2, maxlen);
 
-  tmp1 = info->meta->album;
-  tmp2 = info->meta->year;
+  tmp1 = meta.album;
+  tmp2 = meta.year;
   if (tmp1 && *tmp1)
   { result += " (";
     append_restricted(result, tmp1, maxlen);
@@ -2149,7 +2152,7 @@ const xstring GUI::ConstructTagString(const INFO_BUNDLE_CV* info)
   } else if (tmp2 && *tmp2)
     result.appendf(" (%s)", tmp2.cdata());
 
-  tmp1 = info->meta->comment;
+  tmp1 = meta.comment;
   if (tmp1)
   { result += " -- ";
     append_restricted(result, tmp1, maxlen);

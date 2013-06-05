@@ -240,7 +240,7 @@ PROXYFUNCIMP(int DLLENTRY, ProxyHelper) PluginGetString(int index, int subindex,
    case STR_DISPLAY_TAG:
     { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
       if (song)
-      { const xstring& text = GUI::ConstructTagString(&song->GetInfo());
+      { const xstring& text = GUI::ConstructTagString(*song->GetInfo().meta);
         strlcpy(buf, text, bufsize);
       }
       break;

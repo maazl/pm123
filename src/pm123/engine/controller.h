@@ -49,7 +49,8 @@ class SongIterator;
  */
 class Ctrl
 {public:
-  enum Command // Control commands, see MkXXX factory methods.
+  /// Control commands, see MkXXX factory methods.
+  enum Command
   { Cmd_Nop,
     // current object control
     Cmd_Load,
@@ -84,14 +85,11 @@ class Ctrl
 
   /// Navigation type for Navigate Command
   enum NavType
-  { NT_None     = 0x00,
-    /// Location is relative from the current location.
-    /// Otherwise it starts from the outside the current song.
-    NT_Relative = 0x01,
-    /// Navigate in global playlist scope.
-    NT_Global   = 0x02,
-    /// Ignore syntax errors. Parse as far as possible.
-    NT_Partial  = 0x04
+  { NT_None     = 0x00
+  , NT_Relative = 0x01      ///< Location is relative from the current location.
+                            ///< Otherwise it starts from the outside the current song.
+  , NT_Global   = 0x02      ///< Navigate in global playlist scope.
+  , NT_Partial  = 0x04      ///< Ignore syntax errors. Parse as far as possible.
   };
 
   /// Mode parameter for Location message.
@@ -272,8 +270,10 @@ class Ctrl
   /// the same root than the current location. It is sufficient if they are related,
   /// i.e. the root of one location should be in the call stack of the other one.
   /// [out after completion] new location, not necessarily the same than on input.
-  static ControlCommand* MkJump(Location* iter)
-  { return new ControlCommand(Cmd_Jump, xstring(), iter, 0); }
+  /// @param force Allow navigation with distinct root objects. I.e. from a sublist or an enclosing playlist.
+  /// In doubt a new root is set. (like \c MkLoad)
+  static ControlCommand* MkJump(Location* iter, bool force)
+  { return new ControlCommand(Cmd_Jump, xstring(), iter, force); }
   /// Start or stop playing.
   /// @param op Flag operator. See \c Op. (Op_Rewind is not valid)
   static ControlCommand* MkPlayStop(Op op)

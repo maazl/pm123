@@ -103,7 +103,7 @@ class GUI
   static Playable& GetUrlMRU()            { return *UrlMRU; }
 
   /// Constructs a string of the displayable text from the file information.
-  static const xstring ConstructTagString(const INFO_BUNDLE_CV* info);
+  static const xstring ConstructTagString(const volatile META_INFO& meta);
 
   // Update an MRU list with item ps and maximum size max
   static void      Add2MRU(Playable& list, size_t max, APlayable& ps);

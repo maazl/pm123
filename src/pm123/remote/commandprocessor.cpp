@@ -113,6 +113,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "pl current",         &CommandProcessor::XPlCurrent     }
 , { "pl depth",           &CommandProcessor::XPlDepth       }
 , { "pl dir",             &CommandProcessor::XDir           }
+, { "pl enqueue",         &CommandProcessor::XPlEnqueue     }
 , { "pl enter",           &CommandProcessor::XPlEnter       }
 , { "pl index",           &CommandProcessor::XPlIndex       }
 , { "pl info format",     &CommandProcessor::XPlInfoFormat  }
@@ -122,7 +123,9 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] =
 , { "pl item",            &CommandProcessor::XPlItem        }
 , { "pl itemindex",       &CommandProcessor::XPlItemIndex   }
 , { "pl leave",           &CommandProcessor::XPlLeave       }
+, { "pl load",            &CommandProcessor::XPlLoad        }
 , { "pl navigate",        &CommandProcessor::XPlNavigate    }
+, { "pl navto",           &CommandProcessor::XPlNavTo       }
 , { "pl next",            &CommandProcessor::XPlNext        }
 , { "pl nextitem",        &CommandProcessor::XPlNextItem    }
 , { "pl parent",          &CommandProcessor::XPlParent      }
@@ -791,7 +794,7 @@ void CommandProcessor::XStatus()
   if (song)
   { switch (ParseDisp(Request))
     {case CFG_DISP_ID3TAG:
-      Reply.append(GUI::ConstructTagString(&song->GetInfo()));
+      Reply.append(GUI::ConstructTagString(*song->GetInfo().meta));
       if (Reply.length())
         break;
       // if tag is empty - use filename instead of it.
@@ -981,6 +984,32 @@ void CommandProcessor::XUse()
     Reply.appendd(Ctrl::RC_NoList);
 };
 
+void CommandProcessor::XPlLoad()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur)
+  { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay);
+    lh.AddItem(*cur);
+    Reply.appendd(lh.SendCommand());
+  } else
+    Reply.appendd(Ctrl::RC_NoSong);
+}
+
+void CommandProcessor::XPlEnqueue()
+{ APlayable* cur = CurSI.GetCurrent();
+  if (cur)
+  { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadAppend);
+    lh.AddItem(*cur);
+    Reply.appendd(lh.SendCommand());
+  } else
+    Reply.appendd(Ctrl::RC_NoSong);
+}
+
+void CommandProcessor::XPlNavTo()
+{ if (CurSI.GetRoot())
+    SendCtrlCommand(Ctrl::MkJump(new Location(CurSI), true));
+  else
+    Reply.appendd(Ctrl::RC_NoSong);
+}
 
 // Playlist modification
 
