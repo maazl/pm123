@@ -44,7 +44,7 @@ src\gbm123\libgbm$(LBO):
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-src\fft123\fft123.dll src\fft123\fft123$(LBI):
+src\fft123\fft123.dll src\fft123\fft123$(LBI): src\utils\utilfct$(LBO)
 	cd src\fft123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
@@ -415,9 +415,9 @@ distpackage: distfiles $(MDUMMY)
 distzip: distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).zip del dist\pm123-$(VERSION).zip
 !ifdef DEBUG_LOG
-	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION)-debug.zip * -x CVS\* .cvsignore "
+	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION)-debug.zip * -x .svn CVS\* .cvsignore "
 !else
-	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x CVS\* .cvsignore "
+	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x .svn CVS\* .cvsignore "
 !endif
 
 distsrc: $(MDUMMY)

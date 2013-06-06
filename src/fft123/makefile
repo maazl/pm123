@@ -21,6 +21,7 @@ LIBS    = $(LIBS) rdft\codelets\rdft_codelets$(LBO)
 LIBS    = $(LIBS) rdft\rdft$(LBO)
 LIBS    = $(LIBS) reodft\reodft$(LBO)
 LIBS    = $(LIBS) api\api$(LBO)
+LIBS    = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
 OBJECTS = fft$(CO)
 
 all2: fft123.dll fft123$(LBI) $(MDUMMY)

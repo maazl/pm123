@@ -66,7 +66,7 @@
 #include <stdio.h>
 
 
-#ifdef DEBUG_MEM
+#if defined(DEBUG_MEM) && defined(DEBUG_LOG)
 #ifdef __GNUC__
 static size_t heap_sum[2];
 static unsigned heap_count[2];
@@ -836,7 +836,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_M_ADDPMBOOK:
         { APlayable* root = CurrentIter->GetRoot();
           if (root)
-            DefaultPM->InsertItem(*root);
+            DefaultPM->InsertItem(*root, NULL);
           break;
         }
        case IDM_M_PLRELOAD:
@@ -1086,7 +1086,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
       }
       // Force heap dumps by the D key
-      #ifdef DEBUG_MEM
+      #if defined(DEBUG_MEM) && defined(DEBUG_LOG)
       #ifdef __DEBUG_ALLOC__
       if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
       { if (fsflags & KC_SHIFT)

@@ -58,7 +58,7 @@ APlayable* LoadHelper::ToAPlayable()
     if (!(Opt & LoadAppend))
       pl.Clear();
     for (const int_ptr<APlayable>* ppps = Items.begin(); ppps != Items.end(); ++ppps)
-      pl.InsertItem(**ppps);
+      pl.InsertItem(**ppps, NULL);
     return &pl;
   }
 }

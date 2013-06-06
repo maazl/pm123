@@ -307,7 +307,7 @@ PLUGIN_RC ThreadDecoder::Seek(PM123_TIME location)
 }
 
 PLUGIN_RC ThreadDecoder::SetFast(float skipspeed)
-{ DEBUGLOG(("ThreadDecoder(%p)::SetFast(%u) - %f\n", this, speed, Speed));
+{ DEBUGLOG(("ThreadDecoder(%p)::SetFast(%u) - %f\n", this, skipspeed, SkipSecs));
   SkipSecs = skipspeed * seek_window;
   NextSkip = 0;
   return PLUGIN_OK;

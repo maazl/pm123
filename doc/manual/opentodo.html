@@ -33,9 +33,9 @@
       <th width="25%">Topic</th>
       <th>Details</th>
     </tr>
-    <tr class="test">
+    <tr class="work">
       <td>3 minor todo,<br>
-untested</td>
+in work </td>
       <td>Handling of start and stop positions in nested playlists</td>
       <td>There are several complications when start/stop
 iterators of nested playlists have conflicting settings.</td>
@@ -46,7 +46,11 @@ open</td>
       <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
       <td>When playback starts at a non-zero starting point the
-slider jumps to zero for the time of the initialization.</td>
+slider jumps to zero for the time of the initialization.<br>
+The problem at start is fixed, but when seeking the slider may still
+jump, because there will be played some samples that do not belong to
+the new location. Buffers already passed to the audio device can't be
+undone.</td>
     </tr>
     <tr class="test">
       <td><em>13 medium todo,<br>
@@ -127,15 +131,6 @@ causes PM123 to crash.</td>
 could be opened by the XWP setting to open sub menus automatically. But
 there is no content so far.</td>
     </tr>
-    <tr class="open">
-      <td valign="top"><em>32 medium bug,<br>
-open</em> </td>
-      <td valign="top">Remaining playlist time counts down with double
-speed. </td>
-      <td valign="top">When playing the last song of a playlist, the
-total remaining time counts down 2 seconds per second. In other
-situation the field stays blank. </td>
-    </tr>
     <tr class="cancel">
       <td valign="top">33 minor bug,<br>
 won't fix </td>
@@ -145,28 +140,35 @@ This is well known to cause problems on cyclic references. In practice
 recursive playlists are unusual. </td>
     </tr>
     <tr class="open">
-      <td valign="top"><strong>33 major bug,<br>
-open</strong></td>
-      <td valign="top">When loading a playlist the player does not
-start playback, even if <i>'start playing on file load'</i> is
-activated.</td>
-      <td valign="top">Reason unknown.</td>
-    </tr>
-    <tr class="open fixed">
-      <td valign="top"><em>34 medium bug,<br>
-fixed</em></td>
-      <td valign="top">When loading large playlists, the sub items are
-not loaded in parallel by different worker threads.</td>
-      <td valign="top">This causes significant delays on http streams.<br>
-Most likely the TrySync option overshot the mark.</td>
+      <td valign="top">36 minor todo,<br>
+open</td>
+      <td valign="top">When a large playlist or a http stream is
+currently loading and the user requests another object while the first
+request has not yet completed, PM123 waits until the first object is
+available until it proceeds the second request.</td>
+      <td valign="top">There should be an option to cancel incomplete
+requests to the controller.<br>
+The core engine does not support cancels. The controller needs to
+schedule the requests asynchronously to meet this requirement.</td>
     </tr>
     <tr class="open">
-      <td valign="top">35 minor bug,<br>
+      <td valign="top">37 minor todo,<br>
 open</td>
-      <td valign="top">When loading a playlist without active playback,
-the total playing time is sometimes not displayed in the main window.</td>
-      <td valign="top">There seems to be some problem with the update
-notification.</td>
+      <td valign="top">Player does not save enclosing playlist on exit.</td>
+      <td valign="top">When a playlist item is currently selected the
+player will refer to the song behind that item rather than the playlist
+entry. This will fail if the item is a song slice or a binary file
+referred by a cue sheet. Everything is fine if the entire cue sheet is
+selected to play.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><strong>39 major bug,<br>
+open</strong></td>
+      <td valign="top">Append to default playlist discards the
+currently playing item.</td>
+      <td valign="top">When a song is playing the append option
+immediately navigates to the new song rather than to continue playback
+of the current song.</td>
     </tr>
   </tbody>
 </table>

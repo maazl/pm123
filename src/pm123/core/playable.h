@@ -297,7 +297,7 @@ class Playable
   /// @param before If the parameter before is \c NULL the item is appended.
   /// @return The function fails with returning \c NULL if the PlayableInstance before is no longer valid
   /// or the update flags cannot be locked. Otherwise it returns the newly created \c PlayableInstance.
-  int_ptr<PlayableInstance> InsertItem(APlayable& item, PlayableInstance* before = NULL);
+  int_ptr<PlayableInstance> InsertItem(APlayable& item, PlayableInstance* before);
   /// Move an item inside the list.
   /// @param item Item to move within this playlist.
   /// @param before If the parameter before is \c NULL the item is moved to the end.
