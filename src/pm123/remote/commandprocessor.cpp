@@ -1075,7 +1075,7 @@ void CommandProcessor::XPlRemove()
     { int_ptr<PlayableInstance> next = root->RemoveItem(*cur);
       if (next != cur)
       { Reply.append(cur->GetPlayable().URL);
-        cur = next;
+        CurSI.NavigateTo(next);
       }
     }
   }
