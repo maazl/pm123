@@ -30,6 +30,7 @@
 #include "loadhelper.h"
 #include "../configuration.h"
 #include "../gui/gui.h" // for DefaultPl
+#include "../core/job.h" // for Job
 
 
 /****************************************************************************
@@ -43,33 +44,56 @@ LoadHelper::LoadHelper(Options opt)
 , Items(20)
 {}
 
-APlayable* LoadHelper::ToAPlayable()
-{ switch (Items.size())
+void LoadHelper::JumpCompleted(Ctrl::ControlCommand* cmd)
+{ delete (Location*)cmd->PtrArg;
+  delete cmd;
+}
+
+Ctrl::ControlCommand* LoadHelper::ToCommand()
+{ // Create target
+  int_ptr<APlayable> ps;
+  int_ptr<PlayableInstance> startat;
+  bool need_jump = false;
+  switch (Items.size())
   {case 0:
     return NULL;
    case 1:
     if (Opt & LoadRecall)
       GUI::Add2MRU(GUI::GetLoadMRU(), Cfg::Get().max_recall, *Items[0]);
     if (!(Opt & LoadAppend))
-      return Items[0];
+    { ps = Items[0];
+      break;
+    }
    default:
     // Load multiple items => Use default playlist
     Playable& pl = GUI::GetDefaultPL();
     if (!(Opt & LoadAppend))
       pl.Clear();
-    for (const int_ptr<APlayable>* ppps = Items.begin(); ppps != Items.end(); ++ppps)
-      pl.InsertItem(**ppps, NULL);
-    return &pl;
+    else if (!Ctrl::IsPlaying())
+      need_jump = true;
+    else
+    { APlayable* root = Ctrl::GetRoot();
+      if (root && root->GetPlayable() != pl)
+        // we are currently not at the default playlist.
+        pl.InsertItem(*root, NULL);
+    }
+    foreach (const int_ptr<APlayable>,*, ppps, Items)
+    { const int_ptr<PlayableInstance>& pi = pl.InsertItem(**ppps, NULL);
+      if (!startat)
+        startat = pi;
+    }
+    ps = &pl;
   }
-}
 
-Ctrl::ControlCommand* LoadHelper::ToCommand()
-{ int_ptr<APlayable> ps(ToAPlayable());
-  if (ps == NULL)
-    return NULL;
-  // TODO: LoadKeepPlaylist
   Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, true);
   Ctrl::ControlCommand* tail = cmd;
+  if (need_jump && startat->GetIndex() > 1)
+  { Location* startloc = new Location(&ps->GetPlayable());
+    startloc->NavigateInto(Job::SyncJob);
+    XASSERT(startloc->NavigateTo(startat), == NULL);
+    tail = tail->Link = Ctrl::MkJump(startloc, false);
+    tail->Callback = &LoadHelper::JumpCompleted;
+  }
   tail = tail->Link = Ctrl::MkSkip(0, true);
   if (Opt & LoadPlay)
     // Start playback immediately after loading has completed

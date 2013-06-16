@@ -430,7 +430,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
 
      case IDM_PL_CONTENT:
-      { // bookmark is selected
+      { // menu item is selected
         PlaylistMenu::MenuCtrlData& cd = *(PlaylistMenu::MenuCtrlData*)PVOIDFROMMP(mp2);
         GUI::NavigateTo(cd.Item);
         break;

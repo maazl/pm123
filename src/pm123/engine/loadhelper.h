@@ -50,9 +50,8 @@ class LoadHelper
  protected:
   const Options         Opt;
   vector_int<APlayable> Items;
- protected:
-  /// Returns /one/ APlayable that represents all the objects in the list.
-  APlayable*            ToAPlayable();
+ private:
+  static void           JumpCompleted(Ctrl::ControlCommand* cmd);
  public:
   /// Initialize LoadHelper
                         LoadHelper(Options opt);

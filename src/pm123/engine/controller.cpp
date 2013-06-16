@@ -138,7 +138,7 @@ class CtrlImp
   /// To reset all in-use status pass EmptyStack as \a newstack.
   static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
   /// Core logic of MsgSkip.
-  /// Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
+  /// Move the current song pointer by count items.
   /// If we try to move the current song pointer out of the range of the that that \a si relies on,
   /// the function returns false and \a si is in reset state.
          bool  SkipCore(SongIterator& si, int count);
@@ -859,7 +859,7 @@ void CtrlImp::MsgSkip()
   }
 
   // Navigation
-  SongIterator si = Current()->Loc; // work on a temporary object => copy constructor
+  SongIterator si(Current()->Loc); // work on a temporary object => copy constructor
   if (!Flags)
     si.Reset();
   if (!SkipCore(si, (int)NumArg))
@@ -875,6 +875,11 @@ void CtrlImp::MsgSkip()
     Reply(RC_EndOfList);
     return;
   }
+  // Detect no-op
+  if (Current()->Loc.GetCurrent() == si.GetCurrent())
+  { Reply(RC_OK);
+    return;
+  }
  ok:
   // commit
   NavigateCore(si);
@@ -886,7 +891,7 @@ void CtrlImp::MsgLoad()
   int_ptr<APlayable> play;
   play.fromCptr((APlayable*)PtrArg);
 
-  /*// If keepitem is requested and we have a new root and an old root...
+  // If keepitem is requested and we have a new root and an old root...
   if ((Flags & 1) && play && PrefetchList.size())
   { // ... then try to keep the current item alive.
     APlayable* oldroot = PrefetchList[0]->Loc.GetRoot();
@@ -894,23 +899,12 @@ void CtrlImp::MsgLoad()
     if (oldroot == play)
       goto ok; // no-op
 
-    // Check whether play is a descendant of the current root first,
-    // because this check is more likely to cause no I/O operation.
-
-
-    Location loc(oldroot);
-    if (!loc.Navigate(SyncJob, play, -1, 0, INT_MAX))
-    { // Got it! => navigate to if not already done.
-
-
-    }
-
-    // Now check the other way around, whether the current root is a descendant of play.
-    Location loc(oldroot);
-    if (!loc.Navigate(SyncJob, play, -1, 0, INT_MAX))
+    // Now check whether the current root is a descendant of play.
+    SongIterator loc(oldroot);
+    if (!loc.Navigate(Job::SyncJob, play, -1, 0, INT_MAX))
     { // Got it! => relocate call stack
       unsigned level = loc.GetLevel();
-      foreach (PrefetchEntry**, pepp, PrefetchList)
+      foreach (PrefetchEntry,**, pepp, PrefetchList)
       { SongIterator& si = (*pepp)->Loc;
         loc.NavigateTo(si);
         si = loc;
@@ -920,9 +914,8 @@ void CtrlImp::MsgLoad()
       Pending |= EV_Root;
       goto ok;
     }
-
-
-  }*/
+    // Failed => do normal load
+  }
 
   // always stop
   // TODO: continue flag
@@ -1256,7 +1249,7 @@ void Ctrl::Uninit()
       state.current_iter = last->Serialize(Cfg::Get().retainonexit && last->GetCurrent()->GetInfo().obj->songlength >= 0);
       DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
     }
-    PostCommand(MkLoad(NULL, 0));
+    PostCommand(MkLoad(NULL, false));
     PostCommand(NULL);
     CtrlImp::DecEventDelegate.detach();
     CtrlImp::OutEventDelegate.detach();

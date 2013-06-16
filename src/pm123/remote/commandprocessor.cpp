@@ -987,7 +987,7 @@ void CommandProcessor::XUse()
 void CommandProcessor::XPlLoad()
 { APlayable* cur = CurSI.GetCurrent();
   if (cur)
-  { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay);
+  { LoadHelper lh(LoadHelper::LoadDefault);
     lh.AddItem(*cur);
     Reply.appendd(lh.SendCommand());
   } else
@@ -997,7 +997,7 @@ void CommandProcessor::XPlLoad()
 void CommandProcessor::XPlEnqueue()
 { APlayable* cur = CurSI.GetCurrent();
   if (cur)
-  { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadAppend);
+  { LoadHelper lh(LoadHelper::LoadAppend);
     lh.AddItem(*cur);
     Reply.appendd(lh.SendCommand());
   } else
