@@ -14,6 +14,7 @@
 }
 .fixed {
   background-color: #ccffcc;
+  display: none;
 }
 .cancel {
   background-color: #cccccc;
@@ -23,11 +24,30 @@
 }
 
   </style>
+<script language="javascript" type="text/javascript">
+<!--
+x=7;
+function setVisibility(classname,visible) {
+  var rows = document.getElementById('content').rows;
+  for (var i = 0; i < rows.length; ++i) {
+    var row = rows[i];
+    if (row.className == classname)
+      row.style.display = visible ? 'table-row' : 'none';
+  }
+  return true;
+}
+//-->
+</script>
 </head>
 <body>
 <h2>PM123's Known Problems &amp; Todo list</h2>
+Show: <input type="checkbox" name="show" value="open" onClick="setVisibility(this.value, this.checked)" checked="true">open
+<input type="checkbox" name="show" value="work" onClick="setVisibility(this.value, this.checked)" checked="true">in work
+<input type="checkbox" name="show" value="test" onClick="setVisibility(this.value, this.checked)" checked="true">testing
+<input type="checkbox" name="show" value="cancel" onClick="setVisibility(this.value, this.checked)" checked="true">won't fix
+<input type="checkbox" name="show" value="fixed" onClick="setVisibility(this.value, this.checked)">fixed
 <table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
+  <tbody id="content">
     <tr align="left" bgcolor="#cccccc">
       <th width="140">Attributes</th>
       <th width="25%">Topic</th>
@@ -354,7 +374,8 @@ schedule the requests asynchronously to meet this requirement.</td>
     <tr class="open">
       <td valign="top">37 minor todo,<br>
 open</td>
-      <td valign="top">Player does not save enclosing playlist on exit.</td>
+      <td valign="top">Player does not preserve enclosing playlist on
+exit.</td>
       <td valign="top">When a playlist item is currently selected the
 player will refer to the song behind that item rather than the playlist
 entry. This will fail if the item is a song slice or a binary file
