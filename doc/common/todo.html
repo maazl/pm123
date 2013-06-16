@@ -14,7 +14,6 @@
 }
 .fixed {
   background-color: #ccffcc;
-  display: none;
 }
 .cancel {
   background-color: #cccccc;
@@ -24,7 +23,7 @@
 }
 
   </style>
-<script language="javascript" type="text/javascript">
+  <script language="javascript" type="text/javascript">
 <!--
 x=7;
 function setVisibility(classname,visible) {
@@ -37,15 +36,26 @@ function setVisibility(classname,visible) {
   return true;
 }
 //-->
-</script>
+  </script>
 </head>
-<body>
+<body
+ onload="document.getElementById('cb_fixed').checked=false; setVisibility('fixed', false);">
 <h2>PM123's Known Problems &amp; Todo list</h2>
-Show: <input type="checkbox" name="show" value="open" onClick="setVisibility(this.value, this.checked)" checked="true">open
-<input type="checkbox" name="show" value="work" onClick="setVisibility(this.value, this.checked)" checked="true">in work
-<input type="checkbox" name="show" value="test" onClick="setVisibility(this.value, this.checked)" checked="true">testing
-<input type="checkbox" name="show" value="cancel" onClick="setVisibility(this.value, this.checked)" checked="true">won't fix
-<input type="checkbox" name="show" value="fixed" onClick="setVisibility(this.value, this.checked)">fixed
+Show: <input name="show" value="open"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">open
+<input name="show" value="work"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">in work
+<input name="show" value="test"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">testing
+<input name="show" value="cancel"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">won't fix
+<input id="cb_fixed" name="show" value="fixed"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">fixed
 <table border="1" cellpadding="3" cellspacing="0">
   <tbody id="content">
     <tr align="left" bgcolor="#cccccc">
@@ -174,7 +184,7 @@ playlist.</td>
 loaded playlist, playing should not be aborted. This is a configuration
 option.</td>
     </tr>
-    <tr class="open fixed">
+    <tr class="fixed">
       <td>15 minor todo,<br>
 fixed (1.41a) </td>
       <td>playlist with alternate items for HTTP streams</td>
