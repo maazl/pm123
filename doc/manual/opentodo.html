@@ -23,11 +23,41 @@
 }
 
   </style>
+  <script language="javascript" type="text/javascript">
+<!--
+x=7;
+function setVisibility(classname,visible) {
+  var rows = document.getElementById('content').rows;
+  for (var i = 0; i < rows.length; ++i) {
+    var row = rows[i];
+    if (row.className == classname)
+      row.style.display = visible ? 'table-row' : 'none';
+  }
+  return true;
+}
+//-->
+  </script>
 </head>
-<body>
+<body
+ onload="document.getElementById('cb_fixed').checked=false; setVisibility('fixed', false);">
 <h2>PM123's Known Problems &amp; Todo list</h2>
+Show: <input name="show" value="open"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">open
+<input name="show" value="work"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">in work
+<input name="show" value="test"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">testing
+<input name="show" value="cancel"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">won't fix
+<input id="cb_fixed" name="show" value="fixed"
+ onclick="setVisibility(this.value, this.checked)" checked="true"
+ type="checkbox">fixed
 <table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
+  <tbody id="content">
     <tr align="left" bgcolor="#cccccc">
       <th width="140">Attributes</th>
       <th width="25%">Topic</th>
@@ -67,17 +97,6 @@ playlist.</td>
       <td>If the currently playing item is part of the actually
 loaded playlist, playing should not be aborted. This is a configuration
 option.</td>
-    </tr>
-    <tr class="open fixed">
-      <td>15 minor todo,<br>
-fixed (1.41a) </td>
-      <td>playlist with alternate items for HTTP streams</td>
-      <td>For live streams&nbsp;it is quite common to provide
-a playlist with a set of alternative streaming servers instead of a
-single server. While PM123 is able to handle this kind of files and
-play the first valid stream, it has unwanted effects when adding these
-playlists to another playlist, because all of the contained items are
-equivalent.</td>
     </tr>
     <tr class="cancel">
       <td>17 minor todo,<br>
@@ -154,21 +173,13 @@ schedule the requests asynchronously to meet this requirement.</td>
     <tr class="open">
       <td valign="top">37 minor todo,<br>
 open</td>
-      <td valign="top">Player does not save enclosing playlist on exit.</td>
+      <td valign="top">Player does not preserve enclosing playlist on
+exit.</td>
       <td valign="top">When a playlist item is currently selected the
 player will refer to the song behind that item rather than the playlist
 entry. This will fail if the item is a song slice or a binary file
 referred by a cue sheet. Everything is fine if the entire cue sheet is
 selected to play.</td>
-    </tr>
-    <tr class="open">
-      <td valign="top"><strong>39 major bug,<br>
-open</strong></td>
-      <td valign="top">Append to default playlist discards the
-currently playing item.</td>
-      <td valign="top">When a song is playing the append option
-immediately navigates to the new song rather than to continue playback
-of the current song.</td>
     </tr>
   </tbody>
 </table>
