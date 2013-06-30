@@ -147,7 +147,7 @@ output_normal_priority( OS2AUDIO* a )
 static LONG APIENTRY
 dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 {
-  DEBUGLOG(( "os2audio: receive DART event, status=%d, flags=%08X, time=%lu\n", status, flags, buffer->ulTime ));
+  DEBUGLOG(("os2audio:dart_event(%d, %p, %x) time=%lu\n", status, buffer, flags, buffer->ulTime));
 
   if( flags & MIX_WRITE_COMPLETE )
   {
