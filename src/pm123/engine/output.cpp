@@ -197,7 +197,7 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
     return (*op->voutput_command)(a, msg, NULL);
 
   OUTPUT_PARAMS params = { sizeof params };
-  DECODER_INFO  dinfo  = { sizeof dinfo };
+  DECODER_INFO  dinfo  = { sizeof dinfo, { sizeof (FORMAT_INFO) } };
 
   // preprocessing
   switch (msg)
@@ -252,6 +252,7 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
     op->voutput_opened         = false;
     op->voutput_event          = info->OutEvent;
     op->voutput_w              = info->W;
+    op->voutput_format.size    = sizeof op->voutput_format;
     op->voutput_format.bits    = 16;
     op->voutput_format.format  = WAVE_FORMAT_PCM;
     break;
