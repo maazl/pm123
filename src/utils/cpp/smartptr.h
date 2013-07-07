@@ -87,9 +87,7 @@ inline sco_ptr<T>& sco_ptr<T>::operator=(T* ptr)
 
 template <class T>
 inline void sco_ptr<T>::swap(sco_ptr<T>& r)
-{ T* tmp = Ptr;
-  Ptr = r.Ptr;
-  r.Ptr = tmp;
+{ ::swap(Ptr, r.Ptr);
 }
 
 #define INT_PTR_STOLEN_BITS 2U
@@ -474,6 +472,8 @@ class sco_arr
   /// @param ptr Pointer to the first item. Must be destructable with operator delete[].
   /// @param size number of items at \a *ptr.
   void   assign(T* ptr, size_t size)    { delete[] Ptr; Ptr = ptr; Size = size; }
+  /// Swap content of two instances.
+  void   swap(sco_arr<T>& r)            { ::swap(Ptr, r.Ptr); ::swap(Size, r.Size); }
   /// Remove the current content for further use outside this class.
   /// This will not free any resources.
   T*     detach()                       { T* ptr = Ptr; Size = 0; Ptr = NULL; return ptr; }

@@ -155,16 +155,16 @@ class vector : public vector_base
   /// @details Precondition: \a where in [0,size()), Performance: O(1)
   T*&               operator[](size_t where)       { return (T*&)at(where); }
   /// @brief Get a constant iterator that points to the first element or past the end if the vector is empty.
-  /// @details Precondition: none, Performance: O(1)
+  /// @details Performance: O(1)
   T*const*          begin() const                  { return (T*const*)vector_base::begin(); }
   /// @brief Get a iterator that points to the first element or past the end if the vector is empty.
-  /// @details Precondition: none, Performance: O(1)
+  /// @details Performance: O(1)
   T**               begin()                        { return (T**)vector_base::begin(); }
   /// @brief Get a constant iterator that points past the end.
-  /// @details Precondition: none, Performance: O(1)
+  /// @details Performance: O(1)
   T*const*          end() const                    { return begin() + size(); }
   /// @brief Get a iterator that points past the end.
-  /// @details Precondition: none, Performance: O(1)
+  /// @details Performance: O(1)
   T**               end()                          { return begin() + size(); }
   /// @brief Finds an element is in the list. Uses instance equality.
   /// @param elem Element to find.

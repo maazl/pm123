@@ -1024,6 +1024,7 @@ MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case PB_PLG_SET:
       if ((size_t)i < List.size())
         SetParams(List[i]);
+      EnableCtrl(PB_PLG_SET, false);
       break;
     }
     return 0;
@@ -1051,12 +1052,12 @@ void PropertyDialog::DecoderPage::RefreshInfo()
     // TODO: Decoder supported file types vs. user file types.
     { const vector<const DECODER_FILETYPE>& filetypes = ((Decoder*)Selected.get())->GetFileTypes();
       size_t len = 0;
-      for (const DECODER_FILETYPE* const * ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+      foreach (const DECODER_FILETYPE,*const*, ftp, filetypes)
         if ((*ftp)->eatype)
           len += strlen((*ftp)->eatype) + 1;
       char* cp = (char*)alloca(len);
       char* cp2 = cp;
-      for (const DECODER_FILETYPE* const * ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+      foreach (const DECODER_FILETYPE,*const*, ftp, filetypes)
         if ((*ftp)->eatype)
         { strcpy(cp2, (*ftp)->eatype);
           cp2 += strlen((*ftp)->eatype);

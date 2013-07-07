@@ -196,6 +196,9 @@ class btree_base
   void              autoshrink();
  public:
   /// Create empty btree.
+  /// @param cmp Comparer to be used to compare keys against elements.
+  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
+  /// The container can store multiple elements with the same key, if the comparer never returns equal.
                     btree_base(int (*cmp)(const void* key, const void* elem)) : Root(NULL), Comparer(cmp) {}
   /// Copy constructor. O(n)
                     btree_base(const btree_base& r) : Root(r.Root ? r.Root->clone(NULL) : NULL), Comparer(r.Comparer) {}
@@ -436,9 +439,6 @@ class btree_int : public btree_base
   /// @brief Locate an element in the container. O(log n)
   /// @param key Key of the element to locate.
   /// @param where [out] The index of the first element >= key is always returned in the output parameter \a where.
-  /// @param cmp Comparer to be used to compare the key against elements.
-  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
-  /// The function could be used as upper/lower bound also if the comparer never returns equal.
   /// @return The function returns a flag whether you got an exact match or not.
   bool              locate(const K& key, iterator& where) const { return btree_base::locate(&key, (btree_base::iterator&)where); }
   /// @brief Find an element by it's key. O(log n)
@@ -454,11 +454,8 @@ class btree_int : public btree_base
   int_ptr<T>&       insert(iterator& where)         { return (int_ptr<T>&)btree_base::insert((btree_base::iterator&)where); }
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
-  /// @param cmp Comparer to be used to compare the key against elements.
-  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
-  /// The container can store multiple elements with the same key, if the comparer never returns equal.
   /// @return This will either return a reference to a pointer to an existing object which equals \a key
-  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// or \c NULL which is automatically created at the location in the container
   /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
   /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
   /// to \c btree_base functions have undefined behavior. It is also an error not to assign
@@ -564,12 +561,9 @@ class btree_string : public btree_base
   xstring&          insert(iterator& where)         { return (xstring&)btree_base::insert((btree_base::iterator&)where); }
   /// @brief Ensure an element with a particular key. O(log n)
   /// @param key Key of the new element.
-  /// @param cmp Comparer to be used to compare the key against elements.
-  /// The comparer could be asymmetric, e.g. if the elements have an intrinsic key.
-  /// The container can store multiple elements with the same key, if the comparer never returns equal.
   /// @return This will either return a reference to a pointer to an existing object which equals \a key
-  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
-  /// where a new object with \a key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// or a reference to a \c NULL string which is automatically created at the location in the container
+  /// where a new object with \a key should be inserted. So you can store the string after the function returned.
   /// There is no check whether the assigned element matches \a key, but if not then subsequent calls
   /// to \c btree_base functions have undefined behavior. It is also an error not to assign
   /// a element if the function returned a reference to NULL.

@@ -279,7 +279,7 @@ DLGTEMPLATE CFG_SETTINGS1
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
     AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 82, 112, 12
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(2,4,0,1, 2,4,0,1)
-    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 70, 112, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "Retain playing ~position within song",ST_GENERIC,        12, 70, 112, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 2,4,0,1)
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 70,  52, 12, WS_GROUP

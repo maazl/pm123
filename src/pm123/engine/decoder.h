@@ -39,6 +39,7 @@
 #include "plugman.h"
 #include <decoder_plug.h>
 #include <cpp/container/stringmap.h>
+#include <cpp/container/stringset.h>
 
 
 /// Set of entry points related to decoder plug-ins.
@@ -70,9 +71,6 @@ class Playable;
  ***************************************************************************/
 class Decoder : public Plugin, protected DecoderProcs
 {public:
-  typedef strmapentry<stringset_own> FileTypeEntry;
-
- public:
   /// Try unsupported file extensions and types too.
   bool         TryOthers;
  protected:
@@ -83,13 +81,14 @@ class Decoder : public Plugin, protected DecoderProcs
   /// Size of the array above.
   int          FileTypesCount;
   /// Additional supported file types (user setting).
+  /// Semicolon separated.
   xstring      AddFileTypes;
  private:
-  vector<const DECODER_FILETYPE> FileTypeList;
- private:
-  DECODER_FILETYPE DFT_Add;
   xstring      FileTypeCache;
   xstring      FileExtensionCache;
+  vector<const DECODER_FILETYPE> FileTypeList;
+  sco_arr<DECODER_FILETYPE> DFT_Add;
+  xstring      DFT_AddStrings;
 
  protected:
   // instances of this class are only created by the factory function below.

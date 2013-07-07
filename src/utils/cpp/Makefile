@@ -12,7 +12,7 @@ CFLAGS_USR=-fcheck-new -DPM123_CORE
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) url123$(CO) xstringbuilder$(CO)
-OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringmap$(CO)
+OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringset$(CO) container\stringmap$(CO)
 OBJECTS = $(OBJECTS) container\btree$(CO)
 OBJECTS = $(OBJECTS) pmutils_dnd$(CO) windowbase$(CO) dlgcontrols$(CO)
 
@@ -48,7 +48,7 @@ algorithm.cpp:	algorithm.h ..\debuglog.h
 algorithm.h:	container\vector.h
 debugmem.cpp:	..\debuglog.h
 dlgcontrols.cpp:	dlgcontrols.h ..\debuglog.h
-dlgcontrols.h:	xstring.h pmutils.h ..\debuglog.h
+dlgcontrols.h:	xstring.h ..\cpp\pmutils.h ..\debuglog.h
 xstring.h:	smartptr.h
 smartptr.h:	..\..\include\config.h cpputil.h mutex.h ..\debuglog.h
 mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
@@ -68,7 +68,7 @@ url123.cpp:	url123.h ..\strutils.h ..\fileutil.h ..\debuglog.h
 url123.h:	xstring.h container\stringmap.h cpputil.h
 windowbase.cpp:	..\utilfct.h windowbase.h smartptr.h mutex.h ..\debuglog.h
 windowbase.h:	smartptr.h xstring.h pmutils.h dlgcontrols.h container\vector.h ..\debuglog.h
-xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
+xstring.cpp:	xstring.h container\btree.h ..\snprintf.h ..\debuglog.h
 xstringbuilder.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 xstringconst.cpp:	xstring.h ..\interlocked.h ..\debuglog.h
 xstring_alloc.cpp:	xstring.h ..\debuglog.h
@@ -78,4 +78,4 @@ container\list.cpp:	container\list.h
 container\stringmap.cpp:	container\stringmap.h
 container\vector.cpp:	container\vector.h cpputil.h
 test\test_btree.cpp:	container\btree.h
-# DO NOT DELETE
+container\stringset.cpp:	container\stringset.h

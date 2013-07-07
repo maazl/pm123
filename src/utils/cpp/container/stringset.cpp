@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 M.Mueller
+ * Copyright 2011-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,24 +27,63 @@
  */
 
 
-#include "container/stringmap.h"
+#include "container/stringset.h"
 
 
-int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)
-{ return strnicmp(str, abbrev, strlen(abbrev));
+int stringset::Compare(const void* key, const void* elem)
+{ return xstring::compare(*(const xstring*)&key, *(const xstring*)&elem);
 }
 
-const char* mapsearcha2_core(const char* cmd, const char* map, size_t count, size_t size)
-{ const char* elem = (const char*)bsearch(cmd, map, count, size, (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
-  if (elem)
-  { // Work around to find more precise matches in case of ambiguous abbreviations.
-    const char* const last = map + count*size;
-    const char* elem2 = elem;
-    while ( (elem2 += size) != last        // not the end of the array
-      && strabbrevicmp(elem2, elem) == 0 ) // elem2 is still based on elem
-    { if (strabbrevicmp(cmd, elem2) == 0)  // it matches
-        elem = elem2;
-    }
+void stringset::inc_refs()
+{ void*const* dp(vector_base::begin());
+  void*const* dpe(dp + size());
+  xstring ptr;
+  while (dp != dpe)
+  { ptr = *(xstring*)dp++;
+    ptr.toCstr();
   }
-  return elem;
 }
+
+void stringset::dec_refs()
+{ void*const* dp(vector_base::begin());
+  void*const* dpe(dp + size());
+  xstring ptr;
+  while (dp != dpe)
+    ptr.fromCstr((const char*)*dp++);
+}
+
+stringset& stringset::operator=(const stringset& r)
+{ dec_refs();
+  vector_base::operator=(r);
+  inc_refs();
+  return *this;
+}
+
+xstring stringset::find(const xstring& item) const
+{ size_t pos;
+  if (locate(item, pos))
+    return (xstring&)vector_base::at(pos);
+  return xstring();
+}
+
+xstring& stringset::get(const xstring& item)
+{ size_t pos;
+  if (locate(item, pos))
+    return (xstring&)vector_base::at(pos);
+  return (xstring&)insert(pos);
+}
+
+const xstring& stringset::ensure(const xstring& item)
+{ size_t pos;
+  if (locate(item, pos))
+    return (const xstring&)vector_base::at(pos);
+  return (xstring&)insert(pos) = item;
+}
+
+xstring stringset::erase(const xstring& item)
+{ size_t pos;
+  if (locate(item, pos))
+    return xstring().fromCstr((const char*)vector_base::erase(pos));
+  return xstring();
+}
+

@@ -36,6 +36,7 @@
 #include "../eventhandler.h"
 #include "proxyhelper.h"
 #include <cpp/cppvdelegate.h>
+#include <cpp/container/stringset.h>
 #include <charset.h>
 #include <fileutil.h>
 #include <wildcards.h>
@@ -58,36 +59,83 @@
 Decoder::Decoder(Module& module)
 : Plugin(module, PLUGIN_DECODER)
 , TryOthers(false)
-{ memset(&DFT_Add, 0, sizeof DFT_Add);
+, Type((DECODER_TYPE)0)
+, FileTypes(NULL)
+, FileTypesCount(0)
+{}
+
+static void concatenate_stringset(xstringbuilder& target, const stringset& source, char delim)
+{ target.clear();
+  foreach(const xstring,*, dp, source)
+  { target.append(*dp);
+    target.append(delim);
+  }
+  if (target.length())
+    target.resize(target.length()-1); // remove last delimiter
 }
-  
+
 void Decoder::FillFileTypeCache()
 {
-  FileTypeCache = AddFileTypes;
-  FileExtensionCache = NULL;
-  FileTypeList.clear();
+  stringset ftkeys;
+  xstringbuilder fxnew;
+  vector<const DECODER_FILETYPE> ftlist;
+  sco_arr<DECODER_FILETYPE> addlist;
+  xstring addstrings;
 
   const DECODER_FILETYPE* ft = FileTypes + FileTypesCount;
   while (ft-- != FileTypes)
-  { FileTypeList.append() = ft;
+  { ftlist.append() = ft;
     if (ft->eatype && *ft->eatype)
-    { if (FileTypeCache)
-        FileTypeCache = FileTypeCache+";"+ft->eatype;
-      else
-        FileTypeCache = ft->eatype;
+      ftkeys.ensure(ft->eatype);
+    if (ft->extension && *ft->extension)
+    { fxnew.append(ft->extension);
+      fxnew.append(';');
     }
-    if (ft->extension)
-    { if (FileExtensionCache)
-        FileExtensionCache = FileExtensionCache+";"+ft->extension;
-      else
-        FileExtensionCache = ft->extension;
+  }
+  if (fxnew.length())
+    fxnew.resize(fxnew.length()-1);
+
+  if (AddFileTypes)
+  { // count number of ';'
+    size_t count = 1;
+    const char* cp = AddFileTypes;
+    while ((cp = strchr(cp, ';')) != NULL)
+    { ++count;
+      ++cp;
+    }
+    // Allocate array
+    addlist.reset(count);
+    DECODER_FILETYPE* ft = addlist.get();
+    memset(ft, 0, count * sizeof(DECODER_FILETYPE));
+    // generate result
+    char* dp = addstrings.allocate(AddFileTypes.length(), AddFileTypes);
+    for (;;)
+    { // Append new type
+      char* dp2 = strchr(dp, ';');
+      // ensure zero termination
+      if (dp2)
+        *dp2 = 0;
+      xstring value(dp);
+      // discard duplicates
+      if (&ftkeys.ensure(value) != &value)
+      { ft->eatype = dp;
+        ftlist.append() = ft;
+        ++ft;
+      }
+      // move next
+      if (!dp2)
+        break;
+      dp = dp2 + 1;
     }
   }
 
-  if (AddFileTypes)
-  { DFT_Add.eatype = AddFileTypes;
-    FileTypeList.append() = &DFT_Add;
-  }
+  // Commit
+  FileExtensionCache = (const char*)fxnew;
+  concatenate_stringset(fxnew, ftkeys, ';');
+  FileTypeCache = (const char*)fxnew;
+  FileTypeList.swap(ftlist);
+  DFT_Add.swap(addlist);
+  DFT_AddStrings.swap(addstrings);
 }
 
 void Decoder::LoadPlugin()
@@ -288,6 +336,7 @@ DecoderProxy1::~DecoderProxy1()
 { if (hwnd != NULLHANDLE)
     WinDestroyWindow(hwnd);
   Magic = 0;
+  delete[] FileTypes;
   delete[] filetypebuffer;
   delete[] filetypestringbuffer;
 }
@@ -319,7 +368,7 @@ void DecoderProxy1::LoadPlugin()
   decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
 
   FileTypesCount     = 0;
-  FileTypes          = NULL;
+  delete[] FileTypes;
   delete[] filetypebuffer;
   delete[] filetypestringbuffer;
 

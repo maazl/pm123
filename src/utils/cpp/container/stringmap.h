@@ -33,25 +33,6 @@
 #include <cpp/container/sorted_vector.h>
 
 
-typedef sorted_vector<xstring, xstring, &xstring::compare> stringset;
-
-class stringset_own : public stringset
-{protected:
-  // Copy constructor
-  // Note that since sorted_vector_own own its object exclusively this copy constructor must do
-  // a deep copy of the vector. This is up to the derived class!
-  // You may use vector_own_base_copy to do the job.
-  stringset_own(const stringset_own& r, size_t spare = 0) : stringset(r.size() + spare) {}
-  // assignment: same problem as above
-  stringset_own& operator=(const stringset_own& r);
- public:
-  stringset_own() : stringset() {}
-  stringset_own(size_t capacity) : stringset(capacity) {}
-  void          clear() { vector_own_base_destroy(*this); }
-  ~stringset_own() { clear(); }
-};
-
-
 template <class V>
 struct strmapentry
 { const xstring Key;
