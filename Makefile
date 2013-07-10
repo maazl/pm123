@@ -2,7 +2,7 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.41a1
+VERSION = 1.41a2
 PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\zlb123\zlb123.dll
