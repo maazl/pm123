@@ -33,43 +33,49 @@
 
 #include <debuglog.h>
 
+static int pattern (const char *wildcard, const char *test);
 static int asterisk (const char **wildcard, const char **test);
 /* scans an asterisk */
 
 int wildcardfit (const char *wildcard, const char* test)
-{ DEBUGLOG2(("wildcardfit(%s, %s)\n", wildcard, test));
-  // loop over different wildcard strings
+{ // loop over different wildcard strings
   do
-  { int fit = 1;
-    const char* test2 = test;
-    for (; 0 != *wildcard && ';' != *wildcard && 1 == fit && 0 != *test2; wildcard++)
-    {
-      switch (*wildcard)
-      {
-        case '?':
-          test2++;
-          break;
-        case '*':
-          fit = asterisk (&wildcard, &test2);
-          /* the asterisk was skipped by asterisk() but the loop will */
-          /* increment by itself. So we have to decrement */
-          wildcard--;
-          break;
-        default:
-          fit = (int) (toupper(*wildcard) == toupper(*test2));
-          test2++;
-      }
-    }
-    while ((*wildcard == '*') && (1 == fit)) 
-      /* here the teststring is empty otherwise you cannot */
-      /* leave the previous loop */ 
-      wildcard++;
-    if ((1 == fit) && (0 == *test2) && (0 == *wildcard || ';' == *wildcard))
+  { if (pattern(wildcard, test))
       return 1;
-
     wildcard = strchr(wildcard, ';');
   } while (wildcard++);
   // no more wildcards
+  return 0;
+}
+
+static int pattern(const char *wildcard, const char* test)
+{ DEBUGLOG(("pattern(%s, %s)\n", wildcard, test));
+  int fit = 1;
+  const char* test2 = test;
+  for (; 0 != *wildcard && ';' != *wildcard && 1 == fit && 0 != *test2; wildcard++)
+  {
+    switch (*wildcard)
+    {
+      case '?':
+        test2++;
+        break;
+      case '*':
+        fit = asterisk (&wildcard, &test2);
+        /* the asterisk was skipped by asterisk() but the loop will */
+        /* increment by itself. So we have to decrement */
+        wildcard--;
+        break;
+      default:
+        fit = (int) (toupper(*wildcard) == toupper(*test2));
+        test2++;
+    }
+  }
+  while ((*wildcard == '*') && (1 == fit))
+    /* here the teststring is empty otherwise you cannot */
+    /* leave the previous loop */
+    wildcard++;
+  if ((1 == fit) && (0 == *test2) && (0 == *wildcard || ';' == *wildcard))
+    return 1;
   return 0;
 }
 
@@ -101,7 +107,7 @@ static int asterisk (const char **wildcard, const char **test)
     {
       /* Neither test nor wildcard are empty!          */
       /* the first character of wildcard isn't in [*?] */
-      if (0 == wildcardfit(*wildcard, (*test)))
+      if (0 == pattern(*wildcard, (*test)))
         {
           do 
             {
@@ -113,7 +119,7 @@ static int asterisk (const char **wildcard, const char **test)
                 (*test)++;
             }
           while ((('\0' != **test))? 
-                 (0 == wildcardfit (*wildcard, (*test))) 
+                 (0 == pattern (*wildcard, (*test)))
                  : (0 != (fit = 0)));
         }
       if ((0 == **test) && (0 == **wildcard || ';' == **wildcard))
