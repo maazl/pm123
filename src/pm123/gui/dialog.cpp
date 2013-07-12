@@ -88,10 +88,22 @@ ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUM
   filedialog.pszIType       = type;
 
   xstring filedir(Cfg::Get().filedir);
-  if (filedir.length() > 8)
-    // strip file:///
-    strlcpy(filedialog.szFullFile, filedir+8, sizeof filedialog.szFullFile);
-  else
+  if (filedir.length() > 5)
+  { // strip file:///
+    const char* cp = filedir + 5;
+    if (cp[2] == '/')
+      cp += 3;
+    size_t len = strlen(cp);
+    if (len >= sizeof filedialog.szFullFile)
+      len = sizeof filedialog.szFullFile - 1;
+    memcpy(filedialog.szFullFile, cp, len);
+    // Append / to directory
+    char* cp2 = filedialog.szFullFile + len;
+    if (cp2[-1] != '/' && len < sizeof filedialog.szFullFile - 1)
+    { cp2[0] = '/';
+      cp2[1] = 0;
+    }
+  } else
     filedialog.szFullFile[0] = 0;
   PMRASSERT(amp_file_dlg( HWND_DESKTOP, owner, &filedialog ));
 
