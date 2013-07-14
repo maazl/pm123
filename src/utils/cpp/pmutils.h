@@ -32,11 +32,7 @@
 #define INCL_WIN
 #include <debuglog.h>
 
-#ifdef PM123_CORE
 #include <cpp/xstring.h>
-#else
-#include <plugin.h>
-#endif
 
 #include <os2.h>
 
