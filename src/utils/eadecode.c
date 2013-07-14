@@ -28,6 +28,7 @@
 
 #define  INCL_DOS
 #include <os2.h>
+#include "eautils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,8 +49,8 @@ static BOOL appendeatype(char* dst, size_t dstlen, const char* src, size_t len)
   return TRUE;
 }
 
-BOOL eadecode( char* dst, size_t len, USHORT type, const USHORT** eadata )
-{ DEBUGLOG(("eadecode(, %04x, %04x...)\n", type, (*eadata)[0]));
+static BOOL doeadecode(char* dst, size_t len, USHORT type, const USHORT** eadata)
+{ DEBUGLOG(("doeadecode(, %04x, %04x...)\n", type, (*eadata)[0]));
   switch (type)
   {case EAT_ASCII:
     if (!appendeatype(dst, len, (const char*)(*eadata + 1), (*eadata)[0]))
@@ -64,7 +65,7 @@ BOOL eadecode( char* dst, size_t len, USHORT type, const USHORT** eadata )
       type = (*eadata)[2];
       *eadata += 3;
       while (count--)
-        if (!eadecode(dst, len, type, eadata))
+        if (!doeadecode(dst, len, type, eadata))
           return FALSE;
     }
     break;
@@ -74,7 +75,7 @@ BOOL eadecode( char* dst, size_t len, USHORT type, const USHORT** eadata )
       *eadata += 2;
       while (count--)
       { type = *(*eadata)++;
-        if (!eadecode(dst, len, type, eadata))
+        if (!doeadecode(dst, len, type, eadata))
           return FALSE;
       }
     }
@@ -83,3 +84,17 @@ BOOL eadecode( char* dst, size_t len, USHORT type, const USHORT** eadata )
   }
   return TRUE;
 }
+
+BOOL eadecode(char* dst, size_t len, const FEA2* eadata)
+{ if (!len)
+    return FALSE;
+  if (eadata->cbValue < 2)
+  { *dst = 0;
+    return TRUE;
+  }
+  const USHORT* eas = eadata->szName + eadata->cbName +1;
+  USHORT type = *eas++;
+  // TODO: take care of truncated EAs
+  return doeadecode(dst, len, type, &eas);
+}
+

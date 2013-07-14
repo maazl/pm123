@@ -37,6 +37,7 @@
 #include <time.h>
 #include <strutils.h>
 #include <os2.h>
+#include <stdlib.h>
 
 class DirScan
 {private:

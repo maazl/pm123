@@ -369,13 +369,9 @@ int XIOfile::getstat(XSTATL* st)
   }
 
   *st->type = 0;
-  if (eaop2.fpFEA2List && eaop2.fpFEA2List->list[0].cbValue)
-  { // Decode .TYPE EA
-    // easize = eaop2.fpFEA2List->list[0].cbValue;
-    const USHORT* eadata = (const USHORT*)(eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbName + 1);
-    USHORT eatype = *eadata++;
-    eadecode(st->type, sizeof(st->type), eatype, &eadata);
-  }
+  if (eaop2.fpFEA2List)
+    // Decode .TYPE EA
+    eadecode(st->type, sizeof(st->type), eaop2.fpFEA2List->list);
 
   return 0;
 }

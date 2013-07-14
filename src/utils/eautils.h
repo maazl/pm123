@@ -38,6 +38,7 @@
 extern "C" {
 #endif
 
+struct _FEA2;
 /** FILEFINDBUF3 for DosFindFirst/DosFindNext with FIL_QUERYEASFROMLIST */
 typedef struct _FILEFINDBUF3FEA2LIST
 { // FILEFINDBUF3
@@ -59,7 +60,7 @@ typedef struct _FILEFINDBUF3FEA2LIST
 /** Copies extended attributes from one file or directory to another.
  * Attributes are added to a target file or replaced.
  */
-APIRET eacopy( const char* source, const char* target );
+APIRET eacopy(const char* source, const char* target);
 /* Copies extended attributes from one file or directory to another.
  * Attributes are added to a target file or replaced.
  * The source file must be opened with read access and deny write access.
@@ -70,18 +71,17 @@ APIRET eacopy( const char* source, const char* target );
  * You must free eadata when you don't need it anymore.
  * The length of eadata is returned in easize. 
  */
-APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easize );
+APIRET eaget(const char* file, const char* eaname, char** eadata, size_t* easize);
 
 /** Decodes EAT_ASCII, EAT_MVST or EAT_MVMT into a tab separated list of strings.
  * Other EA types are ignored.
  * @param dst target string, appended!
  * @param len target string length including terminating \0
- * @param type EA type (the first two bytes of the raw EA data)
  * @param eadata EA data
  * @return true: everything OK, false: *dst too small, EAs truncated.
  * @remarks The function will not return partial type strings if *dst is too small.
  */
-BOOL eadecode( char* dst, size_t len, USHORT type, const USHORT** eadata );
+BOOL eadecode(char* dst, size_t len, const struct _FEA2* eadata);
 
 #ifdef __cplusplus
 }

@@ -213,10 +213,7 @@ void DirScan::Scan()
           const char* eadata = NULL;
           // Has .type EA?
           if (fb->cbList > sizeof(FEA2))
-          { const USHORT* eas = (const USHORT*)(fb->list[0].szName + fb->list[0].cbName +1);
-            USHORT eatype = *eas++;
-            *buf = 0;
-            eadecode(buf, sizeof buf, eatype, &eas);
+          { eadecode(buf, sizeof buf, fb->list);
             eadata = buf;
           }
           Path.erase(BasePathLen);
