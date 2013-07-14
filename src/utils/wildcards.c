@@ -49,7 +49,7 @@ int wildcardfit (const char *wildcard, const char* test)
 }
 
 static int pattern(const char *wildcard, const char* test)
-{ DEBUGLOG(("pattern(%s, %s)\n", wildcard, test));
+{ DEBUGLOG2(("pattern(%s, %s)\n", wildcard, test));
   int fit = 1;
   const char* test2 = test;
   for (; 0 != *wildcard && ';' != *wildcard && 1 == fit && 0 != *test2; wildcard++)
