@@ -52,7 +52,7 @@ dlgcontrols.h:	xstring.h ..\cpp\pmutils.h ..\debuglog.h
 xstring.h:	smartptr.h
 smartptr.h:	..\..\include\config.h cpputil.h mutex.h ..\debuglog.h
 mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
-pmutils.h:	..\debuglog.h xstring.h ..\..\include\plugin.h
+pmutils.h:	..\debuglog.h xstring.h
 event.cpp:	event.h cpputil.h interlockedptr.h ..\debuglog.h
 event.h:	..\..\include\config.h mutex.h ..\debuglog.h
 interlockedptr.h:	..\interlocked.h
