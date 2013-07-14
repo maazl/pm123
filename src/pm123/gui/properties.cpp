@@ -66,6 +66,7 @@ class PropertyDialog : public NotebookDialogBase
     SettingsPageBase(PropertyDialog& parent, USHORT id)
     : PageBase(parent, id, NULLHANDLE, DF_AutoResize)
     {}
+   protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
   class Settings1Page : public SettingsPageBase
