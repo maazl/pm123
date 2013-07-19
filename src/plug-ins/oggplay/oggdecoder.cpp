@@ -49,6 +49,13 @@ const double seek_window = .2;
    value is nonzero. */
 static int DLLENTRY vio_seek(void* w, ogg_int64_t offset, int whence)
 { DEBUGLOG2(("oggplay:vio_seek(%p, %li, %i)\n", w, offset, whence));
+  // Work around for vorbisfile seek detection.
+  // If seek(,0,SEEK_CUR) succeeds, the vorbisfile thinks that we can seek.
+  // Unfortunately our xio library is too smart for this check and returns OK
+  // for this command on unseekable streams too, since it is always a no-op.
+  if (offset == 0 && whence == SEEK_CUR)
+    return -(xio_can_seek((XFILE*)w) == XIO_NOT_SEEK);
+
   if (xio_fseekl((XFILE*)w, offset, (XIO_SEEK)whence) >= 0)
     return 0;
   else
