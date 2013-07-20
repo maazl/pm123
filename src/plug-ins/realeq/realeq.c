@@ -163,22 +163,11 @@ static enum
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
-#define DO_8(p,x) \
-{  { const int p = 0; x; } \
-   { const int p = 1; x; } \
-   { const int p = 2; x; } \
-   { const int p = 3; x; } \
-   { const int p = 4; x; } \
-   { const int p = 5; x; } \
-   { const int p = 6; x; } \
-   { const int p = 7; x; } \
-}
-
 typedef struct FILTER_STRUCT {
 
-   ULONG  DLLENTRYP(output_command)       (void* a, ULONG msg, OUTPUT_PARAMS2* info);
-   int    DLLENTRYP(output_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
-   void   DLLENTRYP(output_commit_buffer) (void* a, int len, PM123_TIME posmarker);
+   ULONG  DLLENTRYP(output_command)       (struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+   int    DLLENTRYP(output_request_buffer)(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
+   void   DLLENTRYP(output_commit_buffer) (struct FILTER_STRUCT* a, int len, PM123_TIME pos);
    void*  a;
 
    FORMAT_INFO2 format;
@@ -938,10 +927,9 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2
 
 /********** Entry point: Initialize
 */
-ULONG DLLENTRY
-filter_init( REALEQ_STRUCT** F, FILTER_PARAMS2* params )
+ULONG DLLENTRY filter_init(REALEQ_STRUCT** F, FILTER_PARAMS2* params)
 {
-  REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
+  REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc(sizeof(REALEQ_STRUCT));
   DEBUGLOG(("filter_init(%p->%p, {%u, ..., %p, ..., %p})\n", F, f, params->size, params->a, params->w));
 
   *F = f;
@@ -960,9 +948,9 @@ filter_init( REALEQ_STRUCT** F, FILTER_PARAMS2* params )
   f->format.samplerate     = 0;
   f->format.channels       = 0;
 
-  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
-  params->output_request_buffer = (int   DLLENTRYP()(void*, const FORMAT_INFO2*, float**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, PM123_TIME))             &filter_commit_buffer;
+  params->output_command        = &filter_command;
+  params->output_request_buffer = &filter_request_buffer;
+  params->output_commit_buffer  = &filter_commit_buffer;
   return 0;
 }
 
@@ -979,8 +967,7 @@ BOOL DLLENTRY filter_uninit(REALEQ_STRUCT* f)
 {
   DEBUGLOG(("realeq:filter_uninit(%p)\n", f));
 
-  if( f != NULL )
-    free( f );
+  free(f);
 
   return TRUE;
 }

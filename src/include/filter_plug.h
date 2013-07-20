@@ -107,13 +107,13 @@ typedef struct _FILTER_PARAMS2
 
   /* virtual output interface
    * To virtualize one of these functions replace the pointer at the filter_init call. */
-  ULONG  DLLENTRYP(output_command)(void* a, ULONG msg, OUTPUT_PARAMS2* info);
-  ULONG  DLLENTRYP(output_playing_samples)(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
-  int    DLLENTRYP(output_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
-  void   DLLENTRYP(output_commit_buffer)(void* a, int len, PM123_TIME posmarker);
-  PM123_TIME DLLENTRYP(output_playing_pos)(void* a);
-  BOOL   DLLENTRYP(output_playing_data)(void* a);
-  void*  a;  /* only to be used with the precedent functions */
+  ULONG  DLLENTRYP(output_command)(struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  ULONG  DLLENTRYP(output_playing_samples)(struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  int    DLLENTRYP(output_request_buffer)(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
+  void   DLLENTRYP(output_commit_buffer)(struct FILTER_STRUCT* a, int len, PM123_TIME posmarker);
+  PM123_TIME DLLENTRYP(output_playing_pos)(struct FILTER_STRUCT* a);
+  BOOL   DLLENTRYP(output_playing_data)(struct FILTER_STRUCT* a);
+  struct FILTER_STRUCT* a;  /* only to be used with the precedent functions */
   
   /* callback event
    * To virtualize these function replace the pointer at the filter_init call. */
