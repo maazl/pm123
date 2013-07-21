@@ -376,8 +376,7 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
  * and returns the user's selection or selections.
  */
 
-HWND
-amp_file_dlg( HWND hparent, HWND howner, PFILEDLG filedialog )
+HWND DLLENTRY amp_file_dlg(HWND hparent, HWND howner, PFILEDLG filedialog)
 {
   filedialog->hMod       = NULLHANDLE;
   filedialog->usDlgId    = DLG_FILE;

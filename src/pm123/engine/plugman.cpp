@@ -37,6 +37,7 @@
 #include "filter.h"
 #include "output.h"
 #include "visual.h"
+#include "../gui/filedlg.h"
 #include "../core/playable.h"
 #include "../remote/acommandprocessor.h"
 #include "../configuration.h"
@@ -339,6 +340,7 @@ void ModuleImp::Load()
     PluginApi.exec_command    = vdelegate(&((ModuleImp*)this)->vd_exec_command,  &PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
     PluginApi.obj_invalidate  = &PROXYFUNCREF(ModuleImp)proxy_obj_invalidate;
     PluginApi.obj_supported   = &PROXYFUNCREF(ModuleImp)proxy_obj_supported;
+    PluginApi.file_dlg        = &amp_file_dlg;
     Context.plugin_api  = &PluginApi;
     Context.xstring_api = &XstringApi;
     

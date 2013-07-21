@@ -37,15 +37,6 @@
 
 FLAGSATTRIBUTE(DECODER_TYPE);
 
-/* file dialog additional flags */
-enum FD_UserOpts
-{ FDU_NONE       = 0x00,
-  FDU_DIR_ENABLE = 0x01,
-  FDU_RECURSEBTN = 0x02,
-  FDU_RECURSE_ON = 0x04,
-  FDU_RELATIVBTN = 0x08,
-  FDU_RELATIV_ON = 0x10
-};
 FLAGSATTRIBUTE(FD_UserOpts);
 
 #define FDT_ALL "<All supported files>"
@@ -79,6 +70,6 @@ xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& 
  * to a \e writable string of at least \c _MAX_PATH bytes.
  * It contains the selected type on return.
  */
-HWND amp_file_dlg( HWND hparent, HWND howner, PFILEDLG filedialog );
+HWND DLLENTRY amp_file_dlg(HWND hparent, HWND howner, PFILEDLG filedialog);
 
 #endif /* PM123_FILEDLG_H */
