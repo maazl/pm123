@@ -50,15 +50,17 @@
 
 // Set of entry points related to output plug-ins.
 struct OutputProcs
-{ void*  A;
-  ULONG  DLLENTRYP(output_init           )(void** a);
-  ULONG  DLLENTRYP(output_uninit         )(void* a);
-  ULONG  DLLENTRYP(output_command        )(void* a, ULONG msg, OUTPUT_PARAMS2* info);
-  int    DLLENTRYP(output_request_buffer )(void* a, const FORMAT_INFO2* format, float** buf);
-  void   DLLENTRYP(output_commit_buffer  )(void* a, int len, double posmarker);
-  ULONG  DLLENTRYP(output_playing_samples)(void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
-  double DLLENTRYP(output_playing_pos    )(void* a);
-  BOOL   DLLENTRYP(output_playing_data   )(void* a);
+{ // Hack: the output type is mapped to struct FILTER_STRUCT rather than void or struct OUTPUT_STRUCT
+  // to make the filter conversion compatible.
+  struct FILTER_STRUCT*  A;
+  ULONG  DLLENTRYP(output_init           )(struct FILTER_STRUCT** a);
+  ULONG  DLLENTRYP(output_uninit         )(struct FILTER_STRUCT* a);
+  ULONG  DLLENTRYP(output_command        )(struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  int    DLLENTRYP(output_request_buffer )(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
+  void   DLLENTRYP(output_commit_buffer  )(struct FILTER_STRUCT* a, int len, double posmarker);
+  ULONG  DLLENTRYP(output_playing_samples)(struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  double DLLENTRYP(output_playing_pos    )(struct FILTER_STRUCT* a);
+  BOOL   DLLENTRYP(output_playing_data   )(struct FILTER_STRUCT* a);
          OutputProcs()                    { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 

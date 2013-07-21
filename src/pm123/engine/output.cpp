@@ -141,11 +141,11 @@ class OutputProxy1 : public Output, protected ProxyHelper
   VDELEGATE    vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos, vd_output_playing_samples;
 
  private:
-  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_command        (OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info);
-  PROXYFUNCDEF int        DLLENTRY proxy_1_output_request_buffer (OutputProxy1* op, void* a, const FORMAT_INFO2* format, float** buf);
-  PROXYFUNCDEF void       DLLENTRY proxy_1_output_commit_buffer  (OutputProxy1* op, void* a, int len, PM123_TIME posmarker);
-  PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_output_playing_pos    (OutputProxy1* op, void* a);
-  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_playing_samples(OutputProxy1* op, void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_command        (OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  PROXYFUNCDEF int        DLLENTRY proxy_1_output_request_buffer (OutputProxy1* op, struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
+  PROXYFUNCDEF void       DLLENTRY proxy_1_output_commit_buffer  (OutputProxy1* op, struct FILTER_STRUCT* a, int len, PM123_TIME posmarker);
+  PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_output_playing_pos    (OutputProxy1* op, struct FILTER_STRUCT* a);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_playing_samples(OutputProxy1* op, struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   /// Convert the range [0,voutput_buffer_level[ to 16 bit audio and send it to the output.
   void         SendSamples(void* a);
@@ -190,7 +190,7 @@ inline void OutputProxy1::SendSamples(void* a)
 
 /* virtualization of level 1 output plug-ins */
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
-proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info)
+proxy_1_output_command(OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info)
 { DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->ModRef->Key.cdata(), a, msg, info));
 
   if (info == NULL) // sometimes info is NULL
@@ -275,7 +275,7 @@ proxy_1_output_command(OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* inf
 }
 
 PROXYFUNCIMP(int DLLENTRY, OutputProxy1)
-proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, float** buf )
+proxy_1_output_request_buffer( OutputProxy1* op, struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf )
 {
   #ifdef DEBUG_LOG
   if (format != NULL)
@@ -311,7 +311,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* fo
 }
 
 PROXYFUNCIMP(void DLLENTRY, OutputProxy1)
-proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, PM123_TIME posmarker )
+proxy_1_output_commit_buffer( OutputProxy1* op, struct FILTER_STRUCT* a, int len, PM123_TIME posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
     op, op->ModRef->Key.cdata(), a, len, posmarker, op->voutput_buffer_level));
 
@@ -324,7 +324,7 @@ proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, PM123_TIME pos
 }
 
 PROXYFUNCIMP(PM123_TIME DLLENTRY, OutputProxy1)
-proxy_1_output_playing_pos( OutputProxy1* op, void* a )
+proxy_1_output_playing_pos( OutputProxy1* op, struct FILTER_STRUCT* a )
 { DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->ModRef->Key.cdata(), a));
   return ProxyHelper::TstmpI2F((*op->voutput_playing_pos)(a), op->voutput_posmarker);
 }
@@ -347,7 +347,7 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
-proxy_1_output_playing_samples(OutputProxy1* op, void* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
+proxy_1_output_playing_samples(OutputProxy1* op, struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param)
 { DEBUGLOG2(("proxy_1_output_playing_samples(%p{%s}, %p, %f, %p, %p) - %p \n",
     op, op == NULL ? NULL : op->ModRef->Key.cdata(), a, offset, cb, param));
   FORMAT_INFO fmt = { sizeof(FORMAT_INFO) };

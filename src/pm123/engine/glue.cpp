@@ -510,7 +510,7 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
     SetDecoderPriority(LowWaterLimit != 0);
   }
   // pass request to output
-  int ret = (*GlueImp::Procs.output_request_buffer)(a, format, buf);
+  int ret = (*GlueImp::Procs.output_request_buffer)((struct FILTER_STRUCT*)a, format, buf);
   GlueImp::LastFormat = *format;
   GlueImp::LastBuffer = *buf;
   return ret;
@@ -594,7 +594,7 @@ GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
     }
   }
   // pass to the output
-  (*GlueImp::Procs.output_commit_buffer)(a, len, posmarker + GlueImp::PosOffset);
+  (*GlueImp::Procs.output_commit_buffer)((struct FILTER_STRUCT*)a, len, posmarker + GlueImp::PosOffset);
 
   // Signal DECEVENT_PLAYSTOP ?
   if (send_playstop)

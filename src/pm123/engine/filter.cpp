@@ -108,9 +108,9 @@ class FilterProxy1 : public Filter, protected ProxyHelper
   BOOL  DLLENTRYP(vfilter_uninit       )( void*  f );
   int   DLLENTRYP(vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void* vf;
-  int   DLLENTRYP(output_request_buffer)( void*  a, const FORMAT_INFO2* format, float** buf );
-  void  DLLENTRYP(output_commit_buffer )( void*  a, int len, PM123_TIME posmarker );
-  void* a;
+  int   DLLENTRYP(output_request_buffer)( struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf );
+  void  DLLENTRYP(output_commit_buffer )( struct FILTER_STRUCT* a, int len, PM123_TIME posmarker );
+  struct FILTER_STRUCT* a;
   FORMAT_INFO vformat;                      // format of the samples (old style)
   FORMAT_INFO2 vformat2;                    // format of the samples (new style)
   union
@@ -126,9 +126,9 @@ class FilterProxy1 : public Filter, protected ProxyHelper
   VREPLACE1   vr_filter_uninit;
 
  private:
-  PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( FilterProxy1* pp, void** f, FILTER_PARAMS2* params );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( FilterProxy1* pp, struct FILTER_STRUCT** f, FILTER_PARAMS2* params );
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( FilterProxy1* pp, const FILTER_PARAMS2* params );
-  PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
+  PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( struct FILTER_STRUCT* f ); // empty stub
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const FORMAT_INFO2* format, float** buf );
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( FilterProxy1* f, int len, PM123_TIME posmarker );
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( FilterProxy1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
@@ -147,11 +147,11 @@ void FilterProxy1::LoadPlugin()
   mod.LoadMandatoryFunction(&vfilter_play_samples, "filter_play_samples");
 
   filter_init   = vdelegate(&vd_filter_init,   &proxy_1_filter_init,   this);
-  filter_update = (void DLLENTRYPF()(void*, const FILTER_PARAMS2*)) // type of parameter is replaced too
+  filter_update = (void DLLENTRYPF()(struct FILTER_STRUCT*, const FILTER_PARAMS2*)) // type of parameter is replaced too
                   vreplace1(&vr_filter_update, &proxy_1_filter_update, this);
   // filter_uninit is initialized at the filter_init call to a non-no-op function
   // However, the returned pointer will stay the same.
-  filter_uninit = vreplace1(&vr_filter_uninit, &proxy_1_filter_uninit, (void*)NULL);
+  filter_uninit = vreplace1(&vr_filter_uninit, &proxy_1_filter_uninit, (struct FILTER_STRUCT*)NULL);
 }
 
 inline void FilterProxy1::SendSamples()
@@ -164,7 +164,7 @@ inline void FilterProxy1::SendSamples()
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, FilterProxy1)
-proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
+proxy_1_filter_init(FilterProxy1* pp, struct FILTER_STRUCT** f, FILTER_PARAMS2* params)
 { DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->ModRef->Key.cdata(), f, params, params->a));
 
   FILTER_PARAMS par;
@@ -192,10 +192,10 @@ proxy_1_filter_init(FilterProxy1* pp, void** f, FILTER_PARAMS2* params)
   // replace the unload function
   vreplace1(&pp->vr_filter_uninit, pp->vfilter_uninit, pp->vf);
   // now return some values
-  *f = pp;
-  params->output_request_buffer = (int  DLLENTRYPF()(void*, const FORMAT_INFO2*, float**))
+  *f = (struct FILTER_STRUCT*)pp;
+  params->output_request_buffer = (int  DLLENTRYPF()(struct FILTER_STRUCT*, const FORMAT_INFO2*, float**))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_request_buffer;
-  params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, PM123_TIME))
+  params->output_commit_buffer  = (void DLLENTRYPF()(struct FILTER_STRUCT*, int, PM123_TIME))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_commit_buffer;
   return 0;
 }
@@ -212,7 +212,7 @@ proxy_1_filter_update(FilterProxy1* pp, const FILTER_PARAMS2* params)
 }
 
 PROXYFUNCIMP(BOOL DLLENTRY, FilterProxy1)
-proxy_1_filter_uninit(void*)
+proxy_1_filter_uninit(struct FILTER_STRUCT*)
 { return TRUE;
 }
 

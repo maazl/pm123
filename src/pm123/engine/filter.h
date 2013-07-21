@@ -53,10 +53,10 @@
 
 // Set of entry points related to filter plug-ins.
 struct FilterProcs
-{ void*  F;
-  ULONG  DLLENTRYP(filter_init        )(void** f, FILTER_PARAMS2* params);
-  void   DLLENTRYP(filter_update      )(void*  f, const FILTER_PARAMS2* params);
-  BOOL   DLLENTRYP(filter_uninit      )(void*  f);
+{ struct FILTER_STRUCT* F;
+  ULONG  DLLENTRYP(filter_init        )(struct FILTER_STRUCT** f, FILTER_PARAMS2* params);
+  void   DLLENTRYP(filter_update      )(struct FILTER_STRUCT*  f, const FILTER_PARAMS2* params);
+  BOOL   DLLENTRYP(filter_uninit      )(struct FILTER_STRUCT*  f);
          FilterProcs()                 { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
