@@ -84,6 +84,16 @@ typedef enum
   MSG_ERROR
 } MESSAGE_TYPE;
 
+/** file dialog additional flags for \c ulUser field. */
+enum FD_UserOpts
+{ FDU_NONE       = 0x00,
+  FDU_DIR_ENABLE = 0x01,
+  FDU_RECURSEBTN = 0x02,
+  FDU_RECURSE_ON = 0x04,
+  FDU_RELATIVBTN = 0x08,
+  FDU_RELATIV_ON = 0x10
+};
+
 /** return value of plugin_query. */
 typedef struct _PLUGIN_QUERYPARAM
 { int   type;         /**< PLUGIN_*. values can be ORed */
@@ -129,6 +139,9 @@ typedef struct
    * @remarks The function does not actually cause any I/O.
    * It is not reliable during plug-in initialization. */
   int DLLENTRYP(obj_supported)(const char* url, const char* type);
+
+  /** Invoke PM123's resizable file dialog. */
+  HWND DLLENTRYP(file_dlg)(HWND hparent, HWND howner, FILEDLG* filedialog);
 } PLUGIN_API; 
 
 typedef struct
