@@ -1,0 +1,11 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'Digital Room Correction for PM123'
+
+EXPORT filter_init         .1
+EXPORT filter_uninit       .2
+EXPORT filter_update       .3
+
+EXPORT plugin_query        .10
+EXPORT plugin_init         .11
+EXPORT plugin_configure    .12

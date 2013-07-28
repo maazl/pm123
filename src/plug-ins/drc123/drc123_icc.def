@@ -1,0 +1,12 @@
+LIBRARY DRC123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'Digital Room Correction for PM123'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   filter_init         @1
+   filter_uninit       @2
+   filter_update       @3
+
+   plugin_query        @10
+   plugin_init         @11
+   plugin_configure    @12
