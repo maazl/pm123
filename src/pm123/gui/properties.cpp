@@ -346,7 +346,7 @@ MRESULT PropertyDialog::PlaybackSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPA
     { MRESULT mr = SettingsPageBase::DlgProc(msg, mp1, mp2);
       SpinButton(+GetCtrl(SB_RG_PREAMP)).SetLimits(-12, +12, 3);
       SpinButton(+GetCtrl(SB_RG_PREAMP_OTHER)).SetLimits(-12, +12, 3);
-      SpinButton(+GetCtrl(SB_SCAN_SPEED)).SetItems(ScandSpeeds, sizeof ScandSpeeds / sizeof *ScandSpeeds);
+      SpinButton(+GetCtrl(SB_SCAN_SPEED)).SetArray(ScandSpeeds, sizeof ScandSpeeds / sizeof *ScandSpeeds);
       return mr;
     }
 

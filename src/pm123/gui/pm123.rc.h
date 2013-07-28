@@ -286,8 +286,9 @@
 
 /* File */
 #define DLG_FILE           1100
-#define CB_RECURSE         1101
-#define CB_RELATIVE        1102
+#define DLG_DIR            1101
+#define CB_RECURSE         1105
+#define CB_RELATIVE        1106
 
 /* URL and Bookmark */
 #define DLG_URL            1110

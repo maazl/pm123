@@ -88,10 +88,11 @@ typedef enum
 enum FD_UserOpts
 { FDU_NONE       = 0x00,
   FDU_DIR_ENABLE = 0x01,
-  FDU_RECURSEBTN = 0x02,
-  FDU_RECURSE_ON = 0x04,
-  FDU_RELATIVBTN = 0x08,
-  FDU_RELATIV_ON = 0x10
+  FDU_DIR_ONLY   = 0x02,
+  FDU_RECURSEBTN = 0x04,
+  FDU_RECURSE_ON = 0x08,
+  FDU_RELATIVBTN = 0x10,
+  FDU_RELATIV_ON = 0x20
 };
 
 /** return value of plugin_query. */
@@ -140,8 +141,15 @@ typedef struct
    * It is not reliable during plug-in initialization. */
   int DLLENTRYP(obj_supported)(const char* url, const char* type);
 
-  /** Invoke PM123's resizable file dialog. */
-  HWND DLLENTRYP(file_dlg)(HWND hparent, HWND howner, FILEDLG* filedialog);
+  /** @brief Invoke PM123's resizable file dialog.
+   * @details This function creates and displays the file dialog
+   * and returns the user's selection or selections.
+   * Important note: \c filedialog->pszIType must point
+   * to a \e writable string of at least \c _MAX_PATH bytes.
+   * It contains the selected type on return.
+   * The ulUser field can be set to any FD_UserOpts values.
+   */
+  HWND DLLENTRYP(file_dlg)(HWND hparent, HWND howner, struct _FILEDLG* filedialog);
 } PLUGIN_API; 
 
 typedef struct

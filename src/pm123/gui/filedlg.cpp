@@ -379,10 +379,17 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 HWND DLLENTRY amp_file_dlg(HWND hparent, HWND howner, PFILEDLG filedialog)
 {
   filedialog->hMod       = NULLHANDLE;
-  filedialog->usDlgId    = DLG_FILE;
+  filedialog->usDlgId    = filedialog->ulUser & FDU_DIR_ONLY ? DLG_DIR : DLG_FILE;
   filedialog->pfnDlgProc = amp_file_dlg_proc;
   filedialog->fl        |= FDS_CUSTOM|FDS_ENABLEFILELB;
 
-  return WinFileDlg( hparent, howner, filedialog );
+  if (filedialog->ulUser & FDU_DIR_ONLY)
+  { size_t len = strlen(filedialog->szFullFile);
+    if (len && len < sizeof(filedialog->szFullFile) -1 && filedialog->szFullFile[len-1] != '\\')
+    { filedialog->szFullFile[len] = '\\';
+      filedialog->szFullFile[len+1] = 0;
+  } }
+
+  return WinFileDlg(hparent, howner, filedialog);
 }
 
