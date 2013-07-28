@@ -240,3 +240,37 @@ NotebookDialogBase::PageBase* NotebookDialogBase::PageFromID(ULONG pageid)
       return *pp;
   return NULL;
 }
+
+
+void SubclassWindow::DoAttach()
+{ // Replace HWND parameter of window function by this.
+  OldWinProc = WinSubclassWindow(Hwnd, (PFNWP)mkvreplace1(&vrWinProc, (V_FUNC)&scw_WinProcStub, this));
+  PMASSERT(OldWinProc);
+}
+
+void SubclassWindow::Detach()
+{ if (Hwnd)
+  { PMRASSERT(WinSubclassWindow(Hwnd, OldWinProc));
+    Hwnd = NULLHANDLE;
+  }
+}
+
+SubclassWindow::SubclassWindow()
+: Hwnd(NULLHANDLE)
+{}
+SubclassWindow::SubclassWindow(HWND hwnd)
+: Hwnd(hwnd)
+{ DoAttach();
+}
+
+SubclassWindow::~SubclassWindow()
+{ Detach();
+}
+
+MRESULT EXPENTRY scw_WinProcStub(SubclassWindow* that, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ return that->WinProc(msg, mp1, mp2);
+}
+
+MRESULT SubclassWindow::WinProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ return (*OldWinProc)(Hwnd, msg, mp1, mp2);
+}

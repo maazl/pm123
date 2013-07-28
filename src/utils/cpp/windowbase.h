@@ -36,6 +36,7 @@
 #include <cpp/pmutils.h>
 #include <cpp/dlgcontrols.h>
 #include <cpp/container/vector.h>
+#include <vdelegate.h>
 
 #include <os2.h>
 
@@ -104,6 +105,7 @@ class DialogBase
   void              SetTitle(const char* title);
 
   void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
+  void              PostCommand(USHORT uscmd) { PostMsg(WM_COMMAND, MPFROMSHORT(uscmd), MPFROM2SHORT(CMDSRC_OTHER, FALSE)); }
   /// Dialog item functions
   HWND              GetCtrl(ULONG id) { return WinWindowFromID(HwndFrame, id); }
   MRESULT           SendCtrlMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -226,5 +228,60 @@ template <class W>
 MRESULT DialogSubWindow<W>::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { return (Worker.*Function)(*this, msg, mp1, mp2);
 }*/
+
+
+/****************************************************************************
+*
+* @brief Abstract helper class to subclass another window.
+* @details One instance may not be used to subclass more than one window instance.
+*
+****************************************************************************/
+class SubclassWindow
+{private:
+  /// Window handle of the subclassed window or \c NULLHANDLE if none.
+  HWND              Hwnd;
+  /// Previous window procedure before subclassing.
+  /// @remarks Only valid if \c Hwnd is not \c NULLHANDLE.
+  PFNWP             OldWinProc;
+  /// Internal structure to inject \c this in the window procedure.
+  VREPLACE1         vrWinProc;
+
+ private:
+  /// Window procedure stub. Does vtable call.
+  // Static members must not use EXPENTRY linkage with IBM VACPP.
+  friend MRESULT EXPENTRY scw_WinProcStub(SubclassWindow* that, ULONG msg, MPARAM mp1, MPARAM mp2);
+  /// Attach to the window handle \c Hwnd.
+  void              DoAttach();
+ private: // non-copyable
+  SubclassWindow(const SubclassWindow&);
+  void operator=(const SubclassWindow&);
+ protected:
+  /// Create a new instance that is not yet attached to a window.
+                    SubclassWindow();
+  /// Create a new instance that is attached to \a hwnd.
+  /// @remarks Note that the subclassing is done immediately but it will
+  /// not perform as expected until the constructor of your subclass runs,
+  /// because your WinProc implementation can't be called before.
+  /// This also implies that your WinProc implementation could be called
+  /// \e before you constructor completed. So be very careful
+  /// and use \c Attach() in doubt.
+                    SubclassWindow(HWND hwnd);
+ public:
+  /// Destroy this instance. This will immediately revoke subclassing.
+  virtual           ~SubclassWindow();
+  /// Attach this instance to window \a hwnd.
+  /// @pre The class instance must not be attached to another instance.
+  void              Attach(HWND hwnd)   { ASSERT(!Hwnd); Hwnd = hwnd; DoAttach(); }
+  /// Revoke subclassing. The instance may be reused to subclass another window now.
+  /// This is a no-op if the instance is not attached.
+  void              Detach();
+  /// Geth the currently attached window or \c NULLHANDLE if none.
+  HWND              GetHwnd() const     { return Hwnd; }
+ protected:
+  /// Window procedure, called by scw_WinProcStub.
+  /// Should be overridden.
+  virtual MRESULT   WinProc(ULONG msg, MPARAM mp1, MPARAM mp2) = 0;
+};
+
 
 #endif

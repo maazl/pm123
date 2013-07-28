@@ -44,6 +44,7 @@
 									<listOptionValue builtIn="false" value="DLLENTRYP(x)=(*x)"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
 									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
+									<listOptionValue builtIn="false" value="EXPENTRY"/>
 								</option>
 								<option id="gnu.c.compiler.option.include.paths.1487453150" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
@@ -70,6 +71,7 @@
 									<listOptionValue builtIn="false" value="DLLENTRYP(x)=(*x)"/>
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
 									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
+									<listOptionValue builtIn="false" value="EXPENTRY"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.include.paths.760357594" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>

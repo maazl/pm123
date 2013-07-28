@@ -57,6 +57,8 @@ struct CheckBox : ControlBase
 
 struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
+  bool        CheckState(bool checked = true)       { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
+  bool        CheckState() const                    { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
   SHORT       CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
 };
@@ -70,7 +72,7 @@ struct ListBox : ControlBase
   void        Handle(unsigned i, ULONG value)       { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
   ULONG       Handle(unsigned i) const              { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
   SHORT       NextSelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
-  bool        Select(unsigned i)                    { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
+  bool        Select(int i)                         { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
 };
 
 struct ComboBox : ListBox
@@ -92,7 +94,7 @@ struct MLE : ControlBase
 struct SpinButton : ControlBase
 { SpinButton(HWND hwnd) : ControlBase(hwnd) {}
   void        SetLimits(LONG low, LONG high, USHORT len) const;
-  void        SetItems(const char*const* items, unsigned count) { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETARRAY, MPFROMP(items), MPFROMSHORT(count))); }
+  void        SetArray(const char*const* items, unsigned count) { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETARRAY, MPFROMP(items), MPFROMSHORT(count))); }
   LONG        Value() const;
   void        Value(LONG value)                     { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETCURRENTVALUE, MPFROMLONG(value), 0)); }
 };
