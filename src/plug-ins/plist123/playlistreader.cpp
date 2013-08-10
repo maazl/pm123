@@ -426,6 +426,8 @@ PLSReader* PLSReader::Sniffer(const char* url, XFILE* source)
   cp += strspn(buffer, " \t\r\n");
   if (strnicmp(cp, "[playlist]", 10) != 0)
     return NULL;
+  // rewind after header
+  xio_fseek(source, cp + 10 - buffer, XIO_SEEK_SET);
   return new PLSReader(url, source);
 }
 
