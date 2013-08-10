@@ -41,7 +41,7 @@ LOBJ_SUFFX =
 LLIB_PREFX =
 LLIB_SUFFX =
 !ifndef DEBUG
-POSTLINKCMD = lxlite $@ /nbl /t /zs
+POSTLINKCMD = lxlite $@ /nbl /t /zs && touch $@
 !endif
 
 LB         = ar cr

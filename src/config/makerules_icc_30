@@ -33,7 +33,7 @@ LOBJ_SUFFX =
 !ifdef DEBUG
 POSTLINKCMD = dllrname /Q /R $@ CPPOM30=OS2OM30
 !else
-POSTLINKCMD = dllrname /Q /R $@ CPPOM30=OS2OM30 && lxlite $@ /nbl /t /zs
+POSTLINKCMD = dllrname /Q /R $@ CPPOM30=OS2OM30 && lxlite $@ /nbl /t /zs && touch $@
 !endif
 LLIB_PREFX =
 LLIB_SUFFX =
