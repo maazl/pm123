@@ -32,7 +32,7 @@ static void putchr_generic(printer * p_, char c)
      (p->write_char)(c, p->data);
 }
 
-void X(export_wisdom)(void (*write_char)(char c, void *), void *data)
+void FFTEXP X(export_wisdom)(void (*write_char)(char c, void *), void *data)
 {
      P *p = (P *) X(mkprinter)(sizeof(P), putchr_generic, 0);
      planner *plnr = X(the_planner)();

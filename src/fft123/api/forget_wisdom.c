@@ -20,7 +20,7 @@
 
 #include "api.h"
 
-void X(forget_wisdom)(void)
+void FFTEXP X(forget_wisdom)(void)
 {
      planner *plnr = X(the_planner)();
      plnr->adt->forget(plnr, FORGET_EVERYTHING);

@@ -20,7 +20,7 @@
 
 #include "api.h"
 
-X(plan) X(plan_dft)(int rank, const int *n,
+X(plan) FFTEXP X(plan_dft)(int rank, const int *n,
 		    C *in, C *out, int sign, unsigned flags)
 {
      return X(plan_many_dft)(rank, n, 1,

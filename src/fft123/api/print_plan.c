@@ -20,7 +20,7 @@
 
 #include "api.h"
 
-void X(fprint_plan)(const X(plan) p, FILE *output_file)
+void FFTEXP X(fprint_plan)(const X(plan) p, FILE *output_file)
 {
      printer *pr = X(mkprinter_file)(output_file);
      plan *pln = p->pln;
@@ -28,7 +28,7 @@ void X(fprint_plan)(const X(plan) p, FILE *output_file)
      X(printer_destroy)(pr);
 }
 
-void X(print_plan)(const X(plan) p)
+void FFTEXP X(print_plan)(const X(plan) p)
 {
      X(fprint_plan)(p, stdout);
 }

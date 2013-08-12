@@ -40,7 +40,7 @@ static scanner *mkscanner_str(const char *s)
      return &sc->super;
 }
 
-int X(import_wisdom_from_string)(const char *input_string)
+int FFTEXP X(import_wisdom_from_string)(const char *input_string)
 {
      scanner *s = mkscanner_str(input_string);
      planner *plnr = X(the_planner)();

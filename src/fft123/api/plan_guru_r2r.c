@@ -23,7 +23,7 @@
 
 rdft_kind *X(map_r2r_kind)(int rank, const X(r2r_kind) * kind);
 
-X(plan) X(plan_guru_r2r)(int rank, const X(iodim) *dims,
+X(plan) FFTEXP X(plan_guru_r2r)(int rank, const X(iodim) *dims,
 			 int howmany_rank,
 			 const X(iodim) *howmany_dims,
 			 R *in, R *out,

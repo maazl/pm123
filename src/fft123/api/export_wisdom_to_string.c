@@ -60,7 +60,7 @@ static printer *mkprinter_str(char *s)
      return &p->super;
 }
 
-char *X(export_wisdom_to_string)(void)
+char FFTEXP *X(export_wisdom_to_string)(void)
 {
      printer *p;
      planner *plnr = X(the_planner)();

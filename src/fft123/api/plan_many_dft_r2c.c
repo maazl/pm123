@@ -21,7 +21,7 @@
 #include "api.h"
 #include "rdft.h"
 
-X(plan) X(plan_many_dft_r2c)(int rank, const int *n,
+X(plan) FFTEXP X(plan_many_dft_r2c)(int rank, const int *n,
 			     int howmany,
 			     R *in, const int *inembed,
 			     int istride, int idist,

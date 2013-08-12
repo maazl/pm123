@@ -69,7 +69,7 @@ static void our_free16(void *p)
 #endif
 
 /* part of user-callable API */
-void *X(malloc)(size_t n)
+void FFTEXP *X(malloc)(size_t n)
 {
      void *p;
 
@@ -136,7 +136,7 @@ void *X(malloc)(size_t n)
 }
 
 /* part of user-callable API */
-void X(free)(void *p)
+void FFTEXP X(free)(void *p)
 {
      real_free(p);
 }

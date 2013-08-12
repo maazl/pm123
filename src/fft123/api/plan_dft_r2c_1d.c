@@ -20,7 +20,7 @@
 
 #include "api.h"
 
-X(plan) X(plan_dft_r2c_1d)(int n, R *in, C *out, unsigned flags)
+X(plan) FFTEXP X(plan_dft_r2c_1d)(int n, R *in, C *out, unsigned flags)
 {
      return X(plan_dft_r2c)(1, &n, in, out, flags);
 }

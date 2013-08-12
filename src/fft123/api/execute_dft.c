@@ -22,7 +22,7 @@
 #include "dft.h"
 
 /* guru interface: requires care in alignment etcetera. */
-void X(execute_dft)(const X(plan) p, C *in, C *out)
+void FFTEXP X(execute_dft)(const X(plan) p, C *in, C *out)
 WITH_ALIGNED_STACK({
      plan_dft *pln = (plan_dft *) p->pln;
      if (p->sign == FFT_SIGN)

@@ -198,7 +198,7 @@ MRESULT ManagedDialog<BASE>::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_CLOSE:
     // Managed Dialogs destroy themselves on close button or explicit close.
-    Destroy();
+    BASE::Destroy();
     return 0;
   }
   return BASE::DlgProc(msg, mp1, mp2);
@@ -283,5 +283,7 @@ class SubclassWindow
   virtual MRESULT   WinProc(ULONG msg, MPARAM mp1, MPARAM mp2) = 0;
 };
 
+// Keep gcc 4 happy
+MRESULT EXPENTRY scw_WinProcStub(SubclassWindow* that, ULONG msg, MPARAM mp1, MPARAM mp2);
 
 #endif

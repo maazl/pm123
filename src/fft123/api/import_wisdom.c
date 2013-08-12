@@ -32,7 +32,7 @@ static int getchr_generic(scanner * s_)
      return (s->read_char)(s->data);
 }
 
-int X(import_wisdom)(int (*read_char)(void *), void *data)
+int FFTEXP X(import_wisdom)(int (*read_char)(void *), void *data)
 {
      S *s = (S *) X(mkscanner)(sizeof(S), getchr_generic);
      planner *plnr = X(the_planner)();

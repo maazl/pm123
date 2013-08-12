@@ -28,7 +28,7 @@
 #  define WISDOM_NAME "wisdom"
 #endif
 
-int X(import_system_wisdom)(void)
+int FFTEXP X(import_system_wisdom)(void)
 {
 #if defined(__WIN32__) || defined(WIN32) || defined(_WINDOWS)
      return 0; /* TODO? */

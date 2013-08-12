@@ -20,7 +20,7 @@
 
 #include "api.h"
 
-void X(flops)(const X(plan) p, double *add, double *mul, double *fma)
+void FFTEXP X(flops)(const X(plan) p, double *add, double *mul, double *fma)
 {
      opcnt *o = &p->pln->ops;
      *add = o->add; *mul = o->mul; *fma = o->fma;

@@ -394,7 +394,7 @@ class btree_own : public btree<T,K,C>
 
 template <class T, class K, sort_comparer>
 void btree_own<T,K,C>::clear()
-{ typename btree_own<T,K,C>::iterator where(begin());
+{ typename btree_own<T,K,C>::iterator where(btree<T,K,C>::begin());
   while (!where.isend())
   { delete *where;
     ++where;

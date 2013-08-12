@@ -22,7 +22,7 @@
 #include "rdft.h"
 
 /* guru interface: requires care in alignment, r - i, etcetera. */
-void X(execute_split_dft_c2r)(const X(plan) p, R *ri, R *ii, R *out)
+void FFTEXP X(execute_split_dft_c2r)(const X(plan) p, R *ri, R *ii, R *out)
 WITH_ALIGNED_STACK({
      plan_rdft2 *pln = (plan_rdft2 *) p->pln;
      pln->apply((plan *) pln, out, ri, ii);

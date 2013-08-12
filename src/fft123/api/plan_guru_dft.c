@@ -21,7 +21,7 @@
 #include "api.h"
 #include "dft.h"
 
-X(plan) X(plan_guru_dft)(int rank, const X(iodim) *dims,
+X(plan) FFTEXP X(plan_guru_dft)(int rank, const X(iodim) *dims,
 			 int howmany_rank, const X(iodim) *howmany_dims,
 			 C *in, C *out, int sign, unsigned flags)
 {

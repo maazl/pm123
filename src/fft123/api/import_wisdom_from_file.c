@@ -61,7 +61,7 @@ static scanner *mkscanner_file(FILE *f)
      return &sc->super;
 }
 
-int X(import_wisdom_from_file)(FILE *input_file)
+int FFTEXP X(import_wisdom_from_file)(FILE *input_file)
 {
      scanner *s = mkscanner_file(input_file);
      planner *plnr = X(the_planner)();

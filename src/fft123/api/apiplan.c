@@ -59,7 +59,7 @@ WITH_ALIGNED_STACK({
      return p;
 })
 
-void X(destroy_plan)(X(plan) p)
+void FFTEXP X(destroy_plan)(X(plan) p)
 {
      if (p) {
           AWAKE(p->pln, 0);
