@@ -37,8 +37,8 @@ OpenLoop::OpenLoop(FILTER_PARAMS2& params)
 {}
 
 OpenLoop::~OpenLoop()
-{
-}
+{}
+
 
 ULONG OpenLoop::InCommand(ULONG msg, OUTPUT_PARAMS2* info)
 {

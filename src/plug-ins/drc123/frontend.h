@@ -43,31 +43,22 @@
 
 class Frontend : public NotebookDialogBase
 {public:
-  /// Current working directory, in doubt \c xstring::empty.
-  static xstring WorkDir;
-  /// Currently selected filter file or \c NULL if none.
-  static xstring CurrentFilter;
-  /// Currently selected window function
-  static enum WFN
-  { WFN_NONE,
-    WFN_DIMMEDHAMMING,
-    WFN_HAMMING
-  }              WindowFunction;
+  /// Currently active filter file or \c NULL if none.
+  static xstring FilterFile;
 
  private:
   class DeconvolutionPage : public PageBase
   {private:
     enum
-    { UM_SAVEDATA = WM_USER + 300,
-      UM_UPDATEDESCR
+    { UM_UPDATEDESCR = WM_USER + 300
     };
-    xstring SelectedFilter;
-    DataFile FilterKernel;
+    xstring     SelectedFilter;
+    int_ptr<DataFile> SelectedKernel;
     ResponseGraph Result;
    public:
     DeconvolutionPage(Frontend& parent)
     : PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
-    , Result(FilterKernel)
+    , Result()
     { MajorTitle = "~Deconvolution";
       MinorTitle = "Deconvolution filter";
     }

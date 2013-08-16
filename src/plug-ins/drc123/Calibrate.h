@@ -26,16 +26,16 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CALIBRATE_H_
-#define CALIBRATE_H_
+#ifndef CALIBRATE_H
+#define CALIBRATE_H
 
 #include "OpenLoop.h"
 
 class Calibrate : public OpenLoop
 {
-public:
+ public:
   Calibrate(FILTER_PARAMS2& params);
   virtual ~Calibrate();
 };
 
-#endif // CALIBRATE_H_
+#endif // CALIBRATE_H

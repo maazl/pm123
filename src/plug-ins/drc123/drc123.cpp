@@ -53,6 +53,71 @@
 
 PLUGIN_CONTEXT Ctx;
 
+
+inline static void do_load_prf_value(const char* name, bool& target)
+{ (*Ctx.plugin_api->profile_query)(name, &target, 1);
+}
+static void do_load_prf_value(const char* name, xstring& target)
+{ int len = (*Ctx.plugin_api->profile_query)(name, NULL, 0);
+  if (len >= 0)
+    (*Ctx.plugin_api->profile_query)(name, target.allocate(len), len);
+}
+static void do_load_prf_value(const char* name, volatile xstring& target)
+{ int len = (*Ctx.plugin_api->profile_query)(name, NULL, 0);
+  if (len >= 0)
+  { xstring value;
+    (*Ctx.plugin_api->profile_query)(name, value.allocate(len), len);
+    target.swap(value);
+  }
+}
+template <class T>
+static void do_load_prf_value(const char* name, volatile T& target)
+{ T value;
+  if ((*Ctx.plugin_api->profile_query)(name, &value, sizeof(T)) == sizeof(T))
+    target = value;
+}
+
+inline static void do_save_prf_value(const char* name, bool value)
+{ (*Ctx.plugin_api->profile_write)(name, &value, 1);
+}
+inline static void do_save_prf_value(const char* name, xstring value)
+{ (*Ctx.plugin_api->profile_write)(name, value.cdata(), value.length());
+}
+template <class T>
+inline static void do_save_prf_value(const char* name, const T value)
+{ (*Ctx.plugin_api->profile_write)(name, &value, sizeof(T));
+}
+
+#define load_prf_value(var) \
+  do_load_prf_value(#var, var)
+
+#define save_prf_value(var) \
+  do_save_prf_value(#var, var)
+
+
+static void load_config()
+{
+  Deconvolution::Parameters* dp = new Deconvolution::Parameters();
+  // Naming for the macros below.
+  Deconvolution::Parameters& deconvolution = *dp;
+  load_prf_value(deconvolution.FilterFile);
+  load_prf_value(deconvolution.WindowFunction);
+  load_prf_value(deconvolution.Enabled);
+  load_prf_value(deconvolution.FIROrder);
+  load_prf_value(deconvolution.PlanSize);
+}
+
+
+void save_config()
+{
+  save_prf_value(Deconvolution::FilterFile);
+  save_prf_value(Deconvolution::WindowFunction);
+  save_prf_value(Deconvolution::Enable);
+  save_prf_value(Deconvolution::FIROrder);
+  save_prf_value(Deconvolution::PlanSize);
+}
+
+
 enum FilterMode
 { MODE_DECONVOLUTION,
   MODE_MEASURE,
@@ -85,23 +150,6 @@ static FilterMode CurrentMode;
 /********** Ini file stuff */
 
 #if 0
-static void
-save_ini( void )
-{
-  HINI INIhandle;
-
-  if(( INIhandle = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value ( INIhandle, newFIRorder );
-    save_ini_value ( INIhandle, newPlansize );
-    save_ini_value ( INIhandle, eqenabled );
-    save_ini_value ( INIhandle, locklr );
-    save_ini_string( INIhandle, lasteq );
-
-    close_ini( INIhandle );
-  }
-}
-
 static void
 load_ini( void )
 {
@@ -138,50 +186,6 @@ load_ini( void )
   }
   eqneedinit  = TRUE;
 }
-
-static BOOL
-load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp )
-{
-  FILE* file;
-  int   i = 0;
-  char  line[256];
-
-  if (filename == NULL || *filename == 0)
-    return FALSE;
-  file = fopen( filename, "r" );
-  if( file == NULL ) {
-    return FALSE;
-  }
-
-  while( !feof( file ))
-  {
-    fgets( line, sizeof(line), file );
-    blank_strip( line );
-    if( *line && line[0] != '#' && line[0] != ';' && i < 129 )
-    {
-      if( i < NUM_BANDS*2 ) {
-        double gain = atof(line);
-        if (gain < 0)
-          gain = 0;
-         else if (gain <= .2511886432)
-          gain = -12.;
-         else if (gain >= 3.981071706)
-          gain = 12.;
-         else
-          gain = 20.*log10(gain); 
-        gains[i] = gain;
-      } else if( i > NUM_BANDS*2-1 && i < NUM_BANDS*4 ) {
-        mutes[i-NUM_BANDS*2] = atoi(line);
-      } else if( i == NUM_BANDS*4 ) {
-        *preamp = atof(line);
-      }
-      i++;
-    }
-  }
-  fclose( file );
-  return TRUE;
-}
-
 #endif
 
 
@@ -389,6 +393,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 {
   Ctx = *ctx;
+  load_config();
   return 0;
 }
 

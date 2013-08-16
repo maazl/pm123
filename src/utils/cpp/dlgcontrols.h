@@ -59,7 +59,7 @@ struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
   bool        CheckState(bool checked = true)       { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
   bool        CheckState() const                    { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
-  SHORT       CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
+  int         CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
 };
 
@@ -69,9 +69,11 @@ struct ListBox : ControlBase
   void        InsertItem(const char* item, SHORT where = LIT_END) { PMXASSERT((SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, LM_INSERTITEM, MPFROMSHORT(where), MPFROMP(item))), >= 0); }
   void        InsertItems(const char*const* items, unsigned count, int where = LIT_END);
   USHORT      Count() const                         { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYITEMCOUNT, 0, 0)); }
-  void        Handle(unsigned i, ULONG value)       { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
-  ULONG       Handle(unsigned i) const              { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
-  SHORT       NextSelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
+  void        Handle(int i, ULONG value)            { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMHANDLE, MPFROMSHORT(i), MPFROMLONG(value))); }
+  ULONG       Handle(int i) const                   { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
+  xstring     ItemText(int i) const;
+  void        ItemText(int i, const char* text)     { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMTEXT, MPFROMSHORT(i), MPFROMP(text))); }
+  int         NextSelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
   bool        Select(int i)                         { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
 };
 

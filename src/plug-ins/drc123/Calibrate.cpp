@@ -34,4 +34,3 @@ Calibrate::Calibrate(FILTER_PARAMS2& params)
 
 Calibrate::~Calibrate()
 {}
-

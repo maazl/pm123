@@ -47,9 +47,13 @@ MRESULT ResponseGraph::WinProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
   {case WM_PAINT:
-    { PresentationSpace ps(GetHwnd());
-      POINTL xy12[2] = {{0,0}, {100,100}};
-      GpiBox(ps, DRO_FILL, xy12, 0,0);
+    { PaintPresentationSpace ps(GetHwnd());
+      RECTL xywh;
+      PMRASSERT(WinQueryWindowRect(GetHwnd(), &xywh));
+      POINTL xy12[2] = {{-1000,-1000}, {10000,10000}};
+      GpiSetColor(ps, 3);
+      GpiSetBackColor(ps, 2);
+      GpiBox(ps, DRO_OUTLINEFILL, xy12, 0,0);
       return 0;
     }
   }

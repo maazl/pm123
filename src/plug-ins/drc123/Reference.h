@@ -32,7 +32,7 @@
 
 class Reference
 {
-public:
+ public:
   Reference();
   virtual ~Reference();
 };

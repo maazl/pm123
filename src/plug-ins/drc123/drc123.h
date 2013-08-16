@@ -91,5 +91,8 @@
 #define RB_RIGHT_LOOP 1303
 
 
+void save_config();
+
+
 #endif /* _REALEQ_H */
 

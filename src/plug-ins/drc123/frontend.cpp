@@ -30,6 +30,7 @@
 #define  INCL_BASE
 
 #include "frontend.h"
+#include "Deconvolution.h"
 #include "OpenLoop.h"
 
 #include <stdlib.h>
@@ -48,10 +49,6 @@
 #undef  VERSION
 #define VERSION "Digital Room Correction Version 1.0"
 
-
-xstring Frontend::WorkDir = xstring::empty;
-xstring Frontend::CurrentFilter;
-Frontend::WFN Frontend::WindowFunction;
 
 
 /********** Ini file stuff */
@@ -284,7 +281,6 @@ static const char* const FIROrders[] =
 , "49152"
 , "65536"
 , "98304"
-, "131072"
 };
 
 MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -292,8 +288,6 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_INITDLG:
     ComboBox(+GetCtrl(CB_FIRORDER)).InsertItems(FIROrders, countof(FIROrders));
-    SelectedFilter = CurrentFilter;
-    CheckBox(+GetCtrl(CB_ENABLE)).Enabled(SelectedFilter != NULL);
     // Load initial values
     PostCommand(PB_UNDO);
     break;
@@ -306,7 +300,15 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
      case LB_KERNEL:
       if (SHORT2FROMMP(mp1) == LN_SELECT)
-      { CheckBox(+GetCtrl(CB_ENABLE)).Enabled(true);
+      { xstringbuilder sb;
+        sb.append(ControlBase(+GetCtrl(EF_WORKDIR)).Text());
+        if (sb.length() && sb[sb.length()-1] != '\\')
+          sb.append('\\');
+        ListBox lb(+GetCtrl(LB_KERNEL));
+        int sel = lb.NextSelection();
+        sb.append(lb.ItemText(sel));
+        SelectedFilter = sb.get();
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(true);
         PostMsg(UM_UPDATEDESCR, 0, 0);
       }
       break;
@@ -321,19 +323,74 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ComboBox(+GetCtrl(CB_FIRORDER)).Select(3); // 49152
       }
       break;
+
      case PB_UNDO:
-      { EntryField(+GetCtrl(EF_WORKDIR)).Text(WorkDir);
+      { // Load GUI from current configuration
+        SelectedFilter = Deconvolution::FilterFile;
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(SelectedFilter != NULL);
+        if (SelectedFilter)
+        { char path[_MAX_PATH];
+          sdrivedir(path, SelectedFilter, sizeof path);
+          EntryField(+GetCtrl(EF_WORKDIR)).Text(path);
+        }
         EntryField(+GetCtrl(EF_RECURI)).Text(xstring(OpenLoop::RecURI));
         // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
-        RadioButton(+GetCtrl(RB_WIN_NONE+WindowFunction)).CheckState();
-
-        ComboBox(+GetCtrl(CB_FIRORDER)).Select(3); // 49152
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Deconvolution::Enable);
+        RadioButton(+GetCtrl(RB_WIN_NONE + Deconvolution::WindowFunction)).CheckState();
+        int selected = 3; // default
+        switch (Deconvolution::FIROrder)
+        {case 16384:
+          selected = 0; break;
+         case 24576:
+          selected = 1; break;
+         case 32768:
+          selected = 2; break;
+         //case 49152: default
+         case 65536:
+          selected = 4; break;
+         case 98304:
+          selected = 5; break;
+        }
+        ComboBox(+GetCtrl(CB_FIRORDER)).Select(selected);
       }
       break;
+
      case PB_APPLY:
-      PostMsg(UM_SAVEDATA, 0, 0);
+      { // Update configuration from GUI
+        Deconvolution::FilterFile = SelectedFilter;
+        OpenLoop::RecURI = EntryField(+GetCtrl(EF_RECURI)).Text();
+        Deconvolution::WindowFunction = (Deconvolution::WFN)RadioButton(+GetCtrl(RB_WIN_NONE)).CheckIndex();
+        switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
+        {case 0: // 16384
+          Deconvolution::FIROrder = 16384;
+          Deconvolution::PlanSize = 32768;
+          break;
+         case 1: // 24576
+          Deconvolution::FIROrder = 24576;
+          Deconvolution::PlanSize = 32768;
+          break;
+         case 2: // 32768
+          Deconvolution::FIROrder = 32768;
+          Deconvolution::PlanSize = 65536;
+          break;
+         case 3: // 49152
+          Deconvolution::FIROrder = 49152;
+          Deconvolution::PlanSize = 65536;
+          break;
+         case 4: // 65536
+          Deconvolution::FIROrder = 65536;
+          Deconvolution::PlanSize = 131072;
+          break;
+         case 5: // 98304
+          Deconvolution::FIROrder = 98304;
+          Deconvolution::PlanSize = 131072;
+          break;
+        }
+        save_config();
+      }
       break;
+
      case PB_BROWSE:
       { FILEDLG fdlg = { sizeof(FILEDLG) };
         char type[_MAX_PATH];
@@ -348,6 +405,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           ControlBase(+GetCtrl(EF_WORKDIR)).Text(fdlg.szFullFile);
       }
       break;
+
      case PB_RELOAD:
       UpdateDir();
       break;
@@ -361,16 +419,12 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       if (!FilterKernel.Load(SelectedFilter))
-      { descr.Text(strerror(errno));
+      { Result.Detach();
+        descr.Text(strerror(errno));
         return 0;
       }
+      Result.Attach(GetCtrl(CC_RESULT));
       descr.Text(FilterKernel.Description.length() ? FilterKernel.Description.cdata() : "no description");
-    }
-    return 0;
-
-   case UM_SAVEDATA:
-    {
-
     }
     return 0;
   }

@@ -71,6 +71,17 @@ void ComboBox::InsertItems(const char*const* items, unsigned count, int where)
   }
 }
 
+xstring ListBox::ItemText(int i) const
+{ xstring result;
+  if (i != LIT_NONE)
+  { SHORT len = SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(i), 0));
+    PMASSERT(len != LIT_ERROR);
+    char* cp = result.allocate(len);
+    WinSendMsg(Hwnd, LM_QUERYITEMTEXT, MPFROM2SHORT(i, len+1), MPFROMP(cp));
+  }
+  return result;
+}
+
 void SpinButton::SetLimits(LONG low, LONG high, USHORT len) const
 { PMRASSERT(WinSendMsg(Hwnd, SPBM_SETLIMITS, MPFROMLONG(high), MPFROMLONG(low)));
   PMRASSERT(WinSendMsg(Hwnd, SPBM_SETTEXTLIMIT, MPFROMSHORT(len), 0));

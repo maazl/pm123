@@ -15,7 +15,9 @@
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO,Xs WS
+ * xterm&
+ *  THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
@@ -33,11 +35,23 @@
 #include <minmax.h>
 
 
-volatile bool Deconvolution::Enable = false;
-volatile int Deconvolution::NewFIROrder = 0;
-volatile int Deconvolution::NewPlanSize = 0;
-volatile int_ptr<TargetResponse> Deconvolution::Target;
-double (*volatile Deconvolution::WindowFunction)(double) = NULL;
+Deconvolution::ParameterSet::ParameterSet(const Parameters& r)
+: Parameters(r)
+{
+
+}
+
+Deconvolution::DefaultParameters::DefaultParameters()
+{ Enabled = false;
+  FIROrder = 49152;
+  PlanSize = 32736;
+  //FilterFile
+  WindowFunction = WFN_NONE;
+  //FilterKernel
+}
+
+volatile int_ptr<Deconvolution::ParameterSet> Deconvolution::ParamSet(new DefaultParameters);
+
 
 double Deconvolution::NoWindow(double)
 { return 1.;
@@ -55,8 +69,8 @@ double Deconvolution::DimmedHammingWindow(double pos)
 Deconvolution::Deconvolution(FILTER_PARAMS2& params)
 : Filter(params)
 , NeedInit(true)
-, InboxLevel(0)
 , Enabled(false)
+, InboxLevel(0)
 , Discard(true)
 , Inbox(NULL)
 , TimeDomain(NULL)
@@ -74,33 +88,33 @@ Deconvolution::~Deconvolution()
 }
 
 void Deconvolution::LoadOverlap(float* overlap_buffer)
-{ memcpy(TimeDomain + Plansize - FIROrder2, overlap_buffer, FIROrder2 * sizeof *TimeDomain);
-  memcpy(TimeDomain, overlap_buffer + FIROrder2, FIROrder2 * sizeof *TimeDomain);
+{ memcpy(TimeDomain + CurPlansize - CurFIROrder2, overlap_buffer, CurFIROrder2 * sizeof *TimeDomain);
+  memcpy(TimeDomain, overlap_buffer + CurFIROrder2, CurFIROrder2 * sizeof *TimeDomain);
 }
 
 void Deconvolution::SaveOverlap(float* overlap_buffer, int len)
-{ DEBUGLOG(("Deconvolution::SaveOverlap(%p, %i) - %i\n", overlap_buffer, len, FIROrder));
-  if (len < FIROrder2)
-  { memmove(overlap_buffer, overlap_buffer + len, (FIROrder - len) * sizeof *overlap_buffer);
-    memcpy(overlap_buffer + FIROrder - len, TimeDomain + FIROrder2, len * sizeof *overlap_buffer);
+{ DEBUGLOG(("Deconvolution::SaveOverlap(%p, %i) - %i\n", overlap_buffer, len, CurFIROrder));
+  if (len < CurFIROrder2)
+  { memmove(overlap_buffer, overlap_buffer + len, (CurFIROrder - len) * sizeof *overlap_buffer);
+    memcpy(overlap_buffer + CurFIROrder - len, TimeDomain + CurFIROrder2, len * sizeof *overlap_buffer);
   } else
-    memcpy(overlap_buffer, TimeDomain + len - FIROrder2, FIROrder * sizeof *overlap_buffer);
+    memcpy(overlap_buffer, TimeDomain + len - CurFIROrder2, CurFIROrder * sizeof *overlap_buffer);
 }
 
 void Deconvolution::LoadSamplesMono(const float* sp, const int len, float* overlap_buffer)
 { DEBUGLOG(("Deconvolution::LoadSamplesMono(%p, %i, %p) - %i\n", sp, len, overlap_buffer));
   LoadOverlap(overlap_buffer);
   // fetch new samples
-  float* dp = TimeDomain + FIROrder2;
+  float* dp = TimeDomain + CurFIROrder2;
   memcpy(dp, sp, len * sizeof *dp);
-  memset(dp + len, 0, (Plansize - FIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
-  memset(dp, 0, (Plansize - FIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  memset(dp + len, 0, (CurPlansize - CurFIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  memset(dp, 0, (CurPlansize - CurFIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
   SaveOverlap(overlap_buffer, len);
 }
 
 void Deconvolution::LoadSamplesStereo(const float* sp, const int len, float* overlap_buffer)
 { int l;
-  float* dp = TimeDomain + FIROrder2;
+  float* dp = TimeDomain + CurFIROrder2;
   LoadOverlap(overlap_buffer);
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, dp[p] = sp[p<<1]);
@@ -111,7 +125,7 @@ void Deconvolution::LoadSamplesStereo(const float* sp, const int len, float* ove
   { *dp++ = *sp;
     sp += 2;
   }
-  memset(dp, 0, (Plansize - FIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  memset(dp, 0, (CurPlansize - CurFIROrder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
   SaveOverlap(overlap_buffer, len);
 }
 
@@ -139,7 +153,7 @@ void Deconvolution::Convolute(fftwf_complex* sp, fftwf_complex* kp)
   int l;
   float tmp;
   // Convolution in the frequency domain is simply a series of complex products.
-  for (l = (Plansize/2+1) >> 3; l; --l)
+  for (l = (CurPlansize/2+1) >> 3; l; --l)
   { DO_8(p,
       tmp = sp[p][0] * kp[p][0] - sp[p][1] * kp[p][1];
       dp[p][1] = sp[p][1] * kp[p][0] + sp[p][0] * kp[p][1];
@@ -149,7 +163,7 @@ void Deconvolution::Convolute(fftwf_complex* sp, fftwf_complex* kp)
     kp += 8;
     dp += 8;
   }
-  for (l = (Plansize/2+1) & 7; l; --l)
+  for (l = (CurPlansize/2+1) & 7; l; --l)
   { tmp = sp[0][0] * kp[0][0] - sp[0][1] * kp[0][1];
     dp[0][1] = sp[0][1] * kp[0][0] + sp[0][0] * kp[0][1];
     dp[0][0] = tmp;
@@ -165,7 +179,7 @@ void Deconvolution::FilterSamplesFFT(float* newsamples, const float* buf, int le
 { DEBUGLOG(("Deconvolution(%p)::FilterSamplesFFT(%p, %p, %i)\n", this, newsamples, buf, len));
 
   while (len) // we might need more than one FFT cycle
-  { int l2 = Plansize - FIROrder;
+  { int l2 = CurPlansize - CurFIROrder;
     if (l2 > len)
       l2 = len;
 
@@ -197,7 +211,7 @@ void Deconvolution::FilterSamplesFFT(float* newsamples, const float* buf, int le
       // do FFT
       fftwf_execute(ForwardPlan);
       // save data for 2nd channel
-      memcpy(ChannelSave, FreqDomain, (Plansize/2+1) * sizeof *FreqDomain);
+      memcpy(ChannelSave, FreqDomain, (CurPlansize/2+1) * sizeof *FreqDomain);
       // convolution
       Convolute(FreqDomain, Kernel[0]);
       // convert back
@@ -219,7 +233,7 @@ void Deconvolution::FilterSamplesFFT(float* newsamples, const float* buf, int le
 void Deconvolution::FilterSamplesNewOverlap(const float* buf, int len)
 { DEBUGLOG(("Deconvolution(%p)::FilterSamplesNewOverlap(%p, %i)\n", this, buf, len));
 
-  int l2 = Plansize - FIROrder;
+  int l2 = CurPlansize - CurFIROrder;
   if (len > l2)
   { // skip unneeded samples
     buf += (len - l2) * Format.channels;
@@ -239,7 +253,7 @@ int Deconvolution::DoRequestBuffer(float** buf)
 { DEBUGLOG(("Deconvolution(%p)::DoRequestBuffer(%p) - %d\n", this, buf, Latency));
   if (Latency != 0)
   { if (Latency < 0)
-      Latency = FIROrder2;
+      Latency = CurFIROrder2;
     *buf = NULL; // discard
     return Latency;
   } else
@@ -319,21 +333,21 @@ void Deconvolution::TrashBuffers()
 { DEBUGLOG(("Deconvolution(%p)::TrashBuffers() - %d %d\n", this, InboxLevel, Latency));
   InboxLevel = 0;
   Latency    = -1;
-  memset(Overlap[0], 0, Plansize * 2 * sizeof(float)); // initially zero
+  memset(Overlap[0], 0, CurPlansize * 2 * sizeof(float)); // initially zero
 }
 
 void Deconvolution::LocalFlush()
 { // emulate input of some zeros to compensate for filter size
-  int   len = (FIROrder+1) >> 1;
+  int   len = (CurFIROrder+1) >> 1;
   DEBUGLOG(("Deconvolution(%p)::LocalFlush() - %d %d %d\n", this, len, InboxLevel, Latency));
   while (len != 0)
-  { int dlen = Plansize - FIROrder - InboxLevel;
+  { int dlen = CurPlansize - CurFIROrder - InboxLevel;
     if (dlen > len)
       dlen = len;
     memset(Inbox + InboxLevel * Format.channels, 0, dlen * Format.channels * sizeof(float));
     // commit buffer
     InboxLevel += dlen;
-    if (InboxLevel == Plansize - FIROrder)
+    if (InboxLevel == CurPlansize - CurFIROrder)
     { // enough data, apply filter
       FilterAndSend();
       if (Discard)
@@ -363,10 +377,12 @@ void Deconvolution::FFTDestroy()
   delete[] Kernel[0];
 }
 
-/* setup FIR kernel */
 bool Deconvolution::Setup()
 { DEBUGLOG(("Deconvolution(%p)::Setup() - %u, %u, %u\n", NeedInit, NeedFIR, NeedKernel));
   int i;
+
+  // Check for parameter changes.
+  int_ptr<ParameterSet> params(ParamSet);
 
   // dispatcher to skip code fragments
   if (!NeedInit)
@@ -383,28 +399,28 @@ bool Deconvolution::Setup()
   FFTDestroy();
 
   // copy global parameters for thread safety and round up to next power of 2
-  frexp(NewPlanSize-1, &i); // floor(log2(plansize-1))+1
-  Plansize = 2 << i; // 2**(i+1)
+  frexp(PlanSize-1, &i); // floor(log2(plansize-1))+1
+  CurPlansize = 2 << i; // 2**(i+1)
   // reduce size at low sampling rates
   frexp(Format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
-  Plansize >>= 4-min(4,i); // / 2**(4-i)
-  DEBUGLOG(("I: %d\n", Plansize));
+  CurPlansize >>= 4-min(4,i); // / 2**(4-i)
+  DEBUGLOG(("I: %d\n", CurPlansize));
 
   // allocate buffers
-  { int plansize2 = Plansize/2+1;
-    Inbox       = new float[Plansize << 1];
+  { int plansize2 = CurPlansize/2+1;
+    Inbox       = new float[CurPlansize << 1];
     FreqDomain  = (fftwf_complex*)fftwf_malloc(plansize2 * sizeof *FreqDomain);
-    TimeDomain  = (float*)fftwf_malloc((Plansize+1) * sizeof *TimeDomain);
-    Overlap[0]  = new float[Plansize << 1];
-    Overlap[1]  = Overlap[0] + Plansize;
+    TimeDomain  = (float*)fftwf_malloc((CurPlansize+1) * sizeof *TimeDomain);
+    Overlap[0]  = new float[CurPlansize << 1];
+    Overlap[1]  = Overlap[0] + CurPlansize;
     ChannelSave = (fftwf_complex*)Overlap[1] -1; // Aliasing!
     Kernel[0]   = new fftwf_complex[plansize2 << 1];
     Kernel[1]   = Kernel[0] + plansize2;
   }
 
   // prepare real 2 complex transformations
-  ForwardPlan  = fftwf_plan_dft_r2c_1d(Plansize, TimeDomain, FreqDomain, FFTW_ESTIMATE);
-  BackwardPlan = fftwf_plan_dft_c2r_1d(Plansize, FreqDomain, TimeDomain, FFTW_ESTIMATE);
+  ForwardPlan  = fftwf_plan_dft_r2c_1d(CurPlansize, TimeDomain, FreqDomain, FFTW_ESTIMATE);
+  BackwardPlan = fftwf_plan_dft_c2r_1d(CurPlansize, FreqDomain, TimeDomain, FFTW_ESTIMATE);
 
   TrashBuffers();
   NeedInit = false;
@@ -413,12 +429,12 @@ bool Deconvolution::Setup()
   // STEP 2: setup FIR order
 
   // copy global parameters for thread safety
-  FIROrder = (NewFIROrder+15) & -16; /* multiple of 16 */
-  FIROrder <<= 1; // * 2
+  CurFIROrder = (FIROrder+15) & -16; /* multiple of 16 */
+  CurFIROrder <<= 1; // * 2
   frexp(Format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
-  FIROrder >>= 4-min(4,i); // / 2**(4-i)
+  CurFIROrder >>= 4-min(4,i); // / 2**(4-i)
 
-  if (FIROrder < 2 || FIROrder >= Plansize)
+  if (CurFIROrder < 2 || CurFIROrder >= CurPlansize)
   { (*Ctx.plugin_api->message_display)(MSG_ERROR, "very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     Enabled = false; // avoid crash
     return false;
@@ -433,13 +449,13 @@ bool Deconvolution::Setup()
   // prepare real 2 real transformations
   FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);*/
 
-  DEBUGLOG(("P: FIRorder: %d, Plansize: %d\n", FIROrder, Plansize));
+  DEBUGLOG(("P: FIRorder: %d, Plansize: %d\n", CurFIROrder, CurPlansize));
   NeedFIR = FALSE;
 
  doEQ:
   // STEP 3: setup filter kernel
 
-  float fftspecres = (float)Format.samplerate / Plansize;
+  float fftspecres = (float)Format.samplerate / CurPlansize;
   int_ptr<TargetResponse> target(Target);
 
   /*// Prepare design coefficients frame
@@ -485,7 +501,7 @@ bool Deconvolution::Setup()
       double phase = 0;
       FreqDomain[0][0] = 0.; // no DC
       FreqDomain[0][1] = 0.;
-      for (i = 1; i <= Plansize/2; ++i) // do not start at f=0 to avoid log(0)
+      for (i = 1; i <= CurPlansize/2; ++i) // do not start at f=0 to avoid log(0)
       { const float f = i * fftspecres; // current frequency
         double pos;
         double val = log(f);
@@ -507,21 +523,32 @@ bool Deconvolution::Setup()
     // transform into the time domain
     fftwf_execute(BackwardPlan);
     #if defined(DEBUG_LOG) && DEBUG_LOG > 1
-    for (i = 0; i <= Plansize/2; ++i)
+    for (i = 0; i <= CurPlansize/2; ++i)
       DEBUGLOG2(("TK: %i, %g\n", i, TimeDomain[i]));
     #endif
 
     // normalize, apply window function and store results symmetrically
     { // sample for thread safety.
-      double (*window)(double) = WindowFunction;
-      double plansize2 = (double)Plansize * Plansize;
+      double (*window)(double);
+      switch (WindowFunction)
+      {default: // WFN_NONE
+        window = &Deconvolution::NoWindow;
+        break;
+       case WFN_DIMMEDHAMMING:
+        window = &Deconvolution::DimmedHammingWindow;
+        break;
+       case WFN_HAMMING:
+        window = &Deconvolution::HammingWindow;
+        break;
+      }
+      double plansize2 = (double)CurPlansize * CurPlansize;
       float* sp1 = TimeDomain;
-      float* sp2 = TimeDomain + Plansize;
+      float* sp2 = TimeDomain + CurPlansize;
       double tmp;
       *sp1++ /= plansize2;
-      DEBUGLOG2(("K: %i, %g\n", FIROrder2, sp1[-1]));
-      for (i = FIROrder2 -1; i >= 0; --i)
-      { tmp = (*window)((double)i/FIROrder) / plansize2; // normalize for next FFT
+      DEBUGLOG2(("K: %i, %g\n", CurFIROrder2, sp1[-1]));
+      for (i = CurFIROrder2 -1; i >= 0; --i)
+      { tmp = (*window)((double)i/CurFIROrder) / plansize2; // normalize for next FFT
         *sp1++ *= tmp;
         *--sp2 *= tmp;
         DEBUGLOG2(("K: %i, %g, %g\n", i, sp1[-1], sp2[0]));
@@ -534,7 +561,7 @@ bool Deconvolution::Setup()
     // transform back into the frequency domain, now with window function
     fftwf_execute_dft_r2c(ForwardPlan, TimeDomain, Kernel[channel]);
     #if defined(DEBUG_LOG) && DEBUG_LOG > 1
-    for (i = 0; i <= Plansize/2; ++i)
+    for (i = 0; i <= CurPlansize/2; ++i)
       DEBUGLOG2(("FK: %i, %g, %g\n", i, Kernel[channel][i][0], Kernel[channel][i][1]));
     DEBUGLOG2(("E: kernel completed.\n"));
     #endif
@@ -555,6 +582,7 @@ int Deconvolution::InRequestBuffer(const FORMAT_INFO2* format, float** buf)
   #endif
 
   bool enabled = Enable && buf != NULL && (format->channels == 1 || format->channels == 2);
+
   if (enabled && !Enabled)
   { // enable EQ
     Enabled = true;
@@ -586,8 +614,8 @@ int Deconvolution::InRequestBuffer(const FORMAT_INFO2* format, float** buf)
     Setup();
 
     *buf = Inbox + InboxLevel * format->channels;
-    DEBUGLOG(("Deconvolution::InRequestBuffer: %p, %d\n", *buf, Plansize - FIROrder - InboxLevel));
-    return Plansize - FIROrder - InboxLevel;
+    DEBUGLOG(("Deconvolution::InRequestBuffer: %p, %d\n", *buf, CurPlansize - CurFIROrder - InboxLevel));
+    return CurPlansize - CurFIROrder - InboxLevel;
   }
   else
   {
@@ -605,11 +633,11 @@ void Deconvolution::InCommitBuffer(int len, PM123_TIME pos)
 
   if (InboxLevel == 0)
     // remember position and precompensate for filter delay
-    PosMarker = pos - (double)FIROrder2/Format.samplerate;
+    PosMarker = pos - (double)CurFIROrder2/Format.samplerate;
 
   InboxLevel += len;
 
-  if (InboxLevel == Plansize - FIROrder)
+  if (InboxLevel == CurPlansize - CurFIROrder)
   { // enough data, apply filter
     FilterAndSend();
   }

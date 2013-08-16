@@ -58,31 +58,51 @@ struct TargetResponse : public Iref_count
 
 class Deconvolution : public Filter
 {public: // Configuration interface
-  static volatile bool Enable;     ///< Enable deconvolution
-  static volatile int  NewFIROrder;///< Requested FIR order
-  static volatile int  NewPlanSize;///< Requested FFT size
-  /// Target frequency response
-  static volatile int_ptr<TargetResponse> Target;
-  /// @brief Normalized window function.
-  /// @details The function must map the range [0..1] where 0 is the start of the filter kernel
-  /// and 1 is the end of the kernel to the range (0..1] where 1 is full amplitude of the kernel.
-  static double (*volatile WindowFunction)(double);
+  enum WFN
+  { WFN_NONE,
+    WFN_DIMMEDHAMMING,
+    WFN_HAMMING
+  };
+  struct Parameters
+  { bool        Enabled;
+    int         FIROrder;
+    int         PlanSize;
+    xstring     FilterFile;
+    WFN         WindowFunction; ///< Currently selected window function
+    // computed
+    bool        IsValid();
+  };
 
-  static double NoWindow(double);
-  static double HammingWindow(double pos);
-  static double DimmedHammingWindow(double pos);
+ private:
+  struct ParameterSet
+  : public Iref_count
+  , public Parameters
+  {protected:
+    ParameterSet() {}
+   public:
+    ParameterSet(const Parameters& r);
+    sco_arr<Coeff> TargetResponse[2];
+  };
+  struct DefaultParameters : public ParameterSet
+  { DefaultParameters();
+  };
+  /// Currently configured parameter set
+  static volatile int_ptr<ParameterSet> ParamSet;
 
  private: // Working set
   bool          NeedInit;
   bool          NeedFIR;
   bool          NeedKernel;
+  bool          Enabled;    ///< Flag whether the EQ was enabled at the last call to InRequestBuffer
+  int           CurFIROrder;///< Filter kernel length
+  int           CurFIROrder2;///< Filter kernel length / 2
+  int           CurPlanSize;///< Plansize for the FFT convolution
 
   FORMAT_INFO2  Format;
 
   PM123_TIME    PosMarker;  ///< Starting point of the Inbox buffer
   int           InboxLevel; ///< Number of samples in Inbox buffer
   int           Latency;    ///< Samples to discard before passing them to the output stage
-  bool          Enabled;    ///< Flag whether the EQ was enabled at the last call to InRequestBuffer
   bool          Discard;    ///< true: discard buffer content before next request_buffer
   PM123_TIME    TempPos;    ///< Position returned during discard
  private: // FFT working set
@@ -94,11 +114,11 @@ class Deconvolution : public Filter
   fftwf_complex* ChannelSave;///< Buffer to keep the frequency domain of a mono input for a second convolution
   fftwf_plan    ForwardPlan;///< FFTW plan for TimeDomain -> FreqDomain
   fftwf_plan    BackwardPlan;///< FFTW plan for FreqDomain -> TimeDomain
-  int           FIROrder;   ///< Filter kernel length
-  int           FIROrder2;  ///< Filter kernel length / 2
-  int           Plansize;   ///< Plansize for the FFT convolution
 
  private:
+  static double NoWindow(double);
+  static double HammingWindow(double pos);
+  static double DimmedHammingWindow(double pos);
   /// Fetch saved sampled
   void          LoadOverlap(float* overlap_buffer);
   /// Store samples
@@ -131,6 +151,7 @@ class Deconvolution : public Filter
   void          LocalFlush();
   /// Release FFT resources.
   void          FFTDestroy();
+  /// Check for new parameters and adjust Need... and TargetResponse.
   /// Setup FIR kernel.
   bool          Setup();
 
@@ -141,6 +162,9 @@ class Deconvolution : public Filter
  public:
   Deconvolution(FILTER_PARAMS2& params);
   virtual ~Deconvolution();
+
+  static void   SetParameters(const Parameters& params) { ParamSet = new ParameterSet(params); }
+  static void   GetParameters(Parameters& params) { params = *int_ptr<ParameterSet>(ParamSet); }
 };
 
 #endif // DECONVOLUTION_H

@@ -31,8 +31,8 @@
 Reference::Reference()
 {
   // TODO Auto-generated constructor stub
-
 }
+
 
 Reference::~Reference()
 {
