@@ -1126,7 +1126,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
 
 static const DECODER_FILETYPE filetypes[] =
 { { "Digital Audio", "MP1", "*.mp1", DECODER_FILENAME|DECODER_URL|DECODER_SONG|DECODER_METAINFO }
-, { "Digital Audio", "MP2", "*.mp2", DECODER_FILENAME|DECODER_URL|DECODER_SONG|DECODER_METAINFO }
+, { "Digital Audio", "MP2", "*.mp2;*.mpa", DECODER_FILENAME|DECODER_URL|DECODER_SONG|DECODER_METAINFO }
 , { "Digital Audio", "MP3", "*.mp3", DECODER_FILENAME|DECODER_URL|DECODER_SONG|DECODER_METAINFO }
 };
 
