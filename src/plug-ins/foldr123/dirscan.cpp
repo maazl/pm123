@@ -209,11 +209,12 @@ void DirScan::Scan()
           goto next;
         // File?
         if (!(fb->attrFile & FILE_DIRECTORY))
-        { char buf[XIO_MAX_FILETYPE];
-          const char* eadata = NULL;
+        { const char* eadata = NULL;
           // Has .type EA?
           if (fb->cbList > sizeof(FEA2))
-          { eadecode(buf, sizeof buf, fb->list);
+          { char buf[XIO_MAX_FILETYPE];
+            *buf = 0;
+            eadecode(buf, sizeof buf, fb->list);
             eadata = buf;
           }
           Path.erase(BasePathLen);
