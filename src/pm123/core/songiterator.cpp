@@ -303,34 +303,43 @@ bool SongIterator::PrevNextCore(Job& job, bool direction)
   const vector<PlayableInstance>& callstack = GetCallstack();
   size_t depth = callstack.size();
   ASSERT(depth);
-  APlayable* list = depth > 1 ? callstack[depth-2] : Root;
+  --depth;
+  APlayable* list = depth ? callstack[depth-1] : Root;
+
 
   // Only play one item of an alternation list, and always the (logical) first.
-  if (list->GetInfo().attr->ploptions & PLO_ALTERNATION)
-  { direction = true;
-    APlayable* cur = callstack[depth-1];
-    if (!cur)
-      goto leave;
-    if (job.RequestInfo(*cur, IF_Tech))
-      return false;
-    if ((cur->GetInfo().tech->attributes & TATTR_INVALID) == 0)
-    {leave:
-      NavigateTo(NULL);
+  bool alternation = list->GetInfo().attr->ploptions & PLO_ALTERNATION;
+  if (alternation)
+  { if (callstack[depth])
+    { NavigateTo(NULL);
       return true;
+    }
+    direction = true;
+  }
+ next_try:
+  // Optimization: ignore shuffle option for very small playlists.
+  if ((unsigned)list->GetInfo().obj->num_items > 1 && IsShuffle())
+  { // Prev/next in shuffle mode
+    // Shuffle cache lookup
+    ShuffleWorker& sw = EnsureShuffleWorker(depth);
+    // Navigate
+    int_ptr<PlayableInstance> pi = callstack[depth];
+    pi = direction ? sw.Next(pi) : sw.Prev(pi);
+    NavigateTo(pi);
+  } else if (!Location::PrevNextCore(job, direction))
+    return false;
+
+  if (alternation)
+  { // check whether item is valid.
+    PlayableInstance* pi = callstack[depth];
+    if (pi)
+    { if (job.RequestInfo(*pi, IF_Tech))
+        return false;
+      if (pi->GetInfo().tech->attributes & TATTR_INVALID)
+        goto next_try; // no, try next one
     }
   }
 
-  // Optimization: ignore shuffle option for very small playlists.
-  if ((unsigned)list->GetInfo().obj->num_items <= 1 || !IsShuffle())
-    return Location::PrevNextCore(job, direction);
-  // Prev/next in shuffle mode
-  DEBUGLOG(("SongIterator(%p)::PrevNextCore(%u)\n", this, direction));
-  // Shuffle cache lookup
-  ShuffleWorker& sw = EnsureShuffleWorker(--depth);
-  // Navigate
-  PlayableInstance* pi = callstack[depth];
-  pi = direction ? sw.Next(pi) : sw.Prev(pi);
-  NavigateTo(pi);
   return true;
 }
 
@@ -556,7 +565,7 @@ InfoFlags SongIterator::CalcOffsetCacheEntry(Job& job, unsigned level, InfoFlags
 }
 
 InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& ai, InfoFlags what, Job& job)
-{ DEBUGLOG(("SongIterator(%p)::AddFrontAggregate(, %x, &{%x,})\n", this, what, job.Pri));
+{ DEBUGLOG(("SongIterator(%p)::AddFrontAggregate(, %x, {%x,})\n", this, what, job.Pri));
   ASSERT((what & ~IF_Aggreg) == 0);
   InfoFlags whatnotok = IF_None;
   if (what)
@@ -572,7 +581,7 @@ InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& ai, InfoFlags what, Job
 }
 
 InfoFlags SongIterator::AddBackAggregate(AggregateInfo& ai, InfoFlags what, Job& job)
-{ DEBUGLOG(("SongIterator(%p)::AddBackAggregate(, %x, &{%x,})\n", this, what, job.Pri));
+{ DEBUGLOG(("SongIterator(%p)::AddBackAggregate(, %x, {%x,})\n", this, what, job.Pri));
   ASSERT((what & ~IF_Aggreg) == 0);
   InfoFlags whatnotok = IF_None;
   if (what)

@@ -250,6 +250,7 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       // gcc parser error required + prefixes
       CheckBox(+GetCtrl(CB_AUTOUSEPL)).CheckState(cfg.autouse);
+      CheckBox(+GetCtrl(CB_KEEPROOT)).CheckState(cfg.keeproot);
       CheckBox(+GetCtrl(CB_AUTOSAVEPL)).CheckState(cfg.autosave);
       CheckBox(+GetCtrl(CB_RECURSEDND)).CheckState(cfg.recurse_dnd);
       CheckBox(+GetCtrl(CB_FOLDERSFIRST)).CheckState(cfg.folders_first);
@@ -263,6 +264,7 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
    case CFG_SAVE:
     { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.autouse = CheckBox(GetCtrl(CB_AUTOUSEPL)).CheckState();
+      cfg.keeproot = CheckBox(GetCtrl(CB_KEEPROOT)).CheckState();
       cfg.autosave = CheckBox(GetCtrl(CB_AUTOSAVEPL)).CheckState();
       cfg.recurse_dnd = CheckBox(GetCtrl(CB_RECURSEDND)).CheckState();
       cfg.folders_first = CheckBox(GetCtrl(CB_FOLDERSFIRST)).CheckState();

@@ -1,6 +1,6 @@
 /**/
 dir = TRANSLATE(DIRECTORY())
-dirurl =  'FILE:///'TRANSLATE(dir,'/','\')
+dirurl = 'FILE:///'TRANSLATE(dir,'/','\')
 
 CALL CallPipe 'reset'
 CALL CallPipe 'pl clear'

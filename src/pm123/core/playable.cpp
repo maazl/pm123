@@ -775,7 +775,9 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
 { DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.DebugName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
 
-  InfoFlags aggreg = (args.Changed|args.Invalidated) & IF_Aggreg;
+  InfoFlags aggreg = args.Changed & IF_Attr
+    ? IF_Aggreg // because of PLO_ALTERNATION
+    : (args.Changed|args.Invalidated) & IF_Aggreg;
   if (aggreg)
     Invalidate(aggreg, &args.Instance.GetPlayable());
 

@@ -846,7 +846,7 @@ void CtrlImp::MsgJump()
 }
 
 void CtrlImp::MsgSkip()
-{ DEBUGLOG(("Ctrl::MsgSkip() {%g, %x} - %u\n", NumArg, Flags, IsPlaying));
+{ DEBUGLOG(("Ctrl::MsgSkip() {%g, %x} - %u\n", NumArg, Flags, IsPlaying()));
   APlayable* pp = GetRoot();
   if (!pp)
   { Reply(RC_NoSong);
@@ -935,6 +935,8 @@ void CtrlImp::MsgLoad()
   { { PrefetchEntry* pe = new PrefetchEntry(0, SongIterator(play));
       pe->Loc.Reshuffle();
       pe->Loc.SetOptions(Shuffle * PLO_SHUFFLE);
+      // move to the first song. -> LoadHelper does the job
+      //pe->Loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
       PrefetchList.append() = pe;
       // assign change event handler
       //Current()->Iter.Change += SongIteratorDelegate;

@@ -59,6 +59,7 @@ const amp_cfg Cfg::Default =
 { ""
 , true
 , false
+, false
 , true
 , true
 , false
@@ -183,6 +184,7 @@ void Cfg::LoadIni()
 
   load_ini_int(HIni, cfg.playonload);
   load_ini_int(HIni, cfg.autouse);
+  load_ini_int(HIni, cfg.keeproot);
   load_ini_int(HIni, cfg.autosave);
   load_ini_int(HIni, cfg.retainonexit);
   load_ini_int(HIni, cfg.retainonstop);
@@ -258,6 +260,7 @@ void Cfg::SaveIni()
 
     save_ini_bool (HIni, cfg.playonload);
     save_ini_bool (HIni, cfg.autouse);
+    save_ini_bool (HIni, cfg.keeproot);
     save_ini_bool (HIni, cfg.autosave);
     save_ini_bool (HIni, cfg.retainonexit);
     save_ini_bool (HIni, cfg.retainonstop);

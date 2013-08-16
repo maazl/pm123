@@ -64,6 +64,8 @@ typedef enum _XIO_PROTOCOL
 , XIO_PROTOCOL_SOCKET
 } XIO_PROTOCOL;
 
+/// Seek origin
+/// @remarks The constants are binary compatible to SEEK_* of stdio.h.
 typedef enum _XIO_SEEK
 { XIO_SEEK_SET
 , XIO_SEEK_CUR

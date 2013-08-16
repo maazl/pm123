@@ -1,6 +1,6 @@
 /**/
 dir = TRANSLATE(DIRECTORY())
-dirurl =  'FILE:///'TRANSLATE(dir,'/','\')
+dirurl = 'FILE:///'TRANSLATE(dir,'/','\')
 
 CALL CallPipe 'playlist' dir'\data\list2.lst'
 CALL Assert 'TRANSLATE(RESULT)', '= "'dirurl'/DATA/LIST2.LST"'

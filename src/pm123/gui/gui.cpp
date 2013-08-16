@@ -315,7 +315,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (cfg.itemaction == CFG_ACTION_NAVTO)
         GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(target), true));
       else
-      { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
+      { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay|LoadHelper::LoadKeepRoot | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
         lhp.AddItem(*target.GetCurrent());
         Load(lhp);
       }
@@ -745,7 +745,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if ( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof LoadWizards / sizeof *LoadWizards
         && LoadWizards[cmd-IDM_M_LOADFILE] )
       { // TODO: create temporary playlist
-        LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+        const volatile amp_cfg& cfg = Cfg::Get();
+        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.keeproot*LoadHelper::LoadKeepRoot | LoadHelper::LoadRecall);
         if ((*LoadWizards[cmd-IDM_M_LOADFILE])(HPlayer, "Load%s", &GUI_LoadFileCallback, &lh) == 0)
           PostCtrlCommand(lh.ToCommand());
         return 0;
@@ -1834,7 +1835,7 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
 
 GUIImp::HandleDrop::HandleDrop(DRAGINFO* di, HWND hwnd)
 : HandleDragTransfers(di, hwnd)
-, Loader(Cfg::Get().playonload*LoadHelper::LoadPlay | (di->usOperation == DO_LINK)*LoadHelper::LoadAppend)
+, Loader(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().keeproot*LoadHelper::LoadKeepRoot | (di->usOperation == DO_LINK)*LoadHelper::LoadAppend)
 {}
 
 GUIImp::HandleDrop::~HandleDrop()

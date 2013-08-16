@@ -320,9 +320,11 @@ DLGTEMPLATE CFG_SETTINGS2
   DIALOG         "",                                    CFG_SETTINGS2,      0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX     " Playlists ",                         GB_GENERIC,         4, 66, 248, 60, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Playlists ",                         GB_GENERIC,         4, 66, 248, 72, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
-    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12,106, 232, 12, WS_GROUP
+    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12,118, 232, 12, WS_GROUP
+      PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
+    AUTOCHECKBOX "~Keep active playlist on load when possible",CB_KEEPROOT,12,106, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
     AUTOCHECKBOX "Auto save modified playlists on exit",CB_AUTOSAVEPL,     12, 94, 232, 12, WS_GROUP
       PRESPARAMS                                     MAKE_PPU_RESIZE_INFO(0,4,0,1, 4,4,0,1)
@@ -876,11 +878,10 @@ DLGTEMPLATE DLG_ITEMINFO
       PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     LTEXT "dB",               ST_GENERIC,      108, 48,  28, 8, DT_BOTTOM|NOT WS_GROUP
       PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
-    RTEXT "Playlist ~opt.",    ST_GENERIC,        4, 36,  44, 8, DT_BOTTOM|DT_MNEMONIC|NOT WS_GROUP
-      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
+    RTEXT "Playlist ~opt.",   ST_GENERIC,        4, 36,  44, 8, DT_BOTTOM|DT_MNEMONIC|NOT WS_GROUP
     AUTOCHECKBOX "~Alternation list",
                               CB_INFOALTERNATION,52,36,  52, 8, WS_GROUP
-      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,0,1)
     RTEXT "S~huffle",         ST_GENERIC,        4, 24,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     AUTORADIOBUTTON "inherit",RB_INFOPLSHINHERIT,52,24,  36, 8, WS_TABSTOP|WS_GROUP
     AUTORADIOBUTTON "force",  RB_INFOPLSHFORCE, 92, 24,  36, 8

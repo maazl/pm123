@@ -327,7 +327,8 @@
 #define CFG_SETTINGS2      1300
 
 #define CB_AUTOUSEPL       1310
-#define CB_RECURSEDND      1311
+#define CB_KEEPROOT        1311
+#define CB_RECURSEDND      1312
 #define CB_FOLDERSFIRST    1313
 #define CB_AUTOSAVEPL      1314
 

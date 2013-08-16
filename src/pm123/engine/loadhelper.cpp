@@ -85,7 +85,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
     ps = &pl;
   }
 
-  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, true);
+  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, (Opt & LoadKeepRoot) != 0);
   Ctrl::ControlCommand* tail = cmd;
   if (need_jump && startat->GetIndex() > 1)
   { Location* startloc = new Location(&ps->GetPlayable());
@@ -94,7 +94,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
     tail = tail->Link = Ctrl::MkJump(startloc, false);
     tail->Callback = &LoadHelper::JumpCompleted;
   }
-  tail = tail->Link = Ctrl::MkSkip(0, true);
+  tail = tail->Link = Ctrl::MkSkip(0, (Opt & LoadKeepRoot) != 0);
   if (Opt & LoadPlay)
     // Start playback immediately after loading has completed
     tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);

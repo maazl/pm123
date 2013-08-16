@@ -123,6 +123,7 @@ struct amp_cfg
 
   bool     playonload;         ///< Start playing on file load.
   bool     autouse;            ///< Auto use playlist on add.
+  bool     keeproot;           ///< keep current playlist on load when possible.
   bool     autosave;           ///< Auto save modified playlists on exit.
   bool     retainonexit;       ///< Retain playing position on exit.
   bool     retainonstop;       ///< Retain playing position on stop.
