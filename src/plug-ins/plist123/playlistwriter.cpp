@@ -180,6 +180,17 @@ bool LSTWriter::AppendItem(const Item& item)
     WriteNoLine(info.attr->at, ';');
     Write("\n");
   }
+  // playlist options
+  if (info.attr->ploptions)
+  { Write("#OPT ");
+    if (info.attr->ploptions & PLO_ALTERNATION)
+      Write("alt ");
+    if (info.attr->ploptions & PLO_SHUFFLE)
+      Write("shuffle");
+    else if (info.attr->ploptions & PLO_NO_SHUFFLE)
+      Write("noshuffle");
+    Write("\n");
+  }
   // gap
   if (info.item->pregap >= 0 || info.item->postgap >= 0)
   { Write("#GAP ");

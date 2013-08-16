@@ -329,6 +329,17 @@ bool LSTReader::ParseLine(char* line)
     } else if (memcmp(line+1, "GAIN ", 5) == 0) // gain
     { sscanf(line+6, "%f", &Item.gain);
       Override |= INFO_ITEM;
+    } else if (memcmp(line+1, "AT ", 3) == 0) // at
+    { Attr.at = line+6;
+      Override |= INFO_ATTR;
+    } else if (memcmp(line+1, "OPT ", 4) == 0) // playlist options
+    { if (strstr(line+5, "alt"))
+        Attr.ploptions |= PLO_ALTERNATION;
+      if (strstr(line+5, "noshuffle"))
+        Attr.ploptions |= PLO_NO_SHUFFLE;
+      else if (strstr(line+5, "shuffle"))
+        Attr.ploptions |= PLO_SHUFFLE;
+      Override |= INFO_ATTR;
     } else if (line[1] == ' ')
     { const char* cp = strstr(line+2, ", ");
       if (cp)
