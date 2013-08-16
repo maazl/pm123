@@ -370,7 +370,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_PORT, Configuration.SourcePort));
       // Init rate spin button
       { SpinButton sb(GetCtrl(SB_RATE));
-        sb.SetItems(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates);
+        sb.SetArray(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates);
         size_t pos;
         if ( !binary_search(&Configuration.SourceRate, pos, SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp)
           && ( pos == sizeof SamplingRates/sizeof *SamplingRates
