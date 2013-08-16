@@ -182,7 +182,7 @@ bool LSTWriter::AppendItem(const Item& item)
   }
   // playlist options
   if (info.attr->ploptions)
-  { Write("#OPT ");
+  { Write("#OPTIONS ");
     if (info.attr->ploptions & PLO_ALTERNATION)
       Write("alt ");
     if (info.attr->ploptions & PLO_SHUFFLE)
