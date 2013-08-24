@@ -192,19 +192,27 @@ class PlaylistBase
   };
 
  protected: // Cached icon resources
+  /// Tree state of a playlist entry
   enum ICP
-  { ICP_Empty,
-    ICP_Closed,
-    ICP_Open,
-    ICP_Recursive
+  { ICP_Empty                       ///< Empty playlist
+  , ICP_Closed                      ///< non-empty playlist, collapsed
+  , ICP_Open                        ///< non-empty playlist, open
+  , ICP_Recursive                   ///< recursive playlist entry
   };
+  /// State on a playlist entry
   enum IC
-  { IC_Pending,
-    IC_Invalid,
-    IC_Normal,
-    IC_Active,
-    IC_Play,
-    IC_Shadow
+  { IC_Pending                      ///< Item not yet discovered
+  , IC_Invalid                      ///< Item is invalid
+  , IC_Normal                       ///< normal playlist item
+  , IC_Active                       ///< playlist item is in the current call stack
+  , IC_Play                         ///< item is currently playing
+  , IC_Shadow                       ///< another reference of this item is currently playling
+  };
+  /// Playlist type
+  enum IP
+  { IP_Playlist                     ///< ordinary playlist
+  , IP_Folder                       ///< virtual playlist (folder)
+  , IP_Alternation                  ///< alternation list
   };
   // Song icons
   // Dimension 1: IC_*
@@ -213,8 +221,7 @@ class PlaylistBase
   // Dimension 1: [Playlist, Folder]
   // Dimension 2: IC_*
   // Dimension 3: ICP_*
-  static HPOINTER   IcoPlaylist[2][6][4];
-  static void       InitIcons();
+  static HPOINTER   IcoPlaylist[3][6][4];
 
  protected: // content
   int_ptr<Playable> Content;
@@ -242,7 +249,8 @@ class PlaylistBase
   class_delegate<PlaylistBase, const PluginEventArgs> PluginDelegate;
 
  private:
-
+  static HPOINTER   LoadIcon(ULONG id) { return WinLoadPointer(HWND_DESKTOP, 0, id); }
+  static void       InitIcons();
   static void       MsgJumpCompleted(Ctrl::ControlCommand* cmd);
  protected:
   /// Create a playlist window for an object, but don't open it.
@@ -283,7 +291,7 @@ class PlaylistBase
   /// Determine type of Playable object. See ICP_* constants.
   /// Sub function to CalcIcon.
   /// This function is only called for enumerable items.
-  virtual ICP       GetPlaylistType(const RecordBase* rec) const = 0;
+  virtual ICP       GetPlaylistState(const RecordBase* rec) const = 0;
   /// Gets the display state of a record. See IC_* constants.
   /// Sub function to CalcIcon.
   /// This function is only called for used items.

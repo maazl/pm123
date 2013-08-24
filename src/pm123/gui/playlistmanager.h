@@ -104,7 +104,7 @@ class PlaylistManager
   void              ShowRecordAsync(Record* rec);
   /// Determine type of Playable object
   /// Subfunction to CalcIcon.
-  virtual ICP       GetPlaylistType(const RecordBase* rec) const;
+  virtual ICP       GetPlaylistState(const RecordBase* rec) const;
   /// check whether the current record is recursive
   bool              RecursionCheck(const RecordBase* rec) const;
   /// same with explicit parent for new items not yet added

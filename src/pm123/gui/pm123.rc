@@ -1277,6 +1277,14 @@ ICON   ICO_FL_OPEN         "ico\\fold-.ico"
 ICON   ICO_FL_OPEN_ACTIVE  "ico\\fold-_l.ico"
 ICON   ICO_FL_OPEN_PLAY    "ico\\fold-_p.ico"
 ICON   ICO_FL_OPEN_SHADOW  "ico\\fold-_s.ico"
+ICON   ICO_ALT_CLOSE       "ico\\alt+.ico"
+ICON   ICO_ALT_CLOSE_ACTIVE "ico\\alt+_l.ico"
+ICON   ICO_ALT_CLOSE_PLAY  "ico\\alt+_p.ico"
+ICON   ICO_ALT_CLOSE_SHADOW "ico\\alt+_s.ico"
+ICON   ICO_ALT_OPEN        "ico\\alt-.ico"
+ICON   ICO_ALT_OPEN_ACTIVE "ico\\alt-_l.ico"
+ICON   ICO_ALT_OPEN_PLAY   "ico\\alt-_p.ico"
+ICON   ICO_ALT_OPEN_SHADOW "ico\\alt-_s.ico"
 
 
 /* Small digits. */

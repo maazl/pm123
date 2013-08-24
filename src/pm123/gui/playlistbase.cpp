@@ -91,57 +91,72 @@ xstring PlaylistBase::DebugName() const
 ****************************************************************************/
 
 HPOINTER PlaylistBase::IcoSong[6];
-HPOINTER PlaylistBase::IcoPlaylist[2][6][4] = { 0 };
+HPOINTER PlaylistBase::IcoPlaylist[3][6][4] = { 0 };
 
 void PlaylistBase::InitIcons()
-{ IcoSong       [IC_Pending]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_WAIT);
-  IcoSong       [IC_Invalid]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_INVALID);
-  IcoSong       [IC_Normal ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG);
-  IcoSong       [IC_Active ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_ACTIVE);
-  IcoSong       [IC_Play   ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_PLAY);
-  IcoSong       [IC_Shadow ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_SHADOW);
+{ IcoSong[IC_Pending] = LoadIcon(ICO_WAIT);
+  IcoSong[IC_Invalid] = LoadIcon(ICO_SONG_INVALID);
+  IcoSong[IC_Normal ] = LoadIcon(ICO_SONG);
+  IcoSong[IC_Active ] = LoadIcon(ICO_SONG_ACTIVE);
+  IcoSong[IC_Play   ] = LoadIcon(ICO_SONG_PLAY);
+  IcoSong[IC_Shadow ] = LoadIcon(ICO_SONG_SHADOW);
   // Playlists
-  IcoPlaylist[0][IC_Pending][ICP_Empty    ] = IcoSong       [IC_Pending];
-  IcoPlaylist[0][IC_Invalid][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_INVALID);
-  IcoPlaylist[0][IC_Normal ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY);
-  IcoPlaylist[0][IC_Active ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_ACTIVE);
-  IcoPlaylist[0][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_PLAY);
-  IcoPlaylist[0][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_SHADOW);
-  IcoPlaylist[0][IC_Pending][ICP_Closed   ] = IcoPlaylist[0][IC_Pending][ICP_Empty    ];
-  IcoPlaylist[0][IC_Invalid][ICP_Closed   ] = IcoPlaylist[0][IC_Invalid][ICP_Empty    ];
-  IcoPlaylist[0][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE);
-  IcoPlaylist[0][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_ACTIVE);
-  IcoPlaylist[0][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_PLAY);
-  IcoPlaylist[0][IC_Shadow ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_SHADOW);
-  IcoPlaylist[0][IC_Normal ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN);
-  IcoPlaylist[0][IC_Active ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_ACTIVE);
-  IcoPlaylist[0][IC_Play   ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_PLAY);
-  IcoPlaylist[0][IC_Shadow ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_SHADOW);
-  IcoPlaylist[0][IC_Normal ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV);
-  IcoPlaylist[0][IC_Active ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV_ACTIVE);
-  IcoPlaylist[0][IC_Play   ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV_PLAY);
-  IcoPlaylist[0][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
+  IcoPlaylist[IP_Playlist   ][IC_Pending][ICP_Empty    ] = IcoSong[IC_Pending];
+  IcoPlaylist[IP_Playlist   ][IC_Invalid][ICP_Empty    ] = LoadIcon(ICO_PL_INVALID);
+  IcoPlaylist[IP_Playlist   ][IC_Normal ][ICP_Empty    ] = LoadIcon(ICO_PL_EMPTY);
+  IcoPlaylist[IP_Playlist   ][IC_Active ][ICP_Empty    ] = LoadIcon(ICO_PL_EMPTY_ACTIVE);
+  IcoPlaylist[IP_Playlist   ][IC_Play   ][ICP_Empty    ] = LoadIcon(ICO_PL_EMPTY_PLAY);
+  IcoPlaylist[IP_Playlist   ][IC_Shadow ][ICP_Empty    ] = LoadIcon(ICO_PL_EMPTY_SHADOW);
+  IcoPlaylist[IP_Playlist   ][IC_Pending][ICP_Closed   ] = IcoPlaylist[IP_Playlist][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[IP_Playlist   ][IC_Invalid][ICP_Closed   ] = IcoPlaylist[IP_Playlist][IC_Invalid][ICP_Empty    ];
+  IcoPlaylist[IP_Playlist   ][IC_Normal ][ICP_Closed   ] = LoadIcon(ICO_PL_CLOSE);
+  IcoPlaylist[IP_Playlist   ][IC_Active ][ICP_Closed   ] = LoadIcon(ICO_PL_CLOSE_ACTIVE);
+  IcoPlaylist[IP_Playlist   ][IC_Play   ][ICP_Closed   ] = LoadIcon(ICO_PL_CLOSE_PLAY);
+  IcoPlaylist[IP_Playlist   ][IC_Shadow ][ICP_Closed   ] = LoadIcon(ICO_PL_CLOSE_SHADOW);
+  IcoPlaylist[IP_Playlist   ][IC_Normal ][ICP_Open     ] = LoadIcon(ICO_PL_OPEN);
+  IcoPlaylist[IP_Playlist   ][IC_Active ][ICP_Open     ] = LoadIcon(ICO_PL_OPEN_ACTIVE);
+  IcoPlaylist[IP_Playlist   ][IC_Play   ][ICP_Open     ] = LoadIcon(ICO_PL_OPEN_PLAY);
+  IcoPlaylist[IP_Playlist   ][IC_Shadow ][ICP_Open     ] = LoadIcon(ICO_PL_OPEN_SHADOW);
+  IcoPlaylist[IP_Playlist   ][IC_Normal ][ICP_Recursive] = LoadIcon(ICO_PL_RECSV);
+  IcoPlaylist[IP_Playlist   ][IC_Active ][ICP_Recursive] = LoadIcon(ICO_PL_RECSV_ACTIVE);
+  IcoPlaylist[IP_Playlist   ][IC_Play   ][ICP_Recursive] = LoadIcon(ICO_PL_RECSV_PLAY);
+  IcoPlaylist[IP_Playlist   ][IC_Shadow ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Normal ][ICP_Recursive];
   // Folders
-  IcoPlaylist[1][IC_Pending][ICP_Empty    ] = IcoPlaylist[0][IC_Pending][ICP_Empty    ];
-  IcoPlaylist[1][IC_Invalid][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_INVALID);
-  IcoPlaylist[1][IC_Normal ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY);
-  IcoPlaylist[1][IC_Active ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_ACTIVE);
-  IcoPlaylist[1][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_PLAY);
-  IcoPlaylist[1][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_SHADOW);
-  IcoPlaylist[1][IC_Pending][ICP_Closed   ] = IcoPlaylist[1][IC_Pending][ICP_Empty    ];
-  IcoPlaylist[1][IC_Invalid][ICP_Closed   ] = IcoPlaylist[1][IC_Invalid][ICP_Empty    ];
-  IcoPlaylist[1][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE);
-  IcoPlaylist[1][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_ACTIVE);
-  IcoPlaylist[1][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_PLAY);
-  IcoPlaylist[1][IC_Shadow ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_SHADOW);
-  IcoPlaylist[1][IC_Normal ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN);
-  IcoPlaylist[1][IC_Active ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_ACTIVE);
-  IcoPlaylist[1][IC_Play   ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_PLAY);
-  IcoPlaylist[1][IC_Shadow ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_SHADOW);
-  IcoPlaylist[1][IC_Normal ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
-  IcoPlaylist[1][IC_Active ][ICP_Recursive] = IcoPlaylist[0][IC_Active ][ICP_Recursive];
-  IcoPlaylist[1][IC_Play   ][ICP_Recursive] = IcoPlaylist[0][IC_Play   ][ICP_Recursive];
-  IcoPlaylist[1][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
+  IcoPlaylist[IP_Folder     ][IC_Pending][ICP_Empty    ] = IcoPlaylist[IP_Playlist][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[IP_Folder     ][IC_Invalid][ICP_Empty    ] = LoadIcon(ICO_FL_INVALID);
+  IcoPlaylist[IP_Folder     ][IC_Normal ][ICP_Empty    ] = LoadIcon(ICO_FL_EMPTY);
+  IcoPlaylist[IP_Folder     ][IC_Active ][ICP_Empty    ] = LoadIcon(ICO_FL_EMPTY_ACTIVE);
+  IcoPlaylist[IP_Folder     ][IC_Play   ][ICP_Empty    ] = LoadIcon(ICO_FL_EMPTY_PLAY);
+  IcoPlaylist[IP_Folder     ][IC_Shadow ][ICP_Empty    ] = LoadIcon(ICO_FL_EMPTY_SHADOW);
+  IcoPlaylist[IP_Folder     ][IC_Pending][ICP_Closed   ] = IcoPlaylist[IP_Folder][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[IP_Folder     ][IC_Invalid][ICP_Closed   ] = IcoPlaylist[IP_Folder][IC_Invalid][ICP_Empty    ];
+  IcoPlaylist[IP_Folder     ][IC_Normal ][ICP_Closed   ] = LoadIcon(ICO_FL_CLOSE);
+  IcoPlaylist[IP_Folder     ][IC_Active ][ICP_Closed   ] = LoadIcon(ICO_FL_CLOSE_ACTIVE);
+  IcoPlaylist[IP_Folder     ][IC_Play   ][ICP_Closed   ] = LoadIcon(ICO_FL_CLOSE_PLAY);
+  IcoPlaylist[IP_Folder     ][IC_Shadow ][ICP_Closed   ] = LoadIcon(ICO_FL_CLOSE_SHADOW);
+  IcoPlaylist[IP_Folder     ][IC_Normal ][ICP_Open     ] = LoadIcon(ICO_FL_OPEN);
+  IcoPlaylist[IP_Folder     ][IC_Active ][ICP_Open     ] = LoadIcon(ICO_FL_OPEN_ACTIVE);
+  IcoPlaylist[IP_Folder     ][IC_Play   ][ICP_Open     ] = LoadIcon(ICO_FL_OPEN_PLAY);
+  IcoPlaylist[IP_Folder     ][IC_Shadow ][ICP_Open     ] = LoadIcon(ICO_FL_OPEN_SHADOW);
+  IcoPlaylist[IP_Folder     ][IC_Normal ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Normal ][ICP_Recursive];
+  IcoPlaylist[IP_Folder     ][IC_Active ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Active ][ICP_Recursive];
+  IcoPlaylist[IP_Folder     ][IC_Play   ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Play   ][ICP_Recursive];
+  IcoPlaylist[IP_Folder     ][IC_Shadow ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Normal ][ICP_Recursive];
+  // Alternation lists
+  IcoPlaylist[IP_Alternation][IC_Pending][ICP_Closed   ] = IcoPlaylist[IP_Playlist][IC_Pending][ICP_Empty];
+  IcoPlaylist[IP_Alternation][IC_Invalid][ICP_Closed   ] = IcoPlaylist[IP_Playlist][IC_Invalid][ICP_Empty];
+  IcoPlaylist[IP_Alternation][IC_Normal ][ICP_Closed   ] = LoadIcon(ICO_ALT_CLOSE);
+  IcoPlaylist[IP_Alternation][IC_Active ][ICP_Closed   ] = LoadIcon(ICO_ALT_CLOSE_ACTIVE);
+  IcoPlaylist[IP_Alternation][IC_Play   ][ICP_Closed   ] = LoadIcon(ICO_ALT_CLOSE_PLAY);
+  IcoPlaylist[IP_Alternation][IC_Shadow ][ICP_Closed   ] = LoadIcon(ICO_ALT_CLOSE_SHADOW);
+  IcoPlaylist[IP_Alternation][IC_Normal ][ICP_Open     ] = LoadIcon(ICO_ALT_OPEN);
+  IcoPlaylist[IP_Alternation][IC_Active ][ICP_Open     ] = LoadIcon(ICO_ALT_OPEN_ACTIVE);
+  IcoPlaylist[IP_Alternation][IC_Play   ][ICP_Open     ] = LoadIcon(ICO_ALT_OPEN_PLAY);
+  IcoPlaylist[IP_Alternation][IC_Shadow ][ICP_Open     ] = LoadIcon(ICO_ALT_OPEN_SHADOW);
+  IcoPlaylist[IP_Alternation][IC_Normal ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Normal ][ICP_Recursive];
+  IcoPlaylist[IP_Alternation][IC_Active ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Active ][ICP_Recursive];
+  IcoPlaylist[IP_Alternation][IC_Play   ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Play   ][ICP_Recursive];
+  IcoPlaylist[IP_Alternation][IC_Shadow ][ICP_Recursive] = IcoPlaylist[IP_Playlist][IC_Normal ][ICP_Recursive];
 }
 
 
@@ -227,7 +242,7 @@ void PlaylistBase::StartDialog()
 
 void PlaylistBase::InitDlg()
 { // Icon
-  HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
+  HPOINTER hicon = LoadIcon(ICO_MAIN);
   PMASSERT(hicon != NULLHANDLE);
   PMRASSERT(WinSendMsg(GetHwnd(), WM_SETICON, (MPARAM)hicon, 0));
   do_warpsans(GetHwnd());
@@ -748,8 +763,14 @@ HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), tattr));
   IC state = GetRecordUsage(rec);
   if (tattr & TATTR_PLAYLIST)
-    return IcoPlaylist[(tattr & TATTR_WRITABLE) == 0][state][GetPlaylistType(rec)];
-  else
+  { ICP plstate = GetPlaylistState(rec);
+    IP type;
+    if (plstate != ICP_Empty && (pi.GetInfo().attr->ploptions & PLO_ALTERNATION))
+      type = IP_Alternation;
+    else
+      type = tattr & TATTR_WRITABLE ? IP_Playlist : IP_Folder;
+    return IcoPlaylist[type][state][GetPlaylistState(rec)];
+  } else
     return IcoSong[state];
 }
 
