@@ -69,22 +69,21 @@ class Deconvolution : public Filter
     int         PlanSize;
     xstring     FilterFile;
     WFN         WindowFunction; ///< Currently selected window function
-    // computed
-    bool        IsValid();
   };
 
  private:
   struct ParameterSet
   : public Iref_count
   , public Parameters
-  {protected:
-    ParameterSet() {}
+  {public:
+    static ParameterSet Default;
+   private:
+    ParameterSet();
+    ParameterSet(const ParameterSet&);
+    void operator=(const ParameterSet&);
    public:
     ParameterSet(const Parameters& r);
     sco_arr<Coeff> TargetResponse[2];
-  };
-  struct DefaultParameters : public ParameterSet
-  { DefaultParameters();
   };
   /// Currently configured parameter set
   static volatile int_ptr<ParameterSet> ParamSet;
@@ -93,10 +92,14 @@ class Deconvolution : public Filter
   bool          NeedInit;
   bool          NeedFIR;
   bool          NeedKernel;
-  bool          Enabled;    ///< Flag whether the EQ was enabled at the last call to InRequestBuffer
+  bool          Enabled;    ///< Flag whether the EQ is enabled by the user.
+  bool          LastEnabled;///< Flag whether the EQ was enabled at the last call to InRequestBuffer
+  int           LastPlanSize;/// Last FFT plan size used for setup
+  int           LastFIROrder;/// Last filter kernel length used for setup
+  int           CurPlanSize;///< Plan size for the FFT convolution
+  int           CurPlanSize21;/// Plan size / 2 + 1 = conut of complex FFT numbers
   int           CurFIROrder;///< Filter kernel length
   int           CurFIROrder2;///< Filter kernel length / 2
-  int           CurPlanSize;///< Plansize for the FFT convolution
 
   FORMAT_INFO2  Format;
 
@@ -165,6 +168,7 @@ class Deconvolution : public Filter
 
   static void   SetParameters(const Parameters& params) { ParamSet = new ParameterSet(params); }
   static void   GetParameters(Parameters& params) { params = *int_ptr<ParameterSet>(ParamSet); }
+  static void   GetDefaultParameters(Parameters& params) { params = ParameterSet::Default; }
 };
 
 #endif // DECONVOLUTION_H

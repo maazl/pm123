@@ -251,6 +251,7 @@ class PlaylistBase
  private:
   static HPOINTER   LoadIcon(ULONG id) { return WinLoadPointer(HWND_DESKTOP, 0, id); }
   static void       InitIcons();
+
   static void       MsgJumpCompleted(Ctrl::ControlCommand* cmd);
  protected:
   /// Create a playlist window for an object, but don't open it.

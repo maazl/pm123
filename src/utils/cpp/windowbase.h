@@ -271,10 +271,10 @@ class SubclassWindow
   virtual           ~SubclassWindow();
   /// Attach this instance to window \a hwnd.
   /// @pre The class instance must not be attached to another instance.
-  void              Attach(HWND hwnd)   { ASSERT(!Hwnd); Hwnd = hwnd; DoAttach(); }
+  virtual void      Attach(HWND hwnd);
   /// Revoke subclassing. The instance may be reused to subclass another window now.
   /// This is a no-op if the instance is not attached.
-  void              Detach();
+  virtual void      Detach();
   /// Geth the currently attached window or \c NULLHANDLE if none.
   HWND              GetHwnd() const     { return Hwnd; }
  protected:

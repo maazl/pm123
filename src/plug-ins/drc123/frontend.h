@@ -32,6 +32,7 @@
 #define  INCL_WIN
 #include "drc123.h"
 #include "DataFile.h"
+#include "Deconvolution.h"
 #include "ResponseGraph.h"
 #include <cpp/xstring.h>
 #include <cpp/pmutils.h>
@@ -52,13 +53,13 @@ class Frontend : public NotebookDialogBase
     enum
     { UM_UPDATEDESCR = WM_USER + 300
     };
-    xstring     SelectedFilter;
-    int_ptr<DataFile> SelectedKernel;
+    Deconvolution::Parameters Params;
+    DataFile Kernel;
     ResponseGraph Result;
    public:
     DeconvolutionPage(Frontend& parent)
     : PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
-    , Result()
+    , Result(Kernel)
     { MajorTitle = "~Deconvolution";
       MinorTitle = "Deconvolution filter";
     }

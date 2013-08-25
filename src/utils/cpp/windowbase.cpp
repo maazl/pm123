@@ -248,6 +248,12 @@ void SubclassWindow::DoAttach()
   PMASSERT(OldWinProc);
 }
 
+void SubclassWindow::Attach(HWND hwnd)
+{ ASSERT(!Hwnd);
+  Hwnd = hwnd;
+  DoAttach();
+}
+
 void SubclassWindow::Detach()
 { if (Hwnd)
   { PMRASSERT(WinSubclassWindow(Hwnd, OldWinProc));

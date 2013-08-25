@@ -32,11 +32,16 @@
 #include <cpp/xstring.h>
 #include <cpp/smartptr.h>
 #include <cpp/container/vector.h>
+#include <math.h>
 
 
 class DataFile
 {public:
-  typedef sco_arr<double> RowType;
+  class RowType : public sco_arr<double>
+  {public:
+    RowType(size_t size)                        : sco_arr<double>(size) {}
+    double  operator[](size_t col) const        { return col >= size() ? NAN : get()[col]; }
+  };
  public:
   xstring   Description;
  private:
@@ -48,7 +53,7 @@ class DataFile
   virtual   ~DataFile()                         {}
   unsigned  Rows() const                        { return Data.size(); }
   unsigned  Columns() const                     { return MaxColumns; }
-  const RowType& operator[](unsigned row) const { return *Data[row]; }
+  const vector<RowType>& Content() const        { return Data; }
   void      Clear();
   bool      Load(const char* filename, bool nodata = false);
   bool      Save(const char* filename) const;

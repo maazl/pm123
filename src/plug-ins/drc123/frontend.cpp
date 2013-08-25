@@ -53,107 +53,6 @@
 
 /********** Ini file stuff */
 
-#if 0
-static void
-save_ini( void )
-{
-  HINI INIhandle;
-
-  if(( INIhandle = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value ( INIhandle, newFIRorder );
-    save_ini_value ( INIhandle, newPlansize );
-    save_ini_value ( INIhandle, eqenabled );
-    save_ini_value ( INIhandle, locklr );
-    save_ini_string( INIhandle, lasteq );
-
-    close_ini( INIhandle );
-  }
-}
-
-static void
-load_ini( void )
-{
-  HINI INIhandle;
-
-  memset(bandgain, 0, sizeof bandgain);
-  memset(mute,     0, sizeof mute    );
-
-  eqenabled   = FALSE;
-  lasteq[0]   = 0;
-  newPlansize = 8192;
-  newFIRorder = 4096;
-  locklr      = FALSE;
-
-  if(( INIhandle = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value ( INIhandle, newFIRorder );
-    load_ini_value ( INIhandle, newPlansize );
-    load_ini_value ( INIhandle, eqenabled );
-    load_ini_value ( INIhandle, locklr );
-    load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
-
-    close_ini( INIhandle );
-
-    // avoid crash when INI-Content is bad
-    if (newPlansize < 16)
-      newPlansize = 16;
-     else if (newPlansize > MAX_COEF)
-      newPlansize = MAX_COEF;
-    if (newPlansize <= newFIRorder)
-      newFIRorder = newPlansize >> 1;
-    if (newFIRorder > MAX_FIR)
-      newFIRorder = MAX_FIR;
-  }
-  eqneedinit  = TRUE;
-}
-
-static BOOL
-load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp )
-{
-  FILE* file;
-  int   i = 0;
-  char  line[256];
-
-  if (filename == NULL || *filename == 0)
-    return FALSE;
-  file = fopen( filename, "r" );
-  if( file == NULL ) {
-    return FALSE;
-  }
-
-  while( !feof( file ))
-  {
-    fgets( line, sizeof(line), file );
-    blank_strip( line );
-    if( *line && line[0] != '#' && line[0] != ';' && i < 129 )
-    {
-      if( i < NUM_BANDS*2 ) {
-        double gain = atof(line);
-        if (gain < 0)
-          gain = 0;
-         else if (gain <= .2511886432)
-          gain = -12.;
-         else if (gain >= 3.981071706)
-          gain = 12.;
-         else
-          gain = 20.*log10(gain); 
-        gains[i] = gain;
-      } else if( i > NUM_BANDS*2-1 && i < NUM_BANDS*4 ) {
-        mutes[i-NUM_BANDS*2] = atoi(line);
-      } else if( i == NUM_BANDS*4 ) {
-        *preamp = atof(line);
-      }
-      i++;
-    }
-  }
-  fclose( file );
-  return TRUE;
-}
-
-#endif
-
-
 /*static BOOL
 save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
 {
@@ -292,6 +191,10 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     PostCommand(PB_UNDO);
     break;
 
+   case WM_DESTROY:
+    Result.Detach();
+    break;
+
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
     {case EF_WORKDIR:
@@ -307,8 +210,8 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ListBox lb(+GetCtrl(LB_KERNEL));
         int sel = lb.NextSelection();
         sb.append(lb.ItemText(sel));
-        SelectedFilter = sb.get();
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(true);
+        Params.FilterFile = sb.get();
+        //DEBUGLOG(("%s\n", Params.FilterFile.cdata()));
         PostMsg(UM_UPDATEDESCR, 0, 0);
       }
       break;
@@ -318,35 +221,35 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_COMMAND:
     switch (SHORT1FROMMP(mp1))
     {case PB_DEFAULT:
-      { // defaults
-        EntryField(+GetCtrl(EF_RECURI)).Text(xstring(DefRecURI));
-        ComboBox(+GetCtrl(CB_FIRORDER)).Select(3); // 49152
-      }
-      break;
+      Deconvolution::GetDefaultParameters(Params);
+      goto load;
 
      case PB_UNDO:
+      Deconvolution::GetParameters(Params);
+      if (Params.FilterFile)
+      { char path[_MAX_PATH];
+        sdrivedir(path, Params.FilterFile, sizeof path);
+        EntryField(+GetCtrl(EF_WORKDIR)).Text(path);
+        UpdateDir();
+      }
+     load:
       { // Load GUI from current configuration
-        SelectedFilter = Deconvolution::FilterFile;
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(SelectedFilter != NULL);
-        if (SelectedFilter)
-        { char path[_MAX_PATH];
-          sdrivedir(path, SelectedFilter, sizeof path);
-          EntryField(+GetCtrl(EF_WORKDIR)).Text(path);
-        }
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.FilterFile != NULL);
         EntryField(+GetCtrl(EF_RECURI)).Text(xstring(OpenLoop::RecURI));
         // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Deconvolution::Enable);
-        RadioButton(+GetCtrl(RB_WIN_NONE + Deconvolution::WindowFunction)).CheckState();
-        int selected = 3; // default
-        switch (Deconvolution::FIROrder)
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.Enabled);
+        RadioButton(+GetCtrl(RB_WIN_NONE + Params.WindowFunction)).CheckState();
+        int selected; // default
+        switch (Params.FIROrder)
         {case 16384:
           selected = 0; break;
          case 24576:
           selected = 1; break;
          case 32768:
           selected = 2; break;
-         //case 49152: default
+         default: //case 49152:
+          selected = 3; break;
          case 65536:
           selected = 4; break;
          case 98304:
@@ -358,35 +261,35 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case PB_APPLY:
       { // Update configuration from GUI
-        Deconvolution::FilterFile = SelectedFilter;
         OpenLoop::RecURI = EntryField(+GetCtrl(EF_RECURI)).Text();
-        Deconvolution::WindowFunction = (Deconvolution::WFN)RadioButton(+GetCtrl(RB_WIN_NONE)).CheckIndex();
+        Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
         switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
         {case 0: // 16384
-          Deconvolution::FIROrder = 16384;
-          Deconvolution::PlanSize = 32768;
+          Params.FIROrder = 16384;
+          Params.PlanSize = 32768;
           break;
          case 1: // 24576
-          Deconvolution::FIROrder = 24576;
-          Deconvolution::PlanSize = 32768;
+          Params.FIROrder = 24576;
+          Params.PlanSize = 32768;
           break;
          case 2: // 32768
-          Deconvolution::FIROrder = 32768;
-          Deconvolution::PlanSize = 65536;
+          Params.FIROrder = 32768;
+          Params.PlanSize = 65536;
           break;
          case 3: // 49152
-          Deconvolution::FIROrder = 49152;
-          Deconvolution::PlanSize = 65536;
+          Params.FIROrder = 49152;
+          Params.PlanSize = 65536;
           break;
          case 4: // 65536
-          Deconvolution::FIROrder = 65536;
-          Deconvolution::PlanSize = 131072;
+          Params.FIROrder = 65536;
+          Params.PlanSize = 131072;
           break;
          case 5: // 98304
-          Deconvolution::FIROrder = 98304;
-          Deconvolution::PlanSize = 131072;
+          Params.FIROrder = 98304;
+          Params.PlanSize = 131072;
           break;
         }
+        Deconvolution::SetParameters(Params);
         save_config();
       }
       break;
@@ -414,17 +317,21 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_UPDATEDESCR:
     { ControlBase descr(+GetCtrl(ST_DESCR));
-      if (!SelectedFilter)
+      ControlBase enabled(+GetCtrl(CB_ENABLE));
+      if (!Params.FilterFile)
       { descr.Text("No working directory");
-        return 0;
+        goto disable;
       }
-      if (!FilterKernel.Load(SelectedFilter))
-      { Result.Detach();
-        descr.Text(strerror(errno));
+      if (!Kernel.Load(Params.FilterFile))
+      { descr.Text(strerror(errno));
+       disable:
+        Result.Detach();
+        enabled.Enabled(false);
         return 0;
       }
       Result.Attach(GetCtrl(CC_RESULT));
-      descr.Text(FilterKernel.Description.length() ? FilterKernel.Description.cdata() : "no description");
+      descr.Text(Kernel.Description.length() ? Kernel.Description.cdata() : "no description");
+      enabled.Enabled(true);
     }
     return 0;
   }
@@ -455,7 +362,7 @@ void Frontend::DeconvolutionPage::UpdateDir()
      case NO_ERROR:
       const char* names[100];
       int selected = LIT_NONE;
-      const char* currentname = SelectedFilter ? sfnameext2(SelectedFilter) : NULL;
+      const char* currentname = Params.FilterFile ? sfnameext2(Params.FilterFile) : NULL;
       do
       { FILEFINDBUF3* fb = (FILEFINDBUF3*)buf;
         const char** np = names;
@@ -463,7 +370,7 @@ void Frontend::DeconvolutionPage::UpdateDir()
         { // selected entry?
           if (currentname && stricmp(currentname, sfnameext2(fb->achName)) == 0)
           { selected = np - names;
-            path.clear();
+            path.erase(pathlen);
             path.append(fb->achName);
           }
           // store entry
@@ -481,9 +388,9 @@ void Frontend::DeconvolutionPage::UpdateDir()
       // Select item
       if (selected != LIT_NONE)
       { lb.Select(selected);
-        SelectedFilter = path.get();
+        Params.FilterFile = path.get();
       } else
-      { SelectedFilter.reset();
+      { Params.FilterFile.reset();
         CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
       }
       PostMsg(UM_UPDATEDESCR, 0, 0);

@@ -68,7 +68,7 @@ bool DataFile::Load(const char* filename, bool nodata)
         double* dp = values;
         const char* cp = line;
         int n = -1;
-        while (sscanf(line, "%lf%n", dp, &n))
+        while (sscanf(cp, "%lf%n", dp, &n) > 0)
         { ++dp;
           cp += n;
         }

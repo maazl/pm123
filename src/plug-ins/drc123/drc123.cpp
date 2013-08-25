@@ -97,24 +97,25 @@ inline static void do_save_prf_value(const char* name, const T value)
 
 static void load_config()
 {
-  Deconvolution::Parameters* dp = new Deconvolution::Parameters();
-  // Naming for the macros below.
-  Deconvolution::Parameters& deconvolution = *dp;
+  Deconvolution::Parameters deconvolution;
   load_prf_value(deconvolution.FilterFile);
   load_prf_value(deconvolution.WindowFunction);
   load_prf_value(deconvolution.Enabled);
   load_prf_value(deconvolution.FIROrder);
   load_prf_value(deconvolution.PlanSize);
+  Deconvolution::SetParameters(deconvolution);
 }
 
 
 void save_config()
 {
-  save_prf_value(Deconvolution::FilterFile);
-  save_prf_value(Deconvolution::WindowFunction);
-  save_prf_value(Deconvolution::Enable);
-  save_prf_value(Deconvolution::FIROrder);
-  save_prf_value(Deconvolution::PlanSize);
+  Deconvolution::Parameters deconvolution;
+  Deconvolution::GetParameters(deconvolution);
+  save_prf_value(deconvolution.FilterFile);
+  save_prf_value(deconvolution.WindowFunction);
+  save_prf_value(deconvolution.Enabled);
+  save_prf_value(deconvolution.FIROrder);
+  save_prf_value(deconvolution.PlanSize);
 }
 
 
