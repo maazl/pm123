@@ -129,7 +129,7 @@ engine\glue.cpp:	engine\glue.h engine\decoder.h engine\filter.h engine\output.h 
 engine\output.h:	engine\plugman.h
 engine\loadhelper.cpp:	engine\loadhelper.h configuration.h gui\gui.h core\job.h
 engine\output.cpp:	engine\output.h engine\proxyhelper.h configuration.h pm123.h
-engine\plugman.cpp:	engine\plugman.h engine\decoder.h engine\filter.h engine\output.h engine\visual.h core\playable.h remote\acommandprocessor.h configuration.h eventhandler.h engine\proxyhelper.h pm123.h
+engine\plugman.cpp:	engine\plugman.h engine\decoder.h engine\filter.h engine\output.h engine\visual.h gui\filedlg.h core\playable.h remote\acommandprocessor.h configuration.h eventhandler.h engine\proxyhelper.h pm123.h
 engine\proxyhelper.cpp:	engine\proxyhelper.h eventhandler.h copyright.h pm123.h gui\gui.h gui\skin.h engine\controller.h core\playable.h
 engine\visual.cpp:	engine\visual.h engine\glue.h eventhandler.h engine\controller.h
 gui\button95.cpp:	gui\button95.h

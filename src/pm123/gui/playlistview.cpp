@@ -390,7 +390,6 @@ void PlaylistView::InitContextMenu()
       return;
     HwndMenu = RecMenu;
 
-    mn_enable_item(HwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && IsUnderCurrentRoot(Source[0]));
     mn_enable_item(HwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
     mn_enable_item(HwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
     //mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);

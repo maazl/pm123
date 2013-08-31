@@ -197,6 +197,7 @@ class SongIterator : public Location
   virtual SongIterator&       operator=(const Location& r);
  public:
   explicit                    SongIterator(APlayable* root = NULL);
+                              SongIterator(const Location& r);
                               SongIterator(const SongIterator& r);
   virtual                     ~SongIterator();
 

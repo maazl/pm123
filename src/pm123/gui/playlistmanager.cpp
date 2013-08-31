@@ -287,7 +287,6 @@ void PlaylistManager::InitContextMenu()
       return;
     HwndMenu = RecMenu;
 
-    mn_enable_item(HwndMenu, IDM_PL_NAVIGATE, !((Record*)Source[0])->Data()->Recursive && IsUnderCurrentRoot(Source[0]));
     mn_enable_item(HwndMenu, IDM_PL_DETAILED, rt & (RT_Enum|RT_List));
     mn_enable_item(HwndMenu, IDM_PL_TREEVIEW, rt & (RT_Enum|RT_List));
     mn_enable_item(HwndMenu, IDM_PL_EDIT,     rt == RT_Meta);

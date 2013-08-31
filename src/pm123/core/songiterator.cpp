@@ -236,6 +236,14 @@ SongIterator::SongIterator(APlayable* root)
 , IsShuffleCache(PLO_NONE)
 { //Reshuffle();
 }
+SongIterator::SongIterator(const Location& r)
+: Location(r)
+, Root(r.GetRoot())
+, Options(PLO_NO_SHUFFLE)
+, ShuffleSeed(0)
+, IsShuffleCache(PLO_NONE)
+{ //Reshuffle();
+}
 SongIterator::SongIterator(const SongIterator& r)
 : Location(r)
 , Root(r.Root)

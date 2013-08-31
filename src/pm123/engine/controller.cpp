@@ -69,8 +69,11 @@ class CtrlImp
   struct PrefetchEntry
   { PM123_TIME                Offset;        ///< Starting time index from the output's point of view.
     SongIterator              Loc;           ///< Location that points to the song that starts at this position.
+    bool                      Completed;
     //PrefetchEntry() : Offset(0) {}
-    PrefetchEntry(PM123_TIME offset, const SongIterator& loc) : Offset(offset), Loc(loc) {}
+    PrefetchEntry(PM123_TIME offset, const SongIterator& loc) : Offset(offset), Loc(loc), Completed(false) {}
+    PrefetchEntry(PM123_TIME offset, const Location& loc) : Offset(offset), Loc(loc), Completed(false) {}
+    PrefetchEntry(PM123_TIME offset, APlayable* root) : Offset(offset), Loc(root), Completed(false) {}
   };
 
  private: // extended working set
@@ -151,6 +154,9 @@ class CtrlImp
   , NR_Failed  ///< Navigation error, Error info placed in ControlCommand.
   , NR_NoScan  ///< Navigation OK, but failed to set scan mode.
   }            NavigateCore(Location& si, signed char newscan = 2);
+  /// Load new root into the player.
+  /// @param pe New item to load or NULL if none.
+         void  LoadCore(PrefetchEntry* pe);
   /// Request some information on the current song.
   static void  AttachCurrentSong();
   /// Clears the prefetch list and keep the first element if keep is true.
@@ -467,6 +473,7 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
     Reply(RC_OK);
     return NR_OK;
   }
+
   // Navigate to another item
   DEBUGLOG(("Ctrl::NavigateCore - Navigate - %u\n", was_playing));
   if (was_playing)
@@ -504,6 +511,48 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
   return NR_OK;
 }
 
+void CtrlImp::LoadCore(PrefetchEntry* pe)
+{ DEBUGLOG(("CtrlImp::LoadCore(%p)\n", pe));
+  // always stop
+  // TODO: continue flag
+  Flags = Op_Reset;
+  MsgPlayStop();
+
+  // detach
+  //CurrentSongDelegate.detach();
+  CurrentRootDelegate.detach();
+  if (PrefetchList.size())
+  { UpdateStackUsage(Current()->Loc.GetCallstack(), EmptyStack);
+    Current()->Loc.GetRoot()->SetInUse(0);
+    PrefetchClear(false);
+  }
+
+  if (pe)
+  { { pe->Loc.Reshuffle();
+      pe->Loc.SetOptions(Shuffle * PLO_SHUFFLE);
+      // move to the first song. -> LoadHelper does the job
+      //pe->Loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
+      PrefetchList.append() = pe;
+    }
+    Pending |= EV_Root|EV_Song|EV_Location;
+    APlayable* play = pe->Loc.GetRoot();
+    play->SetInUse(1);
+    // Load the required information as fast as possible
+    play->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Child, PRI_Normal);
+    // Verify all information
+    play->RequestInfo(IF_Aggreg, PRI_Low, REL_Confirmed);
+    // Track root changes
+    play->GetInfoChange() += CurrentRootDelegate;
+    // track changes
+    UpdateStackUsage(EmptyStack, Current()->Loc.GetCallstack());
+    AttachCurrentSong();
+  }
+  Pending |= EV_Song|EV_Location;
+  LastStart = NULL;
+  DEBUGLOG(("CtrlImp::LoadCore - completed\n"));
+  Reply(RC_OK);
+}
+
 void CtrlImp::AttachCurrentSong()
 { DEBUGLOG(("Ctrl::AttachCurrentSong()\n"));
   if (!PrefetchList.size())
@@ -521,9 +570,15 @@ void CtrlImp::AttachCurrentSong()
 
 void CtrlImp::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
+  if (!PrefetchList.size())
+    return;
   PrefetchEntry*const* where = PrefetchList.end();
-  while (PrefetchList.size() > keep) // Hack: keep = false deletes all items while keep = true kepp the first item.
+  while (PrefetchList.size() > 1)
     delete PrefetchList.erase(--where);
+  if (!keep)
+    delete PrefetchList.erase(0);
+  else
+    Current()->Completed = false;
 }
 
 void CtrlImp::CheckPrefetch(double pos)
@@ -545,19 +600,20 @@ void CtrlImp::CheckPrefetch(double pos)
 
       // delete played items from default playlist in queue mode.
       Playable& default_pl = GUI::GetDefaultPL();
-      if (Cfg::Get().queue_mode && Current()->Loc.GetRoot() == &default_pl)
-      { ASSERT(Current()->Loc.GetCallstack().size());
-        ASSERT(keep->Loc.GetCallstack().size());
-        PlayableInstance* item = Current()->Loc.GetCallstack()[0];
-        PlayableInstance* stop = keep->Loc.GetCallstack()[0];
-        while (item != stop)
-          item = default_pl.RemoveItem(*item);
-      }
+      bool dodelete = Cfg::Get().queue_mode && Current()->Loc.GetRoot() == &default_pl;
 
       // Cleanup prefetch list
       vector<PrefetchEntry> ped(n);
       do
+      { if (dodelete && Current()->Completed)
+        { ASSERT(Current()->Loc.GetCallstack().size());
+          ASSERT(keep->Loc.GetCallstack().size());
+          PlayableInstance* item = Current()->Loc.GetCallstack()[0];
+          if (item && item != keep->Loc.GetCallstack()[0])
+            default_pl.RemoveItem(*item);
+        }
         delete PrefetchList.erase(--n);
+      }
       while (n);
 
       // Now keep track of the next entry
@@ -825,24 +881,42 @@ void CtrlImp::MsgNavigate()
 }
 
 void CtrlImp::MsgJump()
-{ DEBUGLOG(("Ctrl::MsgJump() {%p}\n", PtrArg));
-  APlayable* ps = GetRoot();
-  if (!ps)
-  { Reply(RC_NoSong);
+{ DEBUGLOG(("Ctrl::MsgJump() {%p, %x}\n", PtrArg, Flags));
+  Location& loc = *(Location*)PtrArg;
+  bool force = Flags & 0x01;
+  APlayable* root = GetRoot();
+  if (!root)
+  { if (force)
+      goto force;
+    Reply(RC_NoSong);
     return;
   }
-  Location& loc = *(Location*)PtrArg;
-  if (&ps->GetPlayable() != loc.GetRoot())
+  if (&root->GetPlayable() != loc.GetRoot())
   { // try partial navigation
     Location loc2(Current()->Loc);
     StrArg = loc2.NavigateTo(loc);
     if (StrArg)
-    { Flags = RC_InvalidItem;
+    { if (force)
+        goto force;
+      Flags = RC_InvalidItem;
       return;
     }
     loc.Swap(loc2);
   }
   NavigateCore(loc);
+  if (!Flags || !force)
+    return;
+
+ force:
+  Location loc2;
+  if (PrefetchList.size())
+    loc2 = Current()->Loc;
+  loc.Swap(loc2);
+  if (loc2.GetRoot())
+  { loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
+    LoadCore(new PrefetchEntry(0, loc2));
+  } else
+    LoadCore(NULL);
 }
 
 void CtrlImp::MsgSkip()
@@ -897,12 +971,15 @@ void CtrlImp::MsgLoad()
     APlayable* oldroot = PrefetchList[0]->Loc.GetRoot();
     // Is it a null operation?
     if (oldroot == play)
-      goto ok; // no-op
+    { Reply(RC_OK); // no-op
+      return;
+    }
 
     // Now check whether the current root is a descendant of play.
     SongIterator loc(oldroot);
     if (!loc.Navigate(Job::SyncJob, play, -1, 0, INT_MAX))
     { // Got it! => relocate call stack
+      // TODO: all the in use counters have to be updated too!
       unsigned level = loc.GetLevel();
       foreach (PrefetchEntry,**, pepp, PrefetchList)
       { SongIterator& si = (*pepp)->Loc;
@@ -912,52 +989,13 @@ void CtrlImp::MsgLoad()
         loc.NavigateUp(loc.GetLevel() - level);
       }
       Pending |= EV_Root;
-      goto ok;
+      Reply(RC_OK); // no-op
+      return;
     }
     // Failed => do normal load
   }
 
-  // always stop
-  // TODO: continue flag
-  Flags = Op_Reset;
-  MsgPlayStop();
-
-  // detach
-  //CurrentSongDelegate.detach();
-  CurrentRootDelegate.detach();
-  if (PrefetchList.size())
-  { UpdateStackUsage(Current()->Loc.GetCallstack(), EmptyStack);
-    Current()->Loc.GetRoot()->SetInUse(0);
-    PrefetchClear(false);
-  }
-
-  if (play)
-  { { PrefetchEntry* pe = new PrefetchEntry(0, SongIterator(play));
-      pe->Loc.Reshuffle();
-      pe->Loc.SetOptions(Shuffle * PLO_SHUFFLE);
-      // move to the first song. -> LoadHelper does the job
-      //pe->Loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
-      PrefetchList.append() = pe;
-      // assign change event handler
-      //Current()->Iter.Change += SongIteratorDelegate;
-      Pending |= EV_Root|EV_Song|EV_Location;
-    }
-    play->SetInUse(1);
-    // Load the required information as fast as possible
-    play->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Child, PRI_Normal);
-    // Verify all information
-    play->RequestInfo(IF_Aggreg, PRI_Low, REL_Confirmed);
-    // Track root changes
-    play->GetInfoChange() += CurrentRootDelegate;
-    // track changes
-    UpdateStackUsage(EmptyStack, Current()->Loc.GetCallstack());
-  }
-  AttachCurrentSong();
-  Pending |= EV_Song|EV_Location;
-  LastStart = NULL;
-  DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
- ok:
-  Reply(RC_OK);
+  LoadCore(play ? new PrefetchEntry(0, play) : NULL);
 }
 
 /* saving the currently played stream. */
@@ -1032,6 +1070,11 @@ void CtrlImp::MsgDecStop()
 { DEBUGLOG(("Ctrl::MsgDecStop()\n"));
   // TODO: we should check here whether the DecStop messages comes from the currently decodes stream.
   // It could be intercepted by a navigation message.
+
+  // Mark entry as completed
+  if (PrefetchList.size())
+    PrefetchList[PrefetchList.size()-1]->Completed = true;
+
   if (!Glue::DecInitialized())
   { Reply(RC_NotPlaying);
     return;
