@@ -396,7 +396,7 @@ bool LSTReader::ParseLine(char* line)
       }*/
       ParseInt(Tech.samplerate, tokens[1]);
       ParseInt(Tech.channels, tokens[2]);
-      if (strchr(tokens[2], '.'))
+      if (tokens[2] && strchr(tokens[2], '.'))
       { switch (Tech.channels) // convert stupid modes of old PM123 versions
         {case 0:
           Tech.channels = 2;
