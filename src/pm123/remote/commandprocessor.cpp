@@ -1553,9 +1553,9 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "font",            &CommandProcessor::DoFontOption }
 , { "keeproot",        &amp_cfg::keeproot       }
 , { "pipe",            &amp_cfg::pipe_name      }
-, { "pldefaultaction", &amp_cfg::itemaction     }
 , { "playlistwrap",    &amp_cfg::autoturnaround }
 , { "playonload",      &amp_cfg::playonload     }
+, { "plitemaction",    &amp_cfg::itemaction     }
 , { "proxyserver",     &amp_cfg::proxy          }
 , { "proxyauth",       &amp_cfg::auth           }
 , { "queueatcommand",  &amp_cfg::append_cmd     }
