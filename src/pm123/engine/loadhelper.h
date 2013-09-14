@@ -45,7 +45,7 @@ class LoadHelper
     LoadPlay     = 0x01,///< Start Playing when completed
     LoadRecall   = 0x02,///< Add item to the MRU-List if it is only one
     LoadAppend   = 0x04,///< Always append to the default playlist
-    LoadKeepRoot = 0x08,///< Play a playable object. If A playlist containing this item is loaded, the item is activated only.
+    LoadKeepItem = 0x08,///< Keep playback active if the loaded playlist contains the current root.
   };
  protected:
   const Options         Opt;

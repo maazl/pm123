@@ -159,6 +159,14 @@ This is well known to cause problems on cyclic references. In practice
 recursive playlists are unusual. </td>
     </tr>
     <tr class="open">
+      <td valign="top">35 minor bug,<br>
+reopened</td>
+      <td valign="top">When loading a playlist without active playback,
+the total playing time is sometimes not displayed in the main window.</td>
+      <td valign="top">The aggregate information required for the
+calculation seems to vanish shortly after it appeared. Reason unknown. </td>
+    </tr>
+    <tr class="open">
       <td valign="top">36 minor todo,<br>
 open</td>
       <td valign="top">When a large playlist or a http stream is
@@ -180,6 +188,13 @@ player will refer to the song behind that item rather than the playlist
 entry. This will fail if the item is a song slice or a binary file
 referred by a cue sheet. Everything is fine if the entire cue sheet is
 selected to play.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><em>40 medium todo,<br>
+open</em></td>
+      <td valign="top">Nested slices are not processed correctly when
+calculating aggregate information.</td>
+      <td valign="top">Slices are not implemented in <tt>SongIterator::CaclcOffsetCacheEntry</tt>.</td>
     </tr>
   </tbody>
 </table>

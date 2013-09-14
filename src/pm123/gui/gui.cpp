@@ -315,7 +315,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (cfg.itemaction == CFG_ACTION_NAVTO)
         GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(target), true));
       else
-      { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay|LoadHelper::LoadKeepRoot | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
+      { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay|LoadHelper::LoadKeepItem | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
         lhp.AddItem(*target.GetCurrent());
         Load(lhp);
       }
@@ -556,22 +556,22 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (flags & Ctrl::EV_Root)
         { // New root => request some infos, attach observer
           RootDeleg.detach();
-          DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root));
+          DEBUGLOG(("GUIImp::DlgProc: WMP_CTRL_EVENT new root: %p\n", root));
           if (root)
           { root->RequestInfo(IF_Aggreg, PRI_Low);
             root->GetInfoChange() += RootDeleg;
           }
-          inval |= UPD_TIMERS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
+          UpdAtLocMsg |= UPD_PLMODE;
         }
         // New song => attach observer
         CurrentDeleg.detach();
-        int_ptr<APlayable> song = Ctrl::GetCurrentSong();
-        DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new song: %p\n", song.get()));
+        APlayable* song = CurrentIter->GetCurrent();
+        DEBUGLOG(("GUIImp::DlgProc: WMP_CTRL_EVENT new song: %p\n", song));
         ASSERT(!root || song);
         if (song && song != root) // Do not observe song items twice.
           song->GetInfoChange() += CurrentDeleg;
         // Refresh display text
-        inval |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
+        UpdAtLocMsg |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
       } else if (flags & Ctrl::EV_Location)
         UpdAtLocMsg |= UPD_TIMERS;
 
@@ -587,7 +587,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
    case WMP_PLAYABLE_EVENT:
     { APlayable* root = CurrentIter->GetRoot();
-      DEBUGLOG(("GUIImp::DlgProc: WMP_PLAYABLE_EVENT %p %x\n", mp1, SHORT1FROMMP(mp2)));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_PLAYABLE_EVENT %p %x/%x - %p\n", mp1, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2), root));
       if (!root)
         return 0;
       APlayable* ap = (APlayable*)mp1;
@@ -650,6 +650,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WMP_PAINT:
+    DEBUGLOG(("GUIImp::WMP_PAINT(%x) - %x, %u\n", LONGFROMMP(mp1), UpdFlags, Terminate));
     if (!Terminate)
     { // is there anything to draw with HPS?
       UpdateFlags mask = (UpdateFlags)LONGFROMMP(mp1) & UpdFlags;
@@ -746,7 +747,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         && LoadWizards[cmd-IDM_M_LOADFILE] )
       { // TODO: create temporary playlist
         const volatile amp_cfg& cfg = Cfg::Get();
-        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.keeproot*LoadHelper::LoadKeepRoot | LoadHelper::LoadRecall);
+        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.keeproot*LoadHelper::LoadKeepItem | LoadHelper::LoadRecall);
         if ((*LoadWizards[cmd-IDM_M_LOADFILE])(HPlayer, "Load%s", &GUI_LoadFileCallback, &lh) == 0)
           PostCtrlCommand(lh.ToCommand());
         return 0;
@@ -1262,6 +1263,7 @@ void GUIImp::SliderDrag(LONG x, LONG y, JobSet& job)
 void GUIImp::ForceLocationMsg()
 { if (!IsLocMsg)
   { IsLocMsg = true;
+    DEBUGLOG(("GUIImp::ForceLocationMsg - %x\n", UpdAtLocMsg));
     PostCtrlCommand(Ctrl::MkLocation(Ctrl::LM_UpdatePos));
   }
 }
@@ -1286,8 +1288,9 @@ void GUIImp::ControllerNotification(const void* rcv, const Ctrl::EventFlags& fla
 void GUIImp::PlayableNotification(const void* rcv, const PlayableChangeArgs& args)
 { DEBUGLOG(("GUIImp::PlayableNotification(, {&%p, %p, %x, %x, %x})\n",
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
-  // TODO: Filter to improve performance
-  WinPostMsg(HFrame, WMP_PLAYABLE_EVENT, MPFROMP(&args.Instance), MPFROM2SHORT(args.Changed, args.Loaded));
+  // TODO: Better filter to improve performance
+  if (args.Changed || args.Loaded)
+    WinPostMsg(HFrame, WMP_PLAYABLE_EVENT, MPFROMP(&args.Instance), MPFROM2SHORT(args.Changed, args.Loaded));
 }
 
 void GUIImp::PluginNotification(const void*, const PluginEventArgs& args)
@@ -1707,7 +1710,7 @@ void GUIImp::PrepareText()
 }
 
 void GUIImp::Paint(HPS hps, UpdateFlags mask)
-{ DEBUGLOG(("GuiImp::Paint(,%x) - %x\n", mask, UpdFlags));
+{ DEBUGLOG(("GuiImp::Paint(,%x) - %x\n", mask));
   if (mask & UPD_BACKGROUND)
     bmp_draw_background(hps, HPlayer);
   APlayable* root = CurrentIter->GetRoot();
@@ -1835,7 +1838,7 @@ MRESULT GUIImp::DragOver(DRAGINFO* pdinfo_)
 
 GUIImp::HandleDrop::HandleDrop(DRAGINFO* di, HWND hwnd)
 : HandleDragTransfers(di, hwnd)
-, Loader(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().keeproot*LoadHelper::LoadKeepRoot | (di->usOperation == DO_LINK)*LoadHelper::LoadAppend)
+, Loader(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().keeproot*LoadHelper::LoadKeepItem | (di->usOperation == DO_LINK)*LoadHelper::LoadAppend)
 {}
 
 GUIImp::HandleDrop::~HandleDrop()

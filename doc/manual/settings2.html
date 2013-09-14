@@ -8,23 +8,25 @@
 </head>
 <body>
 <h2>PM123's Playlist Behavior Settings</h2>
-<blockquote> <img src="images/prop1a.png">
+<blockquote> <img alt="" src="images/prop1a.png" height="522"
+ width="550">
 </blockquote>
 <h3>Playlists</h3>
 <dl>
   <dt><b>Auto 'use playlist' on add</b> </dt>
   <dd>Automatically loads a playlist if items are appended to it.</dd>
-  <dt><b>Keep active playlist on load when possible</b></dt>
-  <dd>When this option is set PM123 tries to keep the current playlist
-if a new item is loaded that is part of the current playlist. In this
-case only a navigation to the loaded entry takes place.</dd>
+  <dt><b>Keep currently loaded item when loading a playlist if possible</b></dt>
+  <dd>When this option is set PM123 tries to keep the current item
+if a new playlist contains the current item. This will keep an active
+playback to continue seamlessly.</dd>
   <dt><b>Auto save modified playlists on exit</b></dt>
   <dd>If there are playlists in memory that have not yet been saved and
 they are savable, then this is done silently on program exit. Note that
 the top level bookmarks and the default playlist are always saved.</dd>
   <dt><b>Recurse into subdirectories at drag &amp; drop by default</b> </dt>
   <dd>When you drop a folder to PM123 it will be added as a virtual
-playlist that also contains the sub folders as virtual playlists. </dd>
+playlist that also contains the sub folders as virtual playlists. You
+can change the behavior also by using Shift-Ctrl during drag and drop. </dd>
   <dt><b>Sub folders first</b> </dt>
   <dd>When a file system folder is opened by PM123 the sub folders are
 placed before any file items. Otherwise sub folders will show up
@@ -43,29 +45,33 @@ players <a href="mainwin.html">main window</a>.</dd>
   <dd>Action to be taken when another PM123 instance (with the same
 pipe name) is invoked with a file or URL as command line argument.</dd>
 </dl>
-<dl>
-  <dt><b>navigate to</b></dt>
-  <dd>If the selected item is part of the current playlist or one of
+<blockquote>
+  <dl>
+    <dt><b>navigate to</b></dt>
+    <dd>If the selected item is part of the current playlist or one of
 the nested playlists, then the playback position is moved to the
 appropriate location. Otherwise the same action as 'load new' is taken.</dd>
-  <dt><b>load new</b></dt>
-  <dd>The current playback is immediately stopped (if any) and the
+    <dt><b>load new</b></dt>
+    <dd>The current playback is immediately stopped (if any) and the
 selected item(s) are loaded into the player. This discards any playlist
 in the call stack, i.e. if you double-click an item in the current
 playlist the playlist is left and only the selected item is played.</dd>
-  <dt><b>append</b> </dt>
-  <dd>When you drop items to PM123 or call PM123 with a filename in the
+    <dt><b>append</b> </dt>
+    <dd>When you drop items to PM123 or call PM123 with a filename in
+the
 command line (most likely by a association of the PMSHELL) you may
-append these items to the default playlist instead of immediately
+append these items to the default playlist instead of
+immediately
 replacing the currently playing file with the new song. This may be
 used to enqueue songs.</dd>
-</dl>
+  </dl>
+</blockquote>
 <dl>
-  <dt><b>Queue mode</b> </dt>
+  <dt><b>Queue mode</b></dt>
   <dd>In queue mode PM123 removes completely played items from the
 default playlist. Together with "Append to default playlist" this
 offers an option to use the default playlist as queue of items to play.
-This is similar to a printer queue. </dd>
+This is similar to a printer queue.</dd>
 </dl>
 </body>
 </html>

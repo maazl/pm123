@@ -72,7 +72,8 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
     else if (!Ctrl::IsPlaying())
       need_jump = true;
     else
-    { APlayable* root = Ctrl::GetRoot();
+    { // TODO: this is not thread safe
+      APlayable* root = Ctrl::GetRoot();
       if (root && root->GetPlayable() != pl)
         // we are currently not at the default playlist.
         pl.InsertItem(*root, NULL);
@@ -85,7 +86,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
     ps = &pl;
   }
 
-  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, (Opt & LoadKeepRoot) != 0);
+  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps, (Opt & LoadKeepItem) != 0);
   Ctrl::ControlCommand* tail = cmd;
   if (need_jump && startat->GetIndex() > 1)
   { Location* startloc = new Location(&ps->GetPlayable());
@@ -94,7 +95,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
     tail = tail->Link = Ctrl::MkJump(startloc, false);
     tail->Callback = &LoadHelper::JumpCompleted;
   }
-  tail = tail->Link = Ctrl::MkSkip(0, (Opt & LoadKeepRoot) != 0);
+  tail = tail->Link = Ctrl::MkSkip(0, (Opt & LoadKeepItem) != 0);
   if (Opt & LoadPlay)
     // Start playback immediately after loading has completed
     tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);

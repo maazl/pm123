@@ -360,14 +360,13 @@ not loaded in parallel by different worker threads.</td>
       <td valign="top">This causes significant delays on http streams.<br>
 Most likely the TrySync option overshot the mark.</td>
     </tr>
-    <tr class="fixed">
+    <tr class="open">
       <td valign="top">35 minor bug,<br>
-fixed</td>
+reopened</td>
       <td valign="top">When loading a playlist without active playback,
 the total playing time is sometimes not displayed in the main window.</td>
-      <td valign="top">There seems to be some problem with the update
-notification.<br>
-Sometimes on the the item count is never updated. Reason unknown.</td>
+      <td valign="top">The aggregate information required for the
+calculation seems to vanish shortly after it appeared. Reason unknown. </td>
     </tr>
     <tr class="open">
       <td valign="top">36 minor todo,<br>
@@ -394,7 +393,7 @@ selected to play.</td>
     </tr>
     <tr class="fixed">
       <td valign="top"><em>38 medium bug,<br>
-fixed</em></td>
+fixed (1.42a)</em></td>
       <td valign="top">Total remaining time and remaining playlist
 items in shuffle mode wrong.</td>
       <td valign="top">The displayed differences do not care about the
@@ -402,12 +401,19 @@ shuffle sequence.</td>
     </tr>
     <tr class="fixed">
       <td valign="top"><strong>39 major bug,<br>
-fixed</strong></td>
+fixed (1.42a)</strong></td>
       <td valign="top">Append to default playlist discards the
 currently playing item.</td>
       <td valign="top">When a song is playing the append option
 immediately navigates to the new song rather than to continue playback
 of the current song.</td>
+    </tr>
+    <tr class="open">
+      <td valign="top"><em>40 medium todo,<br>
+open</em></td>
+      <td valign="top">Nested slices are not processed correctly when
+calculating aggregate information.</td>
+      <td valign="top">Slices are not implemented in <tt>SongIterator::CaclcOffsetCacheEntry</tt>.</td>
     </tr>
   </tbody>
 </table>

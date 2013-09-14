@@ -322,6 +322,7 @@ Location::NavigationResult Location::Navigate(Job& job, APlayable* target, int i
   if (!target)
     return NavigateCount(job, index, ~TATTR_NONE, mindepth, maxdepth);
 
+  /* This old code with unknown use causes internal inconsistencies.
   // Auto enter root
   { APlayable* cur = GetCurrent();
     if (cur && cur == Root)
@@ -333,7 +334,7 @@ Location::NavigationResult Location::Navigate(Job& job, APlayable* target, int i
           maxdepth = 1;
       }
     }
-  }
+  }*/
 
   // Do navigation
   xstring ret;

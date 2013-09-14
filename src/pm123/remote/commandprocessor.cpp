@@ -671,7 +671,7 @@ void CommandProcessor::XEnqueue()
 
 void CommandProcessor::XInvoke()
 { const volatile amp_cfg& cfg = Cfg::Get();
-  LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.keeproot*LoadHelper::LoadKeepRoot);
+  LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.keeproot*LoadHelper::LoadKeepItem);
   Reply.appendd(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 

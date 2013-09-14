@@ -35,7 +35,7 @@ be obtained first and maybe this causes a network time out.</p>
  href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the information about the
-current song is returned.</p>
+current song is returned.<small><sup><a href="meta.html#note1"><small>[1]</small></a></sup></small></p>
 <p>This
 query has no means of an error except if you forgot the URL and no song
 is currently loaded, in which case it will return an empty line. In all
@@ -89,7 +89,7 @@ you want to know how many playable song a playlist contains, use <tt><a
 <p>Returns meta information of the given <a href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt> is specified, the information about the
-current song is returned.</p>
+current song is returned.<small><sup><a href="meta.html#note1"><small>[1]</small></a></sup></small></p>
 <p>
 In case of an error or if no meta information is available only an
 empty line is returned. You may use <tt><a href="meta.html#info_format">info
@@ -126,7 +126,8 @@ empty strings.<br>
  href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
 no <tt>&lt;url&gt;</tt>
-is specified, the information about the current playlist is returned.
+is specified, the information about the current playlist is returned.<small><sup><a
+ href="meta.html#note1"><small>[1]</small></a></sup></small>
 Note that this is not the currently playing list but the one
 selected
 by <a href="playlist.html#playlist"><tt>playlist</tt></a>.</p>
@@ -186,7 +187,8 @@ of the information might be overridden by the playlist item.</p>
 <p>Refresh all meta information for the given <a
  href="../urlformat.html">file
 or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
-no <tt>&lt;url&gt;</tt> is specified, the current song is refreshed.
+no <tt>&lt;url&gt;</tt> is specified, the current song is refreshed.<small><sup><a
+ href="meta.html#note1"><small>[1]</small></a></sup></small>
 This will not impact any playback.<br>
 This command always returns an empty line, but this is not done before
 the information is really available.</p>
@@ -201,10 +203,19 @@ but it does not reload any information unless it is really needed and
 it does not wait for that.
 </p>
 <p>The URL may be enclosed in double quotes (<tt>"</tt>). If
-no <tt>&lt;url&gt;</tt> is specified, the current song is invalidated.
+no <tt>&lt;url&gt;</tt> is specified, the current song is invalidated.<a
+ href="#note1"><small><sup>[1]</sup></small></a>
 This will not impact any playback.<br>
 This command always returns an empty line.</p>
 <p>Note that the command will discard any unsaved changes if applied to
 playlists.</p>
+<h3><u>Notes</u></h3>
+<ol>
+  <li><a name="note1"></a>Be aware that using the commands <i>without</i>
+an URL is intrinsically unsafe because the current song might change at
+any time if a playlist is currently playing. Even the current playlist
+might change asynchronously because of a user interaction. So the
+result might not refer to the item that you expect.</li>
+</ol>
 </body>
 </html>
