@@ -206,11 +206,6 @@ class Plugin : public Iref_count
   /// But since a \c Plugin instance can only exist in a single PluginList,
   /// it is stored here to prevent further complexity.
   bool         Enabled;
- private:
-  //static delegate<void, const CfgChangeArgs> ConfigDelegate;
- private:
-  //static bool  Instantiate(Plugin* plugin, PluginList& list, const char* params);
-  //static void  ConfigNotification(void*, const CfgChangeArgs& args);
  protected:
   /// Instantiate a new plug-in.
                Plugin(Module& mod, PLUGIN_TYPE type);
@@ -291,9 +286,6 @@ public:
   /// The plug-in type is detected automatically from the type of \a source.
   /// @param source New plug-in list. Assigned by the old value on return.
   static void  SetPluginList(PluginList* source);
-
-/*  static void  Init();
-  static void  Uninit();*/
 };
 
 

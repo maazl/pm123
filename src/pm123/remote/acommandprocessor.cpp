@@ -33,7 +33,7 @@
 
 
 const char* ACommandProcessor::Execute(const char* cmd)
-{ char* buffer = Request = strdup(cmd);
+{ char* const buffer = Request = strdup(cmd);
   Reply.clear();
   Exec();
   free(buffer);

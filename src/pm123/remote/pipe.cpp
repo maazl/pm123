@@ -124,11 +124,11 @@ static void TFNENTRY pipe_thread(void*)
           memcpy(cp2, "invoke ", 7);
         } else
           ++cp2;
-        const char* ret = cmdproc->Execute(cp2);
-        DEBUGLOG(("pipe_thread: command done: %s\n", ret));
+        const xstring& ret = cmdproc->Execute(cp2);
+        DEBUGLOG(("pipe_thread: command done: %s\n", ret.cdata()));
         // send reply
-        ULONG actual = strlen(ret);
-        DosWrite(HPipe, (PVOID)ret, actual, &actual);
+        ULONG actual = ret.length();
+        DosWrite(HPipe, (PVOID)ret.cdata(), actual, &actual);
         DosWrite(HPipe, "\n\n", ret[actual-1] != '\n' ? 2 : 1, &actual);
         DosResetBuffer(HPipe);
       }

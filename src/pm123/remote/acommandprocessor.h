@@ -40,20 +40,20 @@ class ACommandProcessor
   xstringbuilder Reply;
 
  private: // non-copyable
-  ACommandProcessor(const ACommandProcessor&);
-  void operator=(const ACommandProcessor&);
+                 ACommandProcessor(const ACommandProcessor&);
+  void           operator=(const ACommandProcessor&);
  protected:
-  ACommandProcessor() {}
+                 ACommandProcessor() {}
   /// Executes the Command \c Request and return a value in \c Reply.
   /// Note that \c Request is mutable. The referenced buffer content will be destroyed.
-  virtual void Exec() = 0;
+  virtual void   Exec() = 0;
  public:
-  virtual ~ACommandProcessor() {}
+  virtual        ~ACommandProcessor() {}
   /// Executes the Command \a cmd and return a value in \a ret.
   /// Note that \a cmd is mutable. The buffer content will be destroyed.
-  const char* Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply.cdata(); }
+  const xstring  Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply; }
   /// Same as above, but copies the command buffer first.
-  const char* Execute(const char* cmd);
+  const char*    Execute(const char* cmd);
 
   /// Use this factory method to create instances.
   static ACommandProcessor* Create();

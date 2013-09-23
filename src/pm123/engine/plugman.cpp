@@ -675,29 +675,12 @@ void Plugin::SetPluginList(PluginList* source)
   ChangeEvent(ea);
 }
 
-/*void Plugin::Init()
-{ Cfg::GetChange() += ConfigDelegate;
-}
-
-void Plugin::Uninit()
-{ ConfigDelegate.detach();
-}*/
-
 
 /****************************************************************************
 *
 * PluginList collection
 *
 ****************************************************************************/
-
-/*bool PluginList::remove(Plugin* plugin)
-{ DEBUGLOG(("PluginList(%p)::remove(%p)\n", this, plugin));
-  const int_ptr<Plugin>* ppp = find(plugin);
-  if (!ppp)
-    return false;
-  erase(ppp);
-  return true;
-}*/
 
 const xstring PluginList::Serialize() const
 { DEBUGLOG(("PluginList::Serialize() - %u\n", size()));
