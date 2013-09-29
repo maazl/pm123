@@ -159,6 +159,7 @@ class NotebookDialogBase : public DialogBase
   NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None);
   void              StartDialog(HWND owner, ULONG nbid, HWND parent = HWND_DESKTOP);
   PageBase*         PageFromID(ULONG pageid);
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 };
 
 /** Wrapper class for dialog base classes to tie the object lifetime

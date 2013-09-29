@@ -241,6 +241,37 @@ NotebookDialogBase::PageBase* NotebookDialogBase::PageFromID(ULONG pageid)
   return NULL;
 }
 
+MRESULT NotebookDialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{
+  switch (msg)
+  {case WM_CONTROL:
+    if (SHORT1FROMMR(mp1) == NotebookCtrl.ID())
+    { switch (SHORT2FROMMP(mp1))
+      { // propagate page change notifications to page windows
+       case BKN_PAGESELECTEDPENDING:
+        { PAGESELECTNOTIFY& notify = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+          if (notify.ulPageIdNew && notify.ulPageIdCur)
+          { HWND page = PageFromID(notify.ulPageIdCur)->GetHwnd();
+            WinSendMsg(page, msg, MPFROM2SHORT(ControlBase(page).ID(), BKN_PAGESELECTEDPENDING), mp2);
+          }
+        }
+        break;
+       case BKN_PAGESELECTED:
+        { PAGESELECTNOTIFY& notify = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+          if (notify.ulPageIdNew)
+          { PageBase* page = PageFromID(notify.ulPageIdNew);
+            if (page != NULL) // We sometimes get called with an invalid ulPageIdNew.
+              WinSendMsg(page->GetHwnd(), msg, MPFROM2SHORT(ControlBase(page->GetHwnd()).ID(), BKN_PAGESELECTED), mp2);
+          }
+        }
+        break;
+      }
+    }
+    break;
+  }
+  return DialogBase::DlgProc(msg, mp1, mp2);
+}
+
 
 void SubclassWindow::DoAttach()
 { // Replace HWND parameter of window function by this.

@@ -56,6 +56,23 @@ USHORT RadioButton::CheckID() const
   return 0;
 }
 
+void RadioButton::EnableAll(bool enabled)
+{
+  HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
+  HWND cur = Hwnd;
+  HWND prev = cur; // Work around for PM bug
+  char classname[8];
+  do
+  { if ( WinQueryClassName(cur, sizeof classname, classname) == 2
+      && classname[0] == '#' && classname[1] == '3' ) // is WC_BUTTON
+      PMRASSERT(WinEnableWindow(cur, enabled));
+    prev = cur;
+    cur = WinEnumDlgItem(parent, cur, EDI_NEXTGROUPITEM);
+    if (cur == prev)
+      cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
+  } while (cur != Hwnd);
+}
+
 void ListBox::InsertItems(const char*const* items, unsigned count, int where)
 { LBOXINFO lbi = {0};
   lbi.lItemIndex = where;

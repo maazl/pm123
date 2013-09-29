@@ -43,6 +43,7 @@ struct ControlBase
 { HWND        Hwnd;
   ControlBase(HWND hwnd)                            : Hwnd(hwnd) {}
   bool        operator!() const                     { return Hwnd == NULLHANDLE; }
+  USHORT      ID() const                            { return WinQueryWindowUShort(Hwnd, QWS_ID); }
   void        Enabled(bool enable)                  { PMRASSERT(WinEnableWindow(Hwnd, enable)); }
   ULONG       Style() const                         { return WinQueryWindowULong(Hwnd, QWL_STYLE); }
   void        Text(const char* text)                { PMRASSERT(WinSetWindowText(Hwnd, text)); }
@@ -61,6 +62,7 @@ struct RadioButton : ControlBase
   bool        CheckState() const                    { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
   int         CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
+  void        EnableAll(bool enable);
 };
 
 struct ListBox : ControlBase
