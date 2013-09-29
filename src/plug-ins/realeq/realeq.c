@@ -165,7 +165,7 @@ static enum
 
 typedef struct FILTER_STRUCT {
 
-   ULONG  DLLENTRYP(output_command)       (struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+   ULONG  DLLENTRYP(output_command)       (struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info);
    int    DLLENTRYP(output_request_buffer)(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
    void   DLLENTRYP(output_commit_buffer) (struct FILTER_STRUCT* a, int len, PM123_TIME pos);
    void*  a;
@@ -896,18 +896,20 @@ static void DLLENTRY filter_commit_buffer(REALEQ_STRUCT* f, int len, PM123_TIME 
   }
 }
 
-static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
+static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, const OUTPUT_PARAMS2* info)
 { ULONG rc;
   INFO_BUNDLE_CV ib;
   TECH_INFO ti;
-  const INFO_BUNDLE_CV* old_info = info->Info;
+  OUTPUT_PARAMS2 new_info;
   DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
-  if (old_info && old_info->tech->channels == 1 && eqenabled)
-  { ib = *old_info;
+  if (info->Info->tech->channels == 1 && eqenabled)
+  { new_info = *info;
+    ib = *new_info.Info;
     ti = *ib.tech;
     ti.channels = 2;
     ib.tech = &ti;
-    info->Info = &ib;
+    new_info.Info = &ib;
+    info = &new_info;
   }
   switch (msg)
   {case OUTPUT_TRASH_BUFFERS:
@@ -920,8 +922,6 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2
     break;
   }
   rc = (*f->output_command)(f->a, msg, info);
-  // restore info to keep upstream filters consistent.
-  info->Info = old_info;
   return rc;
 }
 

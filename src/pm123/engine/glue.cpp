@@ -143,7 +143,6 @@ void GlueImp::Virtualize(int i)
   Filter& fil = (Filter&)*FilterPlugs[i];
   // Virtualize procedures
   FILTER_PARAMS2 par;
-  par.size                   = sizeof par;
   par.output_command         = Procs.output_command;
   par.output_playing_samples = Procs.output_playing_samples;
   par.output_request_buffer  = Procs.output_request_buffer;
@@ -151,8 +150,8 @@ void GlueImp::Virtualize(int i)
   par.output_playing_pos     = Procs.output_playing_pos;
   par.output_playing_data    = Procs.output_playing_data;
   par.a                      = Procs.A;
-  par.output_event           = OParams.OutEvent;
-  par.w                      = OParams.W;
+  par.output_event           = (void DLLENTRYPF()(struct FILTER_STRUCT*, OUTEVENTTYPE))OParams.OutEvent;
+  par.w                      = (struct FILTER_STRUCT*)OParams.W;
   if (!fil.Initialize(&par))
   { EventHandler::PostFormat(MSG_WARNING, "The filter plug-in %s failed to initialize.", fil.ModRef->Key.cdata());
     FilterPlugs.erase(i);
@@ -172,9 +171,9 @@ void GlueImp::Virtualize(int i)
   Virtualize(i-1);
   // store new callback if virtualized by the plug-in.
   BOOL vcallback = par.output_event != last_output_event;
-  last_output_event = par.output_event; // swap...
-  par.output_event  = OParams.OutEvent;
-  par.w             = OParams.W;
+  last_output_event = (void DLLENTRYPF()(void*, OUTEVENTTYPE))par.output_event; // swap...
+  par.output_event  = (void DLLENTRYPF()(struct FILTER_STRUCT*, OUTEVENTTYPE))OParams.OutEvent;
+  par.w             = (struct FILTER_STRUCT*)OParams.W;
   if (vcallback)
   { // set params for next instance.
     OParams.OutEvent = last_output_event;

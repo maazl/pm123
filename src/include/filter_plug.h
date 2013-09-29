@@ -103,11 +103,9 @@ BOOL  DLLENTRY filter_uninit( struct FILTER_STRUCT* f );
 
 typedef struct _FILTER_PARAMS2
 {
-  int size;
-
   /* virtual output interface
    * To virtualize one of these functions replace the pointer at the filter_init call. */
-  ULONG  DLLENTRYP(output_command)(struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  ULONG  DLLENTRYP(output_command)(struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info);
   ULONG  DLLENTRYP(output_playing_samples)(struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
   int    DLLENTRYP(output_request_buffer)(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
   void   DLLENTRYP(output_commit_buffer)(struct FILTER_STRUCT* a, int len, PM123_TIME posmarker);
@@ -117,8 +115,8 @@ typedef struct _FILTER_PARAMS2
   
   /* callback event
    * To virtualize these function replace the pointer at the filter_init call. */
-  void  DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event);
-  void* w;  /* only to be used with the precedent function */
+  void  DLLENTRYP(output_event)(struct FILTER_STRUCT* w, OUTEVENTTYPE event);
+  struct FILTER_STRUCT* w;  /* only to be used with the precedent function */
 
 } FILTER_PARAMS2;
 

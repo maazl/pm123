@@ -55,7 +55,7 @@ struct OutputProcs
   struct FILTER_STRUCT*  A;
   ULONG  DLLENTRYP(output_init           )(struct FILTER_STRUCT** a);
   ULONG  DLLENTRYP(output_uninit         )(struct FILTER_STRUCT* a);
-  ULONG  DLLENTRYP(output_command        )(struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  ULONG  DLLENTRYP(output_command        )(struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info);
   int    DLLENTRYP(output_request_buffer )(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
   void   DLLENTRYP(output_commit_buffer  )(struct FILTER_STRUCT* a, int len, double posmarker);
   ULONG  DLLENTRYP(output_playing_samples)(struct FILTER_STRUCT* a, PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);

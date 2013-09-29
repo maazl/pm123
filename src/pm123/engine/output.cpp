@@ -141,7 +141,7 @@ class OutputProxy1 : public Output, protected ProxyHelper
   VDELEGATE    vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos, vd_output_playing_samples;
 
  private:
-  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_command        (OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info);
+  PROXYFUNCDEF ULONG      DLLENTRY proxy_1_output_command        (OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info);
   PROXYFUNCDEF int        DLLENTRY proxy_1_output_request_buffer (OutputProxy1* op, struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
   PROXYFUNCDEF void       DLLENTRY proxy_1_output_commit_buffer  (OutputProxy1* op, struct FILTER_STRUCT* a, int len, PM123_TIME posmarker);
   PROXYFUNCDEF PM123_TIME DLLENTRY proxy_1_output_playing_pos    (OutputProxy1* op, struct FILTER_STRUCT* a);
@@ -190,7 +190,7 @@ inline void OutputProxy1::SendSamples(void* a)
 
 /* virtualization of level 1 output plug-ins */
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
-proxy_1_output_command(OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, OUTPUT_PARAMS2* info)
+proxy_1_output_command(OutputProxy1* op, struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info)
 { DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->ModRef->Key.cdata(), a, msg, info));
 
   if (info == NULL) // sometimes info is NULL
