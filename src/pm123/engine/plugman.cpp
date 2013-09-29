@@ -520,7 +520,7 @@ void Plugin::RaisePluginChange(PluginEventArgs::event ev)
 
 void Plugin::GetParams(stringmap_own& params) const
 { static const xstring enparam = "enabled";
-  params.get(enparam) = new stringmapentry(enparam, Enabled ? "yes" : "no");
+  params.get(enparam) = new stringmapentry(enparam, Enabled ? "true" : "false");
 }
 
 bool Plugin::SetParam(const char* param, const xstring& value)
