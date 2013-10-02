@@ -61,7 +61,7 @@ DialogBase::DialogBase(ULONG rid, HMODULE module, DlgFlags flags)
 DialogBase::~DialogBase()
 { DEBUGLOG(("DialogBase(%p{%u})::~DialogBase()\n", this, DlgRID));
   if (HwndFrame != NULLHANDLE)
-    WinDestroyWindow(GetHwnd());
+    WinDestroyWindow(HwndFrame);
 }
 
 MRESULT EXPENTRY wb_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -203,6 +203,18 @@ NotebookDialogBase::NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags
 : DialogBase(rid, module, flags)
 , NotebookCtrl(NULLHANDLE)
 {}
+
+NotebookDialogBase::~NotebookDialogBase()
+{ // notify current page about deselection
+  PAGESELECTNOTIFY pn;
+  pn.ulPageIdCur = NotebookCtrl.CurrentPageID();
+  PageBase* page = PageFromID(pn.ulPageIdCur);
+  if (page != NULL)
+  { pn.hwndBook = NotebookCtrl.Hwnd;
+    pn.ulPageIdNew = 0;
+    WinSendMsg(page->GetHwnd(), WM_CONTROL, MPFROM2SHORT(ControlBase(page->GetHwnd()).ID(), BKN_PAGESELECTEDPENDING), MPFROMP(&pn));
+  }
+}
 
 void NotebookDialogBase::StartDialog(HWND owner, ULONG nbid, HWND parent)
 { DEBUGLOG(("NotebookDialogBase(%p)::StartDialog(%p, %u, %p)\n", this, owner, nbid, parent));

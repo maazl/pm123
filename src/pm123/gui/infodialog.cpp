@@ -969,14 +969,14 @@ bool InfoDialog::IsVisible(PageNo page) const
 { ASSERT((size_t)page < Pages.size());
   PageBase* pp = (PageBase*)Pages[page];
   ASSERT(pp);
-  return GetVisible() && NotebookCtrl.GetTopPageID() == pp->GetPageID();
+  return GetVisible() && NotebookCtrl.CurrentPageID() == pp->GetPageID();
 }
 
 void InfoDialog::ShowPage(PageNo page)
 { ASSERT((size_t)page < Pages.size());
   PageBase* pp = (PageBase*)Pages[page];
   ASSERT(pp);
-  NotebookCtrl.TurnToPage(pp->GetPageID());
+  NotebookCtrl.CurrentPageID(pp->GetPageID());
   SetVisible(true);
 }
 

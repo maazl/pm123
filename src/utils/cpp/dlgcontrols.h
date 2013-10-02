@@ -105,8 +105,8 @@ struct SpinButton : ControlBase
 
 struct Notebook : ControlBase
 { Notebook(HWND hwnd) : ControlBase(hwnd) {}
-  ULONG       GetTopPageID() const                  { return LONGFROMMR(WinSendMsg(Hwnd, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP, 0))); }
-  void        TurnToPage(ULONG id)                  { PMRASSERT(WinSendMsg(Hwnd, BKM_TURNTOPAGE, MPFROMLONG(id), 0)); }
+  ULONG       CurrentPageID() const                 { return LONGFROMMR(WinSendMsg(Hwnd, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP, 0))); }
+  void        CurrentPageID(ULONG id)               { PMRASSERT(WinSendMsg(Hwnd, BKM_TURNTOPAGE, MPFROMLONG(id), 0)); }
 };
 
 #endif

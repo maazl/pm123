@@ -157,6 +157,7 @@ class NotebookDialogBase : public DialogBase
 
  protected:
   NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None);
+  virtual           ~NotebookDialogBase();
   void              StartDialog(HWND owner, ULONG nbid, HWND parent = HWND_DESKTOP);
   PageBase*         PageFromID(ULONG pageid);
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
