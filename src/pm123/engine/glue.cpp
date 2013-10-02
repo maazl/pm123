@@ -152,7 +152,7 @@ void GlueImp::Virtualize(int i)
   par.a                      = Procs.A;
   par.output_event           = (void DLLENTRYPF()(struct FILTER_STRUCT*, OUTEVENTTYPE))OParams.OutEvent;
   par.w                      = (struct FILTER_STRUCT*)OParams.W;
-  if (!fil.Initialize(&par))
+  if (!fil.Initialize(par))
   { EventHandler::PostFormat(MSG_WARNING, "The filter plug-in %s failed to initialize.", fil.ModRef->Key.cdata());
     FilterPlugs.erase(i);
     Virtualize(i-1);
@@ -165,7 +165,7 @@ void GlueImp::Virtualize(int i)
   Procs.output_commit_buffer   = par.output_commit_buffer;
   Procs.output_playing_pos     = par.output_playing_pos;
   Procs.output_playing_data    = par.output_playing_data;
-  Procs.A                      = fil.GetProcs().F;
+  Procs.A                      = fil.GetFilterPtr();
   void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = OParams.OutEvent;
   // next filter
   Virtualize(i-1);
@@ -177,12 +177,12 @@ void GlueImp::Virtualize(int i)
   if (vcallback)
   { // set params for next instance.
     OParams.OutEvent = last_output_event;
-    OParams.W        = fil.GetProcs().F;
+    OParams.W        = fil.GetFilterPtr();
     DEBUGLOG(("Glue::Virtualize: callback virtualized: %p %p\n", OParams.OutEvent, OParams.W));
   }
   if (par.output_event != last_output_event)
   { // now update the decoder event
-    (*fil.GetProcs().filter_update)(fil.GetProcs().F, &par);
+    fil.UpdateEvent(par);
     DEBUGLOG(("Glue::Virtualize: callback update: %p %p\n", par.output_event, par.w));
   }
 }

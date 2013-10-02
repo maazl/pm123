@@ -70,34 +70,40 @@ bool Filter::UninitPlugin()
   return true;
 }
 
-bool Filter::Initialize(FILTER_PARAMS2* params)
-{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, ModRef->Key.cdata(), params));
+bool Filter::Initialize(FILTER_PARAMS2& params)
+{ DEBUGLOG(("Filter(%p{%s})::Initialize(&%p)\n", this, ModRef->Key.cdata(), &params));
 
-  FILTER_PARAMS2 par = *params;
-  if (IsInitialized() || (*filter_init)(&F, params) != 0)
+  Params = params;
+  if (IsInitialized() || (*filter_init)(&F, &params) != 0)
     return false;
 
   if (F == NULL)
   { // plug-in does not require local structures
     // => pass the pointer of the next stage and skip virtualization of untouched function
-    F = par.a;
+    F = Params.a;
   } else
   { // virtualize untouched functions
-    if (par.output_command          == params->output_command)
-      params->output_command         = vreplace1(&VRStubs[0], par.output_command, par.a);
-    if (par.output_playing_samples  == params->output_playing_samples)
-      params->output_playing_samples = vreplace1(&VRStubs[1], par.output_playing_samples, par.a);
-    if (par.output_request_buffer   == params->output_request_buffer)
-      params->output_request_buffer  = vreplace1(&VRStubs[2], par.output_request_buffer, par.a);
-    if (par.output_commit_buffer    == params->output_commit_buffer)
-      params->output_commit_buffer   = vreplace1(&VRStubs[3], par.output_commit_buffer, par.a);
-    if (par.output_playing_pos      == params->output_playing_pos)
-      params->output_playing_pos     = vreplace1(&VRStubs[4], par.output_playing_pos, par.a);
-    if (par.output_playing_data     == params->output_playing_data)
-      params->output_playing_data    = vreplace1(&VRStubs[5], par.output_playing_data, par.a);
+    if (Params.output_command          == params.output_command)
+      params.output_command         = vreplace1(&VRStubs[0], Params.output_command, Params.a);
+    if (Params.output_playing_samples  == params.output_playing_samples)
+      params.output_playing_samples = vreplace1(&VRStubs[1], Params.output_playing_samples, Params.a);
+    if (Params.output_request_buffer   == params.output_request_buffer)
+      params.output_request_buffer  = vreplace1(&VRStubs[2], Params.output_request_buffer, Params.a);
+    if (Params.output_commit_buffer    == params.output_commit_buffer)
+      params.output_commit_buffer   = vreplace1(&VRStubs[3], Params.output_commit_buffer, Params.a);
+    if (Params.output_playing_pos      == params.output_playing_pos)
+      params.output_playing_pos     = vreplace1(&VRStubs[4], Params.output_playing_pos, Params.a);
+    if (Params.output_playing_data     == params.output_playing_data)
+      params.output_playing_data    = vreplace1(&VRStubs[5], Params.output_playing_data, Params.a);
   }
   RaisePluginChange(PluginEventArgs::Init);
   return true;
+}
+
+void Filter::UpdateEvent(const FILTER_PARAMS2& params)
+{ Params.w = params.w;
+  Params.output_event = params.output_event;
+  (*filter_update)(F, &Params);
 }
 
 

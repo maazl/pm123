@@ -63,6 +63,7 @@ struct FilterProcs
 // specialized class for filter plug-ins
 class Filter : public Plugin, protected FilterProcs
 {private:
+  FILTER_PARAMS2 Params;
   VREPLACE1    VRStubs[6];
  protected:
   // instances of this class are only created by the factory function below.
@@ -72,20 +73,22 @@ class Filter : public Plugin, protected FilterProcs
   virtual void LoadPlugin();
  public:
   virtual ~Filter();
-  // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
+  /// No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
   virtual bool InitPlugin();
-  // Uninitialize the filter.
+  /// Uninitialize the filter.
   virtual bool UninitPlugin();
-  // Implementation of CL_PLUGIN::is_initialized.
+  /// Implementation of CL_PLUGIN::is_initialized.
   virtual bool IsInitialized() const   { return F != NULL; }
-  // Initialize the filter.
-  // params: pointer to a FILTER_PARAMS2 structure.
-  //         [in] Entry points of the downstream filter or output.
-  //         [out] Entry points of this filter instance.
-  // Return TRUE on success.
-  virtual bool Initialize(FILTER_PARAMS2* params);
-  /// Getter to the entry points of this plug-in.
-  const FilterProcs& GetProcs() const { return *this; }
+  /// Return pointer returned by filter_init.
+  struct FILTER_STRUCT* GetFilterPtr() const { return F; }
+  /// Initialize the filter.
+  /// @param params pointer to a FILTER_PARAMS2 structure.
+  ///        [in] Entry points of the downstream filter or output.
+  ///        [out] Entry points of this filter instance.
+  /// @return TRUE on success.
+          bool Initialize(FILTER_PARAMS2& params);
+  /// Update event callback of the filter plug-in.
+          void UpdateEvent(const FILTER_PARAMS2& params);
 
   /// Return the \c Filter instance on \a Module if it exists.
   /// Otherwise return \c NULL.
