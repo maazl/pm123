@@ -90,8 +90,8 @@ function causes
 PM123 to execute a remote command as if it were sent to the remote pipe
 interface. It returns the reply string. The returned storage is valid
 until the next call to <tt>exec_command</tt> or until <tt>plugin_deinit</tt>.
-&nbsp;Calls to <tt>exec_command</tt> must be
-serialized.<br>
+&nbsp;<em>Calls to <tt>exec_command</tt> must be
+serialized</em>.<br>
 The remote state information
 like the currently selected playlist is private to the plug-in and does
 not interfere with commands sent to the remote pipe or from another

@@ -40,6 +40,9 @@ X(plan) FFTEXP X(plan_many_dft_c2r)(int rank, const int *n,
 
      if (!inplace)
 	  flags |= FFTW_DESTROY_INPUT;
+
+     enter_sync();
+
      p = X(mkapiplan)(
 	  0, flags,
 	  X(mkproblem_rdft2_d)(
@@ -52,6 +55,8 @@ X(plan) FFTEXP X(plan_many_dft_c2r)(int rank, const int *n,
 	       TAINT_UNALIGNED(out, flags),
 	       TAINT_UNALIGNED(ri, flags), TAINT_UNALIGNED(ii, flags),
 	       HC2R));
+
+     leave_sync();
 
      X(ifree0)(nfi);
      X(ifree0)(nfo);

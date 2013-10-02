@@ -31,14 +31,16 @@ X(plan) FFTEXP X(plan_many_dft)(int rank, const int *n,
 			 int ostride, int odist, int sign, unsigned flags)
 {
      R *ri, *ii, *ro, *io;
+     X(plan) p;
 
      if (!X(many_kosherp)(rank, n, howmany)) return 0;
 
      X(extract_reim)(sign, in, &ri, &ii);
      X(extract_reim)(sign, out, &ro, &io);
 
-     return 
-	  X(mkapiplan)(sign, flags,
+     enter_sync();
+
+     p = X(mkapiplan)(sign, flags,
 		       X(mkproblem_dft_d)(
 			    X(mktensor_rowmajor)(rank, n, 
 						 N0(inembed), N0(onembed),
@@ -48,4 +50,7 @@ X(plan) FFTEXP X(plan_many_dft)(int rank, const int *n,
 			    TAINT_UNALIGNED(ii, flags),
 			    TAINT_UNALIGNED(ro, flags),
 			    TAINT_UNALIGNED(io, flags)));
+
+     leave_sync();
+     return p;
 }

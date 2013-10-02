@@ -63,8 +63,14 @@ void FFTEXP X(destroy_plan)(X(plan) p)
 {
      if (p) {
           AWAKE(p->pln, 0);
+
+          enter_sync();
+
           X(plan_destroy_internal)(p->pln);
           X(problem_destroy)(p->prb);
+
+          leave_sync();
+
           X(ifree)(p);
      }
 }

@@ -39,6 +39,9 @@ X(plan) FFTEXP X(plan_many_r2r)(int rank, const int *n,
      if (!X(many_kosherp)(rank, n, howmany)) return 0;
 
      k = X(map_r2r_kind)(rank, kind);
+
+     enter_sync();
+
      p = X(mkapiplan)(
 	  0, flags,
 	  X(mkproblem_rdft_d)(X(mktensor_rowmajor)(rank, n, 
@@ -47,6 +50,9 @@ X(plan) FFTEXP X(plan_many_r2r)(int rank, const int *n,
 			      X(mktensor_1d)(howmany, idist, odist),
 			      TAINT_UNALIGNED(in, flags), 
 			      TAINT_UNALIGNED(out, flags), k));
+
+     leave_sync();
+
      X(ifree0)(k);
      return p;
 }

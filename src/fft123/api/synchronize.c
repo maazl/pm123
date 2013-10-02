@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2003 Matteo Frigo
- * Copyright (c) 2003 Massachusetts Institute of Technology
+ * Copyright (c) 2013 Marcel Mueller
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,29 +17,28 @@
  *
  */
 
+#define INCL_BASE
 #include "api.h"
-#include "rdft.h"
+#include <os2.h>
+#include <interlocked.h>
 
-X(plan) FFTEXP X(plan_guru_split_dft_r2c)(int rank, const X(iodim) *dims,
-				   int howmany_rank,
-				   const X(iodim) *howmany_dims,
-				   R *in, R *ro, R *io, unsigned flags)
+
+static volatile HMTX Mutex;
+
+void enter_sync()
 {
-     X(plan) p;
+    if (Mutex == NULL)
+    {   // first call => initialize mutex
+        HMTX newmtx;
+        DosCreateMutexSem(NULL, &newmtx, 0, FALSE);
+        if (InterlockedCxc((volatile unsigned*)&Mutex, 0, (unsigned)newmtx) != 0)
+            // compare exchange failed => destroy mutex
+            DosCloseMutexSem(newmtx);
+    }
+    DosRequestMutexSem(Mutex, SEM_INDEFINITE_WAIT);
+}
 
-     if (!X(guru_kosherp)(rank, dims, howmany_rank, howmany_dims)) return 0;
-
-     enter_sync();
-
-     p = X(mkapiplan)(
-	  0, flags,
-	  X(mkproblem_rdft2_d)(X(mktensor_iodims)(rank, dims, 1, 1),
-			       X(mktensor_iodims)(howmany_rank, howmany_dims,
-						  1, 1),
-			       TAINT_UNALIGNED(in, flags),
-			       TAINT_UNALIGNED(ro, flags),
-			       TAINT_UNALIGNED(io, flags), R2HC));
-
-     leave_sync();
-     return p;
+void leave_sync()
+{
+    DosReleaseMutexSem(Mutex);
 }

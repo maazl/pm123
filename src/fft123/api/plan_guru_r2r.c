@@ -35,6 +35,9 @@ X(plan) FFTEXP X(plan_guru_r2r)(int rank, const X(iodim) *dims,
      if (!X(guru_kosherp)(rank, dims, howmany_rank, howmany_dims)) return 0;
 
      k = X(map_r2r_kind)(rank, kind);
+
+     enter_sync();
+
      p = X(mkapiplan)(
 	  0, flags,
 	  X(mkproblem_rdft_d)(X(mktensor_iodims)(rank, dims, 1, 1),
@@ -42,6 +45,9 @@ X(plan) FFTEXP X(plan_guru_r2r)(int rank, const X(iodim) *dims,
 						 1, 1), 
 			      TAINT_UNALIGNED(in, flags),
 			      TAINT_UNALIGNED(out, flags), k));
+
+     leave_sync();
+
      X(ifree0)(k);
      return p;
 }

@@ -38,6 +38,8 @@ X(plan) FFTEXP X(plan_many_dft_r2c)(int rank, const int *n,
      X(extract_reim)(FFT_SIGN, out, &ro, &io);
      inplace = in == ro;
 
+     enter_sync();     
+
      p = X(mkapiplan)(
 	  0, flags, 
 	  X(mkproblem_rdft2_d)(
@@ -50,6 +52,8 @@ X(plan) FFTEXP X(plan_many_dft_r2c)(int rank, const int *n,
 	       TAINT_UNALIGNED(in, flags),
 	       TAINT_UNALIGNED(ro, flags), TAINT_UNALIGNED(io, flags),
 	       R2HC));
+
+     leave_sync();
 
      X(ifree0)(nfi);
      X(ifree0)(nfo);

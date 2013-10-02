@@ -67,4 +67,9 @@ void X(mapflags)(planner *, unsigned);
 
 apiplan *X(mkapiplan)(int sign, unsigned flags, problem *prb);
 
+/* extension for thread-safety */
+void enter_sync();
+void leave_sync();
+
+
 #endif				/* __API_H__ */

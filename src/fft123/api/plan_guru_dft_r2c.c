@@ -27,12 +27,15 @@ X(plan) FFTEXP X(plan_guru_dft_r2c)(int rank, const X(iodim) *dims,
 			     R *in, C *out, unsigned flags)
 {
      R *ro, *io;
+     X(plan) p;
 
      if (!X(guru_kosherp)(rank, dims, howmany_rank, howmany_dims)) return 0;
 
      X(extract_reim)(FFT_SIGN, out, &ro, &io);
 
-     return X(mkapiplan)(
+     enter_sync();
+
+     p = X(mkapiplan)(
 	  0, flags,
 	  X(mkproblem_rdft2_d)(X(mktensor_iodims)(rank, dims, 1, 2),
 			       X(mktensor_iodims)(howmany_rank, howmany_dims,
@@ -40,4 +43,7 @@ X(plan) FFTEXP X(plan_guru_dft_r2c)(int rank, const X(iodim) *dims,
 			       TAINT_UNALIGNED(in, flags),
 			       TAINT_UNALIGNED(ro, flags),
 			       TAINT_UNALIGNED(io, flags), R2HC));
+
+     leave_sync();
+     return p;
 }

@@ -4,7 +4,7 @@
 
 DLL      = yes
 TOPDIR   = ..\..
-INCDIR   = ..\kernel;..\dft;..\rdft;..\reodft;$(TOPDIR)\include
+INCDIR   = ..\kernel;..\dft;..\rdft;..\reodft;$(TOPDIR)\include;$(TOPDIR)\utils
 TARGET   = all2
 
 !include $(TOPDIR)\config\makerules
@@ -34,7 +34,7 @@ OBJECTS2 = $(OBJECTS2) plan_guru_split_dft$(CO) plan_many_dft_c2r$(CO)
 OBJECTS2 = $(OBJECTS2) plan_many_dft_r2c$(CO) plan_many_dft$(CO) plan_many_r2r$(CO)
 OBJECTS2 = $(OBJECTS2) plan_r2r_1d$(CO) plan_r2r_2d$(CO) plan_r2r_3d$(CO)
 OBJECTS2 = $(OBJECTS2) plan_r2r$(CO) print_plan$(CO) rdft2_pad$(CO) the_planner$(CO)
-OBJECTS2 = $(OBJECTS2) version$(CO)
+OBJECTS2 = $(OBJECTS2) version$(CO) synchronize$(CO)
 
 api$(LBO): $(OBJECTS1) $(OBJECTS2)
 	if exist $@ del $@
