@@ -30,6 +30,7 @@
 #define DECONVOLUTION_H
 
 #include "Filter.h"
+//#include "Configurable.h"
 
 #include <fftw3.h>
 #include <cpp/smartptr.h>
@@ -82,7 +83,7 @@ class Deconvolution : public Filter
     ParameterSet(const ParameterSet&);
     void operator=(const ParameterSet&);
    public:
-    ParameterSet(const Parameters& r);
+    ParameterSet(const Parameters& r) : Parameters(r) {}
     sco_arr<Coeff> TargetResponse[2];
   };
   /// Currently configured parameter set
@@ -159,7 +160,7 @@ class Deconvolution : public Filter
   bool          Setup();
 
  protected:
-  virtual ULONG InCommand(ULONG msg, OUTPUT_PARAMS2* info);
+  virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info);
   virtual int   InRequestBuffer(const FORMAT_INFO2* format, float** buf);
   virtual void  InCommitBuffer(int len, PM123_TIME pos);
  public:

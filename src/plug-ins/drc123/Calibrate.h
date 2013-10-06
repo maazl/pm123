@@ -30,12 +30,49 @@
 #define CALIBRATE_H
 
 #include "OpenLoop.h"
+#include "DataFile.h"
+#include "DataVector.h"
+#include <cpp/event.h>
+#include <fftw3.h>
+
 
 class Calibrate : public OpenLoop
-{
+{public: // Configuration interface
+  enum MeasureMode
+  { MD_StereoLoop
+  , MD_MonoLoop
+  , MD_LeftLoop
+  , MD_RightLoop
+  };
+  class CalibrationFile : public DataFile
+  {public:
+    double      Volume;
+    MeasureMode Mode;
+    int         PlanSize;
+   private:
+    virtual bool ParseHeaderField(const char* string);
+    virtual bool WriteHeaderFields(FILE* f);
+   public:
+                CalibrationFile();
+  };
  public:
-  Calibrate(FILTER_PARAMS2& params);
-  virtual ~Calibrate();
+  static CalibrationFile CalData;
+ private:
+  static event<const int> EvDataUpdate;
+  FreqDomainData AnaCross;
+  TimeDomainData ResCross;
+  fftwf_plan    CrossPlan;
+
+ public:
+                Calibrate(FILTER_PARAMS2& params);
+  virtual       ~Calibrate();
+ protected:
+  virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info);
+  virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
+ public:
+  static  void  SetVolume(double volume) { CalData.Volume = volume; if (CurrentMode == MODE_CALIBRATE) OpenLoop::SetVolume(volume); }
+  static  bool  Start() { return OpenLoop::Start(MODE_CALIBRATE, CalData.Volume); }
+  static event_pub<const int>& GetEvDataUpdate() { return EvDataUpdate; }
 };
 
 #endif // CALIBRATE_H

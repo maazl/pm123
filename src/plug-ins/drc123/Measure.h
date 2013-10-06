@@ -34,8 +34,12 @@
 class Measure : public OpenLoop
 {
  public:
-  Measure(FILTER_PARAMS2& params);
-  virtual ~Measure();
+                Measure(FILTER_PARAMS2& params);
+  virtual       ~Measure();
+ protected:
+  virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
+ public:
+  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE, 1.0); }
 };
 
 #endif // MEASURE_H_

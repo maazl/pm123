@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Marcel Mueller
+ * Copyright 2013-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,16 +26,12 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Measure.h"
+#include "DataVector.h"
 
-Measure::Measure(FILTER_PARAMS2& params)
-: OpenLoop(params)
-{}
 
-Measure::~Measure()
-{}
-
-void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
-{
-  // TODO:
+void FreqDomainData::CrossCorrelate(const FreqDomainData& r)
+{ ASSERT(size() == r.size());
+  const fftwf_complex* sp = r.begin();
+  foreach(fftwf_complex,*, dp, *this)
+    *dp *= conj(*sp++);
 }

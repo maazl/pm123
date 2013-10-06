@@ -26,54 +26,41 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RESPONSEGRAPH_H
-#define RESPONSEGRAPH_H
+#ifndef VUMETER_H
+#define VUMETER_H
 
 #define INCL_GPI
 #include <cpp/windowbase.h>
 #include <os2.h>
-#include <math.h>
 
 
-class DataFile;
-
-class ResponseGraph : public SubclassWindow
-{ const DataFile&   Data;
-  const unsigned    StartCol;
-  double            Xmin, Xmax, LX, LXc;
-  double            Y1min, Y1max, Y1c, Y2min, Y2max, Y2c;
-  POINTL            XY1, XY2, XY1i, XY2i;
-  FONTMETRICS       FontMetrics;
+class VUMeter : public SubclassWindow
+{private:
+  double            MinValue;
+  double            DeltaValue;
+  double            WarnValue;
+  double            RedValue;
+  double            CurValue;
+  double            PeakValue;
+  POINTL            XY1, XY2;
  private:
-  LONG              ToX(double x)   { return (LONG)((log(x) - LX) / LXc * (XY2i.x - XY1i.x) + .5) + XY1i.x; }
-  LONG              ToYCore(double relative);
-  LONG              ToY1(double y1) { return ToYCore((y1 - Y1min) / Y1c); }
-  LONG              ToY2(double y2) { return ToYCore((y2 - Y2min) / Y2c); }
-  LONG              ToYdB(double f, double mag);
-  LONG              ToYT(double f, double delay);
-  static void       AxisText(char* target, double value);
-  /// Draw axis label
-  /// @param ps Presentation space.
-  /// @param at Point where the label belongs to.
-  /// @param quadrant Where is the label to be drawn.
-  /// 1 = upper right, 2 = upper left, 3 = lower left, 4 = lower right.
-  /// @param Value of the axis label.
-  void              DrawLabel(HPS ps, POINTL at, int quadrant, double value);
-  void              DrawText(HPS ps, POINTL at, const char* text);
-  void              DrawGraph(HPS ps, size_t column, LONG (ResponseGraph::*yscale)(double, double));
+  LONG              ToX(double value) { return (LONG)((value - MinValue) / DeltaValue * (XY2.x - XY1.x)) + XY1.x; }
   void              Draw(HPS ps);
  protected:
   virtual MRESULT   WinProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  /// Force redraw.
+          void      Invalidate();
  public:
-  ResponseGraph(const DataFile& data, unsigned startcol);
-  virtual ~ResponseGraph();
+                    VUMeter();
+  virtual           ~VUMeter();
   /// Activate this instance.
   virtual void      Attach(HWND hwnd);
   /// Disable this instance.
   virtual void      Detach();
-  /// Set axis for frequency, dB and group delay.
-  void              SetAxis(double xmin, double xmax, double y1min, double y1max, double y2min, double y2max);
-  void              Invalidate();
+  /// Set Display range.
+          void      SetRange(double min, double max, double warn, double red) { MinValue = min, DeltaValue = max - min; WarnValue = warn; RedValue = red; Invalidate(); }
+  /// Set new value.
+          void      SetValue(double cur, double peak) { CurValue = cur, PeakValue = peak; Invalidate(); }
 };
 
-#endif // RESPONSEGRAPH_H
+#endif // VUMETER_H

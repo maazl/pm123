@@ -33,10 +33,6 @@
 #include <minmax.h>
 
 
-Deconvolution::ParameterSet::ParameterSet(const Parameters& r)
-: Parameters(r)
-{}
-
 Deconvolution::ParameterSet Deconvolution::ParameterSet::Default;
 
 Deconvolution::ParameterSet::ParameterSet()
@@ -150,22 +146,17 @@ void Deconvolution::Convolute(fftwf_complex* sp, fftwf_complex* kp)
 { fftwf_complex* dp = FreqDomain;
   DEBUGLOG(("Deconvolution::Convolute(%p, %p) - %p\n", sp, kp, dp));
   int l;
-  float tmp;
   // Convolution in the frequency domain is simply a series of complex products.
   for (l = CurPlanSize21 >> 3; l; --l)
   { DO_8(p,
-      tmp = sp[p][0] * kp[p][0] - sp[p][1] * kp[p][1];
-      dp[p][1] = sp[p][1] * kp[p][0] + sp[p][0] * kp[p][1];
-      dp[p][0] = tmp;
+      dp[p] = sp[p] * kp[p];
     );
     sp += 8;
     kp += 8;
     dp += 8;
   }
   for (l = CurPlanSize21 & 7; l; --l)
-  { tmp = sp[0][0] * kp[0][0] - sp[0][1] * kp[0][1];
-    dp[0][1] = sp[0][1] * kp[0][0] + sp[0][0] * kp[0][1];
-    dp[0][0] = tmp;
+  { *dp = *sp * *kp;
     ++sp;
     ++kp;
     ++dp;
@@ -508,8 +499,7 @@ bool Deconvolution::Setup()
     // compose frequency spectrum
     { Coeff* cop = target->Channels[channel].get();
       double phase = 0;
-      FreqDomain[0][0] = 0.; // no DC
-      FreqDomain[0][1] = 0.;
+      FreqDomain[0] = 0.; // no DC
       for (i = 1; i < CurPlanSize21; ++i) // do not start at f=0 to avoid log(0)
       { const float f = i * fftspecres; // current frequency
         double pos;
@@ -523,8 +513,7 @@ bool Deconvolution::Setup()
         pos = .5 - .5*cos(M_PI * pos);
         val = exp(cop[0].LV + pos * (cop[1].LV - cop[0].LV));
         // convert to cartesian coordinates
-        FreqDomain[i][0] = val * cos(phase);
-        FreqDomain[i][1] = val * sin(phase);
+        FreqDomain[i] = std::polar(val, phase);
         DEBUGLOG2(("F: %i, %f, %f -> %f = %f dB, %f = %f ms@ %f\n",
           i, f, pos, val, TodB(val), phase*180./M_PI, cop[0].GD + pos * (cop[1].GD - cop[0].GD), exp(cop[0].LF)));
     } }
@@ -652,7 +641,7 @@ void Deconvolution::InCommitBuffer(int len, PM123_TIME pos)
   }
 }
 
-ULONG Deconvolution::InCommand(ULONG msg, OUTPUT_PARAMS2* info)
+ULONG Deconvolution::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 {
   // TODO:
   return PLUGIN_ERROR;

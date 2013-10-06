@@ -34,7 +34,9 @@
 #include "DataFile.h"
 #include "Deconvolution.h"
 #include "ResponseGraph.h"
+#include "VUMeter.h"
 #include <cpp/xstring.h>
+#include <cpp/event.h>
 #include <cpp/pmutils.h>
 #include <cpp/windowbase.h>
 #include <cpp/dlgcontrols.h>
@@ -48,6 +50,20 @@ class Frontend : public NotebookDialogBase
   static xstring FilterFile;
 
  private:
+  static const ULONG TID_VU = 101;
+
+  class ConfigurationPage : public PageBase
+  {public:
+    ConfigurationPage(Frontend& parent)
+    : PageBase(parent, DLG_CONFIG, parent.ResModule, DF_AutoResize)
+    { MajorTitle = "~Configure";
+      MinorTitle = "Configuration";
+    }
+    virtual ~ConfigurationPage();
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+
   class DeconvolutionPage : public PageBase
   {private:
     enum
@@ -59,10 +75,12 @@ class Frontend : public NotebookDialogBase
    public:
     DeconvolutionPage(Frontend& parent)
     : PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
-    , Result(Kernel)
-    { MajorTitle = "~Deconvolution";
-      MinorTitle = "Deconvolution filter";
+    , Result(Kernel, 1)
+    { MajorTitle = "~Playback";
+      MinorTitle = "Deconvolution at playback";
+      Result.SetAxis(20,20000, -40,+10, -10,40);
     }
+    ~DeconvolutionPage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    private:
@@ -74,8 +92,9 @@ class Frontend : public NotebookDialogBase
     GeneratePage(Frontend& parent)
     : PageBase(parent, DLG_GENERATE, parent.ResModule, DF_AutoResize)
     { MajorTitle = "~Generate";
-      MinorTitle = "Generate correction filter kernel";
+      MinorTitle = "Generate deconvolution filter";
     }
+    virtual ~GeneratePage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
@@ -87,19 +106,29 @@ class Frontend : public NotebookDialogBase
     { MajorTitle = "~Measure";
       MinorTitle = "Measure room response";
     }
+    virtual ~MeasurePage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
 
   class CalibratePage : public PageBase
-  {public:
-    CalibratePage(Frontend& parent)
-    : PageBase(parent, DLG_CALIBRATE, parent.ResModule, DF_AutoResize)
-    { MajorTitle = "~Calibrate";
-      MinorTitle = "Calibrate sound card";
-    }
+  {private:
+    enum
+    { UM_UPDATE = WM_USER
+    };
+   private:
+    VUMeter       VULeft;
+    VUMeter       VURight;
+    ResponseGraph Response;
+    ResponseGraph XTalk;
+    class_delegate<CalibratePage,const int> AnaUpdateDeleg;
+   public:
+    CalibratePage(Frontend& parent);
+    virtual ~CalibratePage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+   private:
+    void          AnaUpdateNotify(const int&);
   };
 
  public:

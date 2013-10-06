@@ -35,15 +35,42 @@
 #include <debuglog.h>
 
 
-void DataFile::Clear()
+DataRowType::DataRowType(size_t size)
+: sco_arr<double>(size)
+{ // Set all numbers to quiet NaN.
+  memset(begin(), 0xff, size * sizeof *begin());
+}
+
+
+bool DataFile::ParseHeaderField(const char* string)
+{ return true;
+}
+
+bool DataFile::WriteHeaderFields(FILE* f)
+{ return true;
+}
+
+DataFile::DataFile(unsigned cols)
+: MaxColumns(cols)
+{}
+
+DataFile::~DataFile()
+{}
+
+void DataFile::clear()
 { Description.reset();
   MaxColumns = 0;
-  Data.clear();
+  vector_own<DataRowType>::clear();
+}
+
+void DataFile::columns(unsigned cols)
+{ ASSERT(!size());
+  MaxColumns = cols;
 }
 
 bool DataFile::Load(const char* filename, bool nodata)
 { DEBUGLOG(("DataFile(%p)::Load(%s, %u)\n", this, filename, nodata));
-  Clear();
+  clear();
 
   FILE* f = fopen(filename, "r");
   if (!f)
@@ -57,7 +84,14 @@ bool DataFile::Load(const char* filename, bool nodata)
     {case '#':
      case ';':
      case '\'':
-      if (isheader)
+      if (line[1] == '#')
+      { if (!ParseHeaderField(line+2))
+        {error:
+          errno = ERANGE;
+          fclose(f);
+          return false;
+        }
+      } else if (isheader)
         descr.append(line + 1 + strspn(line+1, " \t\r\n"));
       break;
      default:
@@ -73,16 +107,12 @@ bool DataFile::Load(const char* filename, bool nodata)
           cp += n;
         }
         if (cp[strspn(cp, " \t\r\n")])
-        { // error
-          errno = ERANGE;
-          fclose(f);
-          return false;
-        }
+          goto error;
         // add row
         if (dp != values) // ignore empty lines
-        { RowType* newrow = new RowType(dp - values);
+        { DataRowType* newrow = new DataRowType(dp - values);
           memcpy(newrow->get(), values, newrow->size() * sizeof(double));
-          Data.append() = newrow;
+          append() = newrow;
           // adjust MaxColumns
           if (MaxColumns < newrow->size())
             MaxColumns = newrow->size();
@@ -95,14 +125,15 @@ bool DataFile::Load(const char* filename, bool nodata)
     }
   }
  nodata:
+  FileName = filename;
   Description = descr.get();
   fclose(f);
   return true;
 }
 
-bool DataFile::Save(const char* filename) const
+bool DataFile::Save(const char* filename)
 { DEBUGLOG(("DataFile(%p{%s, %u,%u})::Save(%s)\n", this,
-    Description.cdata(), Data.size(), MaxColumns, filename));
+    Description.cdata(), size(), MaxColumns, filename));
 
   FILE* f = fopen(filename, "w");
   if (!f)
@@ -111,6 +142,8 @@ bool DataFile::Save(const char* filename) const
   bool success = false;
   // write header
   const char* cp = Description;
+  if (!WriteHeaderFields(f))
+    goto end;
   for(;;)
   { const char* cp2 = strchr(cp, '\n');
     if (!cp2)
@@ -126,8 +159,8 @@ bool DataFile::Save(const char* filename) const
     goto end;
 
   // write data
-  foreach (RowType,*const*, rp, Data)
-  { RowType& row = **rp;
+  foreach (DataRowType,*const*, rp, *this)
+  { DataRowType& row = **rp;
     for (unsigned i = 0; i < row.size(); ++i)
     { if ( fprintf(f, "%f", row[i]) < 0
         || fputc(i == row.size()-1 ? '\n' : '\t', f) == EOF )
@@ -135,6 +168,7 @@ bool DataFile::Save(const char* filename) const
     }
   }
 
+  FileName = filename;
   success = true;
  end:
   fclose(f);

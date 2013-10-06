@@ -33,30 +33,34 @@
 #include <cpp/smartptr.h>
 #include <cpp/container/vector.h>
 #include <math.h>
+#include <stdio.h>
 
 
-class DataFile
+struct DataRowType : public sco_arr<double>
+{               DataRowType(size_t size);
+  double        operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
+  double&       operator[](size_t col)          { return sco_arr<double>::operator[](col); }
+};
+
+class DataFile : public vector_own<DataRowType>
 {public:
-  class RowType : public sco_arr<double>
-  {public:
-    RowType(size_t size)                        : sco_arr<double>(size) {}
-    double  operator[](size_t col) const        { return col >= size() ? NAN : get()[col]; }
-  };
- public:
-  xstring   Description;
+  xstring       FileName;
+  xstring       Description;
  private:
-  unsigned  MaxColumns;
-  vector_own<RowType> Data;
+  unsigned      MaxColumns;
 
+ protected:
+  virtual bool  ParseHeaderField(const char* string);
+  virtual bool  WriteHeaderFields(FILE* f);
  public:
-            DataFile()                          : MaxColumns(0) {}
-  virtual   ~DataFile()                         {}
-  unsigned  Rows() const                        { return Data.size(); }
-  unsigned  Columns() const                     { return MaxColumns; }
-  const vector<RowType>& Content() const        { return Data; }
-  void      Clear();
-  bool      Load(const char* filename, bool nodata = false);
-  bool      Save(const char* filename) const;
+                DataFile(unsigned cols = 0);
+  virtual       ~DataFile();
+  unsigned      columns() const                 { return MaxColumns; }
+ public:
+  virtual void  clear();
+  virtual void  columns(unsigned cols);
+  virtual bool  Load(const char* filename, bool nodata = false);
+  virtual bool  Save(const char* filename);
 };
 
 #endif // DATAFILE_H

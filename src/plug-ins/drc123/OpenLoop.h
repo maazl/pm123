@@ -30,21 +30,150 @@
 #define OPENLOOP_H
 
 #include "Filter.h"
+#include "DataFile.h"
+#include "DataVector.h"
 
 #include <cpp/xstring.h>
+#include <cpp/mutex.h>
+#include <cpp/smartptr.h>
+#include <fftw3.h>
+#include <math.h>
 
+
+/**
+ * Abstract base class for open loop measurements.
+ */
 class OpenLoop : public Filter
 {public:
+  struct SampleData
+  : public Iref_count
+  , public TimeDomainData
+  { unsigned    LoopCount;
+    SampleData(size_t len)      : TimeDomainData(len) {}
+  };
+  struct Statistics
+  { double      Sum2;
+    double      Peak;
+    unsigned long Count;
+    double      RMSdB() const   { return log(Sum2/(double)Count) * (20. / M_LN10 / 2.); }
+    double      PeakdB() const  { return log(Peak) * (20. / M_LN10); }
+    void        Add(const float* data, unsigned inc, unsigned count);
+    void        Add(const Statistics& r);
+    void        Reset()         { Sum2 = 0; Count = 0; Peak = 0; }
+    Statistics()                { Reset(); }
+  };
+
+ public:
+  /// Recording URI for measurements.
   static volatile xstring RecURI;
+  /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
+  static double FBin;
+ protected:
+  void          DLLENTRYP(OutEvent)(Filter* w, OUTEVENTTYPE event);
+  Filter*       OutW;
+ protected: // Reference parameters, must not be changed after GenerateRef!
+  /// Sampling frequency of the input and output data and number of channels in the \e input data.
+  /// @remarks The number of channels in the \e output data is in VFormat.channels.
+  FORMAT_INFO2  Format;
+  /// FFT size for reference and analysis.
+  unsigned      FFTSize;
+  /// Discard number of samples when recording starts.
+  unsigned      DiscardSamp;
+  /// Minimum frequency to analyze.
+  double        RefFMin;
+  /// Maximum frequency to analyze.
+  double        RefFMax;
+  /// @brief Energy distribution of the reference signal.
+  /// @details The Energy in the reference follows the rule P ~ f^RefExponent.
+  double        RefExponent;
+  /// Type of the reference signal.
+  enum Mode
+  { RFM_MONO          ///< The reference is single channel/mono.
+  , RFM_DIFFERENTIAL  ///< The reference is single channel, but the output on the right channel is inverted.
+                      ///< @remarks This could be used with appropriate hardware to suppress common mode noise.
+  , RFM_STEREO        ///< The reference has two orthogonal signals for both channels with distinct frequencies.
+                      ///< This mode causes all even frequencies to appear at one channel while all odd frequencies are on the other channel.
+  }             RefMode;
+  /// Swap channels on input processing.
+  bool          AnaSwap;
+ private: // ref generator state
+  /// Current playback volume of the generator.
+  static double RefVolume;
+  /// Thread ID of reference generator
+  int           RefTID;
+  /// true if the output device sent \c OUTEVENT_LOW_WATER,
+  /// false if the output device sent \c OUTEVENT_HIGH_WATER.
+  bool          IsLowWater;
+  /// The reference function has been generated.
+  volatile bool InitComplete;
+  /// Request to terminate the generator thread.
+  volatile bool Terminate;
+  /// @brief Design function of reference signal of channel 1/2.
+  /// @details Channel 2 is only valid if RefMode == RFM_STEREO.
+  FreqDomainData RefDesign[2];
+ protected:
+  /// Raw data of reference signal.
+  TimeDomainData RefData;
+ private: // analysis state
+  int           AnaTID;
+  Event         AnaEvent;
+  size_t        ResultLevel;
+  volatile int_ptr<SampleData> CurrentData;
+  int_ptr<SampleData> NextData;
+  unsigned      LoopCount;
+  FreqDomainData AnaFFT[2];
+  fftwf_plan    AnaPlan;
+ private: // internal storage of filter plug-in
+  OUTPUT_PARAMS2 VParams;
+  INFO_BUNDLE_CV VInfo;
+  TECH_INFO     VTechInfo;
+ private: // Statistics
+  static Statistics Stat[2];
+  static Mutex  StatMtx;
+
+ private:
+  PROXYFUNCDEF void DLLENTRY InEventProxy(Filter* w, OUTEVENTTYPE event);
+ private: // Reference generator
+  PROXYFUNCDEF void TFNENTRY RefThreadStub(void* arg);
+  void          RefThreadFunc();
+  void          OverrideTechInfo(const OUTPUT_PARAMS2*& target);
+ protected:
+  /// @brief Generate the reference signal.
+  /// @details This function is called once when the playback starts.
+  /// @post The function must ensure that RefData contains valid data.
+  /// @remarks In general the default implementation should be sufficient.
+  /// But you can override this to create more esoteric reference signals.
+  virtual void  GenerateRef();
+ private: // Analysis thread
+  PROXYFUNCDEF void TFNENTRY AnaThreadStub(void* arg);
+          void  AnaThreadFunc();
+ protected:
+  /// @brief Process a block of input data.
+  /// @details The function is called once for every \c FFTSize number of input samples.
+  /// You must override it by the appropriate analysis function.
+  /// @param input Array with the input samples in native PM123 format (interleaved).
+  /// There are always \c FFTSize samples in the array.
+  /// You must not change the array size, but you can take a strong reference with \c int_ptr<SampleData>.
+  virtual void  ProcessInput(SampleData& input);
+  virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
 
  protected:
-  virtual ULONG InCommand(ULONG msg, OUTPUT_PARAMS2* info);
+  virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info);
   virtual int   InRequestBuffer(const FORMAT_INFO2* format, float** buf);
   virtual void  InCommitBuffer(int len, PM123_TIME pos);
-
+  virtual void  InEvent(OUTEVENTTYPE event);
  public:
                 OpenLoop(FILTER_PARAMS2& params);
   virtual       ~OpenLoop();
+ protected:
+  static  void  SetVolume(double volume);
+  static  bool  Start(FilterMode mode, double volume);
+          void  TerminateRequest()  { Terminate = true; AnaEvent.Set(); }
+          void  Fail(const char* message);
+ public:
+  static  bool  Stop();
+  const FreqDomainData& GetRefDesign(unsigned channel) { return RefDesign[channel && RefMode == RFM_STEREO]; }
+  static  void  GetStatistics(Statistics (&stat)[2]);
 };
 
 #endif // OPENLOOP_H

@@ -43,6 +43,7 @@
 									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
 									<listOptionValue builtIn="false" value="DEBUG=1"/>
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
+									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1297800703" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

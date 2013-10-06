@@ -27,6 +27,13 @@
  */
 
 #include "Filter.h"
+#include "Deconvolution.h"
+#include "Measure.h"
+#include "Calibrate.h"
+
+
+volatile xstring Filter::WorkDir(xstring::empty);
+Filter::FilterMode Filter::CurrentMode = MODE_DECONVOLUTION;
 
 
 Filter::FILTER_STRUCT(FILTER_PARAMS2& params)
@@ -39,6 +46,20 @@ Filter::FILTER_STRUCT(FILTER_PARAMS2& params)
   params.output_command        = &PROXYFUNCREF(Filter)InCommandProxy;
   params.output_request_buffer = &PROXYFUNCREF(Filter)InRequestBufferProxy;
   params.output_commit_buffer  = &PROXYFUNCREF(Filter)InCommitBufferProxy;
+}
+
+Filter* Filter::Factory(FILTER_PARAMS2& params)
+{
+  switch (CurrentMode)
+  {case MODE_DECONVOLUTION:
+    return new Deconvolution(params);
+   case MODE_MEASURE:
+    return new Measure(params);
+   case MODE_CALIBRATE:
+    return new Calibrate(params);
+   default:
+    return NULL;
+  }
 }
 
 void Filter::Update(const FILTER_PARAMS2& params)
@@ -55,7 +76,7 @@ Filter::~FILTER_STRUCT()
 { DEBUGLOG(("Filter(%p)::~FILTER_STRUCT()\n", this));
 }
 
-PROXYFUNCIMP(ULONG DLLENTRY, Filter)InCommandProxy(Filter* a, ULONG msg, OUTPUT_PARAMS2* info)
+PROXYFUNCIMP(ULONG DLLENTRY, Filter)InCommandProxy(Filter* a, ULONG msg, const OUTPUT_PARAMS2* info)
 { return a->InCommand(msg, info);
 }
 

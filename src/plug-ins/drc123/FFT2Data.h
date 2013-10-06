@@ -26,19 +26,44 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef FFT2DATA_H
+#define FFT2DATA_H
 
-#ifndef REFERENCE_H
-#define REFERENCE_H
+#include "DataFile.h"
+#include "DataVector.h"
 
-#include <cpp/smartptr.h>
 
-class Reference
-{private:
-  sco_arr<float> Data;
+/** Helper class to convert FFT results into DataFile content.
+ */
+class FFT2Data
+{public: // parameters
+  DataFile& Target;
+  double FInc;
+  double FBin;
+  double Scale;
+  double Delay;
+ private: // results
+  unsigned IndeterminatePhase;
+ private:
+  void  StoreValue(unsigned col, double f, double mag, double delay);
  public:
-  Reference(size_t length, double exponent, bool differential);
-  //~Reference();
+  /// Create instance for a target.
+  /// @param target The \c DataFile where to store the result.
+  /// The DataFile might be initial. The required lines are created on demand.
+  FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.);
 
+  /// Store the data in \a source to the target specified at construction.
+  /// @param col Start column where the data is to be stored.
+  /// All together two columns are written. One at index \a col with magnitude
+  /// and one at \a col + 1 with group delay.
+  /// @param source Frequency response to store.
+  /// @param ref Reference signal.
+  /// Only bins where the magnitude of the reference is > 0 are used.
+  /// @param finc Width of the bins in the FFT data in the frequency domain.
+  /// In general samplerate / fftsize.
+  /// @param scale Multiply all values by \a scale.
+  /// @pre target.Columns() > col + 1
+  void StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
 };
 
-#endif // REFERENCE_H
+#endif // FFT2DATA_H

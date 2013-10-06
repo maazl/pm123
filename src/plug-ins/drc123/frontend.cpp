@@ -31,7 +31,7 @@
 
 #include "frontend.h"
 #include "Deconvolution.h"
-#include "OpenLoop.h"
+#include "Calibrate.h"
 
 #include <stdlib.h>
 #include <error.h>
@@ -46,115 +46,8 @@
 
 #include <debuglog.h>
 
-#undef  VERSION
-#define VERSION "Digital Room Correction Version 1.0"
-
-
 
 /********** Ini file stuff */
-
-/*static BOOL
-save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
-{
-  FILEDLG filedialog;
-  FILE*   file;
-  int     i = 0;
-
-  memset( &filedialog, 0, sizeof(FILEDLG));
-  filedialog.cbSize   = sizeof(FILEDLG);
-  filedialog.fl       = FDS_CENTER | FDS_SAVEAS_DIALOG;
-  filedialog.pszTitle = "Save Equalizer as...";
-
-  if( lasteq[0] == 0 ) {
-    strcpy( filedialog.szFullFile, "*.REQ" );
-  } else {
-    strcpy( filedialog.szFullFile, lasteq );
-  }
-
-  WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
-
-  if( filedialog.lReturn == DID_OK )
-  {
-    strcpy( lasteq, filedialog.szFullFile );
-    file = fopen( filedialog.szFullFile, "w" );
-    if( file == NULL ) {
-      return FALSE;
-    }
-
-    fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
-    fprintf( file, "# Band gains\n" );
-    for( i = 0; i < NUM_BANDS*2; i++ ) {
-      fprintf( file, "%g\n", gains[i] );
-    }
-    fprintf(file, "# Mutes\n" );
-    for( i = 0; i < NUM_BANDS*2; i++ ) {
-      fprintf(file, "%u\n", mutes[i]);
-    }
-    fprintf( file, "# Preamplifier\n" );
-    fprintf( file, "%g\n", preamp );
-
-    fprintf( file, "# End of equalizer\n" );
-    fclose ( file );
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
-static
-void drivedir( char* buf, char* fullpath )
-{
-  char drive[_MAX_DRIVE],
-       path [_MAX_PATH ];
-
-  _splitpath( fullpath, drive, path, NULL, NULL );
-  strcpy( buf, drive );
-  strcat( buf, path  );
-}
-
-static BOOL
-load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
-{
-  FILEDLG filedialog;
-
-  memset( &filedialog, 0, sizeof( FILEDLG ));
-  filedialog.cbSize = sizeof(FILEDLG);
-  filedialog.fl = FDS_CENTER | FDS_OPEN_DIALOG;
-  filedialog.pszTitle = "Load Equalizer";
-  drivedir( filedialog.szFullFile, lasteq );
-  strcat( filedialog.szFullFile, "*.REQ" );
-
-  WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
-
-  if( filedialog.lReturn == DID_OK )
-  {
-    strcpy( lasteq, filedialog.szFullFile );
-    return load_eq_file( filedialog.szFullFile, gains, mutes, preamp );
-  }
-  return FALSE;
-}
-
-static void
-set_slider( HWND hwnd, int channel, int band, double value )
-{ MRESULT rangevalue;
-  DEBUGLOG2(("realeq:set_slider(%p, %d, %d, %f)\n", hwnd, channel, band, value));
-
-  if (value < -12)
-  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
-    value = -12;
-  } else if (value > 12)
-  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
-    value = 12;
-  }
-
-  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
-                                  MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-
-  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_SETSLIDERINFO,
-                     MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
-                     MPFROMSHORT( (value/24.+.5) * (SHORT2FROMMR(rangevalue) - 1) +.5 ));
-}*/
-
 
 xstringconst DefRecURI("record:///0?samp=48000&stereo&in=line&share=yes");
 
@@ -166,12 +59,67 @@ void Frontend::Init()
 Frontend::Frontend(HWND owner, HMODULE module)
 : NotebookDialogBase(DLG_FRONTEND, module, DF_AutoResize)
 {
+  Pages.append() = new ConfigurationPage(*this);
   Pages.append() = new DeconvolutionPage(*this);
   Pages.append() = new GeneratePage(*this);
   Pages.append() = new MeasurePage(*this);
   Pages.append() = new CalibratePage(*this);
   StartDialog(owner, NB_FRONTEND);
 }
+
+Frontend::ConfigurationPage::~ConfigurationPage()
+{}
+
+MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{
+  switch (msg)
+  {case WM_INITDLG:
+    // Load initial values
+    EntryField(+GetCtrl(EF_WORKDIR)).Text(xstring(Filter::WorkDir));
+    EntryField(+GetCtrl(EF_RECURI)).Text(xstring(OpenLoop::RecURI));
+    break;
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case DLG_CONFIG:
+      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTEDPENDING)
+      { // save values before page change, also save on exit.
+        Filter::WorkDir = EntryField(+GetCtrl(EF_WORKDIR)).Text();
+        OpenLoop::RecURI = EntryField(+GetCtrl(EF_RECURI)).Text();
+      }
+    }
+    return 0;
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_BROWSE:
+      { FILEDLG fdlg = { sizeof(FILEDLG) };
+        char type[_MAX_PATH];
+        fdlg.fl = FDS_OPEN_DIALOG;
+        fdlg.ulUser = FDU_DIR_ENABLE|FDU_DIR_ONLY;
+        fdlg.pszTitle = "Select DRC123 working directory";
+        fdlg.pszIType = type;
+        strlcpy(fdlg.szFullFile, ControlBase(+GetCtrl(EF_WORKDIR)).Text(), sizeof fdlg.szFullFile);
+
+        (*Ctx.plugin_api->file_dlg)(GetHwnd(), GetHwnd(), &fdlg);
+        if (fdlg.lReturn == DID_OK)
+          ControlBase(+GetCtrl(EF_WORKDIR)).Text(fdlg.szFullFile);
+      }
+      break;
+     case PB_CURRENT:
+      { const char* url = (*Ctx.plugin_api->exec_command)("current song");
+        if (url && *url)
+          EntryField(+GetCtrl(EF_RECURI)).Text(url);
+      }
+      break;
+    }
+    return 0;
+  }
+  return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+Frontend::DeconvolutionPage::~DeconvolutionPage()
+{}
 
 static const char* const FIROrders[] =
 { "16384"
@@ -197,8 +145,8 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
-    {case EF_WORKDIR:
-      if (SHORT2FROMMP(mp1) == EN_CHANGE)
+    {case DLG_DECONV:
+      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED && ((PAGESELECTNOTIFY*)PVOIDFROMMP(mp2))->ulPageIdNew == GetPageID())
         PostCommand(PB_RELOAD);
       break;
      case LB_KERNEL:
@@ -226,16 +174,9 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case PB_UNDO:
       Deconvolution::GetParameters(Params);
-      if (Params.FilterFile)
-      { char path[_MAX_PATH];
-        sdrivedir(path, Params.FilterFile, sizeof path);
-        EntryField(+GetCtrl(EF_WORKDIR)).Text(path);
-        UpdateDir();
-      }
      load:
       { // Load GUI from current configuration
         CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.FilterFile != NULL);
-        EntryField(+GetCtrl(EF_RECURI)).Text(xstring(OpenLoop::RecURI));
         // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
         CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.Enabled);
@@ -261,7 +202,6 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case PB_APPLY:
       { // Update configuration from GUI
-        OpenLoop::RecURI = EntryField(+GetCtrl(EF_RECURI)).Text();
         Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
         switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
         {case 0: // 16384
@@ -290,22 +230,6 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
         Deconvolution::SetParameters(Params);
-        save_config();
-      }
-      break;
-
-     case PB_BROWSE:
-      { FILEDLG fdlg = { sizeof(FILEDLG) };
-        char type[_MAX_PATH];
-        fdlg.fl = FDS_OPEN_DIALOG;
-        fdlg.ulUser = FDU_DIR_ENABLE|FDU_DIR_ONLY;
-        fdlg.pszTitle = "Select DRC123 working directory";
-        fdlg.pszIType = type;
-        strlcpy(fdlg.szFullFile, ControlBase(+GetCtrl(EF_WORKDIR)).Text(), sizeof fdlg.szFullFile);
-
-        (*Ctx.plugin_api->file_dlg)(GetHwnd(), GetHwnd(), &fdlg);
-        if (fdlg.lReturn == DID_OK)
-          ControlBase(+GetCtrl(EF_WORKDIR)).Text(fdlg.szFullFile);
       }
       break;
 
@@ -403,17 +327,143 @@ void Frontend::DeconvolutionPage::UpdateDir()
 }
 
 
+Frontend::GeneratePage::~GeneratePage()
+{}
+
 MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   return PageBase::DlgProc(msg, mp1, mp2);
 }
+
+
+Frontend::MeasurePage::~MeasurePage()
+{}
 
 MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   return PageBase::DlgProc(msg, mp1, mp2);
 }
 
+
+Frontend::CalibratePage::CalibratePage(Frontend& parent)
+: PageBase(parent, DLG_CALIBRATE, parent.ResModule, DF_AutoResize)
+, Response(Calibrate::CalData, 1)
+, XTalk(Calibrate::CalData, 5)
+, AnaUpdateDeleg(*this, &CalibratePage::AnaUpdateNotify)
+{ MajorTitle = "~Calibrate";
+  MinorTitle = "Calibrate sound card";
+  VULeft  .SetRange(-40,0, -10,-3);
+  VURight .SetRange(-40,0, -10,-3);
+  Response.SetAxis(20,20000, -30,+20,  -40, +60);
+  XTalk   .SetAxis(20,20000, -90,+10, -200,+300);
+}
+
+Frontend::CalibratePage::~CalibratePage()
+{}
+
 MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
+  switch (msg)
+  {case WM_INITDLG:
+    Response.Attach(GetCtrl(CC_RESULT));
+    XTalk.Attach(GetCtrl(CC_RESULT2));
+    // Load initial values
+    RadioButton(+GetCtrl(RB_STEREO_LOOP + Calibrate::CalData.Mode)).CheckState(true);
+    SpinButton(+GetCtrl(SB_VOLUME)).Value((int)(Calibrate::CalData.Volume*100));
+    if (Calibrate::CalData.FileName)
+      ControlBase(+GetCtrl(ST_FILE)).Text(sfnameext2(Calibrate::CalData.FileName));
+    break;
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_START:
+      if (Calibrate::Start())
+      { ControlBase(+GetCtrl(PB_START)).Enabled(false);
+        ControlBase(+GetCtrl(PB_LOAD)).Enabled(false);
+        RadioButton(+GetCtrl(RB_STEREO_LOOP)).EnableAll(false);
+        VULeft.Attach(GetCtrl(BX_LEFT));
+        VURight.Attach(GetCtrl(BX_RIGHT));
+        WinStartTimer(NULL, GetHwnd(), TID_VU, 100);
+      }
+      break;
+     case PB_STOP:
+      if (Calibrate::Stop())
+      { ControlBase(+GetCtrl(PB_START)).Enabled(true);
+        ControlBase(+GetCtrl(PB_LOAD)).Enabled(true);
+        RadioButton(+GetCtrl(RB_STEREO_LOOP)).EnableAll(true);
+      }
+      WinStopTimer(NULL, GetHwnd(), TID_VU);
+      VULeft.Detach();
+      VURight.Detach();
+      break;
+     case PB_CLEAR:
+      Calibrate::CalData.clear();
+      break;
+     case PB_LOAD:
+      { FILEDLG fd = { sizeof(FILEDLG) };
+        fd.fl = FDS_OPEN_DIALOG;
+        fd.pszTitle = "Load calibration file";
+        if ((*Ctx.plugin_api->file_dlg)(GetHwnd(), GetHwnd(), &fd) == DID_OK)
+        { // TODO
+
+        }
+      }
+      break;
+     case PB_SAVE:
+      // TODO
+      break;
+    }
+    return 0;
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case DLG_CALIBRATE:
+      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED)
+      { PAGESELECTNOTIFY& pn = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+        if (pn.ulPageIdCur == GetPageID())
+          AnaUpdateDeleg.detach();
+        if (pn.ulPageIdNew == GetPageID())
+          Calibrate::GetEvDataUpdate() += AnaUpdateDeleg;
+      }
+      break;
+
+     case RB_STEREO_LOOP:
+     case RB_MONO_LOOP:
+     case RB_LEFT_LOOP:
+     case RB_RIGHT_LOOP:
+      if (SHORT2FROMMP(mp2) != BN_PAINT)
+        Calibrate::CalData.Mode = (Calibrate::MeasureMode)(SHORT1FROMMP(mp1) - RB_STEREO_LOOP);
+      break;
+
+     case SB_VOLUME:
+      if (SHORT2FROMMP(mp2) == SPBN_CHANGE)
+        Calibrate::SetVolume(SpinButton(HWNDFROMMP(mp2)).Value() / 100.);
+      break;
+    }
+    return 0;
+
+   case WM_TIMER:
+    switch (SHORT1FROMMP(mp1))
+    {case TID_VU:
+      OpenLoop::Statistics stat[2];
+      OpenLoop::GetStatistics(stat);
+      if (stat[0].Count)
+        VULeft.SetValue(stat[0].RMSdB(), stat[0].PeakdB());
+      if (stat[1].Count)
+        VURight.SetValue(stat[1].RMSdB(), stat[1].PeakdB());
+      return 0;
+    }
+    break;
+
+   case UM_UPDATE:
+    Response.Invalidate();
+    XTalk.Invalidate();
+  }
+
   return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+void Frontend::CalibratePage::AnaUpdateNotify(const int&)
+{ DEBUGLOG(("Frontend::CalibratePage::AnaUpdateNotify()\n"));
+  PostMsg(UM_UPDATE, 0,0);
 }

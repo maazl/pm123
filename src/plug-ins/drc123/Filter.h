@@ -34,18 +34,27 @@
 
 typedef struct FILTER_STRUCT Filter;
 struct FILTER_STRUCT
-{protected:
-  ULONG  DLLENTRYP(OutCommand)(Filter* a, ULONG msg, OUTPUT_PARAMS2* info);
+{public:
+  /// Working directory with all the measurement files.
+  static volatile xstring WorkDir;
+  static enum FilterMode
+  { MODE_DECONVOLUTION,
+    MODE_MEASURE,
+    MODE_CALIBRATE
+  } CurrentMode;
+
+ protected:
+  ULONG  DLLENTRYP(OutCommand)(Filter* a, ULONG msg, const OUTPUT_PARAMS2* info);
   int    DLLENTRYP(OutRequestBuffer)(Filter* a, const FORMAT_INFO2* format, float** buf);
   void   DLLENTRYP(OutCommitBuffer)(Filter* a, int len, PM123_TIME pos);
   Filter* OutA; /// only to be used with the precedent functions
 
  private:
-  PROXYFUNCDEF ULONG DLLENTRY InCommandProxy(Filter* a, ULONG msg, OUTPUT_PARAMS2* info);
+  PROXYFUNCDEF ULONG DLLENTRY InCommandProxy(Filter* a, ULONG msg, const OUTPUT_PARAMS2* info);
   PROXYFUNCDEF int   DLLENTRY InRequestBufferProxy(Filter* a, const FORMAT_INFO2* format, float** buf);
   PROXYFUNCDEF void  DLLENTRY InCommitBufferProxy(Filter* a, int len, PM123_TIME pos);
  protected:
-  virtual ULONG InCommand(ULONG msg, OUTPUT_PARAMS2* info) = 0;
+  virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info) = 0;
   /// Entry point: do filtering.
   virtual int   InRequestBuffer(const FORMAT_INFO2* format, float** buf) = 0;
   virtual void  InCommitBuffer(int len, PM123_TIME pos) = 0;
@@ -55,7 +64,8 @@ struct FILTER_STRUCT
  protected:
   FILTER_STRUCT(FILTER_PARAMS2& params);
  public: // plug-in API interface
-  void Update(const FILTER_PARAMS2& params);
+  static Filter* Factory(FILTER_PARAMS2& params);
+  virtual void Update(const FILTER_PARAMS2& params);
   virtual ~FILTER_STRUCT();
 };
 

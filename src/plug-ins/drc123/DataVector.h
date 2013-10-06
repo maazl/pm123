@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Marcel Mueller
+ * Copyright 2013-2013 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,16 +26,48 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Measure.h"
+#ifndef DATAVECTOR_H
+#define DATAVECTOR_H
 
-Measure::Measure(FILTER_PARAMS2& params)
-: OpenLoop(params)
+#include <cpp/smartptr.h>
+#include <fftw3.h>
+#include <string.h>
+#include <debuglog.h>
+
+
+template <class T>
+struct DataVector
+: public sco_arr<T>
+{public:
+  DataVector()                  {}
+  DataVector(size_t fftlen)     : sco_arr<T>(fftlen) {}
+  virtual ~DataVector();
+  void clear()                  { memset(begin(), 0, size() * sizeof(*get())); }
+  DataVector& operator+=(const DataVector& r);
+};
+
+template <class T>
+DataVector<T>::~DataVector()
 {}
 
-Measure::~Measure()
-{}
-
-void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
-{
-  // TODO:
+template <class T>
+DataVector<T>& DataVector<T>::operator+=(const DataVector<T>& r)
+{ ASSERT(size() == r.size());
+  const T* sp = r.begin();
+  foreach(T,*, dp, *this)
+    *dp += *sp++;
+  return *this;
 }
+
+typedef DataVector<float> TimeDomainData;
+typedef DataVector<fftwf_complex> FreqDomainData;
+
+/*struct FreqDomainData : public DataVector<fftwf_complex>
+{
+  FreqDomainData()              {}
+  FreqDomainData(size_t fftlen) : DataVector<fftwf_complex>(fftlen) {}
+  void CrossCorrelate(const FreqDomainData& r);
+};*/
+
+
+#endif // DATAVECTOR_H
