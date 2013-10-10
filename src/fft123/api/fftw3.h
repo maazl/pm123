@@ -28,10 +28,13 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
+/* In C++ mode prefer class complex<> */
+#include <complex>
+using std::complex;
+#  define FFTW_DEFINE_COMPLEX(R, C) typedef complex<R> C
 extern "C"
 {
-#endif /* __cplusplus */
-
+#else
 /* If <complex.h> is included, use the C99 complex type.  Otherwise
    define a type bit-compatible with C99 complex */
 #ifdef _Complex_I
@@ -39,6 +42,8 @@ extern "C"
 #else
 #  define FFTW_DEFINE_COMPLEX(R, C) typedef R C[2]
 #endif
+#endif /* __cplusplus */
+
 
 #define FFTW_CONCAT(prefix, name) prefix ## name
 #define FFTW_MANGLE_DOUBLE(name) FFTW_CONCAT(fftw_, name)
