@@ -50,9 +50,11 @@ USHORT RadioButton::CheckID() const
       return WinQueryWindowUShort(cur, QWS_ID);
     prev = cur;
     cur = WinEnumDlgItem(parent, cur, EDI_NEXTGROUPITEM);
+    // work around: WinEnumDlgItem sometimes return the window handle itself.
+    // At least prevent an infinite loop.
     if (cur == prev)
       cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
-  } while (cur != Hwnd);
+  } while (cur != Hwnd && cur != prev);
   return 0;
 }
 
@@ -67,10 +69,12 @@ void RadioButton::EnableAll(bool enabled)
       && classname[0] == '#' && classname[1] == '3' ) // is WC_BUTTON
       PMRASSERT(WinEnableWindow(cur, enabled));
     prev = cur;
+    // work around: WinEnumDlgItem sometimes return the window handle itself.
+    // At least prevent an infinite loop.
     cur = WinEnumDlgItem(parent, cur, EDI_NEXTGROUPITEM);
     if (cur == prev)
       cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
-  } while (cur != Hwnd);
+  } while (cur != Hwnd && cur != prev);
 }
 
 void ListBox::InsertItems(const char*const* items, unsigned count, int where)
