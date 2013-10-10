@@ -448,7 +448,9 @@ class sco_arr
   /// Destructor, frees the stored object if any.
   ~sco_arr()                            { delete[] Ptr; }
 
-  /// Gets a pointer to the first array element.
+  /// Gets the array pointer.
+  /// @return Pointer to the first element or NULL if size() is 0.
+  /// @remarks In contrast to beging() get() does not propagate constness.
   T*     get() const                    { return Ptr; }
   /// Gets the number of array elements.
   size_t size() const                   { return Size; }
@@ -456,13 +458,17 @@ class sco_arr
   /// @pre \a idx < \c size()
   T&     operator[](size_t idx) const   { ASSERT(idx < Size); return Ptr[idx]; }
   /// Return start iterator
-  T*     begin()                        { ASSERT(Ptr); return Ptr; }
+  /// @return Pointer to the first element or NULL if size() is 0.
+  T*     begin()                        { return Ptr; }
   /// Return start iterator
-  const T* begin() const                { ASSERT(Ptr); return Ptr; }
+  /// @return Pointer to the first element or NULL if size() is 0.
+  const T* begin() const                { return Ptr; }
   /// Return beyond the end iterator
-  T*     end()                          { ASSERT(Ptr); return Ptr + Size; }
+  /// @return Pointer behind the last element or NULL if size() is 0.
+  T*     end()                          { return Ptr + Size; }
   /// Return beyond the end iterator
-  const T* end() const                  { ASSERT(Ptr); return Ptr + Size; }
+  /// @return Pointer behind the last element or NULL if size() is 0.
+  const T* end() const                  { return Ptr + Size; }
 
   /// Frees the stored array (if any) and sets size to 0,
   void   reset()                        { delete[] Ptr; Ptr = NULL; Size = 0; }
