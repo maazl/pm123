@@ -347,8 +347,8 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 Frontend::CalibratePage::CalibratePage(Frontend& parent)
 : PageBase(parent, DLG_CALIBRATE, parent.ResModule, DF_AutoResize)
-, Response(Calibrate::CalData, 1)
-, XTalk(Calibrate::CalData, 5)
+, Response(Calibrate::GetData(), 1)
+, XTalk(Calibrate::GetData(), 5)
 , AnaUpdateDeleg(*this, &CalibratePage::AnaUpdateNotify)
 { MajorTitle = "~Calibrate";
   MinorTitle = "Calibrate sound card";
@@ -365,15 +365,16 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
   {case WM_INITDLG:
-    Response.Attach(GetCtrl(CC_RESULT));
-    XTalk.Attach(GetCtrl(CC_RESULT2));
-    // Load initial values
-    RadioButton(+GetCtrl(RB_STEREO_LOOP + Calibrate::CalData.Mode)).CheckState(true);
-    SpinButton(+GetCtrl(SB_VOLUME)).Value((int)(Calibrate::CalData.Volume*100));
-    if (Calibrate::CalData.FileName)
-      ControlBase(+GetCtrl(ST_FILE)).Text(sfnameext2(Calibrate::CalData.FileName));
-    break;
-
+    { Response.Attach(GetCtrl(CC_RESULT));
+      XTalk.Attach(GetCtrl(CC_RESULT2));
+      // Load initial values
+      SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+      RadioButton(+GetCtrl(RB_STEREO_LOOP + data.Obj.Mode)).CheckState(true);
+      SpinButton(+GetCtrl(SB_VOLUME)).Value((int)(data.Obj.Volume*100));
+      if (data.Obj.FileName)
+        ControlBase(+GetCtrl(ST_FILE)).Text(sfnameext2(data.Obj.FileName));
+      break;
+    }
    case WM_COMMAND:
     switch (SHORT1FROMMP(mp1))
     {case PB_START:
@@ -397,8 +398,10 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       VURight.Detach();
       break;
      case PB_CLEAR:
-      Calibrate::CalData.clear();
-      break;
+      { SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+        data.Obj.clear();
+        break;
+      }
      case PB_LOAD:
       { FILEDLG fd = { sizeof(FILEDLG) };
         fd.fl = FDS_OPEN_DIALOG;
@@ -427,13 +430,13 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       break;
 
-     case RB_STEREO_LOOP:
+    /* case RB_STEREO_LOOP:
      case RB_MONO_LOOP:
      case RB_LEFT_LOOP:
      case RB_RIGHT_LOOP:
       if (SHORT2FROMMP(mp2) != BN_PAINT)
         Calibrate::CalData.Mode = (Calibrate::MeasureMode)(SHORT1FROMMP(mp1) - RB_STEREO_LOOP);
-      break;
+      break;*/
 
      case SB_VOLUME:
       if (SHORT2FROMMP(mp2) == SPBN_CHANGE)

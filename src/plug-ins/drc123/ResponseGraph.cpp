@@ -139,8 +139,9 @@ void ResponseGraph::DrawGraph(HPS ps, size_t column, LONG (ResponseGraph::*yscal
   POINTL points[1000];
   POINTL* const dpe = points + sizeof points / sizeof *points;
 
-  const DataRowType*const* rp = Data.begin();
-  const DataRowType*const* rpe = Data.end();
+  SyncAccess<DataFile> data(Data);
+  const DataRowType*const* rp = data.Obj.begin();
+  const DataRowType*const* rpe = data.Obj.end();
 
   bool start = true;
   while (rp != rpe)
@@ -295,7 +296,7 @@ MRESULT ResponseGraph::WinProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return SubclassWindow::WinProc(msg, mp1, mp2);
 }
 
-ResponseGraph::ResponseGraph(const DataFile& data, unsigned startcol)
+ResponseGraph::ResponseGraph(const SyncRef<DataFile>& data, unsigned startcol)
 : Data(data)
 , StartCol(startcol)
 { DEBUGLOG(("ResponseGraph(%p)::ResponseGraph(&%p, %u)\n", this, &data, startcol));

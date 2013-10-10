@@ -65,33 +65,27 @@ OpenLoop::Statistics OpenLoop::Stat[2];
 Mutex OpenLoop::StatMtx;
 
 
-OpenLoop::OpenLoop(FILTER_PARAMS2& params)
-: Filter(params)
-, FFTSize(65536)
-, DiscardSamp(65536)
-, RefFMin(20)
-, RefFMax(20000)
-, RefExponent(-1)
-, RefMode(RFM_MONO)
-, AnaSwap(false)
+OpenLoop::OpenLoop(const Parameters& params, FILTER_PARAMS2& filterparams)
+: Filter(filterparams)
+, Params(params)
 , RefTID(-1)
 , InitComplete(false)
 , Terminate(true)
 , AnaTID(-1)
 , LoopCount(0)
 {
-  OutEvent = params.output_event;
-  OutW     = params.w;
+  OutEvent = filterparams.output_event;
+  OutW     = filterparams.w;
 
-  params.output_event = &PROXYFUNCREF(OpenLoop)InEventProxy;
+  filterparams.output_event = &PROXYFUNCREF(OpenLoop)InEventProxy;
 
-  const unsigned fdsize = FFTSize / 2 + 1;
+  const unsigned fdsize = Params.FFTSize / 2 + 1;
   AnaFFT[0].reset(fdsize);
   AnaFFT[1].reset(fdsize);
 
   // Create plan
   fftw_iodim iodim;
-  iodim.n = FFTSize;
+  iodim.n = Params.FFTSize;
   iodim.is = 2; // interleaved stereo
   iodim.os = 1;
   // We do not have the data array so far, so pass a dummy to keep fftw happy.
@@ -131,16 +125,16 @@ void OpenLoop::RefThreadFunc()
       return;
     }
     unsigned remaining = count;
-    while (remaining > FFTSize - current)
-    { unsigned samplecount = (FFTSize - current) * VTechInfo.channels;
+    while (remaining > Params.FFTSize - current)
+    { unsigned samplecount = (Params.FFTSize - current) * VTechInfo.channels;
       memcpy(buf, RefData.begin() + current * VTechInfo.channels, samplecount * sizeof(float));
-      remaining -= FFTSize - current;
+      remaining -= Params.FFTSize - current;
       buf += samplecount;
       current = 0;
     }
     memcpy(buf, RefData.begin() + current * VTechInfo.channels, remaining * VTechInfo.channels * sizeof(float));
     current += remaining;
-    if (current == FFTSize)
+    if (current == Params.FFTSize)
       current = 0;
     (*OutCommitBuffer)(OutA, count, (double)playedsamples / VTechInfo.samplerate);
     playedsamples += count;
@@ -167,7 +161,7 @@ inline static double myrand()
 void OpenLoop::GenerateRef()
 {
   // initialize arrays
-  const unsigned fdsize = FFTSize / 2 + 1;
+  const unsigned fdsize = Params.FFTSize / 2 + 1;
   RefDesign[0].reset(fdsize);
   RefDesign[0].clear(); // all coefficients -> 0
   if (RefMode == RFM_STEREO)
@@ -175,9 +169,9 @@ void OpenLoop::GenerateRef()
     RefDesign[1].clear(); // all coefficients -> 0
   }
   // round fmin & fmax
-  const double   f_bin = (double)VTechInfo.samplerate/FFTSize;
-  unsigned i_min = (unsigned)floor(RefFMin/f_bin);
-  unsigned i_max = (unsigned)ceil(RefFMax/f_bin);
+  const double   f_bin = (double)VTechInfo.samplerate/Params.FFTSize;
+  unsigned i_min = (unsigned)floor(Params.RefFMin/f_bin);
+  unsigned i_max = (unsigned)ceil(Params.RefFMax/f_bin);
   if (i_max >= fdsize)
     i_max = fdsize - 1;
 
@@ -185,23 +179,25 @@ void OpenLoop::GenerateRef()
   //size_t fcount = 0; // number of used frequencies
   int channel = 0;
   for (size_t i = i_min; i <= i_max; ++i)
-  { // next frequency
-    channel ^= RefMode == RFM_STEREO;
+  { if ((i & 1) == 0 && Params.RefSkipEven)
+      continue;
     //++fcount;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
-    double mag = pow(i, RefExponent);
+    double mag = pow(i, Params.RefExponent);
     // apply random phase
-    cur = std::polar(mag, i && i != FFTSize/2 ? 2*M_PI * myrand() : 0.);
+    cur = std::polar(mag, i && i != Params.FFTSize/2 ? 2*M_PI * myrand() : 0.);
     //fprintf(stderr, "f %i %i\n", i, (int)floor(i * f_log + f_inc));
     //i = (int)floor(i * f_log + f_inc);
+    // next frequency
+    channel ^= RefMode == RFM_STEREO;
   }
 
   if (RefMode == RFM_STEREO)
   { // iFFT
-    RefData.reset(2 * FFTSize);
+    RefData.reset(2 * Params.FFTSize);
     fftw_iodim iodim;
-    iodim.n = FFTSize;
+    iodim.n = Params.FFTSize;
     iodim.is = 1;
     iodim.os = 2; // interleaved stereo
     fftwf_plan plan = fftwf_plan_guru_dft_c2r(1, &iodim, 0, NULL, RefDesign[0].begin(), RefData.begin()+1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
@@ -210,8 +206,8 @@ void OpenLoop::GenerateRef()
     fftwf_destroy_plan(plan);
   } else
   { // iFFT
-    RefData.reset(FFTSize);
-    fftwf_plan plan = fftwf_plan_dft_c2r_1d(FFTSize, RefDesign[0].begin(), RefData.begin(), FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
+    RefData.reset(Params.FFTSize);
+    fftwf_plan plan = fftwf_plan_dft_c2r_1d(Params.FFTSize, RefDesign[0].begin(), RefData.begin(), FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
     fftwf_execute(plan);
     fftwf_destroy_plan(plan);
   }
@@ -226,7 +222,7 @@ void OpenLoop::GenerateRef()
     *sp *= fnorm;
   // We need to scale RefDesign as well as it is used as reference for loopback measurements.
   // However, we have to compensate for the fftw normalization as well.
-  fnorm *= sqrt(FFTSize);
+  fnorm *= sqrt(Params.FFTSize);
   foreach (fftwf_complex,*, dp, RefDesign[0])
     *dp *= fnorm;
   if (RefMode == RFM_STEREO)
@@ -256,10 +252,10 @@ void OpenLoop::AnaThreadFunc()
 void OpenLoop::ProcessInput(SampleData& input)
 { DEBUGLOG(("OpenLoop(%p)::ProcessInput(.)\n", this));
   // Do FFT of left and right channel
-  fftwf_execute_dft_r2c(AnaPlan, input.begin(), AnaFFT[AnaSwap].begin());
-  fftwf_execute_dft_r2c(AnaPlan, input.begin() + 1, AnaFFT[!AnaSwap].begin());
+  fftwf_execute_dft_r2c(AnaPlan, input.begin(), AnaFFT[Params.AnaSwap].begin());
+  fftwf_execute_dft_r2c(AnaPlan, input.begin() + 1, AnaFFT[!Params.AnaSwap].begin());
   // Pass to next handler
-  ProcessFFTData(AnaFFT, 1./input.LoopCount/sqrt(FFTSize));
+  ProcessFFTData(AnaFFT, 1./input.LoopCount/sqrt(Params.FFTSize));
 }
 
 void OpenLoop::ProcessFFTData(FreqDomainData (&input)[2], double scale)
@@ -294,7 +290,7 @@ ULONG OpenLoop::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
       { Fail("Failed to start reference generator thread.");
         return PLUGIN_ERROR;
       }
-      AnaTID = _beginthread(PROXYFUNCREF(OpenLoop)AnaThreadStub, 0, 1024*1024, this);
+      AnaTID = _beginthread(PROXYFUNCREF(OpenLoop)AnaThreadStub, 0, 65536, this);
       if (RefTID == -1)
       { Fail("Failed to start analyzer thread.");
         return PLUGIN_ERROR;
@@ -348,12 +344,12 @@ int OpenLoop::InRequestBuffer(const FORMAT_INFO2* format, float** buf)
 
   // reuse buffer if unique
   if (!NextData || !NextData->RefCountIsUnique())
-  { NextData = new SampleData(FFTSize * 2);
+  { NextData = new SampleData(Params.FFTSize * 2);
     ResultLevel = 0;
   }
   *buf = NextData->get() + ResultLevel * format->channels;
-  unsigned count = FFTSize - ResultLevel;
-  return DiscardSamp && count > DiscardSamp ? DiscardSamp : count;
+  unsigned count = Params.FFTSize - ResultLevel;
+  return Params.DiscardSamp && count > Params.DiscardSamp ? Params.DiscardSamp : count;
 }
 
 void OpenLoop::InCommitBuffer(int len, PM123_TIME pos)
@@ -367,18 +363,18 @@ void OpenLoop::InCommitBuffer(int len, PM123_TIME pos)
     else
       Stat[1] = Stat[0];
 
-    if (DiscardSamp)
+    if (Params.DiscardSamp)
     { // do not count down before reference signal is ready.
       if (InitComplete)
-        DiscardSamp -= len;
+        Params.DiscardSamp -= len;
       return;
     }
   }
 
   ResultLevel += len;
-  if (ResultLevel < FFTSize)
+  if (ResultLevel < Params.FFTSize)
     return;
-  else if (ResultLevel > FFTSize)
+  else if (ResultLevel > Params.FFTSize)
     (*OutEvent)(OutW, OUTEVENT_PLAY_ERROR);
   else
   { // aggregate with current data
@@ -420,7 +416,7 @@ void OpenLoop::InEvent(OUTEVENTTYPE event)
 }
 
 
-bool OpenLoop::Start(FilterMode mode, double volume)
+bool OpenLoop::Start(FilterMode mode)
 { // Check if our plugin is enabled
   const char* ret = (*Ctx.plugin_api->exec_command)("plugin params filter drc123.dll");
   if (strstr(ret, "enabled=true") == NULL)
@@ -439,8 +435,6 @@ bool OpenLoop::Start(FilterMode mode, double volume)
     return false;
   // Play!
   CurrentMode = mode;
-  // Set playback volume
-  SetVolume(volume);
   xstringbuilder sb;
   sb.append("play \"");
   sb.append(recuri);

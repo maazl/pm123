@@ -33,10 +33,19 @@
 
 Calibrate::CalibrationFile::CalibrationFile()
 : DataFile(9)
-, Volume(.8)
-, Mode(MD_StereoLoop)
-, PlanSize(65536)
-{}
+{ // Set Default Parameters
+  FFTSize = 131072;
+  DiscardSamp = 65536;
+  RefFMin = 20.;
+  RefFMax = 20000.;
+  RefExponent = -.5;
+  RefSkipEven = true;
+  RefMode = RFM_STEREO;
+  AnaSwap = false;
+
+  Volume = .8;
+  Mode = MD_StereoLoop;
+}
 
 bool Calibrate::CalibrationFile::ParseHeaderField(const char* string)
 {
@@ -54,21 +63,25 @@ bool Calibrate::CalibrationFile::WriteHeaderFields(FILE* f)
 }
 
 
-Calibrate::CalibrationFile Calibrate::CalData;
+Calibrate::CalibrationFile Calibrate::Data;
 event<const int> Calibrate::EvDataUpdate;
 
 
-Calibrate::Calibrate(FILTER_PARAMS2& params)
-: OpenLoop(params)
-{ FFTSize = CalData.PlanSize;
-  RefExponent = -.5;
-  RefMode = CalData.Mode == MD_StereoLoop ? RFM_STEREO : RFM_MONO;
+Calibrate::Calibrate(const CalibrationFile& params, FILTER_PARAMS2& filterparams)
+: OpenLoop(params, filterparams)
+, CalParams(params)
+{ RefMode = params.Mode == MD_StereoLoop ? RFM_STEREO : RFM_MONO;
 
-  const unsigned fdsize = FFTSize / 2 + 1;
+  const unsigned fdsize = params.FFTSize / 2 + 1;
   AnaCross.reset(fdsize);
-  ResCross.reset(FFTSize);
+  ResCross.reset(params.FFTSize);
   // plan for cross correlation
-  CrossPlan = fftwf_plan_dft_c2r_1d(FFTSize, AnaCross.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
+  CrossPlan = fftwf_plan_dft_c2r_1d(params.FFTSize, AnaCross.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
+}
+
+Calibrate* Calibrate::Factory(FILTER_PARAMS2& filterparams)
+{ SyncAccess<CalibrationFile> params(Data);
+  return new Calibrate(params, filterparams);
 }
 
 Calibrate::~Calibrate()
@@ -85,9 +98,8 @@ ULONG Calibrate::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 }
 
 void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
-{ double finc = (double)Format.samplerate / FFTSize;
-  FFT2Data f2d(CalData, finc, FBin, scale);
-
+{ double finc = (double)Format.samplerate / Params.FFTSize;
+  double delay;
   // Calculate the average group delay to avoid overflows in delta-phi.
   { const fftwf_complex* sp1 = input[0].begin();
     const fftwf_complex* sp2 = GetRefDesign(0).begin();
@@ -107,12 +119,14 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       }
     }
     // TODO check SNR
-    f2d.Delay = (double)pos / Format.samplerate;
+    delay = (double)pos / Format.samplerate;
     DEBUGLOG(("Calibrate::ProcessFFTData: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
-      sqrt(max), pos, sqrt(max / rms * FFTSize), f2d.Delay));
+      sqrt(max), pos, sqrt(max / rms * Params.FFTSize), delay));
   }
 
   // Update results file
+  SyncAccess<CalibrationFile> data(Data);
+  FFT2Data f2d(data, finc, FBin, scale, delay);
   f2d.StoreFFT(1, input[0], GetRefDesign(0));
   f2d.StoreFFT(3, input[1], GetRefDesign(1));
   f2d.StoreFFT(5, input[0], GetRefDesign(1));

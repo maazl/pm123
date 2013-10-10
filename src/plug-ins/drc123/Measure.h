@@ -32,14 +32,36 @@
 #include "OpenLoop.h"
 
 class Measure : public OpenLoop
-{
+{public:
+  struct MesParameters
+  { double      Volume;
+  };
+  class MeasureFile
+  : public DataFile
+  , public Parameters
+  , public MesParameters
+  {private:
+    virtual bool ParseHeaderField(const char* string);
+    virtual bool WriteHeaderFields(FILE* f);
+   public:
+                MeasureFile();
+  };
+
+ private:
+  static MeasureFile Data;
+ private:
+  MesParameters MesParams;
+
+ protected:
+                Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams);
  public:
-                Measure(FILTER_PARAMS2& params);
+  static Measure* Factory(FILTER_PARAMS2& filterparams);
   virtual       ~Measure();
  protected:
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
-  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE, 1.0); }
+  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE); }
+  static SyncRef<MeasureFile> GetData() { return Data; }
 };
 
 #endif // MEASURE_H_

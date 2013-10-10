@@ -42,7 +42,9 @@ struct DataRowType : public sco_arr<double>
   double&       operator[](size_t col)          { return sco_arr<double>::operator[](col); }
 };
 
-class DataFile : public vector_own<DataRowType>
+class DataFile
+: public vector_own<DataRowType>
+, public ASyncAccess
 {public:
   xstring       FileName;
   xstring       Description;

@@ -31,6 +31,7 @@
 
 #define INCL_GPI
 #include <cpp/windowbase.h>
+#include <cpp/mutex.h>
 #include <os2.h>
 #include <math.h>
 
@@ -38,7 +39,7 @@
 class DataFile;
 
 class ResponseGraph : public SubclassWindow
-{ const DataFile&   Data;
+{ const SyncRef<DataFile> Data;
   const unsigned    StartCol;
   double            Xmin, Xmax, LX, LXc;
   double            Y1min, Y1max, Y1c, Y2min, Y2max, Y2c;
@@ -65,7 +66,7 @@ class ResponseGraph : public SubclassWindow
  protected:
   virtual MRESULT   WinProc(ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
-  ResponseGraph(const DataFile& data, unsigned startcol);
+  ResponseGraph(const SyncRef<DataFile>& data, unsigned startcol);
   virtual ~ResponseGraph();
   /// Activate this instance.
   virtual void      Attach(HWND hwnd);

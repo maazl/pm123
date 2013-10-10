@@ -45,6 +45,8 @@ typedef double PM123_TIME;
 /** Object size in bytes (integral) - not all OS/2 compilers support 64 bit ints. */
 typedef double PM123_SIZE;
 
+/** Reduced technical information used for playback.
+ * @remarks This structure is a slice of struct TECH_INFO. */
 typedef struct
 { int        samplerate;
   int        channels;

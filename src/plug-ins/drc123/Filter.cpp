@@ -54,9 +54,9 @@ Filter* Filter::Factory(FILTER_PARAMS2& params)
   {case MODE_DECONVOLUTION:
     return new Deconvolution(params);
    case MODE_MEASURE:
-    return new Measure(params);
+    return Measure::Factory(params);
    case MODE_CALIBRATE:
-    return new Calibrate(params);
+    return Calibrate::Factory(params);
    default:
     return NULL;
   }

@@ -73,16 +73,11 @@ class Deconvolution : public Filter
   };
 
  private:
-  struct ParameterSet
-  : public Iref_count
-  , public Parameters
-  {public:
-    static ParameterSet Default;
-   private:
+  class ParameterSet : public Iref_count, public Parameters
+  {private:
     ParameterSet();
-    ParameterSet(const ParameterSet&);
-    void operator=(const ParameterSet&);
    public:
+    static ParameterSet Default;
     ParameterSet(const Parameters& r) : Parameters(r) {}
     sco_arr<Coeff> TargetResponse[2];
   };
@@ -168,7 +163,7 @@ class Deconvolution : public Filter
   virtual ~Deconvolution();
 
   static void   SetParameters(const Parameters& params) { ParamSet = new ParameterSet(params); }
-  static void   GetParameters(Parameters& params) { params = *int_ptr<ParameterSet>(ParamSet); }
+  static void   GetParameters(Parameters& params)       { params = *int_ptr<ParameterSet>(ParamSet); }
   static void   GetDefaultParameters(Parameters& params) { params = ParameterSet::Default; }
 };
 

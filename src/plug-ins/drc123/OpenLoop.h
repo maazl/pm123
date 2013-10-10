@@ -45,12 +45,38 @@
  */
 class OpenLoop : public Filter
 {public:
-  struct SampleData
-  : public Iref_count
-  , public TimeDomainData
-  { unsigned    LoopCount;
-    SampleData(size_t len)      : TimeDomainData(len) {}
+  /// Type of the reference signal.
+  enum Mode
+  { ///< The reference is single channel/mono.
+    RFM_MONO,
+    ///< The reference is single channel, but the output on the right channel is inverted.
+    ///< @remarks This could be used with appropriate hardware to suppress common mode noise.
+    RFM_DIFFERENTIAL,
+    ///< @brief The reference has two orthogonal signals for both channels with distinct frequencies.
+    ///< @details This mode causes all every second frequency to appear at one channel while the other frequencies are on the other channel.
+    RFM_STEREO
+  }             RefMode;
+  /// Configuration parameters for OpenLoop. You may extend them.
+  struct Parameters
+  { /// FFT size for reference and analysis.
+    unsigned    FFTSize;
+    /// Discard number of samples when recording starts.
+    unsigned    DiscardSamp;
+    /// Minimum frequency to analyze.
+    double      RefFMin;
+    /// Maximum frequency to analyze.
+    double      RefFMax;
+    /// @brief Energy distribution of the reference signal.
+    /// @details The Energy in the reference follows the rule P ~ f^RefExponent.
+    double      RefExponent;
+    /// Do not spend energy in even frequencies.
+    bool        RefSkipEven;
+    /// Type of the reference signal.
+    Mode        RefMode;
+    /// Swap channels on input processing.
+    bool        AnaSwap;
   };
+  /// Info about input for VU meter
   struct Statistics
   { double      Sum2;
     double      Peak;
@@ -62,6 +88,13 @@ class OpenLoop : public Filter
     void        Reset()         { Sum2 = 0; Count = 0; Peak = 0; }
     Statistics()                { Reset(); }
   };
+ protected:
+  struct SampleData
+  : public Iref_count
+  , public TimeDomainData
+  { unsigned LoopCount;
+    SampleData(size_t len) : TimeDomainData(len) {}
+  };
 
  public:
   /// Recording URI for measurements.
@@ -69,33 +102,12 @@ class OpenLoop : public Filter
   /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
   static double FBin;
  protected:
+  Parameters    Params;
   void          DLLENTRYP(OutEvent)(Filter* w, OUTEVENTTYPE event);
   Filter*       OutW;
- protected: // Reference parameters, must not be changed after GenerateRef!
   /// Sampling frequency of the input and output data and number of channels in the \e input data.
   /// @remarks The number of channels in the \e output data is in VFormat.channels.
   FORMAT_INFO2  Format;
-  /// FFT size for reference and analysis.
-  unsigned      FFTSize;
-  /// Discard number of samples when recording starts.
-  unsigned      DiscardSamp;
-  /// Minimum frequency to analyze.
-  double        RefFMin;
-  /// Maximum frequency to analyze.
-  double        RefFMax;
-  /// @brief Energy distribution of the reference signal.
-  /// @details The Energy in the reference follows the rule P ~ f^RefExponent.
-  double        RefExponent;
-  /// Type of the reference signal.
-  enum Mode
-  { RFM_MONO          ///< The reference is single channel/mono.
-  , RFM_DIFFERENTIAL  ///< The reference is single channel, but the output on the right channel is inverted.
-                      ///< @remarks This could be used with appropriate hardware to suppress common mode noise.
-  , RFM_STEREO        ///< The reference has two orthogonal signals for both channels with distinct frequencies.
-                      ///< This mode causes all even frequencies to appear at one channel while all odd frequencies are on the other channel.
-  }             RefMode;
-  /// Swap channels on input processing.
-  bool          AnaSwap;
  private: // ref generator state
   /// Current playback volume of the generator.
   static double RefVolume;
@@ -163,11 +175,11 @@ class OpenLoop : public Filter
   virtual void  InCommitBuffer(int len, PM123_TIME pos);
   virtual void  InEvent(OUTEVENTTYPE event);
  public:
-                OpenLoop(FILTER_PARAMS2& params);
+                OpenLoop(const Parameters& params, FILTER_PARAMS2& filterparams);
   virtual       ~OpenLoop();
  protected:
   static  void  SetVolume(double volume);
-  static  bool  Start(FilterMode mode, double volume);
+  static  bool  Start(FilterMode mode);
           void  TerminateRequest()  { Terminate = true; AnaEvent.Set(); }
           void  Fail(const char* message);
  public:

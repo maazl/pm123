@@ -28,9 +28,45 @@
 
 #include "Measure.h"
 
-Measure::Measure(FILTER_PARAMS2& params)
-: OpenLoop(params)
+
+Measure::MeasureFile::MeasureFile()
+: DataFile(9)
+{ // Set Default Parameters
+  FFTSize = 131072;
+  DiscardSamp = 65536;
+  RefFMin = 20.;
+  RefFMax = 20000.;
+  RefExponent = -.5;
+  RefSkipEven = true;
+  RefMode = RFM_STEREO;
+  AnaSwap = false;
+
+  Volume = .8;
+}
+
+bool Measure::MeasureFile::ParseHeaderField(const char* string)
+{
+  if (strnicmp(string, "VOLUME=", 7) == 0)
+    Volume = atof(string + 7);
+  return true;
+}
+
+bool Measure::MeasureFile::WriteHeaderFields(FILE* f)
+{
+  fprintf(f, "##VOLUME=%f\n", Volume);
+  return true;
+}
+
+Measure::MeasureFile Measure::Data;
+
+Measure::Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams)
+: OpenLoop(params, filterparams)
 {}
+
+Measure* Measure::Factory(FILTER_PARAMS2& filterparams)
+{ SyncAccess<MeasureFile> params(Data);
+  return new Measure(params, filterparams);
+}
 
 Measure::~Measure()
 {}

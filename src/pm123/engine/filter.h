@@ -47,7 +47,7 @@
 *
 * filter interface
 *
-* This class ist thred-safe on per instance basis.
+* This class is thread-safe on per instance basis.
 *
 ****************************************************************************/
 

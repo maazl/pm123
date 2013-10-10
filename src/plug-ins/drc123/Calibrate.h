@@ -32,6 +32,7 @@
 #include "OpenLoop.h"
 #include "DataFile.h"
 #include "DataVector.h"
+#include <cpp/mutex.h>
 #include <cpp/event.h>
 #include <fftw3.h>
 
@@ -44,35 +45,44 @@ class Calibrate : public OpenLoop
   , MD_LeftLoop
   , MD_RightLoop
   };
-  class CalibrationFile : public DataFile
-  {public:
-    double      Volume;
+  struct CalParameters
+  { double      Volume;
     MeasureMode Mode;
-    int         PlanSize;
-   private:
+  };
+  class CalibrationFile
+  : public DataFile
+  , public Parameters
+  , public CalParameters
+  {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 CalibrationFile();
   };
- public:
-  static CalibrationFile CalData;
+
  private:
+  static CalibrationFile Data;
+ private:
+  CalParameters CalParams;
   static event<const int> EvDataUpdate;
   FreqDomainData AnaCross;
   TimeDomainData ResCross;
   fftwf_plan    CrossPlan;
 
+ private:
+                Calibrate(const CalibrationFile& params, FILTER_PARAMS2& filterparams);
  public:
-                Calibrate(FILTER_PARAMS2& params);
+  static Calibrate* Factory(FILTER_PARAMS2& filterparams);
   virtual       ~Calibrate();
  protected:
   virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info);
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
-  static  void  SetVolume(double volume) { CalData.Volume = volume; if (CurrentMode == MODE_CALIBRATE) OpenLoop::SetVolume(volume); }
-  static  bool  Start() { return OpenLoop::Start(MODE_CALIBRATE, CalData.Volume); }
-  static event_pub<const int>& GetEvDataUpdate() { return EvDataUpdate; }
+  static  void  SetVolume(double volume)            { if (CurrentMode == MODE_CALIBRATE) OpenLoop::SetVolume(volume); }
+  static  bool  Start()                             { return OpenLoop::Start(MODE_CALIBRATE); }
+  static event_pub<const int>& GetEvDataUpdate()    { return EvDataUpdate; }
+  static SyncRef<CalibrationFile> GetData()     { return Data; }
 };
+
 
 #endif // CALIBRATE_H

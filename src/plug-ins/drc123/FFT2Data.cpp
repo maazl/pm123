@@ -119,9 +119,10 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
       dphi -= floor(dphi / (2.*M_PI) + .5) * (2.*M_PI);
       if (fabs(dphi) > M_PI/2.)
         ++IndeterminatePhase;
-
-      delaysum += dphi / (f - lastf);
-      ++delaycnt;
+      else
+      { delaysum += dphi / (f - lastf);
+        ++delaycnt;
+      }
     }
 
     lastf = f;
