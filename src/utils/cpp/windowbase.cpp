@@ -270,6 +270,11 @@ MRESULT NotebookDialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case BKN_PAGESELECTED:
         { PAGESELECTNOTIFY& notify = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+          if (notify.ulPageIdCur)
+          { PageBase* page = PageFromID(notify.ulPageIdCur);
+            if (page != NULL)
+              WinSendMsg(page->GetHwnd(), msg, MPFROM2SHORT(ControlBase(page->GetHwnd()).ID(), BKN_PAGESELECTED), mp2);
+          }
           if (notify.ulPageIdNew)
           { PageBase* page = PageFromID(notify.ulPageIdNew);
             if (page != NULL) // We sometimes get called with an invalid ulPageIdNew.
