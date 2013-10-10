@@ -296,4 +296,33 @@ class Event
   bool   IsSet() const;
 };
 
+
+template <class T> class SyncAccess;
+
+struct ASyncAccess
+{ //friend class SyncAccess<T>;
+// protected:
+  Mutex Mtx;
+};
+template <class T>
+class SyncRef
+{ friend class SyncAccess<T>;
+  template <class T2> friend class SyncRef;
+  T& Obj;
+ public:
+  SyncRef(T& obj) : Obj(obj) {}
+  template <class T2>
+  SyncRef(const SyncRef<T2>& r) : Obj(r.Obj) {}
+};
+
+template <class T>
+class SyncAccess
+{public:
+  T& Obj;
+  SyncAccess(T& obj)                : Obj(obj) { Obj.Mtx.Request(); }
+  SyncAccess(const SyncRef<T>& obj) : Obj(obj.Obj) { Obj.Mtx.Request(); }
+  operator T&()                     { return Obj; }
+  ~SyncAccess()                     { Obj.Mtx.Release(); }
+};
+
 #endif
