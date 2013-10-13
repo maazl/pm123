@@ -33,6 +33,7 @@
 #include "drc123.h"
 #include "DataFile.h"
 #include "Deconvolution.h"
+#include "Calibrate.h"
 #include "ResponseGraph.h"
 #include "VUMeter.h"
 #include <cpp/xstring.h>
@@ -48,6 +49,11 @@ class Frontend : public NotebookDialogBase
 {public:
   /// Currently active filter file or \c NULL if none.
   static xstring FilterFile;
+
+ private:
+  static double XtractFrequency(const DataRowType& row, void*);
+  static double XtractGain(const DataRowType& row, void* col);
+  static double XtractDelay(const DataRowType& row, void* col);
 
  private:
   static const ULONG TID_VU = 101;
@@ -73,13 +79,7 @@ class Frontend : public NotebookDialogBase
     DataFile Kernel;
     ResponseGraph Result;
    public:
-    DeconvolutionPage(Frontend& parent)
-    : PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
-    , Result(Kernel, 1)
-    { MajorTitle = "~Playback";
-      MinorTitle = "Deconvolution at playback";
-      Result.SetAxis(20,20000, -40,+10, -10,40);
-    }
+    DeconvolutionPage(Frontend& parent);
     ~DeconvolutionPage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -115,6 +115,7 @@ class Frontend : public NotebookDialogBase
   {private:
     enum
     { UM_UPDATE = WM_USER
+    , UM_VOLUME
     };
    private:
     VUMeter       VULeft;
@@ -122,12 +123,17 @@ class Frontend : public NotebookDialogBase
     ResponseGraph Response;
     ResponseGraph XTalk;
     class_delegate<CalibratePage,const int> AnaUpdateDeleg;
+   private:
+    volatile bool UpdateRq;
+    bool          VolumeRq;
    public:
     CalibratePage(Frontend& parent);
     virtual ~CalibratePage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    private:
+    void          LoadControlValues(const Calibrate::CalibrationFile& data);
+    void          SetRunning(bool running);
     void          AnaUpdateNotify(const int&);
   };
 

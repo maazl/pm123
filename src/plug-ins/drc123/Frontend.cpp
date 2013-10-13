@@ -29,16 +29,17 @@
 #define  INCL_PM
 #define  INCL_BASE
 
-#include "frontend.h"
+#include "Frontend.h"
 #include "Deconvolution.h"
-#include "Calibrate.h"
 
 #include <stdlib.h>
 #include <error.h>
 #include <string.h>
+#include <math.h>
 
 #include <fileutil.h>
 #include <plugin.h>
+#include <cpp/url123.h>
 #include <cpp/dlgcontrols.h>
 #include <cpp/container/stringmap.h>
 
@@ -47,9 +48,19 @@
 #include <debuglog.h>
 
 
-/********** Ini file stuff */
-
 xstringconst DefRecURI("record:///0?samp=48000&stereo&in=line&share=yes");
+
+double Frontend::XtractFrequency(const DataRowType& row, void*)
+{ return row[0];
+}
+
+double Frontend::XtractGain(const DataRowType& row, void* col)
+{ return log(row[(int)col]) * (20. / M_LN10);
+}
+
+double Frontend::XtractDelay(const DataRowType& row, void* col)
+{ return row[(int)col] * row[0];
+}
 
 void Frontend::Init()
 {
@@ -84,7 +95,13 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case DLG_CONFIG:
       if (SHORT2FROMMP(mp1) == BKN_PAGESELECTEDPENDING)
       { // save values before page change, also save on exit.
-        Filter::WorkDir = EntryField(+GetCtrl(EF_WORKDIR)).Text();
+        const xstring& workdir = EntryField(+GetCtrl(EF_WORKDIR)).Text();
+        if (!workdir.length())
+          Filter::WorkDir.reset();
+        else if (url123::isPathDelimiter(workdir[workdir.length()-1]))
+          Filter::WorkDir = workdir;
+        else
+          Filter::WorkDir = workdir + "\\";
         OpenLoop::RecURI = EntryField(+GetCtrl(EF_RECURI)).Text();
       }
     }
@@ -95,15 +112,21 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case PB_BROWSE:
       { FILEDLG fdlg = { sizeof(FILEDLG) };
         char type[_MAX_PATH];
-        fdlg.fl = FDS_OPEN_DIALOG;
+        fdlg.fl = FDS_OPEN_DIALOG|FDS_CENTER;
         fdlg.ulUser = FDU_DIR_ENABLE|FDU_DIR_ONLY;
         fdlg.pszTitle = "Select DRC123 working directory";
         fdlg.pszIType = type;
         strlcpy(fdlg.szFullFile, ControlBase(+GetCtrl(EF_WORKDIR)).Text(), sizeof fdlg.szFullFile);
 
-        (*Ctx.plugin_api->file_dlg)(GetHwnd(), GetHwnd(), &fdlg);
+        (*Ctx.plugin_api->file_dlg)(HWND_DESKTOP, GetHwnd(), &fdlg);
         if (fdlg.lReturn == DID_OK)
+        { size_t len = strlen(fdlg.szFullFile);
+          if (len && !url123::isPathDelimiter(fdlg.szFullFile[len-1]))
+          { fdlg.szFullFile[len] = '\\';
+            fdlg.szFullFile[len+1] = 0;
+          }
           ControlBase(+GetCtrl(EF_WORKDIR)).Text(fdlg.szFullFile);
+        }
       }
       break;
      case PB_CURRENT:
@@ -116,6 +139,18 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+
+Frontend::DeconvolutionPage::DeconvolutionPage(Frontend& parent)
+: PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
+{ MajorTitle = "~Playback";
+  MinorTitle = "Deconvolution at playback";
+  Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -40,+10, -10,40);
+  Result.AddGraph("< L gain dB", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)1, ResponseGraph::GF_None, CLR_BLUE);
+  Result.AddGraph("< R gain dB", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)3, ResponseGraph::GF_None, CLR_RED);
+  Result.AddGraph("L delay t >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)2, ResponseGraph::GF_Y2, CLR_GREEN);
+  Result.AddGraph("R delay t >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)4, ResponseGraph::GF_Y2, CLR_PINK);
 }
 
 Frontend::DeconvolutionPage::~DeconvolutionPage()
@@ -344,129 +379,3 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PageBase::DlgProc(msg, mp1, mp2);
 }
 
-
-Frontend::CalibratePage::CalibratePage(Frontend& parent)
-: PageBase(parent, DLG_CALIBRATE, parent.ResModule, DF_AutoResize)
-, Response(Calibrate::GetData(), 1)
-, XTalk(Calibrate::GetData(), 5)
-, AnaUpdateDeleg(*this, &CalibratePage::AnaUpdateNotify)
-{ MajorTitle = "~Calibrate";
-  MinorTitle = "Calibrate sound card";
-  VULeft  .SetRange(-40,0, -10,-3);
-  VURight .SetRange(-40,0, -10,-3);
-  Response.SetAxis(20,20000, -30,+20,  -40, +60);
-  XTalk   .SetAxis(20,20000, -90,+10, -200,+300);
-}
-
-Frontend::CalibratePage::~CalibratePage()
-{}
-
-MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  switch (msg)
-  {case WM_INITDLG:
-    { Response.Attach(GetCtrl(CC_RESULT));
-      XTalk.Attach(GetCtrl(CC_RESULT2));
-      // Load initial values
-      SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
-      RadioButton(+GetCtrl(RB_STEREO_LOOP + data.Obj.Mode)).CheckState(true);
-      SpinButton(+GetCtrl(SB_VOLUME)).Value((int)(data.Obj.Volume*100));
-      if (data.Obj.FileName)
-        ControlBase(+GetCtrl(ST_FILE)).Text(sfnameext2(data.Obj.FileName));
-      break;
-    }
-   case WM_COMMAND:
-    switch (SHORT1FROMMP(mp1))
-    {case PB_START:
-      if (Calibrate::Start())
-      { ControlBase(+GetCtrl(PB_START)).Enabled(false);
-        ControlBase(+GetCtrl(PB_LOAD)).Enabled(false);
-        RadioButton(+GetCtrl(RB_STEREO_LOOP)).EnableAll(false);
-        VULeft.Attach(GetCtrl(BX_LEFT));
-        VURight.Attach(GetCtrl(BX_RIGHT));
-        WinStartTimer(NULL, GetHwnd(), TID_VU, 100);
-      }
-      break;
-     case PB_STOP:
-      if (Calibrate::Stop())
-      { ControlBase(+GetCtrl(PB_START)).Enabled(true);
-        ControlBase(+GetCtrl(PB_LOAD)).Enabled(true);
-        RadioButton(+GetCtrl(RB_STEREO_LOOP)).EnableAll(true);
-      }
-      WinStopTimer(NULL, GetHwnd(), TID_VU);
-      VULeft.Detach();
-      VURight.Detach();
-      break;
-     case PB_CLEAR:
-      { SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
-        data.Obj.clear();
-        break;
-      }
-     case PB_LOAD:
-      { FILEDLG fd = { sizeof(FILEDLG) };
-        fd.fl = FDS_OPEN_DIALOG;
-        fd.pszTitle = "Load calibration file";
-        if ((*Ctx.plugin_api->file_dlg)(GetHwnd(), GetHwnd(), &fd) == DID_OK)
-        { // TODO
-
-        }
-      }
-      break;
-     case PB_SAVE:
-      // TODO
-      break;
-    }
-    return 0;
-
-   case WM_CONTROL:
-    switch (SHORT1FROMMP(mp1))
-    {case DLG_CALIBRATE:
-      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED)
-      { PAGESELECTNOTIFY& pn = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
-        if (pn.ulPageIdCur == GetPageID())
-          AnaUpdateDeleg.detach();
-        if (pn.ulPageIdNew == GetPageID())
-          Calibrate::GetEvDataUpdate() += AnaUpdateDeleg;
-      }
-      break;
-
-    /* case RB_STEREO_LOOP:
-     case RB_MONO_LOOP:
-     case RB_LEFT_LOOP:
-     case RB_RIGHT_LOOP:
-      if (SHORT2FROMMP(mp2) != BN_PAINT)
-        Calibrate::CalData.Mode = (Calibrate::MeasureMode)(SHORT1FROMMP(mp1) - RB_STEREO_LOOP);
-      break;*/
-
-     case SB_VOLUME:
-      if (SHORT2FROMMP(mp2) == SPBN_CHANGE)
-        Calibrate::SetVolume(SpinButton(HWNDFROMMP(mp2)).Value() / 100.);
-      break;
-    }
-    return 0;
-
-   case WM_TIMER:
-    switch (SHORT1FROMMP(mp1))
-    {case TID_VU:
-      OpenLoop::Statistics stat[2];
-      OpenLoop::GetStatistics(stat);
-      if (stat[0].Count)
-        VULeft.SetValue(stat[0].RMSdB(), stat[0].PeakdB());
-      if (stat[1].Count)
-        VURight.SetValue(stat[1].RMSdB(), stat[1].PeakdB());
-      return 0;
-    }
-    break;
-
-   case UM_UPDATE:
-    Response.Invalidate();
-    XTalk.Invalidate();
-  }
-
-  return PageBase::DlgProc(msg, mp1, mp2);
-}
-
-void Frontend::CalibratePage::AnaUpdateNotify(const int&)
-{ DEBUGLOG(("Frontend::CalibratePage::AnaUpdateNotify()\n"));
-  PostMsg(UM_UPDATE, 0,0);
-}

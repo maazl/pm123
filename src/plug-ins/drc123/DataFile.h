@@ -59,7 +59,7 @@ class DataFile
   virtual       ~DataFile();
   unsigned      columns() const                 { return MaxColumns; }
  public:
-  virtual void  clear();
+  virtual void  reset(unsigned cols = 0);
   virtual void  columns(unsigned cols);
   virtual bool  Load(const char* filename, bool nodata = false);
   virtual bool  Save(const char* filename);

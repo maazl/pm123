@@ -65,7 +65,7 @@ Measure::Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams)
 
 Measure* Measure::Factory(FILTER_PARAMS2& filterparams)
 { SyncAccess<MeasureFile> params(Data);
-  return new Measure(params, filterparams);
+  return new Measure(*params, filterparams);
 }
 
 Measure::~Measure()

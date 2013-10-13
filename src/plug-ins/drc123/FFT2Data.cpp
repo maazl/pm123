@@ -37,6 +37,7 @@ FFT2Data::FFT2Data(DataFile& target, double finc, double fbin, double scale, dou
 , FBin(fbin)
 , Scale(scale)
 , Delay(delay)
+, IndeterminatePhase(0)
 {}
 
 static int dlcmp(const double* k, const DataRowType* row)
@@ -57,26 +58,12 @@ void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
   } else
     rp = Target[pos];
   (*rp)[col] = mag;
-  (*rp)[col + 1] = delay;
+  if (!isnan(delay))
+    (*rp)[col + 1] = delay;
 }
 
 void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
 { DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
-
-  IndeterminatePhase = 0;
-
-  /*/ calc average noise RMS intensity
-  double noise = 0;
-  unsigned noisecnt = 0;
-  for (unsigned i = 1; i < source.size(); ++i)
-  { const fftwf_complex& rv = ref[i];
-    if (!rv[0] && !rv[1])
-    { const fftwf_complex& sv = source[i];
-      noise += sv[0] * sv[0] + sv[1] * sv[1];
-      ++noisecnt;
-    }
-  }
-  noise = sqrt(noise / noisecnt);*/
 
   double lastf = 0;
   double lastph = NAN;
@@ -90,7 +77,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
 
   for (unsigned i = 1; i < source.size(); ++i)
   { const fftwf_complex& rv = ref[i];
-    if (!rv.real() && ! rv.imag()) // if (rv == 0)
+    if (!rv.real() && !rv.imag()) // if (rv == 0)
       continue;
 
     double f = FInc * i;
@@ -130,4 +117,66 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
   }
   StoreValue(col, fsum / magcnt, magsum / magcnt, delaysum / delaycnt);
   DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
+}
+
+void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
+{ DEBUGLOG(("FFT2Data(%p)::StoreHDN(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
+
+  double fstart = NAN;
+  double fsum = 0;
+  double magsum = 0;
+  unsigned magcnt = 0;
+
+  double rvsum = 0;
+  double lastrv = NAN;
+  unsigned rvcnt = 0;
+
+  for (unsigned i = 1; i < source.size(); ++i)
+  { fftwf_complex& rv = ref[i];
+    if (rv.real() || rv.imag()) // if (rv != 0)
+    { lastrv = abs(rv);
+      if (magcnt)
+      { rvsum += lastrv * 2;
+        rvcnt += 2;
+      } else
+      { rvsum = lastrv;
+        rvcnt = 1;
+      }
+      continue;
+    } else if (isnan(lastrv))
+      continue; // do not extrapolate frequency
+
+    double f = FInc * i;
+    if (f > fstart * FBin)
+    { // reached bin size => store result
+      // find next frequency with intensity, if any
+      bool last = true;
+      for (unsigned j = i + 1; j < source.size(); ++j)
+      { rv = ref[j];
+        if (rv.real() || rv.imag()) // if (rv != 0)
+        { rvsum += abs(rv);
+          ++rvcnt;
+          last = false;
+          break;
+        }
+      }
+
+      StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt), NAN);
+      if (last)
+        return;
+      fsum = 0;
+      magsum = 0;
+      magcnt = 0;
+      rvsum = lastrv;
+      rvcnt = 1;
+      goto next;
+    } else if (isnan(fstart))
+     next:
+      fstart = f;
+    fsum += f;
+    // magnitude
+    magsum += abs(source[i]) * Scale;
+    ++magcnt;
+  }
+  StoreValue(col, fsum / magcnt, magsum / magcnt, NAN);
 }

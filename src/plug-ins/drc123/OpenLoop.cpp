@@ -34,6 +34,49 @@
 #include <limits.h>
 
 
+bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
+{
+  if (strnicmp(string, "FFTSize=", 8) == 0)
+    FFTSize = atoi(string + 8);
+  else if (strnicmp(string, "DiscardSamp=", 12) == 0)
+    DiscardSamp = atoi(string + 12);
+  else if (strnicmp(string, "RefFMin=", 8) == 0)
+    RefFMin = atof(string + 8);
+  else if (strnicmp(string, "RefFMax=", 8) == 0)
+    RefFMax = atof(string + 8);
+  else if (strnicmp(string, "RefExponent=", 12) == 0)
+    RefExponent = atof(string + 12);
+  else if (strnicmp(string, "RefSkipEven=", 12) == 0)
+    RefSkipEven = atoi(string + 12);
+  else if (strnicmp(string, "RefMode=", 8) == 0)
+    RefMode = (Mode)atoi(string + 8);
+  else if (strnicmp(string, "RefVolume=", 10) == 0)
+    RefVolume = atof(string + 10);
+  else if (strnicmp(string, "AnaSwap=", 12) == 0)
+    AnaSwap = atoi(string + 12);
+  else
+    return DataFile::ParseHeaderField(string);
+  return true;
+}
+
+bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
+{
+  fprintf( f,
+    "##FFTSize=%u\n"
+    "##DiscardSamp=%u\n"
+    "##AnaSwap=%u\n"
+    "##RefFMin=%f\n"
+    "##RefFMax=%f\n"
+    "##RefExponent=%f\n"
+    "##RefSkipEven=%u\n"
+    "##RefMode=%u\n"
+    "##RefVolume=%f\n"
+    , FFTSize, DiscardSamp, AnaSwap
+    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume );
+  return DataFile::WriteHeaderFields(f);
+}
+
+
 void OpenLoop::Statistics::Add(const float* data, unsigned inc, unsigned count)
 { Statistics temp;
   temp.Count = count;
@@ -60,6 +103,8 @@ volatile xstring OpenLoop::RecURI(xstring::empty);
 double OpenLoop::FBin = 1.05;
 
 double OpenLoop::RefVolume;
+
+volatile bool OpenLoop::ClearRq;
 
 OpenLoop::Statistics OpenLoop::Stat[2];
 Mutex OpenLoop::StatMtx;
@@ -285,6 +330,7 @@ ULONG OpenLoop::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
       IsLowWater = false;
       InitComplete = false;
       Terminate = false;
+      ClearRq = false;
       RefTID = _beginthread(PROXYFUNCREF(OpenLoop)RefThreadStub, 0, 65536, this);
       if (RefTID == -1)
       { Fail("Failed to start reference generator thread.");
@@ -378,9 +424,14 @@ void OpenLoop::InCommitBuffer(int len, PM123_TIME pos)
     (*OutEvent)(OutW, OUTEVENT_PLAY_ERROR);
   else
   { // aggregate with current data
-    int_ptr<SampleData> cur(CurrentData);
-    if (cur)
-      *NextData += *cur;
+    if (ClearRq)
+    { LoopCount = 0;
+      ClearRq = false;
+    } else
+    { int_ptr<SampleData> cur(CurrentData);
+      if (cur)
+        *NextData += *cur;
+    }
     NextData->LoopCount = ++LoopCount;
     // Pass new data to analyzer thread.
     NextData.swap(CurrentData);
@@ -416,8 +467,9 @@ void OpenLoop::InEvent(OUTEVENTTYPE event)
 }
 
 
-bool OpenLoop::Start(FilterMode mode)
-{ // Check if our plugin is enabled
+bool OpenLoop::Start(FilterMode mode, double volume)
+{ DEBUGLOG(("OpenLoop::Start(%u, %f)\n", mode, volume));
+  // Check if our plugin is enabled
   const char* ret = (*Ctx.plugin_api->exec_command)("plugin params filter drc123.dll");
   if (strstr(ret, "enabled=true") == NULL)
   { (*Ctx.plugin_api->message_display)(MSG_ERROR, "The DRC123 plug-in is disabled. See PM123 properties dialog.");
@@ -433,9 +485,16 @@ bool OpenLoop::Start(FilterMode mode)
   ret = (*Ctx.plugin_api->exec_command)("query play");
   if (strcmp(ret, "0") != 0)
     return false;
+  // set volume
+  xstringbuilder sb;
+  sb.appendf("volume %f", volume);
+  // TODO save previous value
+  ret = (*Ctx.plugin_api->exec_command)(sb.cdata());
+  if (!*ret)
+    return false;
   // Play!
   CurrentMode = mode;
-  xstringbuilder sb;
+  sb.clear();
   sb.append("play \"");
   sb.append(recuri);
   sb.append('\"');

@@ -43,12 +43,23 @@ struct DataVector
   DataVector(size_t fftlen)     : sco_arr<T>(fftlen) {}
   virtual ~DataVector();
   void clear()                  { memset(begin(), 0, size() * sizeof(*get())); }
+  DataVector& operator=(const DataVector& r);
   DataVector& operator+=(const DataVector& r);
 };
 
 template <class T>
 DataVector<T>::~DataVector()
 {}
+
+template <class T>
+DataVector<T>& DataVector<T>::operator=(const DataVector<T>& r)
+{ if (size() != r.size())
+    reset(r.size());
+  const T* sp = r.begin();
+  foreach(T,*, dp, *this)
+    *dp = *sp++;
+  return *this;
+}
 
 template <class T>
 DataVector<T>& DataVector<T>::operator+=(const DataVector<T>& r)

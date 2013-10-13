@@ -32,7 +32,7 @@
 
 
 Calibrate::CalibrationFile::CalibrationFile()
-: DataFile(9)
+: OpenLoopFile(11)
 { // Set Default Parameters
   FFTSize = 131072;
   DiscardSamp = 65536;
@@ -41,25 +41,24 @@ Calibrate::CalibrationFile::CalibrationFile()
   RefExponent = -.5;
   RefSkipEven = true;
   RefMode = RFM_STEREO;
+  RefVolume = .9;
   AnaSwap = false;
-
-  Volume = .8;
   Mode = MD_StereoLoop;
 }
 
 bool Calibrate::CalibrationFile::ParseHeaderField(const char* string)
 {
-  if (strnicmp(string, "VOLUME=", 7) == 0)
-    Volume = atof(string + 7);
-  else if (strnicmp(string, "MODE=", 5) == 0)
+  if (strnicmp(string, "Mode=", 5) == 0)
     Mode = (MeasureMode)atoi(string + 5);
+  else
+    return OpenLoopFile::ParseHeaderField(string);
   return true;
 }
 
 bool Calibrate::CalibrationFile::WriteHeaderFields(FILE* f)
 {
-  fprintf(f, "##VOLUME=%f\n##MODE=%u\n", Volume, Mode);
-  return true;
+  fprintf(f, "##Mode=%u\n", Mode);
+  return OpenLoopFile::WriteHeaderFields(f);
 }
 
 
@@ -73,15 +72,15 @@ Calibrate::Calibrate(const CalibrationFile& params, FILTER_PARAMS2& filterparams
 { RefMode = params.Mode == MD_StereoLoop ? RFM_STEREO : RFM_MONO;
 
   const unsigned fdsize = params.FFTSize / 2 + 1;
-  AnaCross.reset(fdsize);
+  AnaTemp.reset(fdsize);
   ResCross.reset(params.FFTSize);
   // plan for cross correlation
-  CrossPlan = fftwf_plan_dft_c2r_1d(params.FFTSize, AnaCross.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
+  CrossPlan = fftwf_plan_dft_c2r_1d(params.FFTSize, AnaTemp.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
 }
 
 Calibrate* Calibrate::Factory(FILTER_PARAMS2& filterparams)
 { SyncAccess<CalibrationFile> params(Data);
-  return new Calibrate(params, filterparams);
+  return new Calibrate(*params, filterparams);
 }
 
 Calibrate::~Calibrate()
@@ -103,7 +102,7 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
   // Calculate the average group delay to avoid overflows in delta-phi.
   { const fftwf_complex* sp1 = input[0].begin();
     const fftwf_complex* sp2 = GetRefDesign(0).begin();
-    foreach(fftwf_complex,*, dp, AnaCross)
+    foreach(fftwf_complex,*, dp, AnaTemp)
       *dp = *sp1++ * conj(*sp2++);
     fftwf_execute(CrossPlan);
     // Find maximum
@@ -126,11 +125,18 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
   // Update results file
   SyncAccess<CalibrationFile> data(Data);
-  FFT2Data f2d(data, finc, FBin, scale, delay);
+  FFT2Data f2d(*data, finc, FBin, scale, delay);
   f2d.StoreFFT(1, input[0], GetRefDesign(0));
   f2d.StoreFFT(3, input[1], GetRefDesign(1));
   f2d.StoreFFT(5, input[0], GetRefDesign(1));
   f2d.StoreFFT(7, input[1], GetRefDesign(0));
+  if (Params.RefSkipEven)
+  { // Calc the sum output
+    AnaTemp = GetRefDesign(0);
+    AnaTemp += GetRefDesign(1);
+    f2d.StoreHDN(9, input[0], AnaTemp);
+    f2d.StoreHDN(10, input[1], AnaTemp);
+  }
 
   EvDataUpdate(0);
 }

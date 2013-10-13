@@ -63,13 +63,13 @@ DLGTEMPLATE DLG_CONFIG
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT "Working ~directory",       ST_GENERIC, 12, 88,  56,  8, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_WORKDIR, 72, 88, 244,  8, ES_MARGIN
-      CTLDATA 8, 260, 0, 0
+      CTLDATA CD_EFDATA(260)
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     PUSHBUTTON "~Browse...",          PB_BROWSE, 324, 86,  52, 12, WS_GROUP
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     LTEXT "~Record URI",              ST_GENERIC, 12, 74,  56,  8, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_RECURI,  72, 74, 244,  8, ES_MARGIN
-      CTLDATA 8, 1023, 0, 0
+      CTLDATA CD_EFDATA(1023)
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     PUSHBUTTON "~Current",            PB_CURRENT,324, 72,  52, 12, WS_GROUP
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
@@ -267,19 +267,20 @@ DLGTEMPLATE DLG_CALIBRATE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,1,1)
     CONTROL  "",                      CC_RESULT,  12, 80, 172,108, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,2,0,1, 1,2,1,1)
-    GROUPBOX " Cross talk ",          GB_GENERIC,196, 74, 188,124
+    GROUPBOX " Cross talk & intermodulation ",GB_GENERIC,196, 74, 188,124
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,1,1)
     CONTROL  "",                      CC_RESULT2,204, 80, 172,108, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,1,1)
 
     GROUPBOX " File ",                GB_GENERIC,  4, 20, 380, 52
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT    "~Name",                 ST_GENERIC, 92, 52,  32, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_FILE,   128, 54, 248,  8, ES_MARGIN
+      CTLDATA CD_EFDATA(240)
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT    "~Description",          ST_GENERIC, 12, 52,  72, 12, DT_VCENTER|DT_MNEMONIC
     MLE      "",                      ML_DESCR,   12, 26, 364, 26, MLS_WORDWRAP|MLS_VSCROLL
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    RTEXT    "",                      ST_FILE     92, 52, 284, 12, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     PUSHBUTTON "~Run",                PB_START,   18,  4,  52, 12, WS_GROUP
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
@@ -289,7 +290,7 @@ DLGTEMPLATE DLG_CALIBRATE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     PUSHBUTTON "~Load...",            PB_LOAD,   198,  4,  52, 12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
-    PUSHBUTTON "~Save...",            PB_SAVE,   258,  4,  52, 12
+    PUSHBUTTON "~Save",               PB_SAVE,   258,  4,  52, 12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     PUSHBUTTON "~Help",               PB_HELP,   318,  4,  52, 12, BS_HELP
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)

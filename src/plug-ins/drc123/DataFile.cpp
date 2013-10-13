@@ -57,10 +57,10 @@ DataFile::DataFile(unsigned cols)
 DataFile::~DataFile()
 {}
 
-void DataFile::clear()
-{ Description.reset();
-  MaxColumns = 0;
-  vector_own<DataRowType>::clear();
+void DataFile::reset(unsigned cols)
+{ vector_own<DataRowType>::clear();
+  Description.reset();
+  MaxColumns = cols;
 }
 
 void DataFile::columns(unsigned cols)

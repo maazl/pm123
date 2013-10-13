@@ -73,8 +73,19 @@ class OpenLoop : public Filter
     bool        RefSkipEven;
     /// Type of the reference signal.
     Mode        RefMode;
+    /// Reference playback volume
+    double      RefVolume;
     /// Swap channels on input processing.
     bool        AnaSwap;
+  };
+  class OpenLoopFile
+  : public DataFile
+  , public Parameters
+  {protected:
+    virtual bool ParseHeaderField(const char* string);
+    virtual bool WriteHeaderFields(FILE* f);
+   public:
+                OpenLoopFile(unsigned cols) : DataFile(cols) {}
   };
   /// Info about input for VU meter
   struct Statistics
@@ -135,6 +146,8 @@ class OpenLoop : public Filter
   unsigned      LoopCount;
   FreqDomainData AnaFFT[2];
   fftwf_plan    AnaPlan;
+  /// Request to clear the aggregate buffer.
+  static volatile bool ClearRq;
  private: // internal storage of filter plug-in
   OUTPUT_PARAMS2 VParams;
   INFO_BUNDLE_CV VInfo;
@@ -179,11 +192,12 @@ class OpenLoop : public Filter
   virtual       ~OpenLoop();
  protected:
   static  void  SetVolume(double volume);
-  static  bool  Start(FilterMode mode);
+  static  bool  Start(FilterMode mode, double volume);
           void  TerminateRequest()  { Terminate = true; AnaEvent.Set(); }
           void  Fail(const char* message);
  public:
   static  bool  Stop();
+  static  void  Clear() { ClearRq = true; }
   const FreqDomainData& GetRefDesign(unsigned channel) { return RefDesign[channel && RefMode == RFM_STEREO]; }
   static  void  GetStatistics(Statistics (&stat)[2]);
 };

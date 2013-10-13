@@ -36,19 +36,28 @@
 #include <stdio.h>
 
 
-LONG ResponseGraph::ToYCore(double relative)
-{ LONG result = (LONG)(relative * (XY2i.y - XY1i.y) + .5) + XY1i.y;
-  if (abs(result) <= 32767)
-    return result;
+LONG ResponseGraph::ToX(double x)
+{ if (Axes.Flags & AF_LogX)
+    x = log(x);
+  LONG result = (LONG)floor((x - X0) / XS * (XY2.x - XY1.x) + .5) + XY1.x;
   // PM dislikes large numbers
-  return result > 0 ? 32767 : -32767;
+  // furthermore it is useful to notify where your values got out of bounds.
+  if (result < XY1.x)
+    return XY1.x;
+  if (result > XY2.x)
+    return XY2.x;
+  return result;
 }
 
-LONG ResponseGraph::ToYdB(double, double mag)
-{ return ToY1(log(mag) * (20./M_LN10));
-}
-LONG ResponseGraph::ToYT(double f, double delay)
-{ return ToY2(f * delay);
+LONG ResponseGraph::ToYCore(double relative)
+{ LONG result = (LONG)(relative * (XY2.y - XY1.y) + .5) + XY1.y;
+  // PM dislikes large numbers
+  // furthermore it is useful to notify where your values got out of bounds.
+  if (result < XY1.y)
+    return XY1.y;
+  if (result > XY2.y)
+    return XY2.y;
+  return result;
 }
 
 static const char SIprefix[] =
@@ -56,19 +65,20 @@ static const char SIprefix[] =
 , '.'                                    // [8]
 , 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' }; // 10^3..10^24
 
-void ResponseGraph::AxisText(char* target, double value)
-{ if (value == 0.)
+void ResponseGraph::AxesText(char* target, double value, int exponent)
+{ /*if (value == 0.)
   { target[0] = '0';
     target[1] = 0;
     return;
-  }
+  }*/
+  value *= exp(-exponent * M_LN10);
   // get digits 0123456789
   //            +1.2E+345
   char buf[10];
   sprintf(buf, "%+.1e", value);
   if (buf[0] == '-')
     *target++ = '-';
-  int exponent = atoi(buf+5) + 25;
+  exponent += atoi(buf+5) + 25;
   ASSERT(exponent >= 0 && exponent <= 50);
   char separator = SIprefix[exponent/3];
   target[3] = 0;
@@ -102,9 +112,9 @@ void ResponseGraph::AxisText(char* target, double value)
   }
 }
 
-void ResponseGraph::DrawLabel(HPS ps, POINTL at, int quadrant, double value)
+void ResponseGraph::DrawLabel(POINTL at, int quadrant, double value, int exponent)
 { char label[5];
-  AxisText(label, value);
+  AxesText(label, value);
   size_t len = strlen(label);
   if (quadrant >= 3)
   { // Draw below at
@@ -113,161 +123,206 @@ void ResponseGraph::DrawLabel(HPS ps, POINTL at, int quadrant, double value)
     at.y += 2;
   if (quadrant & 2)
   { // draw left of at, right aligned
-    GpiSetCharDirection(ps, CHDIRN_RIGHTLEFT);
+    GpiSetCharDirection(PS, CHDIRN_RIGHTLEFT);
     size_t l = 0;
     size_t r = len - 1;
     while (l < r)
       swap(label[l++], label[r--]);
   } else
   { at.x += 1;
-    GpiSetCharDirection(ps, CHDIRN_LEFTRIGHT);
+    GpiSetCharDirection(PS, CHDIRN_LEFTRIGHT);
   }
-  GpiCharStringAt(ps, &at, strlen(label), label);
+  GpiCharStringAt(PS, &at, strlen(label), label);
 }
 
-void ResponseGraph::DrawText(HPS ps, POINTL at, const char* text)
+void ResponseGraph::DrawXLabel(double x)
 {
-  size_t len = strlen(text);
-  at.x -= len * FontMetrics.lAveCharWidth / 2;
-  GpiCharStringAt(ps, &at, len, (char*)text);
+  POINTL xy;
+  xy.x = ToX(x);
+  xy.y = XY2.y;
+  GpiMove(PS, &xy);
+  xy.y = XY1.y;
+  GpiLine(PS, &xy);
+  DrawLabel(xy, 1, x);
 }
 
-void ResponseGraph::DrawGraph(HPS ps, size_t column, LONG (ResponseGraph::*yscale)(double, double))
+void ResponseGraph::DrawYLabel(double y)
 {
-  column += StartCol;
+  double ry = Axes.Flags & AF_LogY1 ? log(y) : y;
+  ry = (ry - Y10) / Y1S;
+  POINTL xy;
+  xy.x = XY1.x;
+  xy.y = ToYCore(ry);
+  DrawLabel(xy, 4, y);
+  GpiMove(PS, &xy);
+  xy.x = XY2.x;
+  GpiLine(PS, &xy);
+}
+
+void ResponseGraph::DrawY12Label(double y)
+{
+  double ry = Axes.Flags & AF_LogY1 ? log(y) : y;
+  ry = (ry - Y10) / Y1S;
+  POINTL xy;
+  xy.x = XY1.x;
+  xy.y = ToYCore(ry);
+  DrawLabel(xy, 4, y);
+  GpiMove(PS, &xy);
+  xy.x = XY2.x;
+  GpiLine(PS, &xy);
+  DrawLabel(xy, 3, ry * Y2S + Y20);
+}
+
+static const double logscale[] =
+{ 1, 2, 5, 10 };
+
+void ResponseGraph::LinAxes(double min, double max, void (ResponseGraph::*drawlabel)(double value))
+{
+  double l = log10((max-min)/6.);
+  int p = (int)floor(l);
+  l -= p;
+  // round to next 1/2/5
+  const double* dp = logscale;
+  while (l > log10(*dp))
+    ++dp;
+
+  l = *dp * exp(p * M_LN10);
+
+  double v = ceil(min / l -.001) * l;
+  double ve = max + l/1000.;
+  while (v <= ve)
+  { (this->*drawlabel)(v);
+    v += l;
+  }
+}
+
+void ResponseGraph::LogAxes(double min, double max, void (ResponseGraph::*drawlabel)(double value))
+{
+  double l = log10(min) - .001;
+  int p = (int)floor(l);
+  l -= p;
+  // round to next 1/2/5
+  const double* dp = logscale;
+  while (l > log10(*dp))
+    ++dp;
+
+  const double* dpe = logscale + sizeof logscale / sizeof *logscale;
+  for (;;)
+  { if (dp == dpe)
+    { dp = logscale;
+      ++p;
+    }
+    l = *dp++ * exp(p * M_LN10);
+    if (l > max * 1.001)
+      break;
+
+    (this->*drawlabel)(l);
+  }
+}
+
+static inline double to_y_rel(double value, bool logscale, double y0, double ys)
+{ if (logscale)
+    value = log(value);
+  return (value - y0) / ys;
+}
+
+void ResponseGraph::DrawGraph(const GraphInfo& graph)
+{
+  GpiSetColor(PS, graph.Color);
 
   POINTL points[1000];
   POINTL* const dpe = points + sizeof points / sizeof *points;
 
-  SyncAccess<DataFile> data(Data);
-  const DataRowType*const* rp = data.Obj.begin();
-  const DataRowType*const* rpe = data.Obj.end();
+  SyncAccess<DataFile> data(graph.Data);
+  const DataRowType*const* rp = data->begin();
+  const DataRowType*const* rpe = data->end();
 
   bool start = true;
   while (rp != rpe)
   { POINTL* dp;
     for (dp = points; dp < dpe && rp != rpe; ++rp)
     { const DataRowType& row = **rp;
-      double value = row[column];
+      double value = (*graph.ExtractY)(row, graph.User);
       if (isnan(value))
         continue;
-      dp->x = ToX(row[0]);
-      dp->y = (this->*yscale)(row[0], value);
+      value = graph.Flags & GF_Y2
+        ? to_y_rel(value, Axes.Flags & AF_LogY1, Y20, Y2S)
+        : to_y_rel(value, Axes.Flags & AF_LogY2, Y10, Y1S);
+      dp->y = ToYCore(value);
+      value = (*graph.ExtractX)(row, graph.User);
+      if (isnan(value))
+        continue;
+      dp->x = ToX(value);
       ++dp;
     }
     if (start)
-      GpiMove(ps, points);
-    GpiPolyLine(ps, dp - points, points);
+      GpiMove(PS, points);
+    GpiPolyLine(PS, dp - points, points);
     start = false;
   }
 }
 
-static const double logscale[] =
-{ 1, 2, 5, 10 };
-
-void ResponseGraph::Draw(HPS ps)
+void ResponseGraph::DrawLegend(const char* text, unsigned index)
 {
-  GpiSetBackColor(ps, CLR_WHITE);
-  GpiSetPattern(ps, PATSYM_BLANK);
-  GpiSetBackMix(ps, BM_OVERPAINT);
+  size_t len = strlen(text);
+  POINTL xy;
+  xy.y = XY2.y - (FontMetrics.lMaxAscender - 2) - (FontMetrics.lMaxBaselineExt - 2) * (index / 4);
+  index %= 4;
+  index *= 3;
+  // Now index is 0, 3, 6 or 9.
+  xy.x = ((11 - index) * XY1.x + (2 + index) * XY2.x) / 13;
+  xy.x -= len * FontMetrics.lAveCharWidth / 2;
+  GpiCharStringAt(PS, &xy, len, (char*)text);
+}
+
+void ResponseGraph::Draw()
+{
+  GpiSetBackColor(PS, CLR_WHITE);
+  GpiSetPattern(PS, PATSYM_BLANK);
+  GpiSetBackMix(PS, BM_OVERPAINT);
   FATTRS fattrs =
   { sizeof(FATTRS)
   , 0, 0
   , "Helv", 0, 0, 8,8
   , 0, 0
   };
-  GpiCreateLogFont(ps, NULL, 0, &fattrs);
-  GpiQueryFontMetrics(ps, sizeof FontMetrics, &FontMetrics);
-  GpiIntersectClipRectangle(ps, (RECTL*)&XY1);
+  GpiCreateLogFont(PS, NULL, 0, &fattrs);
+  GpiQueryFontMetrics(PS, sizeof FontMetrics, &FontMetrics);
+  GpiIntersectClipRectangle(PS, (RECTL*)&XY1);
 
-  GpiMove(ps, &XY1);
-  GpiBox(ps, DRO_FILL, &XY2, 0,0);
+  GpiMove(PS, &XY1);
+  GpiBox(PS, DRO_FILL, &XY2, 0,0);
 
-  GpiSetColor(ps, CLR_DARKGRAY);
-  GpiSetBackMix(ps, BM_LEAVEALONE);
-  { // X grid
-    double lx = log10(Xmin) - .001;
-    int xp = (int)floor(lx);
-    lx -= xp;
-    // round to next 1/2/5
-    const double* dp = logscale;
-    while (lx > log10(*dp))
-      ++dp;
-
-    const double* dpe = logscale + sizeof logscale / sizeof *logscale;
-    for (;;)
-    { if (dp == dpe)
-      { dp = logscale;
-        ++xp;
-      }
-      lx = *dp++ * exp(xp * M_LN10);
-      if (lx > Xmax * 1.001)
-        break;
-
-      POINTL xy;
-      xy.x = ToX(lx);
-      xy.y = XY2.y;
-      GpiMove(ps, &xy);
-      xy.y = XY1.y;
-      GpiLine(ps, &xy);
-      DrawLabel(ps, xy, 1, lx);
-    }
+  GpiSetColor(PS, CLR_DARKGRAY);
+  GpiSetBackMix(PS, BM_LEAVEALONE);
+  // X grid
+  { void (ResponseGraph::*scalefn)(double min, double max, void (ResponseGraph::*drawlabel)(double value))
+      = Axes.Flags & AF_LogX ? &ResponseGraph::LogAxes : &ResponseGraph::LinAxes;
+    (this->*scalefn)(Axes.XMin, Axes.XMax, &ResponseGraph::DrawXLabel);
   }
-
-  { // Y grid
-    double ly = log10(Y1c);
-    int yp = (int)floor(ly);
-    ly = floor(exp(yp * M_LN10) + .5);
-
-    double y = ceil(Y1min / ly) * ly;
-    while (y <= Y1max)
-    {
-      POINTL xy;
-      xy.x = XY1.x;
-      xy.y = ToY1(y);
-      DrawLabel(ps, xy, 4, y);
-      GpiMove(ps, &xy);
-      xy.x = XY2.x;
-      GpiLine(ps, &xy);
-      DrawLabel(ps, xy, 3, (y - Y1min) / Y1c * Y2c + Y2min);
-      y += ly;
-    }
+  // Y grid
+  { void (ResponseGraph::*scalefn)(double min, double max, void (ResponseGraph::*drawlabel)(double value))
+      = Axes.Flags & AF_LogY1 ? &ResponseGraph::LogAxes : &ResponseGraph::LinAxes;
+    void (ResponseGraph::*labelfn)(double value)
+      = isnan(Axes.Y2Min) ? &ResponseGraph::DrawYLabel : &ResponseGraph::DrawY12Label;
+    (this->*scalefn)(Axes.Y1Min, Axes.Y1Max, labelfn);
   }
 
   /*GpiSetColor(ps, CLR_BLACK);
   GpiMove(ps, &XY1);
   GpiBox(ps, DRO_OUTLINE, &XY2, 0,0);*/
 
-  GpiIntersectClipRectangle(ps, (RECTL*)&XY1);
-  // Left delay
-  GpiSetColor(ps, CLR_PINK);
-  DrawGraph(ps, 1, &ResponseGraph::ToYT);
-  // right delay
-  GpiSetColor(ps, CLR_CYAN);
-  DrawGraph(ps, 3, &ResponseGraph::ToYT);
-  // Left amplitude
-  GpiSetColor(ps, CLR_RED);
-  DrawGraph(ps, 0, &ResponseGraph::ToYdB);
-  // Right amplitude
-  GpiSetColor(ps, CLR_BLUE);
-  DrawGraph(ps, 2, &ResponseGraph::ToYdB);
+  // draw graphs
+  // Draw in reverse order to keep the important ones at the top.
+  unsigned i;
+  for (i = Graphs.size(); i--; )
+    DrawGraph(*Graphs[i]);
 
-  { // Legend
-    GpiSetCharDirection(ps, CHDIRN_LEFTRIGHT);
-    POINTL xy;
-    xy.y = XY2.y - FontMetrics.lEmHeight + 2;
-    xy.x = (5 * XY1.x + 8 * XY2.x) / 13;
-    GpiSetColor(ps, CLR_PINK);
-    DrawText(ps, xy, "L delay t >");
-    xy.x = (2 * XY1.x + 11 * XY2.x) / 13;
-    GpiSetColor(ps, CLR_CYAN);
-    DrawText(ps, xy, "R delay t >");
-    xy.x = (11 * XY1.x + 2 * XY2.x) / 13;
-    GpiSetColor(ps, CLR_RED);
-    DrawText(ps, xy, "< L gain dB");
-    xy.x = (8 * XY1.x + 5 * XY2.x) / 13;
-    GpiSetColor(ps, CLR_BLUE);
-    DrawText(ps, xy, "< R gain dB");
+  // Draw legend
+  GpiSetCharDirection(PS, CHDIRN_LEFTRIGHT);
+  for (unsigned i = Graphs.size(); i--; )
+  { GpiSetColor(PS, Graphs[i]->Color);
+    DrawLegend(Graphs[i]->Legend, i);
   }
 }
 
@@ -285,21 +340,17 @@ MRESULT ResponseGraph::WinProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_PAINT:
     { PaintPresentationSpace ps(GetHwnd());
+      PS = ps;
       PMRASSERT(WinQueryWindowRect(GetHwnd(), (RECTL*)&XY1));
-      // TODO: reserve space for fonts
-      XY1i = XY1;
-      XY2i = XY2;
-      Draw(ps);
+      Draw();
       return 0;
     }
   }
   return SubclassWindow::WinProc(msg, mp1, mp2);
 }
 
-ResponseGraph::ResponseGraph(const SyncRef<DataFile>& data, unsigned startcol)
-: Data(data)
-, StartCol(startcol)
-{ DEBUGLOG(("ResponseGraph(%p)::ResponseGraph(&%p, %u)\n", this, &data, startcol));
+ResponseGraph::ResponseGraph()
+{ DEBUGLOG(("ResponseGraph(%p)::ResponseGraph()\n", this));
 }
 
 ResponseGraph::~ResponseGraph()
@@ -319,18 +370,22 @@ void ResponseGraph::Detach()
   Invalidate();
 }
 
-void ResponseGraph::SetAxis(double xmin, double xmax, double y1min, double y1max, double y2min, double y2max)
-{ DEBUGLOG(("ResponseGraph(%p)::SetAxis(%f,%f, %f,%f, %f,%f)\n", this, xmin, xmax, y1min, y1max, y2min, y2max));
-  Xmin  = xmin;
-  Xmax  = xmax;
-  LX    = log(xmin);
-  LXc   = log(xmax) - LX;
-  Y1min = y1min;
-  Y1max = y1max;
-  Y1c   = y1max - y1min;
-  Y2min = y2min;
-  Y2max = y2max;
-  Y2c   = y2max - y2min;
-  Invalidate();
+inline static void preparescale(bool logscale, double& s0, double& ss, double min, double max)
+{
+  if (logscale)
+  { s0 = log(min);
+    ss = log(max / min);
+  } else
+  { s0 = min;
+    ss = max - min;
+  }
 }
 
+void ResponseGraph::PrepareAxes()
+{ DEBUGLOG(("ResponseGraph(%p)::PrepareAxes() - {%x, %f,%f, %f,%f, %f,%f}\n", this,
+    Axes.Flags, Axes.XMin, Axes.XMax, Axes.Y1Min, Axes.Y1Max, Axes.Y2Min, Axes.Y2Max));
+  // precalculate some values
+  preparescale(Axes.Flags & AF_LogX, X0, XS, Axes.XMin, Axes.XMax);
+  preparescale(Axes.Flags & AF_LogY1, Y10, Y1S, Axes.Y1Min, Axes.Y1Max);
+  preparescale(Axes.Flags & AF_LogY2, Y20, Y2S, Axes.Y2Min, Axes.Y2Max);
+}

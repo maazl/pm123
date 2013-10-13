@@ -46,18 +46,17 @@ class Calibrate : public OpenLoop
   , MD_RightLoop
   };
   struct CalParameters
-  { double      Volume;
-    MeasureMode Mode;
+  { MeasureMode Mode;
   };
   class CalibrationFile
-  : public DataFile
-  , public Parameters
+  : public OpenLoopFile
   , public CalParameters
   {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 CalibrationFile();
+    void        reset()                         { DataFile::reset(11); }
   };
 
  private:
@@ -65,7 +64,7 @@ class Calibrate : public OpenLoop
  private:
   CalParameters CalParams;
   static event<const int> EvDataUpdate;
-  FreqDomainData AnaCross;
+  FreqDomainData AnaTemp;
   TimeDomainData ResCross;
   fftwf_plan    CrossPlan;
 
@@ -78,9 +77,10 @@ class Calibrate : public OpenLoop
   virtual ULONG InCommand(ULONG msg, const OUTPUT_PARAMS2* info);
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
-  static  void  SetVolume(double volume)            { if (CurrentMode == MODE_CALIBRATE) OpenLoop::SetVolume(volume); }
-  static  bool  Start()                             { return OpenLoop::Start(MODE_CALIBRATE); }
-  static event_pub<const int>& GetEvDataUpdate()    { return EvDataUpdate; }
+  static  bool  IsRunning()                     { return CurrentMode == MODE_CALIBRATE; }
+  static  void  SetVolume(double volume)        { if (IsRunning()) OpenLoop::SetVolume(volume); }
+  static  bool  Start()                         { return OpenLoop::Start(MODE_CALIBRATE, Data.RefVolume); }
+  static event_pub<const int>& GetEvDataUpdate(){ return EvDataUpdate; }
   static SyncRef<CalibrationFile> GetData()     { return Data; }
 };
 

@@ -36,7 +36,9 @@ typedef struct FILTER_STRUCT Filter;
 struct FILTER_STRUCT
 {public:
   /// Working directory with all the measurement files.
+  /// The path MUST end with a trailing backslash.
   static volatile xstring WorkDir;
+  /// Current operating mode for new instances.
   static enum FilterMode
   { MODE_DECONVOLUTION,
     MODE_MEASURE,

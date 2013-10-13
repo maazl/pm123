@@ -42,7 +42,7 @@ class FFT2Data
   double FBin;
   double Scale;
   double Delay;
- private: // results
+ public: // results
   unsigned IndeterminatePhase;
  private:
   void  StoreValue(unsigned col, double f, double mag, double delay);
@@ -50,6 +50,11 @@ class FFT2Data
   /// Create instance for a target.
   /// @param target The \c DataFile where to store the result.
   /// The DataFile might be initial. The required lines are created on demand.
+  /// @param finc Width of the bins in the FFT data in the frequency domain.
+  /// In general samplerate / fftsize.
+  /// @param fbin Size of the frequency bins in the FFT data. This is equal to the inverse FFT length in the time domain.
+  /// @param scale Multiply all values by \a scale.
+  /// @param delay Use this linear phase delay in seconds for phase unwrapping.
   FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.);
 
   /// Store the data in \a source to the target specified at construction.
@@ -59,11 +64,19 @@ class FFT2Data
   /// @param source Frequency response to store.
   /// @param ref Reference signal.
   /// Only bins where the magnitude of the reference is > 0 are used.
+  /// @pre target.Columns() > col + 1
+  void StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
+  /// Store harmonic distortion and noise.
+  /// @param col Column where the data is to be stored.
+  /// @param source Frequency response to store.
+  /// @param ref Reference signal.
+  /// Only bins where the magnitude of the reference is zero (!) are used.
+  /// The reference amplitude is interpolated from the neighbors.
   /// @param finc Width of the bins in the FFT data in the frequency domain.
   /// In general samplerate / fftsize.
   /// @param scale Multiply all values by \a scale.
   /// @pre target.Columns() > col + 1
-  void StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
+  void StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
 };
 
 #endif // FFT2DATA_H

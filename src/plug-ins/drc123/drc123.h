@@ -41,7 +41,7 @@
 #define GB_GENERIC      1001
 #define ST_DESCR        1002
 #define ML_DESCR        1003
-#define ST_FILE         1004
+#define EF_FILE         1004
 #define PB_HELP         1010
 #define PB_START        1011
 #define PB_STOP         1012

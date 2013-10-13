@@ -60,7 +60,7 @@ class Measure : public OpenLoop
  protected:
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
-  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE); }
+  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE, 1.); }
   static SyncRef<MeasureFile> GetData() { return Data; }
 };
 
