@@ -308,20 +308,22 @@ template <class T>
 class SyncRef
 { friend class SyncAccess<T>;
   template <class T2> friend class SyncRef;
-  T& Obj;
+  T* Obj;
  public:
-  SyncRef(T& obj) : Obj(obj) {}
+  SyncRef() : Obj(NULL) {}
+  SyncRef(T& obj) : Obj(&obj) {}
   template <class T2>
   SyncRef(const SyncRef<T2>& r) : Obj(r.Obj) {}
 };
 
 template <class T>
 class SyncAccess
-{public:
-  T& Obj;
+{ T& Obj;
+ public:
   SyncAccess(T& obj)                : Obj(obj) { Obj.Mtx.Request(); }
-  SyncAccess(const SyncRef<T>& obj) : Obj(obj.Obj) { Obj.Mtx.Request(); }
-  operator T&()                     { return Obj; }
+  SyncAccess(const SyncRef<T>& obj) : Obj(*obj.Obj) { Obj.Mtx.Request(); }
+  operator T*()                     { return &Obj; }
+  T* operator->()                   { return &Obj; }
   ~SyncAccess()                     { Obj.Mtx.Release(); }
 };
 
