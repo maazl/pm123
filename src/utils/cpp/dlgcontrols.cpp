@@ -39,42 +39,31 @@
 
 
 USHORT RadioButton::CheckID() const
-{ HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
-  HWND cur = Hwnd;
-  HWND prev = cur; // Work around for PM bug
+{
+  const HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
+  HWND cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
   char classname[8];
   do
   { if ( WinQueryClassName(cur, sizeof classname, classname) == 2
       && classname[0] == '#' && classname[1] == '3' // is WC_BUTTON
       && WinSendMsg(cur, BM_QUERYCHECK, 0, 0) )
       return WinQueryWindowUShort(cur, QWS_ID);
-    prev = cur;
-    cur = WinEnumDlgItem(parent, cur, EDI_NEXTGROUPITEM);
-    // work around: WinEnumDlgItem sometimes return the window handle itself.
-    // At least prevent an infinite loop.
-    if (cur == prev)
-      cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
-  } while (cur != Hwnd && cur != prev);
+    cur = WinQueryWindow(cur, QW_NEXT);
+  } while (cur && !(WinQueryWindowULong(cur, QWL_STYLE) & WS_GROUP));
   return 0;
 }
 
 void RadioButton::EnableAll(bool enabled)
 {
-  HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
-  HWND cur = Hwnd;
-  HWND prev = cur; // Work around for PM bug
+  const HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
+  HWND cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
   char classname[8];
   do
   { if ( WinQueryClassName(cur, sizeof classname, classname) == 2
       && classname[0] == '#' && classname[1] == '3' ) // is WC_BUTTON
       PMRASSERT(WinEnableWindow(cur, enabled));
-    prev = cur;
-    // work around: WinEnumDlgItem sometimes return the window handle itself.
-    // At least prevent an infinite loop.
-    cur = WinEnumDlgItem(parent, cur, EDI_NEXTGROUPITEM);
-    if (cur == prev)
-      cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
-  } while (cur != Hwnd && cur != prev);
+    cur = WinQueryWindow(cur, QW_NEXT);
+  } while (cur && !(WinQueryWindowULong(cur, QWL_STYLE) & WS_GROUP));
 }
 
 void ListBox::InsertItems(const char*const* items, unsigned count, int where)
