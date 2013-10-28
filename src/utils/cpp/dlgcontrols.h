@@ -58,7 +58,7 @@ struct CheckBox : ControlBase
 
 struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
-  bool        CheckState(bool checked = true)       { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
+  bool        CheckState(bool checked)              { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
   bool        CheckState() const                    { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
   int         CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
