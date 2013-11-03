@@ -170,10 +170,11 @@ void PAOperation::Unlink()
     // the outstanding callback.
     if (Operation)
     { pa_operation_cancel(Operation);
+      pa_operation* op = Operation;
+      Operation = NULL;
+      pa_operation_unref(op);
       if (WaitPending)
         PAContext::MainloopSignal();
-      pa_operation_unref(Operation);
-      Operation = NULL;
     }
   }
 }
@@ -181,8 +182,9 @@ void PAOperation::Unlink()
 void PAOperation::Signal()
 { DEBUGLOG(("PAOperation(%p{%p})::Signal() - %u\n", this, Operation));
   FinalState = PA_OPERATION_DONE;
-  pa_operation_unref(Operation);
+  pa_operation* op = Operation;
   Operation = NULL;
+  pa_operation_unref(op);
   if (WaitPending)
     PAContext::MainloopSignal();
 }
@@ -198,7 +200,7 @@ void PAOperation::Cancel()
 void PAOperation::Wait() throw (PAStateException)
 { DEBUGLOG(("PAOperation(%p{%p})::Wait()\n", this, Operation));
   // Double check: fast path without lock.
-  switch (pa_operation_get_state(Operation))
+  switch (GetState())
   {case PA_OPERATION_DONE:
     return;
    case PA_OPERATION_CANCELLED:
@@ -209,8 +211,8 @@ void PAOperation::Wait() throw (PAStateException)
   ++WaitPending;
   for (;;)
   { PAContext::MainloopWait();
-    DEBUGLOG(("PAOperation::Wait() - %i\n", pa_operation_get_state(Operation)));
-    switch (pa_operation_get_state(Operation))
+    DEBUGLOG(("PAOperation::Wait() - %i\n", GetState()));
+    switch (GetState())
     {case PA_OPERATION_DONE:
       --WaitPending;
       return;
