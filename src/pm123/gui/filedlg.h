@@ -47,7 +47,7 @@ class APSZ_list : public vector<char>
   APSZ_list() {}
   APSZ_list(size_t size) : vector<char>(size) {}
   ~APSZ_list();
-  operator APSZ*() const;
+  operator APSZ*() const { return (APSZ*)begin(); } // The types char*const* and char*(*)[1] are basically the same except for constness (blame to OS/2).
 };
 
 /** This function returns a list of file types with a storage compatible to APSZ.

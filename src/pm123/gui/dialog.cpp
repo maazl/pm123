@@ -38,6 +38,7 @@
 #include <utilfct.h> // for do_warpsans
 #include <fileutil.h>
 #include <cpp/pmutils.h>
+#include <cpp/smartptr.h>
 #include <xio.h>
 #include <os2.h>
 #include <stdio.h>
@@ -381,7 +382,10 @@ void amp_add_bookmark(HWND owner, APlayable& item)
 
 url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
 {
-  ASSERT(playlist.GetInfo().tech->attributes & TATTR_PLAYLIST);
+  if (playlist.GetInfo().tech->attributes & TATTR_SONG)
+  { amp_messagef(owner, MSG_ERROR, "Cannot save a song as playlist.");
+    return xstring();
+  }
   // If the item is not saveable or initial revert to save as.
   if ( !(playlist.GetInfo().phys->attributes & PATTR_WRITABLE)
       || !playlist.GetInfo().tech->decoder )
@@ -394,6 +398,10 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
 
   if (saveas)
   { sco_ptr<APSZ_list> types(amp_file_types(DECODER_PLAYLIST|DECODER_WRITABLE));
+    if (types->size() <= 1) // NULL terminator counts as well.
+    { amp_messagef(owner, MSG_ERROR, "You do not have any playlist plug-in installed. See Properties/Decoder plug-ins.");
+      return xstring();
+    }
 
     FILEDLG filedialog = {sizeof(FILEDLG)};
     filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;

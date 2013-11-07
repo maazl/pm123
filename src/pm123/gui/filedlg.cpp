@@ -52,10 +52,6 @@ APSZ_list::~APSZ_list()
     delete[] *cpp;
 }
 
-APSZ_list::operator APSZ*() const
-{ return (APSZ*)begin(); // The types char*const* and char*(*)[1] are basically the same except for constness (blame to OS/2).
-}
-
 
 class FileTypesEnumerator
 {private:
@@ -216,8 +212,8 @@ xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& 
       }
     }
   }
-  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder->ModRef->Key.cdata(), format.cdata()));
-  return decoder >= 0 ? decoder->ModRef->Key : xstring();
+  DEBUGLOG(("amp_decoder_by_type: %s %s\n", decoder ? decoder->ModRef->Key.cdata() : "(null)", format.cdata()));
+  return decoder ? decoder->ModRef->Key : xstring();
 }
 
 /* Default dialog procedure for the file dialog. */
