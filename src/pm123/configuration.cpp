@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2012 Marcel Mueller
+ * Copyright 2007-2013 Marcel Mueller
  * Copyright 2004      Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
@@ -492,11 +492,41 @@ bool Cfg::RestWindowPos(HWND hwnd, const char* extkey)
     return false;
 
   BOOL rc = WinRestoreWindowPos("PM123", key1st, hwnd);
-  PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0);
+  PrfWriteProfileData(HINI_PROFILE, "PM123", key1st, NULL, 0);
 
   return rc;
 }
 
+
+void Cfg::MigrateIni()
+{
+  char version[20];
+  ULONG size = sizeof(version) -1;
+  if (PrfQueryProfileData(HIni, "PM123", "Version", version, &size))
+    version[size] = 0;
+  else
+    version[0] = 0;
+  int cmp = strcmp(version, "1.41");
+  if (cmp == 0)
+    return; // nothing to migrate
+  if (cmp > 0)
+  { EventHandler::PostFormat(MSG_WARNING, "The PM123 configuration file is from a newer version (%s).\n"
+                                          "Continue at your own risk.", version);
+    return;
+  }
+
+  // INI file from earlier version
+  // reset plug-in configuration
+  PrfWriteProfileData(HIni, "Settings", "decoders_list", NULL, 0);
+  PrfWriteProfileData(HIni, "Settings", "filters_list", NULL, 0);
+  PrfWriteProfileData(HIni, "Settings", "outputs_list", NULL, 0);
+  PrfWriteProfileData(HIni, "Settings", "visuals_list", NULL, 0);
+  EventHandler::Post(MSG_INFO, "The PM123 configuration file comes from a version before 1.41. The plug-in configuration will be reset to defaults.\n"
+                               "If you had custom plug-ins installed you need to add them manually again. But check whether you still need them.");
+
+  // migration completed
+  PrfWriteProfileData(HIni, "PM123", "Version", "1.41", 4);
+}
 
 void Cfg::MigrateIni(const char* inipath, const char* app)
 {
@@ -560,8 +590,11 @@ void Cfg::Init()
   xstring inipath = amp_basepath + "\\PM123.INI"; // TODO: command line option
   HIni = PrfOpenProfile(amp_player_hab, inipath);
   if (HIni == NULLHANDLE)
-    amp_fail("Failed to access PM123 configuration file %s.", inipath.cdata());
+  { EventHandler::PostFormat(MSG_ERROR, "Failed to access PM123 configuration file %s.", inipath.cdata());
+    exit(1);
+  }
 
+  MigrateIni();
   LoadIni();
 
   MigrateIni(amp_basepath, "analyzer");
