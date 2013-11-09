@@ -621,6 +621,7 @@ void Decoder::ThreadFunc()
 
  done:
   DecMutex.Release();
+ stop:
   Status = DECODER_STOPPED;
   DecTID = -1;
   return;
@@ -674,7 +675,11 @@ void Decoder::ThreadFunc()
   int count = (*OutRequestBuffer)(OutParam, &format, &buffer);
   DecMutex.Request();
   if ((Status & 3) == 0)
-    goto done;
+  { PM123_TIME pos = (double)(mpg123_tell(MPEG)) / FrameInfo.rate;
+    DecMutex.Release();
+    (*OutCommitBuffer)(OutParam, 0, pos);
+    goto stop;
+  }
   if (count <= 0)
   { // Error
     state = ST_ERROR;
@@ -768,7 +773,6 @@ PLUGIN_RC Decoder::Play(PM123_TIME start, float skipspeed)
   NextFast = 0;
   SkipSpeed = skipspeed;
   Status = DECODER_STARTING;
-  Terminate = false;
   DecTID = _beginthread(PROXYFUNCREF(Decoder)ThreadStub, 0, 65535, this);
   if (DecTID == -1)
   { Status = DECODER_STOPPED;
@@ -785,7 +789,6 @@ PLUGIN_RC Decoder::Stop()
     return PLUGIN_GO_ALREADY;
 
   Status = DECODER_STOPPING;
-  Terminate = true;
   DecEvent.Set();
 
   return PLUGIN_OK;

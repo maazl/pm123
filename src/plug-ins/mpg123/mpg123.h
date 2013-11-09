@@ -195,7 +195,6 @@ typedef struct DECODER_STRUCT : public MPG123
   int           DecTID;     ///< Decoder thread identifier.
 
   DECODERSTATE  Status;
-  bool          Terminate;
 
   PM123_TIME    JumpTo;     ///< absolute positioning in seconds
   float         SkipSpeed;  ///< Skip speed from FFWD command
