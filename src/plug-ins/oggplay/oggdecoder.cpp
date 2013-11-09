@@ -330,7 +330,9 @@ void OggDecoderThread::DecoderThread()
         read = OggRead(target, count);
       }
       if (read <= 0)
+      { (*OutCommitBuffer)(A, 0, GetPos() - (double)read / GetSamplerate());
         break; // End of song
+      }
 
       (*OutCommitBuffer)(A, read, GetPos() - (double)read / GetSamplerate());
 
