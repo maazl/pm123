@@ -722,7 +722,9 @@ void Decoder::ThreadFunc()
     mpg123_frameinfo info;
     if (mpg123_info(MPEG, &info) == MPG123_OK)
       obj.bitrate = info.bitrate;
+    DecMutex.Release();
     (*OutEvent)(OutParam, DECEVENT_CHANGEOBJ, &obj);
+    DecMutex.Request();
   }
   // Update meta info?
   // The flag my be set while executing mpg123_read
@@ -730,7 +732,9 @@ void Decoder::ThreadFunc()
   { UpdateMeta = false;
     META_INFO meta;
     FillMetaInfo(meta);
+    DecMutex.Release();
     (*OutEvent)(OutParam, DECEVENT_CHANGEMETA, &meta);
+    DecMutex.Request();
   }
   goto nextblock;
 }
