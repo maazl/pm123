@@ -497,6 +497,13 @@ bool Cfg::RestWindowPos(HWND hwnd, const char* extkey)
   return rc;
 }
 
+bool Cfg::ResetPlugins(const char* key)
+{ ULONG size;
+  if (!PrfQueryProfileSize(HIni, "Settings", key, &size) || !size)
+    return false;
+  PrfQueryProfileData(HIni, "Settings", key, NULL, 0);
+  return true;
+}
 
 void Cfg::MigrateIni()
 {
@@ -517,12 +524,12 @@ void Cfg::MigrateIni()
 
   // INI file from earlier version
   // reset plug-in configuration
-  PrfWriteProfileData(HIni, "Settings", "decoders_list", NULL, 0);
-  PrfWriteProfileData(HIni, "Settings", "filters_list", NULL, 0);
-  PrfWriteProfileData(HIni, "Settings", "outputs_list", NULL, 0);
-  PrfWriteProfileData(HIni, "Settings", "visuals_list", NULL, 0);
-  EventHandler::Post(MSG_INFO, "The PM123 configuration file comes from a version before 1.41. The plug-in configuration will be reset to defaults.\n"
-                               "If you had custom plug-ins installed you need to add them manually again. But check whether you still need them.");
+  if ( ResetPlugins("decoders_list")
+     | ResetPlugins("filters_list")
+     | ResetPlugins("outputs_list")
+     | ResetPlugins("visuals_list") )
+    EventHandler::Post(MSG_INFO, "The PM123 configuration file is from a version before 1.41. The plug-in configuration will be reset to defaults.\n"
+                                 "If you had custom plug-ins installed you need to add them manually again. But check whether you still need them.");
 
   // migration completed
   PrfWriteProfileData(HIni, "PM123", "Version", "1.41", 4);
