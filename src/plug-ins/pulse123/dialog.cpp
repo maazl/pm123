@@ -77,7 +77,8 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       do_warpsans(GetHwnd());
       // Populate MRU list
       ComboBox cb(GetCtrl(CB_SERVER));
-      cb.InsertItem(Configuration.SinkServer);
+      if (Configuration.SinkServer)
+        cb.InsertItem(Configuration.SinkServer);
       char key[] = "Server1";
       do
       { xstring url;
