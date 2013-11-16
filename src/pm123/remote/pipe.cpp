@@ -129,7 +129,7 @@ static void TFNENTRY pipe_thread(void*)
         // send reply
         ULONG actual = ret.length();
         DosWrite(HPipe, (PVOID)ret.cdata(), actual, &actual);
-        DosWrite(HPipe, "\n\n", ret[actual-1] != '\n' ? 2 : 1, &actual);
+        DosWrite(HPipe, "\n\n", !actual || ret[actual-1] != '\n' ? 2 : 1, &actual);
         DosResetBuffer(HPipe);
       }
       // next line
