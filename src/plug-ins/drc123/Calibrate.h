@@ -33,7 +33,6 @@
 #include "DataFile.h"
 #include "DataVector.h"
 #include <cpp/mutex.h>
-#include <cpp/event.h>
 #include <fftw3.h>
 
 
@@ -41,12 +40,14 @@ class Calibrate : public OpenLoop
 {public: // Configuration interface
   enum MeasureMode
   { MD_StereoLoop
-  , MD_MonoLoop
   , MD_LeftLoop
   , MD_RightLoop
+  , MD_CrossLoop
   };
   struct CalParameters
   { MeasureMode Mode;
+    // GUI injection
+    double      Gain2Low, Gain2High;    ///< Display range for x talk/IM gain
   };
   class CalibrationFile
   : public OpenLoopFile
@@ -56,17 +57,16 @@ class Calibrate : public OpenLoop
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 CalibrationFile();
-    void        reset()                         { DataFile::reset(11); }
+    void        reset()                         { DataFile::reset(13); }
   };
 
+ public:
+  static const SVTable VTable;
+  static const CalibrationFile DefData;
  private:
   static CalibrationFile Data;
  private:
   CalParameters CalParams;
-  static event<const int> EvDataUpdate;
-  FreqDomainData AnaTemp;
-  TimeDomainData ResCross;
-  fftwf_plan    CrossPlan;
 
  private:
                 Calibrate(const CalibrationFile& params, FILTER_PARAMS2& filterparams);
@@ -78,9 +78,9 @@ class Calibrate : public OpenLoop
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
   static  bool  IsRunning()                     { return CurrentMode == MODE_CALIBRATE; }
-  static  void  SetVolume(double volume)        { if (IsRunning()) OpenLoop::SetVolume(volume); }
-  static  bool  Start()                         { return OpenLoop::Start(MODE_CALIBRATE, Data.RefVolume); }
-  static event_pub<const int>& GetEvDataUpdate(){ return EvDataUpdate; }
+  static  void  SetVolume(double volume);
+  static  bool  Start();
+  static  void  Clear();
   static SyncRef<CalibrationFile> GetData()     { return Data; }
 };
 

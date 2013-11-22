@@ -34,6 +34,7 @@
 #include "DataFile.h"
 #include "Deconvolution.h"
 #include "Calibrate.h"
+#include "Measure.h"
 #include "ResponseGraph.h"
 #include "VUMeter.h"
 #include <cpp/xstring.h>
@@ -56,8 +57,6 @@ class Frontend : public NotebookDialogBase
   static double XtractDelay(const DataRowType& row, void* col);
 
  private:
-  static const ULONG TID_VU = 101;
-
   class ConfigurationPage : public PageBase
   {public:
     ConfigurationPage(Frontend& parent)
@@ -76,7 +75,7 @@ class Frontend : public NotebookDialogBase
     { UM_UPDATEDESCR = WM_USER + 300
     };
     Deconvolution::Parameters Params;
-    DataFile Kernel;
+    DataFile      Kernel;
     ResponseGraph Result;
    public:
     DeconvolutionPage(Frontend& parent);
@@ -84,7 +83,7 @@ class Frontend : public NotebookDialogBase
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    private:
-    void UpdateDir();
+    void          UpdateDir();
   };
 
   class GeneratePage : public PageBase
@@ -99,42 +98,136 @@ class Frontend : public NotebookDialogBase
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
 
-  class MeasurePage : public PageBase
-  {public:
-    MeasurePage(Frontend& parent)
-    : PageBase(parent, DLG_MEASURE, parent.ResModule, DF_AutoResize)
-    { MajorTitle = "~Measure";
-      MinorTitle = "Measure room response";
-    }
-    virtual ~MeasurePage();
-   protected:
-    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  };
-
-  class CalibratePage : public PageBase
-  {private:
+  class OpenLoopPage : public PageBase
+  {protected:
     enum
     { UM_UPDATE = WM_USER
     , UM_VOLUME
     };
+    enum
+    { TID_VU = 101
+    };
+   protected:
+    const OpenLoop::SVTable& Worker;
    private:
     VUMeter       VULeft;
     VUMeter       VURight;
-    ResponseGraph Response;
-    ResponseGraph XTalk;
-    class_delegate<CalibratePage,const int> AnaUpdateDeleg;
    private:
     volatile bool UpdateRq;
     bool          VolumeRq;
+    class_delegate<OpenLoopPage,const int> AnaUpdateDeleg;
+   protected:
+    OpenLoopPage(Frontend& parent, ULONG dlgid, const OpenLoop::SVTable& worker);
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void          LoadControlValues(const OpenLoop::OpenLoopFile& data);
+    virtual void  LoadControlValues() = 0;
+    void          StoreControlValues(OpenLoop::OpenLoopFile& data) {} // currently no-op
+    virtual void  StoreControlValues() = 0;
+    virtual void  SetRunning(bool running);
+    virtual void  InvalidateGraph() = 0;
+    virtual bool  DoLoadFile(FILEDLG& fdlg) = 0;
+    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr) = 0;
+   private:
+    void          LoadFile();
+    void          SaveFile();
+    void          AnaUpdateNotify(const int&);
+  };
+
+  class ExtPage : public PageBase
+  {public:
+    ExtPage(Frontend& parent, ULONG dlgid);
+    virtual ~ExtPage() {}
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    static void   SetValue(HWND ctrl, double value, const char* mask = "%g");
+    static bool   GetValue(HWND ctrl, double& value);
+    void          LoadControlValues(const OpenLoop::OpenLoopFile& data);
+    virtual void  LoadControlValues() = 0;
+    virtual void  LoadDefaultValues() = 0;
+    void          StoreControlValues(OpenLoop::OpenLoopFile& data);
+    virtual void  StoreControlValues() = 0;
+  };
+
+  class MeasurePage : public OpenLoopPage
+  {private:
+    enum
+    { UM_UPDATECALLIST = WM_USER + 300  ///< Update combo box with calibration files
+    , UM_UPDATECAL                      ///< Update calibration file description
+    };
+
+   private:
+    ResponseGraph Response;
+    DataFile      Calibration;
+   public:
+    MeasurePage(Frontend& parent);
+    virtual ~MeasurePage();
+   private:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void          LoadControlValues(const Measure::MeasureFile& data);
+    virtual void  LoadControlValues();
+    void          StoreControlValues(Measure::MeasureFile& data);
+    virtual void  StoreControlValues();
+    virtual void  SetRunning(bool running);
+    virtual void  InvalidateGraph();
+    void          UpdateDir();
+    void          UpdateCal();
+    virtual bool  DoLoadFile(FILEDLG& fdlg);
+    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr);
+  };
+
+  class MeasureExtPage : public ExtPage
+  {public:
+    MeasureExtPage(Frontend& parent)
+    : ExtPage(parent, DLG_MEASURE_X)
+    { MinorTitle = "Extended measurement options";
+    }
+    virtual ~MeasureExtPage() {}
+   protected:
+    //virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    //void          LoadControlValues(const Measure::MeasureFile& data, const GUIParameters& gui);
+    virtual void  LoadControlValues();
+    virtual void  LoadDefaultValues();
+    //void          StoreControlValues(Measure::MeasureFile& data, GUIParameters& gui);
+    virtual void  StoreControlValues();
+  };
+
+  class CalibratePage : public OpenLoopPage
+  {private:
+    ResponseGraph Response;
+    ResponseGraph XTalk;
+   /*private:
+    static double XtractDeltaGain(const DataRowType& row, void* col);
+    static double XtractDeltaDelay(const DataRowType& row, void* col);*/
    public:
     CalibratePage(Frontend& parent);
     virtual ~CalibratePage();
-   protected:
-    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    private:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
     void          LoadControlValues(const Calibrate::CalibrationFile& data);
-    void          SetRunning(bool running);
-    void          AnaUpdateNotify(const int&);
+    virtual void  LoadControlValues();
+    void          StoreControlValues(Calibrate::CalibrationFile& data);
+    virtual void  StoreControlValues();
+    virtual void  SetRunning(bool running);
+    virtual void  InvalidateGraph();
+    virtual bool  DoLoadFile(FILEDLG& fdlg);
+    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr);
+  };
+
+  class CalibrateExtPage : public ExtPage
+  {public:
+    CalibrateExtPage(Frontend& parent)
+    : ExtPage(parent, DLG_CALIBRATE_X)
+    { MinorTitle = "Extended calibration options";
+    }
+    virtual ~CalibrateExtPage() {}
+   protected:
+    //virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void          LoadControlValues(const Calibrate::CalibrationFile& data);
+    virtual void  LoadControlValues();
+    virtual void  LoadDefaultValues();
+    void          StoreControlValues(Calibrate::CalibrationFile& data);
+    virtual void  StoreControlValues();
   };
 
  public:

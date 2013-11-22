@@ -44,6 +44,7 @@
 									<listOptionValue builtIn="false" value="DEBUG=1"/>
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
 									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
+									<listOptionValue builtIn="false" value="_MAX_PATH=260"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1297800703" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

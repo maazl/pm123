@@ -32,7 +32,7 @@
 
 
 Calibrate::CalibrationFile::CalibrationFile()
-: OpenLoopFile(11)
+: OpenLoopFile(13)
 { // Set Default Parameters
   FFTSize = 131072;
   DiscardSamp = 65536;
@@ -42,8 +42,18 @@ Calibrate::CalibrationFile::CalibrationFile()
   RefSkipEven = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
+  RefFDist = 1.;
+  AnaFBin = 1.05;
   AnaSwap = false;
+
   Mode = MD_StereoLoop;
+
+  GainLow = -30.;
+  GainHigh = +10.;
+  DelayLow = -5;
+  DelayHigh = +5;
+  Gain2Low = -90.;
+  Gain2High = -40.;
 }
 
 bool Calibrate::CalibrationFile::ParseHeaderField(const char* string)
@@ -61,21 +71,22 @@ bool Calibrate::CalibrationFile::WriteHeaderFields(FILE* f)
   return OpenLoopFile::WriteHeaderFields(f);
 }
 
-
+const OpenLoop::SVTable Calibrate::VTable =
+{ &Calibrate::IsRunning
+, &Calibrate::Start
+, &Calibrate::Stop
+, &Calibrate::Clear
+, &Calibrate::SetVolume
+, EvDataUpdate
+};
+const Calibrate::CalibrationFile Calibrate::DefData;
 Calibrate::CalibrationFile Calibrate::Data;
-event<const int> Calibrate::EvDataUpdate;
 
 
 Calibrate::Calibrate(const CalibrationFile& params, FILTER_PARAMS2& filterparams)
 : OpenLoop(params, filterparams)
 , CalParams(params)
 { RefMode = params.Mode == MD_StereoLoop ? RFM_STEREO : RFM_MONO;
-
-  const unsigned fdsize = params.FFTSize / 2 + 1;
-  AnaTemp.reset(fdsize);
-  ResCross.reset(params.FFTSize);
-  // plan for cross correlation
-  CrossPlan = fftwf_plan_dft_c2r_1d(params.FFTSize, AnaTemp.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
 }
 
 Calibrate* Calibrate::Factory(FILTER_PARAMS2& filterparams)
@@ -84,8 +95,7 @@ Calibrate* Calibrate::Factory(FILTER_PARAMS2& filterparams)
 }
 
 Calibrate::~Calibrate()
-{ fftwf_destroy_plan(CrossPlan);
-}
+{}
 
 ULONG Calibrate::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 {
@@ -97,48 +107,64 @@ ULONG Calibrate::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 }
 
 void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
-{ double finc = (double)Format.samplerate / Params.FFTSize;
-  double delay;
-  // Calculate the average group delay to avoid overflows in delta-phi.
-  { const fftwf_complex* sp1 = input[0].begin();
-    const fftwf_complex* sp2 = GetRefDesign(0).begin();
-    foreach(fftwf_complex,*, dp, AnaTemp)
-      *dp = *sp1++ * conj(*sp2++);
-    fftwf_execute(CrossPlan);
-    // Find maximum
-    double max = 0;
-    unsigned pos = 0;
-    double rms = 0;
-    foreach(float,*, sp, ResCross)
-    { double norm = *sp * *sp;
-      rms += norm;
-      if (norm > max)
-      { max = norm;
-        pos = sp - ResCross.begin();
-      }
-    }
-    // TODO check SNR
-    delay = (double)pos / Format.samplerate;
-    DEBUGLOG(("Calibrate::ProcessFFTData: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
-      sqrt(max), pos, sqrt(max / rms * Params.FFTSize), delay));
-  }
+{ // Calculate the average group delay to avoid overflows in delta-phi.
+  double delay = ComputeDelay(input[CalParams.Mode == MD_RightLoop], GetRefDesign(CalParams.Mode == MD_RightLoop));
 
   // Update results file
-  SyncAccess<CalibrationFile> data(Data);
-  FFT2Data f2d(*data, finc, FBin, scale, delay);
-  f2d.StoreFFT(1, input[0], GetRefDesign(0));
-  f2d.StoreFFT(3, input[1], GetRefDesign(1));
-  f2d.StoreFFT(5, input[0], GetRefDesign(1));
-  f2d.StoreFFT(7, input[1], GetRefDesign(0));
-  if (Params.RefSkipEven)
-  { // Calc the sum output
-    AnaTemp = GetRefDesign(0);
-    AnaTemp += GetRefDesign(1);
-    f2d.StoreHDN(9, input[0], AnaTemp);
-    f2d.StoreHDN(10, input[1], AnaTemp);
+  { SyncAccess<CalibrationFile> data(Data);
+    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin, scale, delay);
+    switch (CalParams.Mode)
+    {case MD_StereoLoop:
+      f2d.StoreFFT(1, input[0], GetRefDesign(0));
+      f2d.StoreFFT(3, input[1], GetRefDesign(1));
+      f2d.StoreFFT(5, input[0], GetRefDesign(1));
+      f2d.StoreFFT(7, input[1], GetRefDesign(0));
+      if (Params.RefSkipEven)
+      { // Calc the sum output
+        AnaTemp = GetRefDesign(0);
+        AnaTemp += GetRefDesign(1);
+        f2d.StoreHDN(11, input[0], AnaTemp);
+        f2d.StoreHDN(12, input[1], AnaTemp);
+      }
+      break;
+     case MD_CrossLoop:
+      /* TODO f2d.StoreFFT(9, input[1], input[0]);
+      f2d.StoreFFT(9, input[1], input[0]);*/
+      break;
+     case MD_LeftLoop:
+      f2d.StoreFFT(1, input[0], GetRefDesign(0));
+      f2d.StoreFFT(7, input[1], GetRefDesign(0));
+      if (Params.RefSkipEven)
+        f2d.StoreHDN(11, input[0], GetRefDesign(0));
+      break;
+     case MD_RightLoop:
+      f2d.StoreFFT(3, input[1], GetRefDesign(1));
+      f2d.StoreFFT(5, input[0], GetRefDesign(1));
+      if (Params.RefSkipEven)
+        f2d.StoreHDN(12, input[1], GetRefDesign(1));
+      break;
+    }
   }
 
-  EvDataUpdate(0);
+  OpenLoop::ProcessFFTData(input, scale);
 }
 
+void Calibrate::SetVolume(double volume)
+{
+  if (IsRunning())
+    OpenLoop::SetVolume(volume);
+  SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+  data->RefVolume = volume;
+}
 
+bool Calibrate::Start()
+{
+  return OpenLoop::Start(MODE_CALIBRATE, Data.RefVolume);
+}
+
+void Calibrate::Clear()
+{
+  SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+  data->reset();
+  OpenLoop::Clear();
+}

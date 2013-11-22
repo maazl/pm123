@@ -94,6 +94,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
      next:
       fstart = f;
     fsum += f;
+    DEBUGLOG(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
     // magnitude
     fftwf_complex sv = source[i] / rv;
     magsum += abs(sv) * Scale;

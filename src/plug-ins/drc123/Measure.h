@@ -31,22 +31,39 @@
 
 #include "OpenLoop.h"
 
+
 class Measure : public OpenLoop
 {public:
+  enum MeasureMode
+  { MD_Noise
+  , MD_Sweep
+  };
+  enum Channels
+  { CH_Both
+  , CH_Left
+  , CH_Right
+  };
   struct MesParameters
-  { double      Volume;
+  { MeasureMode Mode;
+    Channels    Chan;
+    bool        DiffOut;
+    bool        RefIn;
+    xstring     CalFile;
   };
   class MeasureFile
-  : public DataFile
-  , public Parameters
+  : public OpenLoopFile
   , public MesParameters
   {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 MeasureFile();
+    void        reset()                         { OpenLoopFile::reset(9); }
   };
 
+ public:
+  static const SVTable VTable;
+  static const MeasureFile DefData;
  private:
   static MeasureFile Data;
  private:
@@ -60,8 +77,11 @@ class Measure : public OpenLoop
  protected:
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
-  static  bool  Start() { return OpenLoop::Start(MODE_MEASURE, 1.); }
-  static SyncRef<MeasureFile> GetData() { return Data; }
+  static  bool  IsRunning()                     { return CurrentMode == MODE_MEASURE; }
+  static  void  SetVolume(double volume);
+  static  bool  Start();
+  static  void  Clear();
+  static SyncRef<MeasureFile> GetData()         { return Data; }
 };
 
 #endif // MEASURE_H_

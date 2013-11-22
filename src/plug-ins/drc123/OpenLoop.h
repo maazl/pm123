@@ -35,6 +35,7 @@
 
 #include <cpp/xstring.h>
 #include <cpp/mutex.h>
+#include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <fftw3.h>
 #include <math.h>
@@ -47,14 +48,18 @@ class OpenLoop : public Filter
 {public:
   /// Type of the reference signal.
   enum Mode
-  { ///< The reference is single channel/mono.
-    RFM_MONO,
-    ///< The reference is single channel, but the output on the right channel is inverted.
-    ///< @remarks This could be used with appropriate hardware to suppress common mode noise.
-    RFM_DIFFERENTIAL,
-    ///< @brief The reference has two orthogonal signals for both channels with distinct frequencies.
-    ///< @details This mode causes all every second frequency to appear at one channel while the other frequencies are on the other channel.
-    RFM_STEREO
+  { /// The reference is single channel/mono.
+    RFM_MONO    = 0x00,
+    /// Left channel only
+    RFM_LEFT    = 0x01,
+    /// Right channel only
+    RFM_RIGHT   = 0x02,
+    /// @brief The reference has two orthogonal signals for both channels with distinct frequencies.
+    /// @details This mode causes all every second frequency to appear at one channel while the other frequencies are on the other channel.
+    RFM_STEREO  = 0x03,
+    /// The reference is single channel, but the output on the right channel is inverted.
+    /// @remarks This could be used with appropriate hardware to suppress common mode noise.
+    RFM_DIFFERENTIAL = 0x04
   }             RefMode;
   /// Configuration parameters for OpenLoop. You may extend them.
   struct Parameters
@@ -75,8 +80,16 @@ class OpenLoop : public Filter
     Mode        RefMode;
     /// Reference playback volume
     double      RefVolume;
+    /// Minimum Factor between neighbor frequencies  in the reference signal.
+    double      RefFDist;
+    /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
+    double      AnaFBin;
     /// Swap channels on input processing.
     bool        AnaSwap;
+
+    // GUI injection
+    double      GainLow, GainHigh;    ///< Display range for gain response
+    double      DelayLow, DelayHigh;  ///< Display range for delay
   };
   class OpenLoopFile
   : public DataFile
@@ -99,6 +112,19 @@ class OpenLoop : public Filter
     void        Reset()         { Sum2 = 0; Count = 0; Peak = 0; }
     Statistics()                { Reset(); }
   };
+  /// Virtual table for static Functions provided by derived classes.
+  /// @remarks A singleton with virtual function would do the Job as well,
+  /// but that would require two related classes. One for the singleton
+  /// and another one for active filter plug-in instances.
+  struct SVTable
+  { bool (*IsRunning)();
+    bool (*Start)();
+    bool (*Stop)();
+    void (*Clear)();
+    void (*SetVolume)(double volume);
+    //SyncAccess<OpenLoopFile>* (*AccessData)();
+    event_pub<const int>& EvDataUpdate;
+  };
  protected:
   struct SampleData
   : public Iref_count
@@ -110,8 +136,8 @@ class OpenLoop : public Filter
  public:
   /// Recording URI for measurements.
   static volatile xstring RecURI;
-  /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
-  static double FBin;
+ protected:
+  static event<const int> EvDataUpdate;
  protected:
   Parameters    Params;
   void          DLLENTRYP(OutEvent)(Filter* w, OUTEVENTTYPE event);
@@ -120,8 +146,6 @@ class OpenLoop : public Filter
   /// @remarks The number of channels in the \e output data is in VFormat.channels.
   FORMAT_INFO2  Format;
  private: // ref generator state
-  /// Current playback volume of the generator.
-  static double RefVolume;
   /// Thread ID of reference generator
   int           RefTID;
   /// true if the output device sent \c OUTEVENT_LOW_WATER,
@@ -137,6 +161,8 @@ class OpenLoop : public Filter
  protected:
   /// Raw data of reference signal.
   TimeDomainData RefData;
+  /// Temporary storage for FFT data.
+  FreqDomainData AnaTemp;
  private: // analysis state
   int           AnaTID;
   Event         AnaEvent;
@@ -145,7 +171,9 @@ class OpenLoop : public Filter
   int_ptr<SampleData> NextData;
   unsigned      LoopCount;
   FreqDomainData AnaFFT[2];
+  TimeDomainData ResCross;
   fftwf_plan    AnaPlan;
+  fftwf_plan    CrossPlan;
   /// Request to clear the aggregate buffer.
   static volatile bool ClearRq;
  private: // internal storage of filter plug-in
@@ -173,6 +201,13 @@ class OpenLoop : public Filter
   PROXYFUNCDEF void TFNENTRY AnaThreadStub(void* arg);
           void  AnaThreadFunc();
  protected:
+  /// Estimate the most likely delay by cross correlation.
+  /// @param fd1 FFT of the signal to estimate.
+  /// @param fd2 FFT of the reference.
+  /// @return Most likely delay of \a fd1 against \a fd2 in seconds.
+  /// @post The returned value will always be in the interval [0,T]
+  /// with T = Params.FFTSize / Format.samplerate.
+  double        ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2);
   /// @brief Process a block of input data.
   /// @details The function is called once for every \c FFTSize number of input samples.
   /// You must override it by the appropriate analysis function.

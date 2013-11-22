@@ -96,26 +96,115 @@ static void load_config()
 {
   do_load_prf_value("filter.WorkDir",  Filter::WorkDir);
   do_load_prf_value("openloop.RecURI", OpenLoop::RecURI);
-  Deconvolution::Parameters deconvolution;
-  load_prf_value(deconvolution.FilterFile);
-  load_prf_value(deconvolution.WindowFunction);
-  load_prf_value(deconvolution.Enabled);
-  load_prf_value(deconvolution.FIROrder);
-  load_prf_value(deconvolution.PlanSize);
-  Deconvolution::SetParameters(deconvolution);
+
+  { Deconvolution::Parameters deconvolution;
+    Deconvolution::GetDefaultParameters(deconvolution);
+    load_prf_value(deconvolution.FilterFile);
+    load_prf_value(deconvolution.WindowFunction);
+    load_prf_value(deconvolution.Enabled);
+    load_prf_value(deconvolution.FIROrder);
+    load_prf_value(deconvolution.PlanSize);
+    Deconvolution::SetParameters(deconvolution);
+  }
+  { SyncAccess<Measure::MeasureFile> pdata(Measure::GetData());
+    Measure::MeasureFile& measure = *pdata;
+    load_prf_value(measure.FFTSize);
+    load_prf_value(measure.DiscardSamp);
+    load_prf_value(measure.RefFMin);
+    load_prf_value(measure.RefFMax);
+    load_prf_value(measure.RefExponent);
+    load_prf_value(measure.RefSkipEven);
+    load_prf_value(measure.RefVolume);
+    load_prf_value(measure.RefFDist);
+    load_prf_value(measure.AnaFBin);
+    load_prf_value(measure.AnaSwap);
+    load_prf_value(measure.GainLow);
+    load_prf_value(measure.GainHigh);
+    load_prf_value(measure.DelayLow);
+    load_prf_value(measure.DelayHigh);
+    load_prf_value(measure.Mode);
+    load_prf_value(measure.Chan);
+    load_prf_value(measure.DiffOut);
+    load_prf_value(measure.RefIn);
+    load_prf_value(measure.CalFile);
+  }
+  { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
+    Calibrate::CalibrationFile& calibrate = *pdata;
+    load_prf_value(calibrate.FFTSize);
+    load_prf_value(calibrate.DiscardSamp);
+    load_prf_value(calibrate.RefFMin);
+    load_prf_value(calibrate.RefFMax);
+    load_prf_value(calibrate.RefExponent);
+    load_prf_value(calibrate.RefSkipEven);
+    load_prf_value(calibrate.RefVolume);
+    load_prf_value(calibrate.RefFDist);
+    load_prf_value(calibrate.AnaFBin);
+    load_prf_value(calibrate.AnaSwap);
+    load_prf_value(calibrate.GainLow);
+    load_prf_value(calibrate.GainHigh);
+    load_prf_value(calibrate.DelayLow);
+    load_prf_value(calibrate.DelayHigh);
+    load_prf_value(calibrate.Mode);
+    load_prf_value(calibrate.Gain2Low);
+    load_prf_value(calibrate.Gain2High);
+  }
 }
 
 static void save_config()
 {
   do_save_prf_value("filter.WorkDir",  xstring(Filter::WorkDir));
   do_save_prf_value("openloop.RecURI", xstring(OpenLoop::RecURI));
-  Deconvolution::Parameters deconvolution;
-  Deconvolution::GetParameters(deconvolution);
-  save_prf_value(deconvolution.FilterFile);
-  save_prf_value(deconvolution.WindowFunction);
-  save_prf_value(deconvolution.Enabled);
-  save_prf_value(deconvolution.FIROrder);
-  save_prf_value(deconvolution.PlanSize);
+
+  { Deconvolution::Parameters deconvolution;
+    Deconvolution::GetParameters(deconvolution);
+    save_prf_value(deconvolution.FilterFile);
+    save_prf_value(deconvolution.WindowFunction);
+    save_prf_value(deconvolution.Enabled);
+    save_prf_value(deconvolution.FIROrder);
+    save_prf_value(deconvolution.PlanSize);
+  }
+  { SyncAccess<Measure::MeasureFile> pdata(Measure::GetData());
+    Measure::MeasureFile& measure = *pdata;
+    save_prf_value(measure.FFTSize);
+    save_prf_value(measure.DiscardSamp);
+    save_prf_value(measure.RefFMin);
+    save_prf_value(measure.RefFMax);
+    save_prf_value(measure.RefExponent);
+    save_prf_value(measure.RefSkipEven);
+    save_prf_value(measure.RefVolume);
+    save_prf_value(measure.RefFDist);
+    save_prf_value(measure.AnaFBin);
+    save_prf_value(measure.AnaSwap);
+    save_prf_value(measure.GainLow);
+    save_prf_value(measure.GainHigh);
+    save_prf_value(measure.DelayLow);
+    save_prf_value(measure.DelayHigh);
+    save_prf_value(measure.Mode);
+    save_prf_value(measure.Chan);
+    save_prf_value(measure.DiffOut);
+    save_prf_value(measure.RefIn);
+    save_prf_value(measure.CalFile);
+  }
+  { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
+    Calibrate::CalibrationFile& calibrate = *pdata;
+    save_prf_value(calibrate.FFTSize);
+    save_prf_value(calibrate.DiscardSamp);
+    save_prf_value(calibrate.RefFMin);
+    save_prf_value(calibrate.RefFMax);
+    save_prf_value(calibrate.RefExponent);
+    save_prf_value(calibrate.RefSkipEven);
+    save_prf_value(calibrate.RefVolume);
+    save_prf_value(calibrate.RefFDist);
+    save_prf_value(calibrate.AnaFBin);
+    save_prf_value(calibrate.AnaSwap);
+    save_prf_value(calibrate.GainLow);
+    save_prf_value(calibrate.GainHigh);
+    save_prf_value(calibrate.DelayLow);
+    save_prf_value(calibrate.DelayHigh);
+    save_prf_value(calibrate.Mode);
+    save_prf_value(calibrate.Gain2Low);
+    save_prf_value(calibrate.Gain2High);
+  }
 }
 
 

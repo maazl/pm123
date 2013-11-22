@@ -41,6 +41,7 @@
 #include <plugin.h>
 #include <cpp/url123.h>
 #include <cpp/dlgcontrols.h>
+#include <cpp/directory.h>
 #include <cpp/container/stringmap.h>
 
 #include <os2.h>
@@ -74,7 +75,9 @@ Frontend::Frontend(HWND owner, HMODULE module)
   Pages.append() = new DeconvolutionPage(*this);
   Pages.append() = new GeneratePage(*this);
   Pages.append() = new MeasurePage(*this);
+  Pages.append() = new MeasureExtPage(*this);
   Pages.append() = new CalibratePage(*this);
+  Pages.append() = new CalibrateExtPage(*this);
   StartDialog(owner, NB_FRONTEND);
 }
 
@@ -301,63 +304,43 @@ void Frontend::DeconvolutionPage::UpdateDir()
 { ListBox lb(+GetCtrl(LB_KERNEL));
   ControlBase descr(+GetCtrl(ST_DESCR));
   lb.DeleteAll();
-  xstringbuilder path;
-  path.append(EntryField(+GetCtrl(EF_WORKDIR)).Text());
-  if (path.length())
-  { if (path[path.length()-1] != '\\' && path[path.length()-1] != '/')
-      path.append('\\');
-    size_t pathlen = path.length();
-    path.append("*.target");
-    HDIR hdir = HDIR_CREATE;
-    char buf[1024];
-    ULONG count = 100;
-    APIRET rc = DosFindFirst(path.cdata(), &hdir,
-      FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN,
-      &buf, sizeof buf, &count, FIL_STANDARD);
-    switch (rc)
-    {default:
-      descr.Text(os2_strerror(rc, buf, sizeof buf));
-      break;
-     case NO_ERROR:
-      const char* names[100];
-      int selected = LIT_NONE;
-      const char* currentname = Params.FilterFile ? sfnameext2(Params.FilterFile) : NULL;
-      do
-      { FILEFINDBUF3* fb = (FILEFINDBUF3*)buf;
-        const char** np = names;
-        for(;;)
-        { // selected entry?
-          if (currentname && stricmp(currentname, sfnameext2(fb->achName)) == 0)
-          { selected = np - names;
-            path.erase(pathlen);
-            path.append(fb->achName);
-          }
-          // store entry
-          *np++ = fb->achName;
-          // next entry
-          if (!fb->oNextEntryOffset)
-            break;
-          fb = (FILEFINDBUF3*)((char*)fb + fb->oNextEntryOffset);
-        }
-        // insert items
-        lb.InsertItems(names, np - names, LIT_END);
-        // next package
-        count = 100;
-      } while (DosFindNext(hdir, &buf, sizeof buf, &count) == NO_ERROR);
-      // Select item
-      if (selected != LIT_NONE)
-      { lb.Select(selected);
-        Params.FilterFile = path.get();
-      } else
-      { Params.FilterFile.reset();
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
-      }
-      PostMsg(UM_UPDATEDESCR, 0, 0);
+  xstring path = Filter::WorkDir;
+  if (!path.length())
+  { descr.Text("No working directory");
+    return;
+  }
+  DirScan dir(path, "*.target", FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
+  const char* names[50];
+  int selected = LIT_NONE;
+  const char* currentname = Params.FilterFile ? sfnameext2(Params.FilterFile) : NULL;
+  unsigned count = 0;
+  while (dir.Next() == 0)
+  { const char* name = dir.Current()->achName;
+    if (currentname && stricmp(currentname, sfnameext2(name)) == 0)
+    { selected = count + lb.Count();
+      Params.FilterFile = dir.CurrentPath();
     }
+    names[count++] = name;
+    // package full or storage from dir.Current no longer stable?
+    if (count == sizeof names / sizeof *names || dir.RemainingPackageSize() == 1)
+    { lb.InsertItems(names, count, LIT_END);
+      count = 0;
+    }
+  }
+  if (count)
+    lb.InsertItems(names, count, LIT_END);
 
+  if (dir.LastRC() != ERROR_NO_MORE_FILES)
+  { descr.Text(dir.LastErrorText());
   } else
-  { // No working directory
-    descr.Text("No working directory");
+  { // Select item
+    if (selected != LIT_NONE)
+    { lb.Select(selected);
+    } else
+    { Params.FilterFile.reset();
+      CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
+    }
+    PostMsg(UM_UPDATEDESCR, 0, 0);
   }
 }
 
@@ -369,13 +352,3 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   return PageBase::DlgProc(msg, mp1, mp2);
 }
-
-
-Frontend::MeasurePage::~MeasurePage()
-{}
-
-MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  return PageBase::DlgProc(msg, mp1, mp2);
-}
-

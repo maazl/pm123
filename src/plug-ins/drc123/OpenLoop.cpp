@@ -52,8 +52,10 @@ bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
     RefMode = (Mode)atoi(string + 8);
   else if (strnicmp(string, "RefVolume=", 10) == 0)
     RefVolume = atof(string + 10);
-  else if (strnicmp(string, "AnaSwap=", 12) == 0)
-    AnaSwap = atoi(string + 12);
+  else if (strnicmp(string, "RefFDist=", 9) == 0)
+    RefFDist = atof(string + 9);
+  else if (strnicmp(string, "AnaSwap=", 8) == 0)
+    AnaSwap = atoi(string + 8);
   else
     return DataFile::ParseHeaderField(string);
   return true;
@@ -71,8 +73,9 @@ bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
     "##RefSkipEven=%u\n"
     "##RefMode=%u\n"
     "##RefVolume=%f\n"
+    "##RefFDist=%f\n"
     , FFTSize, DiscardSamp, AnaSwap
-    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume );
+    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume, RefFDist );
   return DataFile::WriteHeaderFields(f);
 }
 
@@ -100,9 +103,8 @@ void OpenLoop::Statistics::Add(const Statistics& r)
 
 
 volatile xstring OpenLoop::RecURI(xstring::empty);
-double OpenLoop::FBin = 1.05;
 
-double OpenLoop::RefVolume;
+event<const int> OpenLoop::EvDataUpdate;
 
 volatile bool OpenLoop::ClearRq;
 
@@ -136,10 +138,16 @@ OpenLoop::OpenLoop(const Parameters& params, FILTER_PARAMS2& filterparams)
   // We do not have the data array so far, so pass a dummy to keep fftw happy.
   // The dummy has alignment 4 because of the right channel transform.
   AnaPlan = fftwf_plan_guru_dft_r2c(1, &iodim, 0, NULL, (float*)4, AnaFFT[0].get(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
+
+  AnaTemp.reset(fdsize);
+  ResCross.reset(params.FFTSize);
+  // plan for cross correlation
+  CrossPlan = fftwf_plan_dft_c2r_1d(params.FFTSize, AnaTemp.begin(), ResCross.begin(), FFTW_ESTIMATE|FFTW_DESTROY_INPUT);
 }
 
 OpenLoop::~OpenLoop()
-{ fftwf_destroy_plan(AnaPlan);
+{ fftwf_destroy_plan(CrossPlan);
+  fftwf_destroy_plan(AnaPlan);
 }
 
 
@@ -191,7 +199,7 @@ void OpenLoop::OverrideTechInfo(const OUTPUT_PARAMS2*& target)
   { VParams = *target;
     VInfo = *VParams.Info;
     VTechInfo = *(const TECH_INFO*)VInfo.tech;
-    VTechInfo.channels = RefMode == RFM_STEREO ? 2 : 1;
+    VTechInfo.channels = RefMode & 3 ? 2 : 1;
     VInfo.tech = &VTechInfo;
     VParams.Info = &VInfo;
     target = &VParams;
@@ -209,51 +217,58 @@ void OpenLoop::GenerateRef()
   const unsigned fdsize = Params.FFTSize / 2 + 1;
   RefDesign[0].reset(fdsize);
   RefDesign[0].clear(); // all coefficients -> 0
-  if (RefMode == RFM_STEREO)
+  if (RefMode & 3) // !MONO && ! DIFFERENTIAL
   { RefDesign[1].reset(fdsize);
     RefDesign[1].clear(); // all coefficients -> 0
-  }
+    RefData.reset(2 * Params.FFTSize);
+  } else
+    RefData.reset(Params.FFTSize);
+
   // round fmin & fmax
-  const double   f_bin = (double)VTechInfo.samplerate/Params.FFTSize;
+  const double f_bin = (double)VTechInfo.samplerate/Params.FFTSize;
   unsigned i_min = (unsigned)floor(Params.RefFMin/f_bin);
   unsigned i_max = (unsigned)ceil(Params.RefFMax/f_bin);
   if (i_max >= fdsize)
     i_max = fdsize - 1;
 
   // generate coefficients
-  //size_t fcount = 0; // number of used frequencies
-  int channel = 0;
+  int channel = RefMode == RFM_RIGHT;
+  double reflastf[2] = { 0., 0. }; // last frequency
   for (size_t i = i_min; i <= i_max; ++i)
   { if ((i & 1) == 0 && Params.RefSkipEven)
       continue;
-    //++fcount;
+    double f = i * f_bin;
+    double& lastf = reflastf[channel];
+    // skip frequency because it is too close to the last one.
+    if (f < lastf * Params.RefFDist)
+      continue;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
-    double mag = pow(i, Params.RefExponent);
+    double mag = pow(i, Params.RefExponent)
+      * lastf ? f - lastf : f_bin * ((RefMode == RFM_STEREO) + 1);
     // apply random phase
     cur = std::polar(mag, i && i != Params.FFTSize/2 ? 2*M_PI * myrand() : 0.);
     //fprintf(stderr, "f %i %i\n", i, (int)floor(i * f_log + f_inc));
     //i = (int)floor(i * f_log + f_inc);
     // next frequency
+    lastf = f;
     channel ^= RefMode == RFM_STEREO;
   }
 
-  if (RefMode == RFM_STEREO)
-  { // iFFT
-    RefData.reset(2 * Params.FFTSize);
-    fftw_iodim iodim;
+  // iFFT
+  { fftw_iodim iodim;
     iodim.n = Params.FFTSize;
     iodim.is = 1;
-    iodim.os = 2; // interleaved stereo
+    iodim.os = 1 + (RefMode != RFM_MONO); // interleaved stereo?
     fftwf_plan plan = fftwf_plan_guru_dft_c2r(1, &iodim, 0, NULL, RefDesign[0].begin(), RefData.begin()+1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
     fftwf_execute_dft_c2r(plan, RefDesign[0].begin(), RefData.begin());
-    fftwf_execute_dft_c2r(plan, RefDesign[1].begin(), RefData.begin() + 1);
-    fftwf_destroy_plan(plan);
-  } else
-  { // iFFT
-    RefData.reset(Params.FFTSize);
-    fftwf_plan plan = fftwf_plan_dft_c2r_1d(Params.FFTSize, RefDesign[0].begin(), RefData.begin(), FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
-    fftwf_execute(plan);
+    if (RefMode == RFM_DIFFERENTIAL)
+      foreach (float,*, sp, RefData)
+      { sp[1] = -sp[0];
+        ++sp;
+      }
+    else if (RefMode & 3)
+      fftwf_execute_dft_c2r(plan, RefDesign[1].begin(), RefData.begin() + 1);
     fftwf_destroy_plan(plan);
   }
 
@@ -270,7 +285,7 @@ void OpenLoop::GenerateRef()
   fnorm *= sqrt(Params.FFTSize);
   foreach (fftwf_complex,*, dp, RefDesign[0])
     *dp *= fnorm;
-  if (RefMode == RFM_STEREO)
+  if (RefMode & 3)
     foreach (fftwf_complex,*, dp, RefDesign[1])
       *dp *= fnorm;
 }
@@ -294,6 +309,31 @@ void OpenLoop::AnaThreadFunc()
   }
 }
 
+double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2)
+{ const fftwf_complex* sp1 = fd1.begin();
+  const fftwf_complex* sp2 = fd2.begin();
+  foreach(fftwf_complex,*, dp, AnaTemp)
+    *dp = *sp1++ * conj(*sp2++);
+  fftwf_execute(CrossPlan);
+  // Find maximum
+  double max = 0;
+  unsigned pos = 0;
+  double rms = 0;
+  foreach(float,*, sp, ResCross)
+  { double norm = *sp * *sp;
+    rms += norm;
+    if (norm > max)
+    { max = norm;
+      pos = sp - ResCross.begin();
+    }
+  }
+  // TODO check SNR
+  DEBUGLOG(("OpenLoop::ComputeDelay: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
+    sqrt(max), pos, sqrt(max / rms * Params.FFTSize), (double)pos / Format.samplerate));
+  return (double)pos / Format.samplerate;
+}
+
+
 void OpenLoop::ProcessInput(SampleData& input)
 { DEBUGLOG(("OpenLoop(%p)::ProcessInput(.)\n", this));
   // Do FFT of left and right channel
@@ -304,7 +344,8 @@ void OpenLoop::ProcessInput(SampleData& input)
 }
 
 void OpenLoop::ProcessFFTData(FreqDomainData (&input)[2], double scale)
-{ // Default: no-op
+{
+  EvDataUpdate(0);
 }
 
 
@@ -516,7 +557,6 @@ bool OpenLoop::Stop()
 
 void OpenLoop::SetVolume(double volume)
 {
-  RefVolume = volume;
   if (CurrentMode != MODE_DECONVOLUTION)
   { // update player volume of currently playing reference signal immediately.
     char buf[20];

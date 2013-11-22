@@ -30,12 +30,14 @@
 #ifndef DRC123_H
 #define DRC123_H
 
-#define DLG_FRONTEND    101
-#define DLG_CONFIG      102
-#define DLG_DECONV      103
-#define DLG_GENERATE    104
-#define DLG_MEASURE     105
-#define DLG_CALIBRATE   106
+#define DLG_FRONTEND    110
+#define DLG_CONFIG      120
+#define DLG_DECONV      130
+#define DLG_GENERATE    140
+#define DLG_MEASURE     150
+#define DLG_MEASURE_X   151
+#define DLG_CALIBRATE   160
+#define DLG_CALIBRATE_X 161
 
 #define ST_GENERIC      1000
 #define GB_GENERIC      1001
@@ -54,6 +56,11 @@
 #define PB_RELOAD       1019
 #define CC_RESULT       1020
 #define CC_RESULT2      1021
+#define CB_FIRORDER     1022
+#define CB_FFTSIZE      1023
+#define RB_WHITE_N      1025
+#define RB_PINK_N       1026
+#define RB_BROWN_N      1027
 
 #define NB_FRONTEND     1090
 
@@ -63,25 +70,20 @@
 #define PB_CURRENT      1104
 #define CB_ENABLE       1120
 #define LB_KERNEL       1122
-#define CB_FIRORDER     1125
 #define RB_WIN_NONE     1130
 #define RB_WIN_DIMMED_HAMMING 1131
 #define RB_WIN_HAMMING  1132
 
 #define RB_NOISE        1200
 #define RB_SWEEP        1201
-#define RB_WHITE_N      1205
-#define RB_INTERMED     1206
-#define RB_PINK_N       1207
 #define RB_CH_BOTH      1210
 #define RB_CH_LEFT      1211
 #define RB_CH_RIGHT     1212
-#define CB_DIFF         1215
+#define CB_DIFFOUT      1215
 
-#define CB_USE_CAL      1220
-#define PB_CAL_SELECT   1221
+#define CB_CAL_FILE     1220
 #define ST_CAL_DESC     1222
-#define CB_DYN_CAL      1223
+#define CB_REFIN        1223
 
 #define BX_LEFT         1230
 #define BX_RIGHT        1231
@@ -90,10 +92,22 @@
 #define SB_VOLUME       1238
 
 #define RB_STEREO_LOOP  1300
-#define RB_MONO_LOOP    1301
-#define RB_LEFT_LOOP    1302
-#define RB_RIGHT_LOOP   1303
+#define RB_LEFT_LOOP    1301
+#define RB_RIGHT_LOOP   1302
+#define RB_CROSS_LOOP   1303
 
-
+#define EF_FREQ_LOW     1350
+#define EF_FREQ_HIGH    1351
+#define EF_GAIN_LOW     1352
+#define EF_GAIN_HIGH    1353
+#define EF_DELAY_LOW    1354
+#define EF_DELAY_HIGH   1355
+#define EF_GAIN2_LOW    1356
+#define EF_GAIN2_HIGH   1357
+#define EF_DISCARD      1360
+#define EF_FREQBIN      1361
+#define EF_REFEXPONENT  1362
+#define EF_REFFDIST     1363
+#define CB_SKIPEVEN     1364
 #endif
 
