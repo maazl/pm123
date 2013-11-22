@@ -11,7 +11,7 @@ CFLAGS_USR=-fcheck-new -DPM123_CORE
 !include $(TOPDIR)\config\makerules
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
-OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) url123$(CO) xstringbuilder$(CO)
+OBJECTS = $(OBJECTS) xstring$(CO) xstringconst$(CO) xstringbuilder$(CO) url123$(CO) directory$(CO)
 OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) container\stringset$(CO) container\stringmap$(CO)
 OBJECTS = $(OBJECTS) container\btree$(CO)
 OBJECTS = $(OBJECTS) pmutils_dnd$(CO) windowbase$(CO) dlgcontrols$(CO)

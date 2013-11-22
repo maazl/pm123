@@ -63,6 +63,7 @@ struct RadioButton : ControlBase
   int         CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
   void        EnableAll(bool enable);
+  void        UncheckAll();
 };
 
 struct ListBox : ControlBase
@@ -75,7 +76,7 @@ struct ListBox : ControlBase
   ULONG       Handle(int i) const                   { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
   xstring     ItemText(int i) const;
   void        ItemText(int i, const char* text)     { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMTEXT, MPFROMSHORT(i), MPFROMP(text))); }
-  int         NextSelection(SHORT after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
+  int         NextSelection(int after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
   bool        Select(int i)                         { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
 };
 

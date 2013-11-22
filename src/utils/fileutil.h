@@ -36,9 +36,9 @@
 extern "C" {
 #endif
 
-// Because the result string always less or is equal to a location
-// string all functions can safely use the same storage area for a
-// location and result.
+/* Because the result string always less or is equal to a location
+   string all functions can safely use the same storage area for a
+   location and result. */
 
 char* sdrive   ( char* result, const char* location, size_t size );
 int   strack   ( const char* location );
@@ -88,7 +88,7 @@ char* rel2abs( const char* base, const char* path, char* result, size_t size );
 char* abs2rel( const char* base, const char* path, char* result, size_t size );
 
 typedef struct
-{ char drive[4]; // we need only 3 but we don't want to run into alignment trouble
+{ char drive[4]; /* we need only 3 but we don't want to run into alignment trouble */
   int  track;
   int  sectors[2];
 } CDDA_REGION_INFO;

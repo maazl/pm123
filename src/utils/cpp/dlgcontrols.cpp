@@ -66,6 +66,19 @@ void RadioButton::EnableAll(bool enabled)
   } while (cur && !(WinQueryWindowULong(cur, QWL_STYLE) & WS_GROUP));
 }
 
+void RadioButton::UncheckAll()
+{
+  const HWND parent = WinQueryWindow(Hwnd, QW_PARENT);
+  HWND cur = WinEnumDlgItem(parent, Hwnd, EDI_FIRSTGROUPITEM);
+  char classname[8];
+  do
+  { if ( WinQueryClassName(cur, sizeof classname, classname) == 2
+      && classname[0] == '#' && classname[1] == '3' ) // is WC_BUTTON
+      WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
+    cur = WinQueryWindow(cur, QW_NEXT);
+  } while (cur && !(WinQueryWindowULong(cur, QWL_STYLE) & WS_GROUP));
+}
+
 void ListBox::InsertItems(const char*const* items, unsigned count, int where)
 { LBOXINFO lbi = {0};
   lbi.lItemIndex = where;
