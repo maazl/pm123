@@ -514,6 +514,8 @@ class PAStream
   const pa_timing_info* GetTimingInfo() throw ();
   void               Cork(bool pause) throw (PAStreamException);
   void               Flush() throw (PAStreamException);
+
+  void               ProplistUpdate(pa_proplist* props) throw (PAStreamException);
  private:
   static void StateCB(pa_stream *p, void *userdata) throw();
 };
@@ -535,6 +537,7 @@ class PASinkOutput : public PAStream
   size_t WritableSize() throw (PAStreamException);
   void* BeginWrite(size_t& size) throw (PAStreamException);
   uint64_t Write(const void* data, size_t nbytes, int64_t offset = 0, pa_seek_mode_t seek = PA_SEEK_RELATIVE) throw(PAStreamException);
+  void UpdateSampleRate(uint32_t rate) throw (PAStreamException);
   void RunDrain(PABasicOperation& op) throw (PAStreamException);
 
   void SetVolume(const pa_cvolume* volume) throw (PAStreamException);

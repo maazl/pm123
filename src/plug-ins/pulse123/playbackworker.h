@@ -89,6 +89,7 @@ typedef struct OUTPUT_STRUCT
     PM123_TIME       GetPosByWriteIndex(uint64_t wi);
     /// Retrieve sample data starting at write index \a wi.
     bool             GetDataByWriteIndex(uint64_t wi, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
+    uint64_t         GetMaxWriteIndex() const { return MaxWriteIndex; }
   };
 
  private:
@@ -106,6 +107,7 @@ typedef struct OUTPUT_STRUCT
   void*              W;
   float*             LastBuffer;
   pa_volume_t        Volume;
+  PAProplist         Proplist;
   PM123_TIME         TimeOffset;
   uint64_t           WriteIndexOffset;
   bool               TrashFlag;
@@ -136,8 +138,9 @@ typedef struct OUTPUT_STRUCT
  private:
   void  DrainOpCompletion(const int& success);
   void  RaiseOutputEvent(OUTEVENTTYPE event)    { (*OutputEvent)(W, event); }
-  char* ToUTF8(char* dst, size_t len, const char* src)
+  static char* ToUTF8(char* dst, size_t len, const char* src)
                                                 { return src ? ch_convert(CH_CP_NONE, src, 1208, dst, len, 0) : NULL; }
+  void  PopulatePropertyList(const char* uri, volatile const META_INFO& meta);
   void  Error(const char* fmt, ...) throw();
 
 } PlaybackWorker;

@@ -242,6 +242,17 @@ PlaybackWorker::~OUTPUT_STRUCT()
 { DEBUGLOG(("PlaybackWorker(%p)::~PlaybackWorker()\n", this));
 }
 
+void PlaybackWorker::PopulatePropertyList(const char* uri, const volatile META_INFO& meta)
+{ Proplist.clear();
+  xstring tmp; // Temporary object for strongly thread safe access to *info.
+  char buf[1024];
+  Proplist[PA_PROP_MEDIA_FILENAME]  = ToUTF8(buf, sizeof buf, uri);
+  Proplist[PA_PROP_MEDIA_NAME]      = ToUTF8(buf, sizeof buf, tmp = meta.album);
+  Proplist[PA_PROP_MEDIA_TITLE]     = ToUTF8(buf, sizeof buf, tmp = meta.title);
+  Proplist[PA_PROP_MEDIA_ARTIST]    = ToUTF8(buf, sizeof buf, tmp = meta.artist);
+  Proplist[PA_PROP_MEDIA_COPYRIGHT] = ToUTF8(buf, sizeof buf, tmp = meta.copyright);
+}
+
 ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TIME pos,
                            void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event), void* w) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::Open(%s, {{%i, %i},}, %f, %p, %p)\n", this,
@@ -251,9 +262,16 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
   W = w;
 
   try
-  { switch (Stream.GetState())
+  { PopulatePropertyList(uri, *info->meta);
+
+    switch (Stream.GetState())
     {default:
-      // TODO: Open because of stream info change.
+      // Update properties of existing stream
+      try
+      { Stream.ProplistUpdate(Proplist);
+      } catch (const PAException& ex)
+      { // Error here are non-fatal
+      }
       return PLUGIN_OK;
 
      case PA_STREAM_UNCONNECTED:
@@ -261,16 +279,6 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
      case PA_STREAM_TERMINATED:;
     }
 
-    PAProplist pl;
-    { xstring tmp; // Temporary object for strongly thread safe access to *info.
-      char buf[1024];
-      volatile const META_INFO* meta = info->meta;
-      pl[PA_PROP_MEDIA_FILENAME]   = ToUTF8(buf, sizeof buf, uri);
-      pl[PA_PROP_MEDIA_NAME]       = ToUTF8(buf, sizeof buf, tmp = meta->album);
-      pl[PA_PROP_MEDIA_TITLE]      = ToUTF8(buf, sizeof buf, tmp = meta->title);
-      pl[PA_PROP_MEDIA_ARTIST]     = ToUTF8(buf, sizeof buf, tmp = meta->artist);
-      pl[PA_PROP_MEDIA_COPYRIGHT]  = ToUTF8(buf, sizeof buf, tmp = meta->copyright);
-    }
     SS.format = PA_SAMPLE_FLOAT32LE;
     SS.channels = info->tech->channels;
     SS.rate = info->tech->samplerate;
@@ -283,8 +291,8 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
       Context.SetSinkPort(op, Sink, Port);
       op.EnsureSuccess();
     }
-    Stream.Connect(Context, "Out", &SS, NULL, pl,
-                   Sink, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE/*|PA_STREAM_VARIABLE_RATE*/, Volume);
+    Stream.Connect(Context, "Out", &SS, NULL, Proplist,
+                   Sink, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE|PA_STREAM_VARIABLE_RATE, Volume);
 
     LastBuffer = NULL;
     TimeOffset = pos;
@@ -374,7 +382,7 @@ void PlaybackWorker::DrainOpCompletion(const int& success)
 int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw()
 { DEBUGLOG(("PlaybackWorker(%p)::RequestBuffer({%i, %i}, )\n", this,
     format ? format->channels : -1, format ? format->samplerate : -1));
-  ASSERT(LastBuffer == NULL);
+  // some plug-ins didn't catch it ASSERT(LastBuffer == NULL);
   try
   { if ((FlushFlag = (buf == NULL)) != false)
     { // flush request
@@ -382,7 +390,49 @@ int PlaybackWorker::RequestBuffer(const FORMAT_INFO2* format, float** buf) throw
       return 0;
     }
     DrainOp.Cancel();
-    // TODO: format changes!
+
+    // format changes?
+    if (format->channels != SS.channels)
+    { DEBUGLOG(("PlaybackWorker::RequestBuffer channels changed from {%u, %u}\n", SS.channels, SS.rate));
+      // PulseAudio can't change the number of channels on the fly.
+      // So we need to reopen the stream. To avoid to handle multiple concurrent
+      // streams at once we wait until the last samples of the current stream are played
+      // until the new stream is opened. Of course, this prevents from gapless playback.
+      // But everything else is simply too much effort.
+      Stream.RunDrain(DrainOp);
+      // Wait for completion
+      DrainOp.Wait();
+      // reopen stream
+      Stream.Disconnect();
+      SS.channels = format->channels;
+      SS.rate = format->samplerate;
+      Stream.Connect(Context, "Out", &SS, NULL, Proplist,
+                     Sink, PA_STREAM_INTERPOLATE_TIMING|PA_STREAM_NOT_MONOTONIC|PA_STREAM_AUTO_TIMING_UPDATE|PA_STREAM_VARIABLE_RATE, Volume);
+      // Fetch samples written so far.
+      WriteIndexOffset = Buffer.GetMaxWriteIndex();
+      // Wait for stream to become ready
+      Stream.WaitReady();
+      // notify decoder about low buffer
+      if (!LowWater)
+      { LowWater = true;
+        (*OutputEvent)(W, OUTEVENT_LOW_WATER);
+      }
+    } else if ((unsigned)format->samplerate != SS.rate)
+    { DEBUGLOG(("PlaybackWorker::RequestBuffer sample rate changed from {%u, %u}\n", SS.channels, SS.rate));
+      // PulseAudio is unable to change the sample rate at a certain location in the stream.
+      // so we need to wait for all buffers to be played before we proceed.
+      Stream.RunDrain(DrainOp);
+      DrainOp.Wait();
+      // Change sample rate of the stream.
+      SS.rate = format->samplerate;
+      Stream.UpdateSampleRate(SS.rate);
+      // notify decoder about low buffer
+      if (!LowWater)
+      { LowWater = true;
+        (*OutputEvent)(W, OUTEVENT_LOW_WATER);
+      }
+    }
+
     size_t len = (size_t)-1;
     *buf = LastBuffer = (float*)Stream.BeginWrite(len);
     len /= sizeof(float) * format->channels;
@@ -405,7 +455,7 @@ void PlaybackWorker::CommitBuffer(int len, PM123_TIME pos) throw()
     return;
   try
   { len *= SS.channels;
-    uint64_t wi = Stream.Write(buffer, len * sizeof(float));
+    uint64_t wi = Stream.Write(buffer, len * sizeof(float)) + WriteIndexOffset;
     Buffer.StoreData(wi, pos + (PM123_TIME)len/SS.rate, SS.channels, SS.rate, buffer, len);
     TrashFlag = false;
   } catch (const PAStreamEndException& ex)

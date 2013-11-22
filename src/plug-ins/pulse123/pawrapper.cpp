@@ -580,6 +580,17 @@ void PAStream::Flush() throw (PAStreamException)
   pa_operation_unref(op);
 }
 
+void PAStream::ProplistUpdate(pa_proplist* props) throw (PAStreamException)
+{ DEBUGLOG(("PAStream(%p{%p})::ProplistUpdate(%p)\n", this, Stream, props));
+  PAContext::Lock lock;
+  if (!Stream)
+    throw PAStreamEndException(true);
+  pa_operation* op = pa_stream_proplist_update(Stream, PA_UPDATE_SET, props, NULL, NULL);
+  if (op == NULL)
+    throw PAStreamException(Stream, "Property list update failed for stream");
+  pa_operation_unref(op);
+}
+
 void PAStream::StateCB(pa_stream *p, void *userdata) throw()
 { PAStream& str = *(PAStream*)userdata;
   if (str.WaitReadyPending)
@@ -662,6 +673,17 @@ throw(PAStreamException)
   const pa_timing_info* ti = pa_stream_get_timing_info(Stream);
   // Hmm, sometimes ti is zero.
   return ti ? ti->write_index : 0;
+}
+
+void PASinkOutput::UpdateSampleRate(uint32_t rate) throw (PAStreamException)
+{ DEBUGLOG(("PASinkOutput(%p{%p})::UpdateSampleRate(%u)\n", this, Stream, rate));
+  PABasicOperation op;
+  { PAContext::Lock lock;
+    if (!Stream)
+      throw PAStreamEndException(true);
+    op.Attach(pa_stream_update_sample_rate(Stream, rate, &PABasicOperation::StreamSuccessCB, &op));
+  }
+  op.Wait();
 }
 
 void PASinkOutput::RunDrain(PABasicOperation& op) throw (PAStreamException)
