@@ -467,7 +467,7 @@ CtrlImp::NavigateResult CtrlImp::NavigateCore(Location& si, signed char newscan)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}, %u) - %s\n", si.Serialize().cdata(), newscan, Current().Loc.Serialize().cdata()));
   SongIterator& curloc = PrefetchList[PrefetchList.size()-1]->Loc;
   // Move forward to the next Song, if the current item is a playlist.
-  //Current().Loc.NavigateCount(SyncJob, 0, TATTR_SONG);
+  si.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
   const bool was_playing = Glue::OutInitialized();
 
   // Check whether the current song has changed?
