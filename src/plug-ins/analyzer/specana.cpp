@@ -182,11 +182,11 @@ SPECANA_RET specana_do(float* in, int numsamples, WIN_FN winfn, float* bands)
   { fftwf_complex* sp = out;
     float scale = 1. / sqrt(numsamples);// normalize
     for (int i = numsamples >> 3; i; --i)
-    { DO_4(p, bands[p] = sqrt(sp[p][0]*sp[p][0] + sp[p][1]*sp[p][1]) * scale);
+    { DO_4(p, bands[p] = abs(sp[p]) * scale);
       bands += 4;
       sp += 4;
     }
-    bands[0] = sp[0][0] * scale; // nyquist frequency
+    bands[0] = sp[0].real() * scale; // nyquist frequency
   }
   DEBUGLOG(("SA: bands stored\n"));
   

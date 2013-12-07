@@ -605,7 +605,7 @@ static void update_analyzer()
       for( y = (int)(Bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
         int color = (int)(( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-Bars[x]))) + CLR_ANA_BOTTOM;
-        image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
+        image[( plug.cy - y -1) * image_cx + x ] = color < CLR_ANA_TOP ? color : CLR_ANA_TOP;
       }
     }
     break;
@@ -677,7 +677,7 @@ static void update_analyzer()
         y = (long)(image_cy * (1 + z) / 2);
         if (y >= 0 && y < image_cy)
         { color = (int)(( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * fabs(z)) + CLR_OSC_DIMMEST;
-          image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
+          image[ y * image_cx + x ] = color <  CLR_OSC_BRIGHT ? color : CLR_OSC_BRIGHT;
         }
       }
     }
@@ -747,7 +747,7 @@ static void DLLENTRY output_samples_cb(void* arg, const FORMAT_INFO2* format, co
       while (dp != dpe)
       { float s;
         int ch = format->channels;
-        while (ch)
+        while (ch--)
           s += *samples++;
         *dp++ = s / format->channels;
       }
