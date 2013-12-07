@@ -190,7 +190,7 @@ struct xstring
   /// This works only for 7 bit ASCII as expected.
   int         compareToI(const char* str, size_t len) const;
   /// Case insensitive comparer core.
-  static int  compareI(const char* s1, const char* s2, size_t len);
+  static int  compareI_core(const char* s1, const char* s2, size_t len);
   /// Compare two strings.
   static int  compareI(const xstring& l, const xstring& r) { return l.compareToI(r); }
 

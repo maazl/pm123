@@ -310,7 +310,7 @@ inline void* btree_base::erase(const void* key)
  * @remarks The class does not know how to extract a key from an element.
  * It is up to the (asymmetric) comparer to handle this.
  */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class btree : btree_base
 {public:
   /// Iterator to enumerate the content of the container or to perform partial scans.
@@ -380,7 +380,7 @@ class btree : btree_base
 };
 
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class btree_own : public btree<T,K,C>
 {private: // non-copyable
   btree_own(const btree_own<T,K,C>&);
@@ -392,7 +392,7 @@ class btree_own : public btree<T,K,C>
                     ~btree_own()                    { clear(); }
 };
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 void btree_own<T,K,C>::clear()
 { typename btree_own<T,K,C>::iterator where(btree<T,K,C>::begin());
   while (!where.isend())
@@ -403,7 +403,7 @@ void btree_own<T,K,C>::clear()
 }
 
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class btree_int : public btree_base
 {public:
   /// Iterator to enumerate the content of the container or to perform partial scans.
@@ -474,7 +474,7 @@ class btree_int : public btree_base
                     ~btree_int()                    { dec_refs(); }
 };
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 void btree_int<T,K,C>::inc_refs()
 { typename btree_int<T,K,C>::iterator where(begin());
   int_ptr<T> ptr;
@@ -485,7 +485,7 @@ void btree_int<T,K,C>::inc_refs()
   }
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 void btree_int<T,K,C>::dec_refs()
 { typename btree_int<T,K,C>::iterator where(begin());
   int_ptr<T> ptr;
@@ -495,7 +495,7 @@ void btree_int<T,K,C>::dec_refs()
   }
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 btree_int<T,K,C>& btree_int<T,K,C>::operator=(const btree_int<T,K,C>& r)
 { dec_refs();
   btree_base::operator=(r);

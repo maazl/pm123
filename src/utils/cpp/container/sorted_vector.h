@@ -49,7 +49,7 @@ int CompareInstance(const T& l, const T& r)
  * In fact it is only the first argument to the comparer \a C.
  * @tparam C Comparer. Compares a given key reference to an element reference and returns the result.
  */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class sorted_vector : public vector<T>
 {public:
   /// Create a new vector with a given initial capacity.
@@ -84,19 +84,19 @@ class sorted_vector : public vector<T>
 
 
 /* Template implementations */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 inline T* sorted_vector<T,K,C>::find(const K& key) const
 { size_t pos;
   return locate(key, pos) ? (*this)[pos] : NULL;
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 inline T*& sorted_vector<T,K,C>::get(const K& key)
 { size_t pos;
   return locate(key, pos) ? (*this)[pos] : (vector<T>::insert(pos) = NULL);
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 inline T* sorted_vector<T,K,C>::erase(const K& key)
 { size_t pos;
   return locate(key, pos) ? vector<T>::erase(pos) : NULL;
@@ -109,7 +109,7 @@ inline T* sorted_vector<T,K,C>::erase(const K& key)
  * To erase an elemet you must use <tt>delete erase(...)</tt>.
  * The class methods are not synchronized.
  */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class sorted_vector_own : public sorted_vector<T,K,C>
 {protected:
   // Copy constructor
@@ -140,7 +140,7 @@ class sorted_vector_own : public sorted_vector<T,K,C>
 
 /** Sorted vector of objects with members with intrusive reference counter.
  */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class sorted_vector_int : public vector_int<T>
 {public:
   // Create a new vector with a given initial capacity.
@@ -174,19 +174,19 @@ class sorted_vector_int : public vector_int<T>
 };
 
 /* Template implementations */
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 inline int_ptr<T> sorted_vector_int<T,K,C>::find(const K& key) const
 { size_t pos;
   return locate(key, pos) ? (*this)[pos] : NULL;
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 inline int_ptr<T>& sorted_vector_int<T,K,C>::get(const K& key)
 { size_t pos;
   return locate(key, pos) ? (*this)[pos] : vector_int<T>::insert(pos);
 }
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 int_ptr<T> sorted_vector_int<T,K,C>::erase(const K& key)
 { size_t pos;
   int_ptr<T> ret;

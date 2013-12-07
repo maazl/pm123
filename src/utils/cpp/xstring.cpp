@@ -46,7 +46,7 @@ char* const empty_str = &empty_ref.term;
 const xstring& xstring::empty = *(xstring*)&empty_str;
 
 
-int xstring::compareI(const char* l, const char* r, size_t len)
+int xstring::compareI_core(const char* l, const char* r, size_t len)
 { DEBUGLOG2(("xstring::compareI(%s, %s, %u)\n", l, r, len));
   while (len--)
   { register int i = (int)(unsigned char)tolower(*l++) - (unsigned char)tolower(*r++);
@@ -167,9 +167,9 @@ int xstring::compareToI(const xstring& r) const
   size_t ll = length();
   size_t rl = r.length();
   if (ll < rl)
-    return -(compareI(r.Data->ptr(), Data->ptr(), ll) | 1);
+    return -(compareI_core(r.Data->ptr(), Data->ptr(), ll) | 1);
    else
-    return compareI(Data->ptr(), r.Data->ptr(), rl) | (ll != rl);
+    return compareI_core(Data->ptr(), r.Data->ptr(), rl) | (ll != rl);
 }
 int xstring::compareToI(const char* str) const
 { if (!Data)
@@ -181,9 +181,9 @@ int xstring::compareToI(const char* str) const
   size_t ll = length();
   size_t rl = strlen(str);
   if (ll < rl)
-    return -(compareI(str, Data->ptr(), ll) | 1);
+    return -(compareI_core(str, Data->ptr(), ll) | 1);
    else
-    return compareI(Data->ptr(), str, rl) | (ll != rl);
+    return compareI_core(Data->ptr(), str, rl) | (ll != rl);
 }
 int xstring::compareToI(const char* str, size_t rl) const
 { if (!Data)
@@ -194,9 +194,9 @@ int xstring::compareToI(const char* str, size_t rl) const
     return 1;
   size_t ll = length();
   if (ll < rl)
-    return -(compareI(Data->ptr(), str, ll) | 1);
+    return -(compareI_core(Data->ptr(), str, ll) | 1);
    else
-    return compareI(Data->ptr(), str, rl) | (ll != rl);
+    return compareI_core(Data->ptr(), str, rl) | (ll != rl);
 }
 
 bool xstring::startsWith(const char* r, size_t len) const
@@ -204,7 +204,7 @@ bool xstring::startsWith(const char* r, size_t len) const
 }
 
 bool xstring::startsWithI(const char* r, size_t len) const
-{ return len <= length() && compareI(Data->ptr(), r, len) == 0;
+{ return len <= length() && compareI_core(Data->ptr(), r, len) == 0;
 }
 
 bool xstring::endsWith(const char* r, size_t len) const
@@ -212,7 +212,7 @@ bool xstring::endsWith(const char* r, size_t len) const
 }
 
 bool xstring::endsWithI(const char* r, size_t len) const
-{ return len <= length() && compareI(Data->ptr() + length() - len, r, len) == 0;
+{ return len <= length() && compareI_core(Data->ptr() + length() - len, r, len) == 0;
 }
 
 void xstring::assign(const char* str)

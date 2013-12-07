@@ -300,9 +300,7 @@ class Event
 template <class T> class SyncAccess;
 
 struct ASyncAccess
-{ //friend class SyncAccess<T>;
-// protected:
-  Mutex Mtx;
+{ Mutex Mtx;
 };
 template <class T>
 class SyncRef

@@ -29,12 +29,7 @@
 
 #include "container/stringset.h"
 
-
-int stringset::Compare(const void* key, const void* elem)
-{ return xstring::compare(*(const xstring*)&key, *(const xstring*)&elem);
-}
-
-void stringset::inc_refs()
+void stringset_base::inc_refs()
 { void*const* dp(vector_base::begin());
   void*const* dpe(dp + size());
   xstring ptr;
@@ -44,7 +39,7 @@ void stringset::inc_refs()
   }
 }
 
-void stringset::dec_refs()
+void stringset_base::dec_refs()
 { void*const* dp(vector_base::begin());
   void*const* dpe(dp + size());
   xstring ptr;
@@ -52,38 +47,59 @@ void stringset::dec_refs()
     ptr.fromCstr((const char*)*dp++);
 }
 
-stringset& stringset::operator=(const stringset& r)
+stringset_base::stringset_base(const stringset_base& r, size_t spare)
+: vector_base(r, spare)
+, Comparer(r.Comparer)
+{ inc_refs(); }
+
+stringset_base& stringset_base::operator=(const stringset_base& r)
 { dec_refs();
   vector_base::operator=(r);
   inc_refs();
   return *this;
 }
 
-xstring stringset::find(const xstring& item) const
+xstring stringset_base::find(const xstring& item) const
 { size_t pos;
   if (locate(item, pos))
     return (xstring&)vector_base::at(pos);
   return xstring();
 }
 
-xstring& stringset::get(const xstring& item)
+xstring& stringset_base::get(const xstring& item)
 { size_t pos;
   if (locate(item, pos))
     return (xstring&)vector_base::at(pos);
   return (xstring&)insert(pos);
 }
 
-const xstring& stringset::ensure(const xstring& item)
+const xstring& stringset_base::ensure(const xstring& item)
 { size_t pos;
   if (locate(item, pos))
     return (const xstring&)vector_base::at(pos);
   return (xstring&)insert(pos) = item;
 }
 
-xstring stringset::erase(const xstring& item)
+xstring stringset_base::erase(const xstring& item)
 { size_t pos;
   if (locate(item, pos))
     return xstring().fromCstr((const char*)vector_base::erase(pos));
   return xstring();
 }
 
+
+int stringset::Compare(const void* l, const void* r)
+{ return xstring::compare(*(const xstring*)&l, *(const xstring*)&r);
+}
+
+stringset::stringset(size_t capacity)
+: stringset_base(&stringset::Compare, capacity)
+{}
+
+int stringsetI::Compare(const void* l, const void* r)
+{ return xstring::compareI(*(const xstring*)&l, *(const xstring*)&r);
+}
+
+stringsetI::stringsetI(size_t capacity)
+: stringset_base(&stringsetI::Compare, capacity)
+{}

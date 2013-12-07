@@ -27,10 +27,10 @@
  */
 
 #include "directory.h"
+#include <cpp/container/stringset.h>
 #include <strutils.h>
 #include <errorstr.h>
 #include <memory.h>
-
 
 DirScan::DirScan(const char* path, const char* mask, ULONG attributes)
 : Attributes(attributes)
@@ -93,3 +93,12 @@ const char* DirScan::LastErrorText() const
     return NULL;
   return os2_strerror(LastError, (char*)Buffer, sizeof Buffer);
 }
+
+/*APIRET DirScan::GetAll(stringset& target, bool withpath)
+{
+  APIRET rc;
+  while ((rc = Next()) == 0)
+  { target.ensure(withpath ? CurrentPath() : CurrentEntry->achName);
+  }
+  return rc;
+}*/

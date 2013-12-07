@@ -33,7 +33,7 @@
 #include <cpp/smartptr.h>
 #include <cpp/algorithm.h>
 
-template <class T, class K, sort_comparer>
+template <class T, class K, sort_comparer(K,T)>
 class btree;
 
 /** @brief Class to implement a repository of all objects instances of a certain type

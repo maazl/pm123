@@ -60,7 +60,7 @@ struct RadioButton : ControlBase
 { RadioButton(HWND hwnd)                            : ControlBase(hwnd) {}
   bool        CheckState(bool checked)              { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_SETCHECK, MPFROMSHORT(checked), 0)); }
   bool        CheckState() const                    { return (bool)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECK, 0, 0)); }
-  int         CheckIndex() const                    { return SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
+  int         CheckIndex() const                    { return (SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, BM_QUERYCHECKINDEX, 0, 0)); }
   USHORT      CheckID() const;
   void        EnableAll(bool enable);
   void        UncheckAll();
@@ -76,7 +76,7 @@ struct ListBox : ControlBase
   ULONG       Handle(int i) const                   { return LONGFROMMR(WinSendMsg(Hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(i), 0)); }
   xstring     ItemText(int i) const;
   void        ItemText(int i, const char* text)     { PMRASSERT(WinSendMsg(Hwnd, LM_SETITEMTEXT, MPFROMSHORT(i), MPFROMP(text))); }
-  int         NextSelection(int after = LIT_FIRST) const { return SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
+  int         NextSelection(int after = LIT_FIRST) const { return (SHORT)SHORT1FROMMR(WinSendMsg(Hwnd, LM_QUERYSELECTION, MPFROMSHORT(after), 0)); }
   bool        Select(int i)                         { return (bool)WinSendMsg(Hwnd, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE)); }
 };
 

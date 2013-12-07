@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <os2.h>
 
+//class stringset;
+
 /// Enumerate the content of a directory.
 /// @remarks Note that the DirScan iteration starts before the start.
 /// You need to call \c Next() before \c Current().
@@ -76,6 +78,9 @@ class DirScan
   /// @return Information about the directory entry or \c NULL
   /// if \c Next() has not been called or returned an error.
   const FILEFINDBUF3* Current() const { return CurrentEntry; }
+  /// Get the name of the current directory entry.
+  /// @return Name or \c NULL if \c Next() has not been called or returned an error.
+  const char* CurrentFile() const { return CurrentEntry ? CurrentEntry->achName : NULL; }
   /// Get the full qualified path of the current directory entry.
   /// @return Full path of the directory entry or \c NULL
   /// if \c Next() has not been called or returned an error.
@@ -95,6 +100,13 @@ class DirScan
   /// > 0 := There is at least one current element available and
   /// the further n-1 calls to \c Next() will return zero and do not invalidate buffers.
   unsigned    RemainingPackageSize() const { return LastCount; }
+  /*// Read all file names,
+  /// @param target Store the file names here.
+  /// Note that target is not cleared. So existing items will be kept.
+  /// @param withpath Store the entire path name instead of the file name only.
+  /// @return Last OS/2 API result.
+  /// The function will return \c ERROR_NO_MORE_FILES if all files have been retrieved.
+  APIRET      GetAll(stringset& target, bool withpath = false);*/
 };
 
 #endif // DIRECTORY_H
