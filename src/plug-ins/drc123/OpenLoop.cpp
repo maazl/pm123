@@ -35,47 +35,53 @@
 
 
 bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
-{
-  if (strnicmp(string, "FFTSize=", 8) == 0)
-    FFTSize = atoi(string + 8);
-  else if (strnicmp(string, "DiscardSamp=", 12) == 0)
-    DiscardSamp = atoi(string + 12);
-  else if (strnicmp(string, "RefFMin=", 8) == 0)
-    RefFMin = atof(string + 8);
-  else if (strnicmp(string, "RefFMax=", 8) == 0)
-    RefFMax = atof(string + 8);
-  else if (strnicmp(string, "RefExponent=", 12) == 0)
-    RefExponent = atof(string + 12);
-  else if (strnicmp(string, "RefSkipEven=", 12) == 0)
-    RefSkipEven = atoi(string + 12);
-  else if (strnicmp(string, "RefMode=", 8) == 0)
-    RefMode = (Mode)atoi(string + 8);
-  else if (strnicmp(string, "RefVolume=", 10) == 0)
-    RefVolume = atof(string + 10);
-  else if (strnicmp(string, "RefFDist=", 9) == 0)
-    RefFDist = atof(string + 9);
-  else if (strnicmp(string, "AnaSwap=", 8) == 0)
-    AnaSwap = atoi(string + 8);
+{ const char* value;
+  if (!!(value = TryParam(string, "FFTSize")))
+    FFTSize = atoi(value);
+  else if (!!(value = TryParam(string, "DiscardSamp")))
+    DiscardSamp = atoi(value);
+  else if (!!(value = TryParam(string, "RefFreq")))
+    sscanf(value, "%lf,%lf", &RefFMin, &RefFMax);
+  else if (!!(value = TryParam(string, "RefExponent")))
+    RefExponent = atof(value);
+  else if (!!(value = TryParam(string, "RefSkipEven")))
+    RefSkipEven = atoi(value);
+  else if (!!(value = TryParam(string, "RefMode")))
+    RefMode = (Mode)atoi(value);
+  else if (!!(value = TryParam(string, "RefVolume")))
+    RefVolume = atof(value);
+  else if (!!(value = TryParam(string, "RefFDist")))
+    RefFDist = atof(value);
+  else if (!!(value = TryParam(string, "AnaSwap")))
+    AnaSwap = atoi(value);
+  else if (!!(value = TryParam(string, "DispGain")))
+    sscanf(value, "%lf,%lf", &GainLow, &GainHigh);
+  else if (!!(value = TryParam(string, "DispDelay")))
+    sscanf(value, "%lf,%lf", &DelayLow, &DelayHigh);
+  else if (!!(value = TryParam(string, "DispVU")))
+    sscanf(value, "%lf,%lf,%lf", &VULow, &VUYellow, &VURed);
   else
     return DataFile::ParseHeaderField(string);
   return true;
 }
 
 bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
-{
-  fprintf( f,
+{ fprintf( f,
     "##FFTSize=%u\n"
     "##DiscardSamp=%u\n"
     "##AnaSwap=%u\n"
-    "##RefFMin=%f\n"
-    "##RefFMax=%f\n"
+    "##RefFreq=%f,%f\n"
     "##RefExponent=%f\n"
     "##RefSkipEven=%u\n"
     "##RefMode=%u\n"
     "##RefVolume=%f\n"
     "##RefFDist=%f\n"
+    "##DispGain=%f,%f\n"
+    "##DispDelay=%f,%f\n"
+    "##DispVU=%f,%f,%f\n"
     , FFTSize, DiscardSamp, AnaSwap
-    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume, RefFDist );
+    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume, RefFDist
+    , GainLow, GainHigh, DelayLow, DelayHigh, VULow, VUYellow, VURed );
   return DataFile::WriteHeaderFields(f);
 }
 
@@ -245,7 +251,7 @@ void OpenLoop::GenerateRef()
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
     double mag = pow(i, Params.RefExponent)
-      * lastf ? f - lastf : f_bin * ((RefMode == RFM_STEREO) + 1);
+      * sqrt(lastf ? f - lastf : f_bin * ((RefMode == RFM_STEREO) + 1));
     // apply random phase
     cur = std::polar(mag, i && i != Params.FFTSize/2 ? 2*M_PI * myrand() : 0.);
     //fprintf(stderr, "f %i %i\n", i, (int)floor(i * f_log + f_inc));
@@ -309,27 +315,32 @@ void OpenLoop::AnaThreadFunc()
   }
 }
 
-double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2)
-{ const fftwf_complex* sp1 = fd1.begin();
+double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response)
+{
+  const fftwf_complex* sp1 = fd1.begin();
   const fftwf_complex* sp2 = fd2.begin();
   foreach(fftwf_complex,*, dp, AnaTemp)
     *dp = *sp1++ * conj(*sp2++);
   fftwf_execute(CrossPlan);
+
   // Find maximum
-  double max = 0;
-  unsigned pos = 0;
-  double rms = 0;
+  double max = 0;   // maximum cross correlation ...
+  float value;
+  unsigned pos = 0; // ... at here
+  double ms = 0;
   foreach(float,*, sp, ResCross)
   { double norm = *sp * *sp;
-    rms += norm;
+    ms += norm;
     if (norm > max)
     { max = norm;
+      value = *sp;
       pos = sp - ResCross.begin();
     }
   }
-  // TODO check SNR
+
+  response = value * fabs(value) / ms;
   DEBUGLOG(("OpenLoop::ComputeDelay: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
-    sqrt(max), pos, sqrt(max / rms * Params.FFTSize), (double)pos / Format.samplerate));
+    value, pos, max / ms, (double)pos / Format.samplerate));
   return (double)pos / Format.samplerate;
 }
 

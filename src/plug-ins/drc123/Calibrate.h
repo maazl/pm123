@@ -52,7 +52,23 @@ class Calibrate : public OpenLoop
   class CalibrationFile
   : public OpenLoopFile
   , public CalParameters
-  {private:
+  {public:
+    enum Column
+    { Frequency
+    , LGain
+    , LDelay
+    , RGain
+    , RDelay
+    , R2LGain
+    , R2LDelay
+    , L2RGain
+    , L2RDelay
+    , DeltaGain
+    , DeltaDelay
+    , LIntermod
+    , RIntermod
+    };
+   private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:

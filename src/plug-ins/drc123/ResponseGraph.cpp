@@ -39,25 +39,26 @@
 LONG ResponseGraph::ToX(double x)
 { if (Axes.Flags & AF_LogX)
     x = log(x);
-  LONG result = (LONG)floor((x - X0) / XS * (XY2.x - XY1.x) + .5) + XY1.x;
+  // => [0,1]
+  x = (x - X0) / XS;
   // PM dislikes large numbers
   // furthermore it is useful to notify where your values got out of bounds.
-  if (result < XY1.x)
+  if (x <= 0)
     return XY1.x;
-  if (result > XY2.x)
+  if (x >= 1)
     return XY2.x;
-  return result;
+  return (LONG)floor(x * (XY2.x - XY1.x) + .5) + XY1.x;
 }
 
 LONG ResponseGraph::ToYCore(double relative)
-{ LONG result = (LONG)(relative * (XY2.y - XY1.y) + .5) + XY1.y;
-  // PM dislikes large numbers
+{ // PM dislikes large numbers
   // furthermore it is useful to notify where your values got out of bounds.
-  if (result < XY1.y)
+  if (relative <= 0)
     return XY1.y;
-  if (result > XY2.y)
+  if (relative >= 1)
     return XY2.y;
-  return result;
+  LONG result = (LONG)(relative * (XY2.y - XY1.y) + .5) + XY1.y;
+    return result;
 }
 
 static const char SIprefix[] =
@@ -228,6 +229,8 @@ static inline double to_y_rel(double value, bool logscale, double y0, double ys)
 
 void ResponseGraph::DrawGraph(const GraphInfo& graph)
 {
+  if (isnan(Axes.XMin) || isnan(Axes.XMax))
+    return;
   GpiSetColor(PS, graph.Color);
 
   POINTL points[1000];

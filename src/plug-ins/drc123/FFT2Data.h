@@ -38,12 +38,12 @@
 class FFT2Data
 {public: // parameters
   DataFile& Target;
-  double FInc;
-  double FBin;
-  double Scale;
-  double Delay;
+  double    FInc;
+  double    FBin;
+  float     Scale;
+  double    Delay;
  public: // results
-  unsigned IndeterminatePhase;
+  unsigned  IndeterminatePhase;
  private:
   void  StoreValue(unsigned col, double f, double mag, double delay);
  public:

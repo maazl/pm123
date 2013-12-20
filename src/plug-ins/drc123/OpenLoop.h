@@ -90,6 +90,8 @@ class OpenLoop : public Filter
     // GUI injection
     double      GainLow, GainHigh;    ///< Display range for gain response
     double      DelayLow, DelayHigh;  ///< Display range for delay
+    double      VULow;
+    double      VUYellow, VURed;
   };
   class OpenLoopFile
   : public DataFile
@@ -204,10 +206,12 @@ class OpenLoop : public Filter
   /// Estimate the most likely delay by cross correlation.
   /// @param fd1 FFT of the signal to estimate.
   /// @param fd2 FFT of the reference.
+  /// @param response [out] reliability and sign of the match.
+  /// The value returned contains the relative amount of energy in the match and the sign of the match.
   /// @return Most likely delay of \a fd1 against \a fd2 in seconds.
   /// @post The returned value will always be in the interval [0,T]
   /// with T = Params.FFTSize / Format.samplerate.
-  double        ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2);
+  double        ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response);
   /// @brief Process a block of input data.
   /// @details The function is called once for every \c FFTSize number of input samples.
   /// You must override it by the appropriate analysis function.

@@ -40,11 +40,11 @@ FFT2Data::FFT2Data(DataFile& target, double finc, double fbin, double scale, dou
 , IndeterminatePhase(0)
 {}
 
-static int dlcmp(const double* k, const DataRowType* row)
-{ double value = (*row)[0];
-  if (*k > value * 1.001)
+static int dlcmp(const double& k, const DataRowType& row)
+{ double value = row[0];
+  if (k > value * 1.0001)
     return 1;
-  if (*k < value / 1.001)
+  if (k < value / 1.0001)
     return -1;
   return 0;
 }
@@ -52,7 +52,7 @@ static int dlcmp(const double* k, const DataRowType* row)
 void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
 { size_t pos;
   DataRowType* rp;
-  if (!binary_search<const DataRowType,const double>(&f, pos, Target.begin(), Target.size(), &dlcmp))
+  if (!binary_search<DataRowType,const double>(f, pos, Target, &dlcmp))
   { rp = Target.insert(pos) = new DataRowType(Target.columns());
     (*rp)[0] = f;
   } else
@@ -83,7 +83,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
     double f = FInc * i;
     if (f > fstart * FBin)
     { // reached bin size => store result
-      StoreValue(col, fsum / magcnt, magsum / magcnt, delaysum / delaycnt);
+      StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
       fsum = 0;
       magsum = 0;
       magcnt = 0;
@@ -94,18 +94,18 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
      next:
       fstart = f;
     fsum += f;
-    DEBUGLOG(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
+    DEBUGLOG2(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
     // magnitude
-    fftwf_complex sv = source[i] / rv;
-    magsum += abs(sv) * Scale;
+    fftwf_complex sv(source[i] / rv);
+    magsum += abs(sv);
     ++magcnt;
     // phase
-    double ph = arg(sv) + 2.*M_PI * f * Delay;
+    double ph = arg(sv) / (-2*M_PI) - f * Delay; // for some reason there is a negative sign required
     if (!isnan(lastph))
     { // create minimum phase
       double dphi = ph - lastph;
-      dphi -= floor(dphi / (2.*M_PI) + .5) * (2.*M_PI);
-      if (fabs(dphi) > M_PI/2.)
+      dphi -= floor(dphi + .5);
+      if (fabs(dphi) > .25)
         ++IndeterminatePhase;
       else
       { delaysum += dphi / (f - lastf);
@@ -116,7 +116,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
     lastf = f;
     lastph = ph;
   }
-  StoreValue(col, fsum / magcnt, magsum / magcnt, delaysum / delaycnt);
+  StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
   DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
 }
 

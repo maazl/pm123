@@ -43,6 +43,7 @@
 #include <cpp/dlgcontrols.h>
 #include <cpp/directory.h>
 #include <cpp/container/stringmap.h>
+#include <cpp/container/stringset.h>
 
 #include <os2.h>
 
@@ -60,7 +61,26 @@ double Frontend::XtractGain(const DataRowType& row, void* col)
 }
 
 double Frontend::XtractDelay(const DataRowType& row, void* col)
-{ return row[(int)col] * row[0];
+{ return row[(int)col];
+}
+
+double Frontend::XtractPhaseDelay(const DataRowType& row, void* col)
+{ return row[(int)col] * row[0] * 360.;
+}
+
+void Frontend::SetValue(HWND ctrl, double value, const char* mask)
+{
+  char buffer[32];
+  sprintf(buffer, mask, value);
+  ControlBase(ctrl).Text(buffer);
+}
+
+bool Frontend::GetValue(HWND ctrl, double& value)
+{
+  char buffer[32];
+  LONG len = WinQueryWindowText(ctrl, sizeof buffer, buffer);
+  int n = -1;
+  return sscanf(buffer, "%lf%n", &value, &n) == 1 && n == len;
 }
 
 void Frontend::Init()
@@ -74,6 +94,7 @@ Frontend::Frontend(HWND owner, HMODULE module)
   Pages.append() = new ConfigurationPage(*this);
   Pages.append() = new DeconvolutionPage(*this);
   Pages.append() = new GeneratePage(*this);
+  Pages.append() = new GenerateExtPage(*this);
   Pages.append() = new MeasurePage(*this);
   Pages.append() = new MeasureExtPage(*this);
   Pages.append() = new CalibratePage(*this);
@@ -310,45 +331,112 @@ void Frontend::DeconvolutionPage::UpdateDir()
     return;
   }
   DirScan dir(path, "*.target", FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
-  const char* names[50];
-  int selected = LIT_NONE;
-  const char* currentname = Params.FilterFile ? sfnameext2(Params.FilterFile) : NULL;
-  unsigned count = 0;
+  stringsetI files;
   while (dir.Next() == 0)
-  { const char* name = dir.Current()->achName;
-    if (currentname && stricmp(currentname, sfnameext2(name)) == 0)
-    { selected = count + lb.Count();
-      Params.FilterFile = dir.CurrentPath();
-    }
-    names[count++] = name;
-    // package full or storage from dir.Current no longer stable?
-    if (count == sizeof names / sizeof *names || dir.RemainingPackageSize() == 1)
-    { lb.InsertItems(names, count, LIT_END);
-      count = 0;
-    }
-  }
-  if (count)
-    lb.InsertItems(names, count, LIT_END);
+    files.ensure(dir.CurrentFile());
+
+  if (files.size())
+    lb.InsertItems((const char*const*)files.begin(), files.size(), LIT_END);
 
   if (dir.LastRC() != ERROR_NO_MORE_FILES)
-  { descr.Text(dir.LastErrorText());
-  } else
-  { // Select item
-    if (selected != LIT_NONE)
-    { lb.Select(selected);
-    } else
-    { Params.FilterFile.reset();
-      CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
+    descr.Text(dir.LastErrorText());
+  else
+  { if (Params.FilterFile)
+    { // restore selection if possible
+      unsigned pos;
+      if (files.locate(sfnameext2(Params.FilterFile), pos))
+        lb.Select(pos);
+      else
+      { Params.FilterFile.reset();
+        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
+      }
     }
     PostMsg(UM_UPDATEDESCR, 0, 0);
   }
 }
 
 
-Frontend::GeneratePage::~GeneratePage()
-{}
-
-MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+MRESULT Frontend::FilePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
+  switch (msg)
+  {case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_LOAD:
+      if (LoadFile())
+        LoadControlValues();
+      break;
+     case PB_SAVE:
+      StoreControlValues();
+      SaveFile();
+      break;
+    }
+    return 0;
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case EF_FILE:
+      if (SHORT2FROMMP(mp1) == EN_CHANGE)
+        ControlBase(+GetCtrl(PB_SAVE)).Enabled(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
+      return 0;
+    }
+    if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED && SHORT1FROMMP(mp1) == ControlBase(GetHwnd()).ID())
+    { PAGESELECTNOTIFY& pn = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+      if (pn.ulPageIdCur == GetPageID())
+        StoreControlValues();
+      if (pn.ulPageIdNew == GetPageID())
+        LoadControlValues();
+    }
+    return 0;
+  }
+
   return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+void Frontend::FilePage::LoadControlValues(const DataFile& data)
+{
+  bool have_filename = data.FileName && data.FileName.length();
+  ControlBase(+GetCtrl(PB_SAVE)).Enabled(have_filename);
+  ControlBase(+GetCtrl(EF_FILE)).Text(have_filename ? url123::normalizeURL(data.FileName).getShortName().cdata() : "");
+  ControlBase(+GetCtrl(ML_DESCR)).Text(data.Description);
+}
+
+void Frontend::FilePage::StoreControlValues(DataFile& data)
+{ data.Description = ControlBase(+GetCtrl(ML_DESCR)).Text();
+  const xstring& file = ControlBase(+GetCtrl(EF_FILE)).Text();
+  if (file.length())
+    data.FileName = xstring(Filter::WorkDir) + file;
+}
+
+LONG Frontend::FilePage::DoLoadFile(FILEDLG& fdlg)
+{ (*Ctx.plugin_api->file_dlg)(HWND_DESKTOP, GetHwnd(), &fdlg);
+  return fdlg.lReturn;
+}
+
+bool Frontend::FilePage::LoadFile()
+{
+  FILEDLG fdlg = { sizeof(FILEDLG) };
+  fdlg.fl = FDS_OPEN_DIALOG|FDS_CENTER|FDS_FILTERUNION;
+  strncpy(fdlg.szFullFile, xstring(Filter::WorkDir), sizeof fdlg.szFullFile);
+  switch (DoLoadFile(fdlg))
+  {case DID_OK:
+    return true;
+   default:
+    // failed
+    WinMessageBox(HWND_DESKTOP, GetHwnd(), strerror(errno), "Failed to load file", 0, MB_OK|MB_ERROR|MB_MOVEABLE);
+   case DID_CANCEL:
+    return false;
+  }
+}
+
+void Frontend::FilePage::SaveFile()
+{
+  const xstring& err = DoSaveFile();
+  if (!err)
+    return;
+  // failed
+  xstringbuilder sb;
+  sb.append(err);
+  sb.append('\n');
+  sb.append(strerror(errno));
+  WinMessageBox(HWND_DESKTOP, GetHwnd(), sb, "Failed to save file", 0, MB_OK|MB_ERROR|MB_MOVEABLE);
 }

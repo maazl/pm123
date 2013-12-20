@@ -30,8 +30,9 @@
 #define DATAFILE_H
 
 #include <cpp/xstring.h>
+#include <cpp/mutex.h>
 #include <cpp/smartptr.h>
-#include <cpp/container/vector.h>
+#include <cpp/container/sorted_vector.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -40,29 +41,56 @@ struct DataRowType : public sco_arr<double>
 {               DataRowType(size_t size);
   double        operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
   double&       operator[](size_t col)          { return sco_arr<double>::operator[](col); }
+  static int    FrequencyComparer(const double& f, const DataRowType& row);
 };
 
 class DataFile
-: public vector_own<DataRowType>
+: public sorted_vector_own<DataRowType,double,&DataRowType::FrequencyComparer>
 , public ASyncAccess
-{public:
+{protected:
+  typedef sorted_vector_own<DataRowType,double,&DataRowType::FrequencyComparer> base;
+ public:
+  class Enumerator
+  { DataRowType*const* Current;
+    DataRowType*const* const End;
+   public:
+    Enumerator(const DataFile& data) : Current(data.begin()), End(data.end()) {}
+    DataRowType* operator*() const              { ASSERT(Current != End); return *Current; }
+    DataRowType* operator->() const             { ASSERT(Current != End); return *Current; }
+    bool        Next()                          { return Current != End && ++Current != End; }
+    bool        isEnd() const                   { return Current == End; }
+    int         comparef(double f) const;
+  };
+ public:
   xstring       FileName;
   xstring       Description;
  private:
   unsigned      MaxColumns;
 
  protected:
+  /// Check whether a parameter line in the file is a specific parameter.
+  /// @param line Parameter line from \c ParseHeaderField.
+  /// @param name Parameter name, e.g. \c "Channels". The matching is case-insensitive.
+  /// @return Pointer to the parameter value if match, \c NULL if no match.
+  /// @example @code const char* value;
+  /// if (!!(value = TryParam(line, "Channels"))
+  ///   Channels = atoi(value);
+  /// else if ((value = TryParam(line, ... @endcode
+  static const char* TryParam(const char* line, const char* name);
   virtual bool  ParseHeaderField(const char* string);
   virtual bool  WriteHeaderFields(FILE* f);
  public:
                 DataFile(unsigned cols = 0);
+  /// Copy everything but the array content.
+                DataFile(const DataFile& r);
   virtual       ~DataFile();
   unsigned      columns() const                 { return MaxColumns; }
- public:
   virtual void  reset(unsigned cols = 0);
   virtual void  columns(unsigned cols);
-  virtual bool  Load(const char* filename, bool nodata = false);
-  virtual bool  Save(const char* filename);
+  void          swap(DataFile& r);
+  virtual bool  Load(const char* filename = NULL, bool nodata = false);
+  virtual bool  Save(const char* filename = NULL);
+  double        Interpolate(double f, unsigned col);
 };
 
 #endif // DATAFILE_H

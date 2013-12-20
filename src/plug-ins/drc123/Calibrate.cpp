@@ -50,16 +50,19 @@ Calibrate::CalibrationFile::CalibrationFile()
 
   GainLow = -30.;
   GainHigh = +10.;
-  DelayLow = -5;
-  DelayHigh = +5;
+  DelayLow = -2;
+  DelayHigh = +2;
   Gain2Low = -90.;
   Gain2High = -40.;
+  VULow = -40;
+  VUYellow = -12;
+  VURed = -6;
 }
 
 bool Calibrate::CalibrationFile::ParseHeaderField(const char* string)
-{
-  if (strnicmp(string, "Mode=", 5) == 0)
-    Mode = (MeasureMode)atoi(string + 5);
+{ const char* value;
+  if (!!(value = TryParam(string, "Mode")))
+    Mode = (MeasureMode)atoi(value);
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
@@ -108,23 +111,26 @@ ULONG Calibrate::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 
 void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 { // Calculate the average group delay to avoid overflows in delta-phi.
-  double delay = ComputeDelay(input[CalParams.Mode == MD_RightLoop], GetRefDesign(CalParams.Mode == MD_RightLoop));
+  double response;
+  double delay = ComputeDelay(input[CalParams.Mode == MD_RightLoop], GetRefDesign(CalParams.Mode == MD_RightLoop), response);
+  if (CalParams.Mode == MD_StereoLoop)
+    delay = (delay + ComputeDelay(input[1], GetRefDesign(1), response)) / 2;
 
   // Update results file
   { SyncAccess<CalibrationFile> data(Data);
     FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin, scale, delay);
     switch (CalParams.Mode)
     {case MD_StereoLoop:
-      f2d.StoreFFT(1, input[0], GetRefDesign(0));
-      f2d.StoreFFT(3, input[1], GetRefDesign(1));
-      f2d.StoreFFT(5, input[0], GetRefDesign(1));
-      f2d.StoreFFT(7, input[1], GetRefDesign(0));
+      f2d.StoreFFT(CalibrationFile::LGain, input[0], GetRefDesign(0));
+      f2d.StoreFFT(CalibrationFile::RGain, input[1], GetRefDesign(1));
+      f2d.StoreFFT(CalibrationFile::R2LGain, input[0], GetRefDesign(1));
+      f2d.StoreFFT(CalibrationFile::L2RGain, input[1], GetRefDesign(0));
       if (Params.RefSkipEven)
       { // Calc the sum output
         AnaTemp = GetRefDesign(0);
         AnaTemp += GetRefDesign(1);
-        f2d.StoreHDN(11, input[0], AnaTemp);
-        f2d.StoreHDN(12, input[1], AnaTemp);
+        f2d.StoreHDN(CalibrationFile::LIntermod, input[0], AnaTemp);
+        f2d.StoreHDN(CalibrationFile::RIntermod, input[1], AnaTemp);
       }
       break;
      case MD_CrossLoop:
@@ -132,16 +138,16 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       f2d.StoreFFT(9, input[1], input[0]);*/
       break;
      case MD_LeftLoop:
-      f2d.StoreFFT(1, input[0], GetRefDesign(0));
-      f2d.StoreFFT(7, input[1], GetRefDesign(0));
+      f2d.StoreFFT(CalibrationFile::LGain, input[0], GetRefDesign(0));
+      f2d.StoreFFT(CalibrationFile::L2RGain, input[1], GetRefDesign(0));
       if (Params.RefSkipEven)
-        f2d.StoreHDN(11, input[0], GetRefDesign(0));
+        f2d.StoreHDN(CalibrationFile::LIntermod, input[0], GetRefDesign(0));
       break;
      case MD_RightLoop:
-      f2d.StoreFFT(3, input[1], GetRefDesign(1));
-      f2d.StoreFFT(5, input[0], GetRefDesign(1));
+      f2d.StoreFFT(CalibrationFile::RGain, input[1], GetRefDesign(1));
+      f2d.StoreFFT(CalibrationFile::R2LGain, input[0], GetRefDesign(1));
       if (Params.RefSkipEven)
-        f2d.StoreHDN(12, input[1], GetRefDesign(1));
+        f2d.StoreHDN(CalibrationFile::RIntermod, input[1], GetRefDesign(1));
       break;
     }
   }

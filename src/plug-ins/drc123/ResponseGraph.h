@@ -62,6 +62,7 @@ class ResponseGraph : public SubclassWindow
     double          Y1Max;
     double          Y2Min;
     double          Y2Max;
+    AxesInfo() : Flags(AF_None), XMin(NAN), XMax(NAN), Y1Min(NAN), Y1Max(NAN), Y2Min(NAN), Y2Max(NAN) {}
   };
   typedef double (*Extractor)(const DataRowType& row, void* user);
   enum GraphFlags

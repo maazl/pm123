@@ -35,9 +35,12 @@
 #include "Deconvolution.h"
 #include "Calibrate.h"
 #include "Measure.h"
+#include "Generate.h"
 #include "ResponseGraph.h"
 #include "VUMeter.h"
 #include <cpp/xstring.h>
+#include <cpp/container/stringset.h>
+#include <cpp/container/sorted_vector.h>
 #include <cpp/event.h>
 #include <cpp/pmutils.h>
 #include <cpp/windowbase.h>
@@ -48,13 +51,23 @@
 
 class Frontend : public NotebookDialogBase
 {public:
-  /// Currently active filter file or \c NULL if none.
-  static xstring FilterFile;
+  enum ViewMode
+  { VM_Result
+  , VM_Gain
+  , VM_Delay
+  };
+
+ public:
+  static ViewMode GenerateViewMode;
 
  private:
   static double XtractFrequency(const DataRowType& row, void*);
   static double XtractGain(const DataRowType& row, void* col);
   static double XtractDelay(const DataRowType& row, void* col);
+  static double XtractPhaseDelay(const DataRowType& row, void* col);
+
+  static void   SetValue(HWND ctrl, double value, const char* mask = "%g");
+  static bool   GetValue(HWND ctrl, double& value);
 
  private:
   class ConfigurationPage : public PageBase
@@ -86,19 +99,67 @@ class Frontend : public NotebookDialogBase
     void          UpdateDir();
   };
 
-  class GeneratePage : public PageBase
-  {public:
-    GeneratePage(Frontend& parent)
-    : PageBase(parent, DLG_GENERATE, parent.ResModule, DF_AutoResize)
-    { MajorTitle = "~Generate";
-      MinorTitle = "Generate deconvolution filter";
-    }
+  class FilePage : public PageBase
+  {
+   protected:
+    FilePage(Frontend& parent, ULONG dlgid) : PageBase(parent, dlgid, parent.ResModule, DF_AutoResize) {}
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void          LoadControlValues(const DataFile& data);
+    virtual void  LoadControlValues() = 0;
+    void          StoreControlValues(DataFile& data);
+    virtual void  StoreControlValues() = 0;
+    virtual LONG  DoLoadFile(FILEDLG& fdlg) = 0;
+    virtual xstring DoSaveFile() = 0;
+    virtual bool  LoadFile();
+    virtual void  SaveFile();
+  };
+
+  class GeneratePage : public FilePage
+  {private:
+    enum
+    { UM_UPDATEDIR   = WM_USER + 300
+    , UM_UPDATEDESCR
+    , UM_UPDATEGRAPH
+    };
+   private:
+    ResponseGraph Result1;
+    ResponseGraph Result2;
+    /// Backup copy of measurement data for graphs.
+    vector_own<DataFile> MeasurementData;
+   public:
+    GeneratePage(Frontend& parent);
     virtual ~GeneratePage();
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    virtual void  LoadControlValues();
+    virtual void  StoreControlValues();
+    virtual LONG  DoLoadFile(FILEDLG& fdlg);
+    virtual xstring DoSaveFile();
+   private:
+    void          LoadControlValues(const Generate::TargetFile& data);
+    void          UpdateDir();
+    void          UpdateDescr();
+    void          InvalidateGraph();
+    void          SetGraphAxes(const Generate::TargetFile& data);
+    void          SetupGraph();
+    void          AddMeasureGraphs(ResponseGraph& result, ResponseGraph::Extractor source, Measure::MeasureFile::Column col);
+    void          Run();
   };
 
-  class OpenLoopPage : public PageBase
+  class GenerateExtPage : public PageBase
+  {public:
+    GenerateExtPage(Frontend& parent);
+    virtual ~GenerateExtPage() {}
+   private:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void          LoadControlValues(const Generate::Parameters& params);
+    void          LoadControlValues();
+    void          LoadDefaultValues()   { LoadControlValues(Generate::DefData); }
+    void          StoreControlValues(Generate::Parameters& params);
+    void          StoreControlValues();
+  };
+
+  class OpenLoopPage : public FilePage
   {protected:
     enum
     { UM_UPDATE = WM_USER
@@ -118,19 +179,13 @@ class Frontend : public NotebookDialogBase
     class_delegate<OpenLoopPage,const int> AnaUpdateDeleg;
    protected:
     OpenLoopPage(Frontend& parent, ULONG dlgid, const OpenLoop::SVTable& worker);
-   protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
     void          LoadControlValues(const OpenLoop::OpenLoopFile& data);
-    virtual void  LoadControlValues() = 0;
-    void          StoreControlValues(OpenLoop::OpenLoopFile& data) {} // currently no-op
-    virtual void  StoreControlValues() = 0;
+    //void          StoreControlValues(OpenLoop::OpenLoopFile& data) {} // currently no-op
     virtual void  SetRunning(bool running);
     virtual void  InvalidateGraph() = 0;
-    virtual bool  DoLoadFile(FILEDLG& fdlg) = 0;
-    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr) = 0;
+    virtual bool  LoadFile();
    private:
-    void          LoadFile();
-    void          SaveFile();
     void          AnaUpdateNotify(const int&);
   };
 
@@ -140,8 +195,6 @@ class Frontend : public NotebookDialogBase
     virtual ~ExtPage() {}
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-    static void   SetValue(HWND ctrl, double value, const char* mask = "%g");
-    static bool   GetValue(HWND ctrl, double& value);
     void          LoadControlValues(const OpenLoop::OpenLoopFile& data);
     virtual void  LoadControlValues() = 0;
     virtual void  LoadDefaultValues() = 0;
@@ -172,8 +225,8 @@ class Frontend : public NotebookDialogBase
     virtual void  InvalidateGraph();
     void          UpdateDir();
     void          UpdateCal();
-    virtual bool  DoLoadFile(FILEDLG& fdlg);
-    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr);
+    virtual LONG  DoLoadFile(FILEDLG& fdlg);
+    virtual xstring DoSaveFile();
   };
 
   class MeasureExtPage : public ExtPage
@@ -210,8 +263,8 @@ class Frontend : public NotebookDialogBase
     virtual void  StoreControlValues();
     virtual void  SetRunning(bool running);
     virtual void  InvalidateGraph();
-    virtual bool  DoLoadFile(FILEDLG& fdlg);
-    virtual bool  DoSaveFile(xstringbuilder& file, const xstring& descr);
+    virtual LONG  DoLoadFile(FILEDLG& fdlg);
+    virtual xstring DoSaveFile();
   };
 
   class CalibrateExtPage : public ExtPage

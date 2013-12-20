@@ -50,15 +50,24 @@ class Measure : public OpenLoop
     bool        RefIn;
     xstring     CalFile;
   };
+  /// @brief File with measurement data.
   class MeasureFile
   : public OpenLoopFile
   , public MesParameters
-  {private:
+  {public:
+    enum Column
+    { Frequency
+    , LGain
+    , LDelay
+    , RGain
+    , RDelay
+    };
+   private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 MeasureFile();
-    void        reset()                         { OpenLoopFile::reset(9); }
+    void        reset()                         { OpenLoopFile::reset(5); }
   };
 
  public:
@@ -68,6 +77,7 @@ class Measure : public OpenLoop
   static MeasureFile Data;
  private:
   MesParameters MesParams;
+  FreqDomainData AnaTemp2;
 
  protected:
                 Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams);

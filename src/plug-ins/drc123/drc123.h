@@ -34,16 +34,19 @@
 #define DLG_CONFIG      120
 #define DLG_DECONV      130
 #define DLG_GENERATE    140
+#define DLG_GENERATE_X  141
 #define DLG_MEASURE     150
 #define DLG_MEASURE_X   151
 #define DLG_CALIBRATE   160
 #define DLG_CALIBRATE_X 161
 
+// Generic definitions
 #define ST_GENERIC      1000
 #define GB_GENERIC      1001
 #define ST_DESCR        1002
 #define ML_DESCR        1003
 #define EF_FILE         1004
+
 #define PB_HELP         1010
 #define PB_START        1011
 #define PB_STOP         1012
@@ -54,48 +57,55 @@
 #define PB_UNDO         1017
 #define PB_DEFAULT      1018
 #define PB_RELOAD       1019
+
 #define CC_RESULT       1020
 #define CC_RESULT2      1021
 #define CB_FIRORDER     1022
 #define CB_FFTSIZE      1023
-#define RB_WHITE_N      1025
-#define RB_PINK_N       1026
-#define RB_BROWN_N      1027
+#define EF_FREQ_BIN     1030
+#define EF_FREQ_FACTOR  1031
 
 #define NB_FRONTEND     1090
 
+// Configuration
 #define EF_WORKDIR      1100
 #define PB_BROWSE       1101
 #define EF_RECURI       1103
 #define PB_CURRENT      1104
-#define CB_ENABLE       1120
-#define LB_KERNEL       1122
-#define RB_WIN_NONE     1130
-#define RB_WIN_DIMMED_HAMMING 1131
-#define RB_WIN_HAMMING  1132
 
-#define RB_NOISE        1200
-#define RB_SWEEP        1201
-#define RB_CH_BOTH      1210
-#define RB_CH_LEFT      1211
-#define RB_CH_RIGHT     1212
-#define CB_DIFFOUT      1215
+// Deconvolution
+#define CB_ENABLE       1150
+#define LB_KERNEL       1152
+#define RB_WIN_NONE     1160
+#define RB_WIN_DIMMED_HAMMING 1161
+#define RB_WIN_HAMMING  1162
 
-#define CB_CAL_FILE     1220
-#define ST_CAL_DESC     1222
-#define CB_REFIN        1223
+// Generate
+#define RB_VIEWRESULT   1200
+#define RB_VIEWGAIN     1201
+#define RB_VIEWDELAY    1202
+#define GB_RESULT       1205
+#define GB_RESULT2      1206
 
-#define BX_LEFT         1230
-#define BX_RIGHT        1231
-#define PB_TEST         1234
-#define BX_TEST         1235
-#define SB_VOLUME       1238
+#define EF_LIMITGAIN    1250
+#define EF_LIMITGAINRATE 1251
+#define CB_INVERTGAIN   1252
+#define EF_LIMITDELAY   1260
+#define EF_LIMITDELAYRATE 1261
+#define CB_CLIPINVERT   1265
+#define EF_NORM_LOW     1270
+#define EF_NORM_HIGH    1271
+#define CB_SUBSONIC     1275
+#define CB_SUPERSONIC   1276
 
-#define RB_STEREO_LOOP  1300
-#define RB_LEFT_LOOP    1301
-#define RB_RIGHT_LOOP   1302
-#define RB_CROSS_LOOP   1303
+// Open loop
+#define BX_LEFT         1300
+#define BX_RIGHT        1301
+#define PB_TEST         1304
+#define BX_TEST         1305
+#define SB_VOLUME       1308
 
+// Open loop extended settings
 #define EF_FREQ_LOW     1350
 #define EF_FREQ_HIGH    1351
 #define EF_GAIN_LOW     1352
@@ -104,10 +114,34 @@
 #define EF_DELAY_HIGH   1355
 #define EF_GAIN2_LOW    1356
 #define EF_GAIN2_HIGH   1357
-#define EF_DISCARD      1360
-#define EF_FREQBIN      1361
-#define EF_REFEXPONENT  1362
-#define EF_REFFDIST     1363
-#define CB_SKIPEVEN     1364
+#define EF_VU_LOW       1358
+#define EF_VU_YELLOW    1359
+#define EF_VU_RED       1360
+#define EF_DISCARD      1361
+#define EF_REFEXPONENT  1363
+#define EF_REFFDIST     1364
+#define RB_WHITE_N      1365
+#define RB_PINK_N       1366
+#define RB_BROWN_N      1367
+#define CB_SKIPEVEN     1368
+
+// Measure
+#define RB_NOISE        1400
+#define RB_SWEEP        1401
+#define RB_CH_BOTH      1410
+#define RB_CH_LEFT      1411
+#define RB_CH_RIGHT     1412
+#define CB_DIFFOUT      1415
+
+#define CB_CAL_FILE     1420
+#define ST_CAL_DESC     1422
+#define CB_REFIN        1423
+
+// Calibrate
+#define RB_STEREO_LOOP  1500
+#define RB_LEFT_LOOP    1501
+#define RB_RIGHT_LOOP   1502
+#define RB_CROSS_LOOP   1503
+
 #endif
 

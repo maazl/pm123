@@ -31,18 +31,18 @@
 
 
 Measure::MeasureFile::MeasureFile()
-: OpenLoopFile(9)
+: OpenLoopFile(5)
 { // Set Default Parameters
-  FFTSize = 131072;
-  DiscardSamp = 131072;
+  FFTSize = 262144;
+  DiscardSamp = 262144;
   RefFMin = 20.;
   RefFMax = 20000.;
-  RefExponent = -.5;
-  RefSkipEven = true;
+  RefExponent = -.2;
+  RefSkipEven = false;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFDist = 1.01;
-  AnaFBin = 1.03;
+  RefFDist = 1.00;
+  AnaFBin = 1.02;
   AnaSwap = false;
 
   Mode = MD_Noise;
@@ -51,24 +51,27 @@ Measure::MeasureFile::MeasureFile()
   DiffOut = false;
   CalFile = xstring::empty;
 
-  GainLow = -50.;
+  GainLow = -40.;
   GainHigh = +20.;
-  DelayLow = -10;
-  DelayHigh = +10;
+  DelayLow = -.05;
+  DelayHigh = +.1;
+  VULow = -40;
+  VUYellow = -12;
+  VURed = -6;
 }
 
 bool Measure::MeasureFile::ParseHeaderField(const char* string)
-{
-  if (strnicmp(string, "Mode=", 5) == 0)
-    Mode = (MeasureMode)atoi(string + 5);
-  else if (strnicmp(string, "Channels=", 9) == 0)
-    Chan = (Channels)atoi(string + 9);
-  else if (strnicmp(string, "DiffOut=", 8) == 0)
-    DiffOut = (bool)atoi(string + 8);
-  else if (strnicmp(string, "DiffIn=", 7) == 0)
-    RefIn = (bool)atoi(string + 7);
-  else if (strnicmp(string, "CalibrationFile=", 16) == 0)
-    CalFile = string + 16;
+{ const char* value;
+  if (!!(value = TryParam(string, "Mode")))
+    Mode = (MeasureMode)atoi(value);
+  else if (!!(value = TryParam(string, "Channels")))
+    Chan = (Channels)atoi(value);
+  else if (!!(value = TryParam(string, "DiffOut")))
+    DiffOut = (bool)atoi(value);
+  else if (!!(value = TryParam(string, "DiffIn")))
+    RefIn = (bool)atoi(value);
+  else if (!!(value = TryParam(string, "CalibrationFile")))
+    CalFile = value;
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
@@ -121,6 +124,7 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
   const FreqDomainData* ref[2];
   if (MesParams.RefIn)
   { // reference signal is on channel 2
+    scale = 1; // all scale factors cancel anyway
 
     // TODO: calibration
 
@@ -129,11 +133,11 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
     if (MesParams.Chan == CH_Both)
     { // dual channel mode
       // split reference signal into two channels
-      ref[1] = &AnaTemp;
-      AnaTemp = *ref[0]; // copy
+      ref[1] = &AnaTemp2;
+      AnaTemp2 = *ref[0]; // copy
       // mute unused frequencies of right channel
       const fftwf_complex* rp = GetRefDesign(1).begin();
-      foreach (fftwf_complex,*, dp, AnaTemp)
+      foreach (fftwf_complex,*, dp, AnaTemp2)
         if (*rp++ == 0.)
           *dp = 0.;
     }
@@ -152,24 +156,29 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
   }
 
   // Compute average group delay
-  double delay = ComputeDelay(input[0], *ref[0]);
+  double response[2];
+  double delay = ComputeDelay(input[0], *ref[0], response[0]);
   if (MesParams.Chan == CH_Both)
-    // Take delay on right channel into account too.
-    delay = (delay + ComputeDelay(input[0], *ref[1])) / 2;
+  { // Take delay on right channel into account too.
+    delay = (delay + ComputeDelay(input[0], *ref[1], response[1])) / 2;
+    /*if (response[0] * response[1] < 0) // different sign
+    { // Warning speaker inverted
+    }*/
+  }
 
   // update results
   { SyncAccess<MeasureFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin, scale, delay);
+    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin, scale, delay);
 
     switch (MesParams.Chan)
     {case CH_Right:
-      f2d.StoreFFT(3, input[0], *ref[0]);
+      f2d.StoreFFT(MeasureFile::RGain, input[0], *ref[0]);
       break;
      case CH_Both:
-      f2d.StoreFFT(3, input[0], *ref[1]);
+      f2d.StoreFFT(MeasureFile::RGain, input[0], *ref[1]);
       // no break
      case CH_Left:
-      f2d.StoreFFT(1, input[0], *ref[0]);
+      f2d.StoreFFT(MeasureFile::LGain, input[0], *ref[0]);
       // no break
     }
   }
