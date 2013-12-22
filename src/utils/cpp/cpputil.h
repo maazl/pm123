@@ -38,6 +38,17 @@ inline void swap(T& a, T& b)
   b = c;
 }
 
+/*// Return the minimum
+template <class T>
+inline T min(const T& a, const T& b)
+{ return a < b ? a : b;
+}
+/// Return the maximum
+template <class T>
+inline T max(const T& a, const T& b)
+{ return a > b ? a : b;
+}*/
+
 /// Replace the value of an object and return the old value.
 template <class T>
 inline T xchg(T& dst, T src)

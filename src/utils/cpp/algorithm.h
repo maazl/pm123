@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -119,8 +119,8 @@ inline bool binary_search( const void* key, size_t& pos,
 /// They are simply passed to \a *fcmp.
 /// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
 template <class T, class K>
-inline bool binary_search(K* key, size_t& pos, T* data, size_t num, int (*fcmp)(K* key, T* elem))
-{ return binary_search(key, pos, (const void**)data, num, sizeof(T), (int (*)(const void*, const void*))fcmp);
+inline bool binary_search(K& key, size_t& pos, T* data, size_t num, int (*fcmp)(K& key, T& elem))
+{ return binary_search(&key, pos, (const void*const*)data, num, sizeof(T), (int (*)(const void*, const void*))fcmp);
 }
 /// Generic binary search (strongly typed)
 /// @tparam T element type
@@ -141,8 +141,8 @@ inline bool binary_search(K* key, size_t& pos, T* data, size_t num, int (*fcmp)(
 /// They are simply passed to \a *fcmp.
 /// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
 template <class T, class K>
-inline bool binary_search(K* key, size_t& pos, T*const* data, size_t num, int (*fcmp)(K* key, T* elem))
-{ return binary_search(key, pos, (const void**)data, num, (int (*)(const void*, const void*))fcmp);
+inline bool binary_search(K& key, size_t& pos, T*const* data, size_t num, int (*fcmp)(K& key, const T& elem))
+{ return binary_search(&key, pos, (const void*const*)data, num, (int (*)(const void*, const void*))fcmp);
 }
 /// Generic binary search (strongly typed)
 /// @tparam T element type
@@ -162,8 +162,8 @@ inline bool binary_search(K* key, size_t& pos, T*const* data, size_t num, int (*
 /// They are simply passed to \a *fcmp.
 /// If the array contains equal elements (with respect to \a *fcmp) it is not defined which element is returned.
 template <class T, class K>
-inline bool binary_search(K* key, size_t& pos, const vector<T>& data, int (*fcmp)(K* key, T* elem))
-{ return binary_search(key, pos, data, data.size(), (int (*)(const void*, const void*))fcmp);
+inline bool binary_search(K& key, size_t& pos, const vector<T>& data, int (*fcmp)(K& key, const T& elem))
+{ return binary_search(&key, pos, (const void*const*)data.begin(), data.size(), (int (*)(const void*, const void*))fcmp);
 }
 
 // rotate pointer array in place

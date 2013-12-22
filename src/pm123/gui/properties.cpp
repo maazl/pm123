@@ -591,8 +591,8 @@ const struct PriorityEntry
 , { "Time critical +10", 0x30a }
 , { "Time critical +19", 0x313 } };
 
-static int ComparePriority(const int* key, const PriorityEntry* data)
-{ return *key - data->Priority;
+static int ComparePriority(const int& key, const PriorityEntry& data)
+{ return key - data.Priority;
 }
 
 MRESULT PropertyDialog::SystemSettings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -622,9 +622,9 @@ MRESULT PropertyDialog::SystemSettings2Page::DlgProc(ULONG msg, MPARAM mp1, MPAR
       CheckBox(+GetCtrl(CB_LOWPRIWORKERS)).CheckState(cfg.low_priority_workers);
 
       size_t pos;
-      binary_search(&cfg.pri_normal, pos, Priorities, 10, &ComparePriority);
+      binary_search(cfg.pri_normal, pos, Priorities, 10, &ComparePriority);
       ComboBox(+GetCtrl(CB_PRI_NORM)).Select(pos);
-      binary_search(&cfg.pri_high, pos, Priorities + 5, 10, &ComparePriority);
+      binary_search(cfg.pri_high, pos, Priorities + 5, 10, &ComparePriority);
       ComboBox(+GetCtrl(CB_PRI_HIGH)).Select(pos);
       SpinButton(+GetCtrl(SB_PRI_LIMIT)).Value(cfg.pri_limit);
       return 0;

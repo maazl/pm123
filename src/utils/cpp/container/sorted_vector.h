@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 M.Mueller
+ * Copyright 2007-2013 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,6 +53,7 @@ template <class T, class K, sort_comparer(K,T)>
 class sorted_vector : public vector<T>
 {public:
   /// Create a new vector with a given initial capacity.
+  /// @param capacity Initial capacity.
   /// If capacity is 0 the vector is initially created empty
   /// and allocated with the default capacity when the first item is inserted.
   sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
@@ -103,38 +104,42 @@ inline T* sorted_vector<T,K,C>::erase(const K& key)
 }
 
 
-/** Sorted variant of vector_own using the key type \a K.
- * The class owns the referenced objects exclusively.
+/** @brief Sorted variant of vector_own using the key type \a K.
+ * @tparam T The vectors element type. The vector stores only pointers to T.
+ * But the vector owns all its elements.
+ * @tparam K The vectors key type.
+ * @tparam C Comparer. Compares a given key reference to an element reference and returns the result.
+ * @details The class owns the referenced objects exclusively.
  * But only the functions that delete or copy the entire container are different.
- * To erase an elemet you must use <tt>delete erase(...)</tt>.
+ * To erase an element you must use @code delete erase(...) @endcode.
  * The class methods are not synchronized.
  */
 template <class T, class K, sort_comparer(K,T)>
 class sorted_vector_own : public sorted_vector<T,K,C>
 {protected:
-  // Copy constructor
-  // Note that since sorted_vector_own own its object exclusively this copy constructor must do
-  // a deep copy of the vector. This is up to the derived class!
-  // You may use vector_own_base_copy to do the job.
+  /// @brief Copy constructor
+  /// @remarks Since sorted_vector_own own its object exclusively this copy constructor must do
+  /// a deep copy of the vector. This is up to the derived class!
+  /// You may use vector_own_base_copy to do the job.
   sorted_vector_own(const sorted_vector_own<T,K,C>& r, size_t spare = 0) : sorted_vector<T,K,C>(r.size() + spare) {}
-  // assignment: same problem as above
+  /// @brief Assignment
+  /// @remarks Since sorted_vector_own own its object exclusively this assignment must do
+  /// a deep copy of the vector. This is up to the derived class!
+  /// You may use vector_own_base_copy to do the job.
   void               operator=(const sorted_vector_own<T,K,C>& r) { clear(); prepare_assign(r.size()); }
  public:
-  // create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// Create a new vector with a given initial capacity.
+  /// @param capacity Initial capacity.
+  /// If capacity is 0 the vector is initially created empty
+  /// and allocated with the default capacity when the first item is inserted.
   sorted_vector_own(size_t capacity = 0) : sorted_vector<T,K,C>(capacity) {}
-  // copy constructor
-  //sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare = 0);
-  // Adjust the size to a given value
-  // If the array is increased NULL values are appended.
+  /// @brief Adjust the size to a given value
+  /// @details If the array is increased NULL values are appended.
   void               set_size(size_t size)          { if (this->size() > size) vector_own_base_destroy(*this, size); vector<T>::set_size(size); }
-  // Remove all elements
+  /// Remove and destroy all elements in the vector.
   void               clear()                        { vector_own_base_destroy(*this); }
-  // destructor
+  /// Destroy the vector and all elements in it.
                      ~sorted_vector_own()           { clear(); }
-  // assignment
-  //sorted_vector_own<T, K>& operator=(const sorted_vector_own<T, K>& r);
 };
 
 
@@ -143,30 +148,31 @@ class sorted_vector_own : public sorted_vector<T,K,C>
 template <class T, class K, sort_comparer(K,T)>
 class sorted_vector_int : public vector_int<T>
 {public:
-  // Create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// Create a new vector with a given initial capacity.
+  /// @param capacity Initial capacity. If capacity is 0
+  /// the vector is initially created empty and allocated
+  /// with the default capacity when the first item is inserted.
   sorted_vector_int(size_t capacity = 0) : vector_int<T>(capacity) {}
 
-  // Search for a given key.
-  // The function returns whether you got an exact match or not.
-  // The index of the first element >= key is always returned in the output parameter pos.
-  // Precondition: none, Performance: O(log(n))
+  /// Search for a given key.
+  /// @return The function returns whether you got an exact match or not.
+  /// @param pos [out] The index of the first element >= key is always returned in pos.
+  /// @remarks Performance: O(log(size()))
   bool               locate(const K& key, size_t& pos) const
                      { return ::binary_search(&key, pos, *this, (int (*)(const void*, const void*))C); }
-  // Find an element by it's key.
-  // The function will return NULL if no such element is in the container.
-  // Precondition: none, Performance: O(log(n))
+  /// Find an element by it's key.
+  /// @return The function will return \c NULL if no such element is in the container.
+  /// @remarks Performance: O(log(size()))
   int_ptr<T>         find(const K& key) const;
-  // Ensure an element with a particular key.
-  // This will either return a reference to a pointer to an existing object which equals to key
-  // or a reference to a NULL pointer which is automatically created at the location in the container
-  // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
-  // Precondition: none, Performance: O(log(n))
+  /// Ensure an element with a particular key.
+  /// @return This will either return a reference to a pointer to an existing object which equals to key
+  /// or a reference to a \c NULL pointer which is automatically created at the location in the container
+  /// where a new object with key should be inserted. So you can store the Pointer to this object after the function returned.
+  /// @remarks Performance: O(log(size()))
   int_ptr<T>&        get(const K& key);
-  // Erase the element which equals key and return the removed pointer.
-  // If no such element exists the function returns NULL.
-  // Precondition: none, Performance: O(log(n))
+  /// Erase the element which equals key and return the removed pointer.
+  /// If no such element exists the function returns NULL.
+  /// @remarks Performance: O(log(size()))
   int_ptr<T>         erase(const K& key);
   // IBM VAC++ can't parse using...
   int_ptr<T>         erase(const int_ptr<T>*& where){ return vector_int<T>::erase(where); }
