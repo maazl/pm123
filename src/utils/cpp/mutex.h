@@ -302,6 +302,15 @@ template <class T> class SyncAccess;
 struct ASyncAccess
 { Mutex Mtx;
 };
+
+/// Dummy to simulate synchronization without Mutex
+struct AAsyncAccess
+{ struct
+  { void Request() {}
+    void Release() {}
+  } Mtx;
+};
+
 template <class T>
 class SyncRef
 { friend class SyncAccess<T>;
