@@ -857,7 +857,7 @@ ULONG PropertyDialog::PluginPage::AddPlugin()
   memset(&filedialog, 0, sizeof(FILEDLG));
 
   filedialog.cbSize = sizeof(FILEDLG);
-  filedialog.fl = FDS_CENTER | FDS_OPEN_DIALOG;
+  filedialog.fl = FDS_CENTER|FDS_OPEN_DIALOG;
   filedialog.pszTitle = "Load a plug-in";
   filedialog.papszITypeList = ftypes;
   char type[_MAX_PATH] = "PM123 Plug-in";

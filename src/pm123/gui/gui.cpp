@@ -1351,7 +1351,7 @@ void GUIImp::SaveStream(HWND hwnd, BOOL enable)
 {
   if( enable )
   { FILEDLG filedialog = { sizeof(FILEDLG) };
-    filedialog.fl         = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
+    filedialog.fl         = FDS_CENTER|FDS_SAVEAS_DIALOG|FDS_ENABLEFILELB;
     filedialog.pszTitle   = "Save stream as";
 
     xstring savedir = Cfg::Get().savedir;

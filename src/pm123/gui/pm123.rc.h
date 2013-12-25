@@ -293,8 +293,9 @@
 /* Dialogs */
 
 /* File */
-#define DLG_FILE           1100
+#define DLG_FILEDIR        1100
 #define DLG_DIR            1101
+#define DLG_FILE           1102
 #define CB_RECURSE         1105
 #define CB_RELATIVE        1106
 

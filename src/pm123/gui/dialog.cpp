@@ -404,7 +404,7 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     }
 
     FILEDLG filedialog = {sizeof(FILEDLG)};
-    filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
+    filedialog.fl             = FDS_CENTER|FDS_SAVEAS_DIALOG|FDS_ENABLEFILELB;
     filedialog.pszTitle       = "Save playlist as";
     filedialog.ulUser         = FDU_RELATIVBTN;
     filedialog.papszITypeList = *types;
