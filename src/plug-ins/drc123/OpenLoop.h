@@ -80,7 +80,7 @@ class OpenLoop : public Filter
     Mode        RefMode;
     /// Reference playback volume
     double      RefVolume;
-    /// Minimum Factor between neighbor frequencies  in the reference signal.
+    /// Minimum Factor between neighbor frequencies in the reference signal.
     double      RefFDist;
     /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
     double      AnaFBin;
@@ -203,6 +203,9 @@ class OpenLoop : public Filter
   PROXYFUNCDEF void TFNENTRY AnaThreadStub(void* arg);
           void  AnaThreadFunc();
  protected:
+  /// You may override this function to do some initialization stuff
+  /// in the analyzer thread. It is called before any data is processed by ProcessFFTData.
+  virtual void  InitAnalyzer();
   /// Estimate the most likely delay by cross correlation.
   /// @param fd1 FFT of the signal to estimate.
   /// @param fd2 FFT of the reference.
@@ -214,7 +217,7 @@ class OpenLoop : public Filter
   double        ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response);
   /// @brief Process a block of input data.
   /// @details The function is called once for every \c FFTSize number of input samples.
-  /// You must override it by the appropriate analysis function.
+  /// You can override it by the appropriate analysis function.
   /// @param input Array with the input samples in native PM123 format (interleaved).
   /// There are always \c FFTSize samples in the array.
   /// You must not change the array size, but you can take a strong reference with \c int_ptr<SampleData>.

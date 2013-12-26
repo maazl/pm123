@@ -95,8 +95,10 @@
 #define CB_CLIPINVERT   1265
 #define EF_NORM_LOW     1270
 #define EF_NORM_HIGH    1271
-#define CB_SUBSONIC     1275
-#define CB_SUPERSONIC   1276
+#define RB_ENERGY       1275
+#define RB_LOGARITHM    1276
+#define CB_SUBSONIC     1280
+#define CB_SUPERSONIC   1281
 
 // Open loop
 #define BX_LEFT         1300
@@ -132,16 +134,18 @@
 #define RB_CH_LEFT      1411
 #define RB_CH_RIGHT     1412
 #define CB_DIFFOUT      1415
+#define CB_REFIN        1420
 
-#define CB_CAL_FILE     1420
-#define ST_CAL_DESC     1422
-#define CB_REFIN        1423
+#define CB_CAL_FILE     1430
+#define ST_CAL_DESC     1431
+#define CB_MIC_FILE     1432
+#define ST_MIC_DESC     1433
 
 // Calibrate
 #define RB_STEREO_LOOP  1500
 #define RB_LEFT_LOOP    1501
 #define RB_RIGHT_LOOP   1502
-#define RB_CROSS_LOOP   1503
+#define RB_BOTH_LOOP    1503
 
 #endif
 

@@ -55,6 +55,14 @@ PLUGIN_CONTEXT Ctx;
 inline static void do_load_prf_value(const char* name, bool& target)
 { (*Ctx.plugin_api->profile_query)(name, &target, 1);
 }
+/*static void do_load_prf_value(const char* name, double& target)
+{ char buffer[32];
+  int len = (*Ctx.plugin_api->profile_query)(name, &buffer, sizeof buffer - 1);
+  if (len >= 0 && len < 32)
+  { buffer[len] = 0;
+    target = atof(buffer);
+  }
+}*/
 static void do_load_prf_value(const char* name, xstring& target)
 { int len = (*Ctx.plugin_api->profile_query)(name, NULL, 0);
   if (len >= 0)
@@ -97,10 +105,14 @@ static void do_load_prf_value(const char* name, volatile T& target)
 inline static void do_save_prf_value(const char* name, bool value)
 { (*Ctx.plugin_api->profile_write)(name, &value, 1);
 }
+/*static void do_save_prf_value(const char* name, double value)
+{ char buffer[32];
+  (*Ctx.plugin_api->profile_write)(name, buffer, sprintf(buffer, "%f", value));
+}*/
 inline static void do_save_prf_value(const char* name, xstring value)
 { (*Ctx.plugin_api->profile_write)(name, value.cdata(), value.length());
 }
-inline static void do_save_prf_value(const char* name, const Generate::Parameters::MeasurementSet& value)
+static void do_save_prf_value(const char* name, const Generate::Parameters::MeasurementSet& value)
 { xstringbuilder sb;
   foreach(const Measure::MeasureFile,*const*, sp, value)
   { sb.append((*sp)->FileName);
@@ -179,6 +191,7 @@ static void load_config()
     load_prf_value(measure.DiffOut);
     load_prf_value(measure.RefIn);
     load_prf_value(measure.CalFile);
+    load_prf_value(measure.MicFile);
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;
@@ -263,6 +276,7 @@ static void save_config()
     save_prf_value(measure.DiffOut);
     save_prf_value(measure.RefIn);
     save_prf_value(measure.CalFile);
+    save_prf_value(measure.MicFile);
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;

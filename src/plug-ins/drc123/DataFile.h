@@ -37,19 +37,20 @@
 #include <stdio.h>
 
 
-struct DataRowType : public sco_arr<double>
+struct DataRowType : public sco_arr<float>
 {               DataRowType(size_t size);
-  double        operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
-  double&       operator[](size_t col)          { return sco_arr<double>::operator[](col); }
-  static int    FrequencyComparer(const double& f, const DataRowType& row);
+  float         operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
+  float&        operator[](size_t col)          { return sco_arr<float>::operator[](col); }
+  static int    FrequencyComparer(const float& f, const DataRowType& row);
+  bool          HasValues() const;
 };
 
 class DataFile
-: public sorted_vector_own<DataRowType,double,&DataRowType::FrequencyComparer>
+: public sorted_vector_own<DataRowType,float,&DataRowType::FrequencyComparer>
 , public ASyncAccess
 {protected:
-  typedef sorted_vector_own<DataRowType,double,&DataRowType::FrequencyComparer> base;
- public:
+  typedef sorted_vector_own<DataRowType,float,&DataRowType::FrequencyComparer> base;
+ /*public:
   class Enumerator
   { DataRowType*const* Current;
     DataRowType*const* const End;
@@ -60,7 +61,7 @@ class DataFile
     bool        Next()                          { return Current != End && ++Current != End; }
     bool        isEnd() const                   { return Current == End; }
     int         comparef(double f) const;
-  };
+  };*/
  public:
   xstring       FileName;
   xstring       Description;
@@ -90,7 +91,9 @@ class DataFile
   void          swap(DataFile& r);
   virtual bool  Load(const char* filename = NULL, bool nodata = false);
   virtual bool  Save(const char* filename = NULL);
-  double        Interpolate(double f, unsigned col);
+  bool          HasColumn(unsigned col) const;
+  void          ClearColumn(unsigned col);
+  float         Interpolate(float f, unsigned col) const;
 };
 
 #endif // DATAFILE_H

@@ -36,14 +36,17 @@
 
 class Generate
 {public:
+  enum FilterMode
+  { FLT_None
+  , FLT_Subsonic
+  , FLT_Supersonic
+  };
+  enum NormalizeMode
+  { NM_Energy
+  , NM_Logarithm
+  };
   struct Parameters
-  {public:
-    enum FilterMode
-    { FLT_None
-    , FLT_Subsonic
-    , FLT_Supersonic
-    };
-   private:
+  {private:
     static int  CompareMeasurement(const char*const& key, const Measure::MeasureFile& data);
    public:
     typedef sorted_vector_own<Measure::MeasureFile,const char*,&Parameters::CompareMeasurement> MeasurementSet;
@@ -52,6 +55,7 @@ class Generate
     double      FreqBin;              ///< Width of a frequency bin
     double      FreqFactor;           ///< Factor between neighbor frequencies.
     double      NormFreqLow, NormFreqHigh;///< Normalization frequency range.
+    NormalizeMode NormMode;           ///< Mode used for normalization
     double      LimitGain;            ///< Maximum gain of target result [factor]
     double      LimitDelay;           ///< Maximum delay of target result [seconds]
     double      LimitGainRate;        ///< Maximum d(gain)/d(f) [factor/frequency]
@@ -68,18 +72,17 @@ class Generate
                 Parameters(const Parameters& r);
   };
 
+  enum Column
+  { Frequency
+  , LGain
+  , LDelay
+  , RGain
+  , RDelay
+  };
   class TargetFile
   : public DataFile
   , public Parameters
-  {public:
-    enum Column
-    { Frequency
-    , LGain
-    , LDelay
-    , RGain
-    , RDelay
-    };
-   private:
+  {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
@@ -112,12 +115,13 @@ class Generate
   Generate(const TargetFile& params);
  public:
   static SyncRef<TargetFile> GetData()          { return Data; }
+  void          Prepare();
   void          Run();
  private:
   double        ApplyGainLimit(double gain);
   double        ApplyDelayLimit(double delay);
 };
 
-FLAGSATTRIBUTE(Generate::Parameters::FilterMode);
+FLAGSATTRIBUTE(Generate::FilterMode);
 
 #endif // GENERATE_H

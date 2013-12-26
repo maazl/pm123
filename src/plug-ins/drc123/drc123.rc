@@ -34,11 +34,11 @@
 
 DLGTEMPLATE DLG_FRONTEND 
 BEGIN
-  DIALOG "Digital Room Correction",   DLG_FRONTEND,0,  0, 398,289, FS_SIZEBORDER | WS_VISIBLE | WS_CLIPSIBLINGS, FCF_TITLEBAR | FCF_SYSMENU | FCF_MAXBUTTON | FCF_NOBYTEALIGN
-  PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  DIALOG "Digital Room Correction",   DLG_FRONTEND,0,  0, 398,290, FS_SIZEBORDER | WS_VISIBLE | WS_CLIPSIBLINGS, FCF_TITLEBAR | FCF_SYSMENU | FCF_MAXBUTTON | FCF_NOBYTEALIGN
   BEGIN
     CONTROL "",                       NB_FRONTEND, 0,  0, 398,290, WC_NOTEBOOK, BKS_BACKPAGESTR|BKS_MAJORTABTOP |BKS_TABBEDDIALOG |BKS_SOLIDBIND |BKS_ROUNDEDTABS | BKS_STATUSTEXTLEFT | BKS_TABTEXTLEFT | WS_VISIBLE | WS_GROUP | WS_TABSTOP
-    PRESPARAMS 33024, 65537, 16843009
+      PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+      PRESPARAMS 33024, 65537, 16843009
   END
 
 END
@@ -46,18 +46,18 @@ END
 DLGTEMPLATE DLG_CONFIG 
 {
   DIALOG "Configuration",             DLG_CONFIG,  0,  0, 388,258, NOT FS_DLGBORDER, FCF_NOBYTEALIGN
-  PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " About ",               GB_GENERIC,  4,120, 380, 52
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    GROUPBOX " About ",               GB_GENERIC,  4,120, 380,134
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,1,1)
     CTEXT "Digital Room Correction for PM123",
-                                      ST_GENERIC, 12,150, 364, 12, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+                                      ST_GENERIC, 12,190, 364, 12, DT_VCENTER
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,2, 1,1,0,1)
       PRESPARAMS PP_FONTNAMESIZE "12.Helv.Italic.Bold"
-    CTEXT "Version 1.0",              ST_GENERIC, 12,138, 364, 10, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    CTEXT "(C) 2013 Marcel Mueller",  ST_GENERIC, 12,128, 364, 10, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    CTEXT "Version 1.0a",             ST_GENERIC, 12,178, 364, 10, DT_VCENTER
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,2, 1,1,0,1)
+    CTEXT "(C) 2013 Marcel Mueller",  ST_GENERIC, 12,168, 364, 10, DT_VCENTER
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,2, 1,1,0,1)
 
     GROUPBOX " Configuration ",       GB_GENERIC,  4, 76, 380, 42
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -91,7 +91,7 @@ DLGTEMPLATE DLG_CONFIG
     LTEXT "5. Enable the deconvolution filter to precompensate for the room response",
                                       ST_GENERIC, 12, 16, 364, 10, DT_VCENTER
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT "6. Listen for the new crisp sound! ;-)",
+    LTEXT "6. And now listen for the new crisp sound! ;-)",
                                       ST_GENERIC, 12,  6, 364, 10, DT_VCENTER
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     PUSHBUTTON "see ~Help for details",PB_HELP,  276, 52, 100, 12, BS_HELP
@@ -147,21 +147,21 @@ DLGTEMPLATE DLG_GENERATE
   DIALOG "Generate Filter",           DLG_GENERATE,0,  0, 388,258, NOT FS_DLGBORDER, FCF_NOBYTEALIGN
   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " Use measurements ",    GB_GENERIC,  4,194, 268, 62, DT_MNEMONIC
+    GROUPBOX " Use measurements ",    GB_GENERIC,  4,194, 288, 62, DT_MNEMONIC
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,2,3, 1,1,1,3)
-    LISTBOX                           LB_KERNEL,  12,200, 148, 46, LS_MULTIPLESEL|LS_EXTENDEDSEL|LS_NOADJUSTPOS
+    LISTBOX                           LB_KERNEL,  12,200, 124, 46, LS_MULTIPLESEL|LS_EXTENDEDSEL|LS_NOADJUSTPOS
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,2,3, 1,3,1,3)
-    LTEXT    "",                      ST_DESCR,  168,200,  96, 46, DT_TOP|DT_WORDBREAK
+    LTEXT    "",                      ST_DESCR,  142,200, 142, 46, DT_TOP|DT_WORDBREAK
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,2,3, 2,3,1,3)
 
-    GROUPBOX " Select ~view ",        GB_GENERIC,272,194, 108, 62, DT_MNEMONIC
+    GROUPBOX " Select ~view ",        GB_GENERIC,296,194,  88, 62, DT_MNEMONIC
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,2,3, 0,1,1,3)
-    AUTORADIOBUTTON "View result only",RB_VIEWRESULT,280,234,96,12
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,3,3, 0,1,0,3)
-    AUTORADIOBUTTON "View gain",      RB_VIEWGAIN,280,222, 96, 12
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,3,3, 0,1,0,3)
-    AUTORADIOBUTTON "View group delay",RB_VIEWDELAY,280,210,96,12
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,3,3, 0,1,0,3)
+    AUTORADIOBUTTON "View result only",RB_VIEWRESULT,304,234,72,12
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
+    AUTORADIOBUTTON "View gain",      RB_VIEWGAIN,304,222, 72, 12
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
+    AUTORADIOBUTTON "View group delay",RB_VIEWDELAY,304,210,72,12
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
 
     GROUPBOX " Frequency response ",  GB_RESULT,   4, 52, 188,140
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,2,0,3, 1,2,2,3)
@@ -182,10 +182,8 @@ DLGTEMPLATE DLG_GENERATE
     MLE      "",                      ML_DESCR,  124,  8, 254, 22, MLS_WORDWRAP|MLS_VSCROLL
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
-    DEFPUSHBUTTON "~Generate",        PB_START,    4, 36,  52, 12, WS_GROUP
-    PUSHBUTTON "~Help",               PB_HELP,    60, 36,  52, 12, BS_HELP
-    PUSHBUTTON "~Default",            PB_DEFAULT,  4, 20,  52, 12
-    PUSHBUTTON "~Undo",               PB_UNDO,    60, 20,  52, 12
+    DEFPUSHBUTTON "~Generate",        PB_START,    4, 20,  52, 12, WS_GROUP
+    PUSHBUTTON "~Help",               PB_HELP,    60, 20,  52, 12, BS_HELP
     PUSHBUTTON "~Load...",            PB_LOAD,     4,  4,  52, 12
     PUSHBUTTON "~Save",               PB_SAVE,    60,  4,  52, 12
   }
@@ -195,33 +193,39 @@ DLGTEMPLATE DLG_GENERATE_X
 { DIALOG "Extended filter generation options",DLG_GENERATE_X, 0,0, 388,244, NOT FS_DLGBORDER | NOT WS_SAVEBITS, FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " General settings ",    GB_GENERIC,  4,116, 380, 64, DT_MNEMONIC
+    GROUPBOX " General settings ",    GB_GENERIC,  4,158, 380, 52
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT    "~Frequency range",      ST_GENERIC, 12,158,  96, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_FREQ_LOW,118,160, 48,  8, ES_MARGIN
+    LTEXT    "~Frequency range",      ST_GENERIC, 12,188,  96, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_FREQ_LOW,118,190, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    CTEXT    "-",                     ST_GENERIC,172,158,   4, 12, DT_VCENTER|NOT WS_GROUP
-    ENTRYFIELD "",                    EF_FREQ_HIGH,182,160,48,  8, ES_MARGIN
+    CTEXT    "-",                     ST_GENERIC,172,188,   4, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_FREQ_HIGH,182,190,48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,236,158,  16, 12, DT_VCENTER|NOT WS_GROUP
-    LTEXT    "Frequency ~bin size",   ST_GENERIC, 12,146,  96, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_FREQ_BIN,118,148, 48,  8, ES_MARGIN
+    LTEXT    "Hz",                    ST_GENERIC,236,188,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Frequency ~bin size",   ST_GENERIC, 12,176,  96, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_FREQ_BIN,118,178, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,172,146,  16, 12, DT_VCENTER|NOT WS_GROUP
-    RTEXT    "+ factor",              ST_GENERIC,188,146,  44, 12, DT_VCENTER|NOT WS_GROUP
-    ENTRYFIELD "",                    EF_FREQ_FACTOR,238,148,48,8, ES_MARGIN
+    LTEXT    "Hz",                    ST_GENERIC,172,176,  16, 12, DT_VCENTER|NOT WS_GROUP
+    RTEXT    "+ factor",              ST_GENERIC,188,176,  44, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_FREQ_FACTOR,238,178,48,8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "%",                     ST_GENERIC,292,146,  16, 12, DT_VCENTER|NOT WS_GROUP
-    LTEXT    "F~ilter frequencies out of range",ST_GENERIC,12,134,96,12, DT_VCENTER|DT_MNEMONIC
-    AUTOCHECKBOX "subsonic"           CB_SUBSONIC,116,134, 60, 12
-    AUTOCHECKBOX "supersonic"         CB_SUPERSONIC,180,134,60,12
-    LTEXT    "~Normalization range",  ST_GENERIC, 12,122,  96, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_NORM_LOW,118,124, 48,  8, ES_MARGIN
+    LTEXT    "%",                     ST_GENERIC,292,176,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "F~ilter frequencies out of range",ST_GENERIC,12,164,96,12, DT_VCENTER|DT_MNEMONIC
+    AUTOCHECKBOX "subsonic"           CB_SUBSONIC,116,164, 60, 12
+    AUTOCHECKBOX "supersonic"         CB_SUPERSONIC,180,164,60,12
+
+    GROUPBOX " Normalization settings ",GB_GENERIC,4,116, 380, 40
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
+    LTEXT    "Frequency ~range",      ST_GENERIC, 12,134,  96, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_NORM_LOW,118,136, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    CTEXT    "-",                     ST_GENERIC,172,122,   4, 12, DT_VCENTER|NOT WS_GROUP
-    ENTRYFIELD "",                    EF_NORM_HIGH,182,124,48,  8, ES_MARGIN
+    CTEXT    "-",                     ST_GENERIC,172,134,   4, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_NORM_HIGH,182,136,48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,236,122,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,236,134,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Normalization ~mode",   ST_GENERIC, 12,122,  96, 12, DT_VCENTER|DT_MNEMONIC
+    AUTORADIOBUTTON "energy"          RB_ENERGY, 116,122,  60, 12
+    AUTORADIOBUTTON "dB"              RB_LOGARITHM,180,122,60, 12
 
     GROUPBOX " Limiter ",             GB_GENERIC,  4, 62, 380, 52
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -274,7 +278,7 @@ DLGTEMPLATE DLG_MEASURE
   DIALOG "Measurement",               DLG_MEASURE, 0,  0, 388,258, NOT FS_DLGBORDER, FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " Reference Output ",    GB_GENERIC,  4, 52,  92,204
+    GROUPBOX " Reference Output ",    GB_GENERIC,  4,116,  92,140
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 0,1,1,1)
     LTEXT    "Measurement ~mode",     ST_GENERIC, 12,238,  80, 12, DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
@@ -298,31 +302,32 @@ DLGTEMPLATE DLG_MEASURE
     AUTOCHECKBOX "Differential ~output",CB_DIFFOUT,12,134, 76, 12, WS_GROUP
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
 
-    GROUPBOX " Sound Input ",         GB_GENERIC,100,208, 284, 48
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,1,0,1)
-    LTEXT    "L",                     ST_GENERIC,108,238,   7,  8, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
-    CONTROL  "",                      BX_LEFT,   116,238,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 3,8,0,1)
-    LTEXT    "R",                     ST_GENERIC,108,224,   7,  8, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
-    CONTROL  "",                      BX_RIGHT,  116,224,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 3,8,0,1)
-    LTEXT    "Use ~calibration"       ST_GENERIC,200,236,  76, 12, DT_VCENTER|DT_MNEMONIC
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(3,8,1,1, 0,2,0,1)
-    COMBOBOX "",                      CB_CAL_FILE,280,186, 96, 60, CBS_DROPDOWNLIST
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(3,8,1,1, 5,8,0,1)
-    LTEXT    "Description",           ST_CAL_DESC,280,212, 96, 24, DT_TOP|DT_WORDBREAK
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(3,8,1,1, 5,8,0,1)
-    AUTOCHECKBOX "Referecnce ~input *",CB_REFIN, 200,224,  76, 12, WS_GROUP
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(3,8,1,1, 0,2,0,1)
-    LTEXT "* Requires special setup", ST_GENERIC,200,212,  76, 12, DT_VCENTER
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(3,8,1,1, 0,2,0,1)
+    GROUPBOX " Sound Input ",         GB_GENERIC,  4, 52,  92, 62
+    LTEXT    "L",                     ST_GENERIC, 12, 96,   8,  8, DT_VCENTER
+    CONTROL  "",                      BX_LEFT,    20, 96,  68,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
+    LTEXT    "R",                     ST_GENERIC, 12, 82,   8,  8, DT_VCENTER
+    CONTROL  "",                      BX_RIGHT,   20, 82,  68,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
+    AUTOCHECKBOX "Referecnce ~input *",CB_REFIN,  12, 66,  76, 12, WS_GROUP
+    LTEXT "* requires special setup", ST_GENERIC, 12, 58,  76,  8, DT_VCENTER
+
+    GROUPBOX " Sound card ~calibration ",GB_GENERIC,100,208,140,48, DT_MNEMONIC
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,4,5, 1,2,1,5)
+    COMBOBOX "",                      CB_CAL_FILE,108,186,124, 60, CBS_DROPDOWNLIST
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,4,5, 1,2,1,5)
+    LTEXT    "",                      ST_CAL_DESC,108,212,124, 24, DT_TOP|DT_WORDBREAK
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,4,5, 1,2,1,5)
+
+    GROUPBOX " ~Microphone calibration ",GB_GENERIC,244,208,140,48, DT_MNEMONIC
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,4,5, 1,2,1,5)
+    COMBOBOX "",                      CB_MIC_FILE,252,186,124, 60, CBS_DROPDOWNLIST
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,4,5, 1,2,1,5)
+    LTEXT    "",                      ST_MIC_DESC,252,212,124, 24, DT_TOP|DT_WORDBREAK
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,2,4,5, 1,2,1,5)
 
     GROUPBOX " Result ",              GB_GENERIC,100, 52, 284,154
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,1,1)
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,4,5)
     CONTROL  "",                      CC_RESULT, 108, 58, 268,138, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
-      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,1,1)
+      PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,4,5)
 
     GROUPBOX " File ",                GB_GENERIC,116,  2, 268, 48
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -334,7 +339,7 @@ DLGTEMPLATE DLG_MEASURE
     MLE      "",                      ML_DESCR,  124,  8, 254, 22, MLS_WORDWRAP|MLS_VSCROLL
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
-    PUSHBUTTON "~Run/Start",          PB_START,    4, 36,  52, 12, WS_GROUP
+    DEFPUSHBUTTON "~Run/Start",       PB_START,    4, 36,  52, 12, WS_GROUP
     PUSHBUTTON "~Abort/stop",         PB_STOP,    60, 36,  52, 12
     PUSHBUTTON "~Clear",              PB_CLEAR,    4, 20,  52, 12
     PUSHBUTTON "~Help",               PB_HELP,    60, 20,  52, 12, BS_HELP
@@ -428,34 +433,34 @@ DLGTEMPLATE DLG_CALIBRATE
   DIALOG "Sound card calibration",    DLG_CALIBRATE,0, 0, 388,244, NOT FS_DLGBORDER | NOT WS_SAVEBITS, FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " Calibration ~mode ",   GB_GENERIC,  4,200, 228, 36, DT_MNEMONIC
+    GROUPBOX " Calibration ~mode ",   GB_GENERIC,  4,200, 228, 40, DT_MNEMONIC
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,3,0,1)
-    AUTORADIOBUTTON "Stereo loopback",RB_STEREO_LOOP,12,216,72,12
+    AUTORADIOBUTTON "Stereo loopback",RB_STEREO_LOOP,12,218,72,12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,9,1,1, 1,9,0,1)
-    AUTORADIOBUTTON "Crossed channels *",RB_CROSS_LOOP,12,204, 72, 12
+    AUTORADIOBUTTON "Left to both ch. *",RB_BOTH_LOOP,12,206,72,12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,9,1,1, 1,9,0,1)
-    AUTORADIOBUTTON "Left channel only *",RB_LEFT_LOOP,88,216,72,12
+    AUTORADIOBUTTON "Left channel only *",RB_LEFT_LOOP,88,218,72,12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,9,1,1, 1,9,0,1)
-    AUTORADIOBUTTON "Right channel only *",RB_RIGHT_LOOP,88,204,72,12
+    AUTORADIOBUTTON "Right channel only *",RB_RIGHT_LOOP,88,206,72,12
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,9,1,1, 1,9,0,1)
     LTEXT "* Requires special cable setup",ST_GENERIC,172,206,50,20, DT_TOP|DT_WORDBREAK
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(2,9,1,1, 1,9,0,1)
 
-    GROUPBOX " Sound ",               GB_GENERIC,236,200, 148, 36
+    GROUPBOX " Sound ",               GB_GENERIC,236,200, 148, 40
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 2,3,0,1)
-    LTEXT    "~Volume",               ST_GENERIC,244,218,  40, 12, DT_BOTTOM|DT_MNEMONIC
+    LTEXT    "~Volume",               ST_GENERIC,244,220,  40, 12, DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 0,3,0,1)
 //    PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                        SB_VOLUME  244,206,  40, 12, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
+    SPINBUTTON                        SB_VOLUME  244,208,  40, 12, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       CTLDATA CD_SPBCDATA(3, 0,100)
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 0,3,0,1)
-    LTEXT    "L",                     ST_GENERIC,292,220,   8,  8, DT_VCENTER
+    LTEXT    "L",                     ST_GENERIC,292,222,   8,  8, DT_VCENTER
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 0,3,0,1)
-    CONTROL  "",                      BX_LEFT,   300,220,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
+    CONTROL  "",                      BX_LEFT,   300,222,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 2,3,0,1)
-    LTEXT    "R",                     ST_GENERIC,292,206,   8,  8, DT_VCENTER
+    LTEXT    "R",                     ST_GENERIC,292,208,   8,  8, DT_VCENTER
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 0,3,0,1)
-    CONTROL  "",                      BX_RIGHT,  300,206,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
+    CONTROL  "",                      BX_RIGHT,  300,208,  76,  8, WC_STATIC, SS_FGNDRECT|WS_VISIBLE
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(1,3,1,1, 2,3,0,1)
 
     GROUPBOX " Frequency response ",  GB_GENERIC,  4, 52, 188,146
@@ -477,7 +482,7 @@ DLGTEMPLATE DLG_CALIBRATE
     MLE      "",                      ML_DESCR,  124,  8, 254, 22, MLS_WORDWRAP|MLS_VSCROLL
       PRESPARAMS            MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
-    PUSHBUTTON "~Run/Start",          PB_START,    4, 36,  52, 12, WS_GROUP
+    DEFPUSHBUTTON "~Run/Start",       PB_START,    4, 36,  52, 12, WS_GROUP
     PUSHBUTTON "~Abort/stop",         PB_STOP,    60, 36,  52, 12
     PUSHBUTTON "~Clear",              PB_CLEAR,    4, 20,  52, 12
     PUSHBUTTON "~Help",               PB_HELP,    60, 20,  52, 12, BS_HELP
@@ -525,6 +530,7 @@ DLGTEMPLATE DLG_CALIBRATE_X
     CTEXT    "-",                     ST_GENERIC,172,116,   4, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAY_HIGH,182,118,48, 8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
+    LTEXT    "\370",                  ST_GENERIC,236,116,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Cross talk/~IM gain",   ST_GENERIC, 12,104,  96, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_GAIN2_LOW,118,106,48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)

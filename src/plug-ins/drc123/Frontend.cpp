@@ -92,13 +92,13 @@ Frontend::Frontend(HWND owner, HMODULE module)
 : NotebookDialogBase(DLG_FRONTEND, module, DF_AutoResize)
 {
   Pages.append() = new ConfigurationPage(*this);
-  Pages.append() = new DeconvolutionPage(*this);
-  Pages.append() = new GeneratePage(*this);
-  Pages.append() = new GenerateExtPage(*this);
-  Pages.append() = new MeasurePage(*this);
-  Pages.append() = new MeasureExtPage(*this);
   Pages.append() = new CalibratePage(*this);
   Pages.append() = new CalibrateExtPage(*this);
+  Pages.append() = new MeasurePage(*this);
+  Pages.append() = new MeasureExtPage(*this);
+  Pages.append() = new GeneratePage(*this);
+  Pages.append() = new GenerateExtPage(*this);
+  Pages.append() = new DeconvolutionPage(*this);
   StartDialog(owner, NB_FRONTEND);
 }
 
@@ -137,7 +137,7 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { FILEDLG fdlg = { sizeof(FILEDLG) };
         char type[_MAX_PATH];
         fdlg.fl = FDS_OPEN_DIALOG|FDS_CENTER;
-        fdlg.ulUser = FDU_DIR_ENABLE|FDU_DIR_ONLY;
+        fdlg.ulUser = FDU_DIR_ONLY;
         fdlg.pszTitle = "Select DRC123 working directory";
         fdlg.pszIType = type;
         strlcpy(fdlg.szFullFile, ControlBase(+GetCtrl(EF_WORKDIR)).Text(), sizeof fdlg.szFullFile);
@@ -416,6 +416,7 @@ bool Frontend::FilePage::LoadFile()
 {
   FILEDLG fdlg = { sizeof(FILEDLG) };
   fdlg.fl = FDS_OPEN_DIALOG|FDS_CENTER|FDS_FILTERUNION;
+  fdlg.ulUser = FDU_FILE_ONLY;
   strncpy(fdlg.szFullFile, xstring(Filter::WorkDir), sizeof fdlg.szFullFile);
   switch (DoLoadFile(fdlg))
   {case DID_OK:

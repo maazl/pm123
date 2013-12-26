@@ -42,33 +42,32 @@ class Calibrate : public OpenLoop
   { MD_StereoLoop
   , MD_LeftLoop
   , MD_RightLoop
-  , MD_CrossLoop
+  , MD_BothLoop
   };
   struct CalParameters
   { MeasureMode Mode;
     // GUI injection
     double      Gain2Low, Gain2High;    ///< Display range for x talk/IM gain
   };
+  enum Column
+  { Frequency
+  , LGain
+  , LDelay
+  , RGain
+  , RDelay
+  , DeltaGain
+  , DeltaDelay
+  , R2LGain
+  , R2LDelay
+  , L2RGain
+  , L2RDelay
+  , LIntermod
+  , RIntermod
+  };
   class CalibrationFile
   : public OpenLoopFile
   , public CalParameters
-  {public:
-    enum Column
-    { Frequency
-    , LGain
-    , LDelay
-    , RGain
-    , RDelay
-    , R2LGain
-    , R2LDelay
-    , L2RGain
-    , L2RDelay
-    , DeltaGain
-    , DeltaDelay
-    , LIntermod
-    , RIntermod
-    };
-   private:
+  {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:

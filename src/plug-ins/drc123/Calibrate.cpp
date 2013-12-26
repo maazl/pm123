@@ -36,22 +36,22 @@ Calibrate::CalibrationFile::CalibrationFile()
 { // Set Default Parameters
   FFTSize = 131072;
   DiscardSamp = 65536;
-  RefFMin = 20.;
+  RefFMin = 10.;
   RefFMax = 20000.;
   RefExponent = -.5;
   RefSkipEven = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
   RefFDist = 1.;
-  AnaFBin = 1.05;
+  AnaFBin = 1.02;
   AnaSwap = false;
 
   Mode = MD_StereoLoop;
 
   GainLow = -30.;
   GainHigh = +10.;
-  DelayLow = -2;
-  DelayHigh = +2;
+  DelayLow = -360;
+  DelayHigh = +360;
   Gain2Low = -90.;
   Gain2High = -40.;
   VULow = -40;
@@ -121,33 +121,43 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
     FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin, scale, delay);
     switch (CalParams.Mode)
     {case MD_StereoLoop:
-      f2d.StoreFFT(CalibrationFile::LGain, input[0], GetRefDesign(0));
-      f2d.StoreFFT(CalibrationFile::RGain, input[1], GetRefDesign(1));
-      f2d.StoreFFT(CalibrationFile::R2LGain, input[0], GetRefDesign(1));
-      f2d.StoreFFT(CalibrationFile::L2RGain, input[1], GetRefDesign(0));
+      f2d.StoreFFT(LGain, input[0], GetRefDesign(0));
+      f2d.StoreFFT(RGain, input[1], GetRefDesign(1));
+      f2d.StoreFFT(R2LGain, input[0], GetRefDesign(1));
+      f2d.StoreFFT(L2RGain, input[1], GetRefDesign(0));
       if (Params.RefSkipEven)
       { // Calc the sum output
         AnaTemp = GetRefDesign(0);
         AnaTemp += GetRefDesign(1);
-        f2d.StoreHDN(CalibrationFile::LIntermod, input[0], AnaTemp);
-        f2d.StoreHDN(CalibrationFile::RIntermod, input[1], AnaTemp);
+        f2d.StoreHDN(LIntermod, input[0], AnaTemp);
+        f2d.StoreHDN(RIntermod, input[1], AnaTemp);
       }
       break;
-     case MD_CrossLoop:
-      /* TODO f2d.StoreFFT(9, input[1], input[0]);
-      f2d.StoreFFT(9, input[1], input[0]);*/
+     case MD_BothLoop:
+      // blank all frequencies without intensity
+      AnaTemp = input[0];
+      { const FreqDomainData& ref = GetRefDesign(0);
+        for (unsigned i = 0; i < ref.size(); ++i)
+        { const fftwf_complex& r = ref[i];
+          if (r.real() == 0 && r.imag() == 0) // ref[i] == 0
+            AnaTemp[i] = 0;
+        }
+      }
+      f2d.Scale = 1; // scale factor cancels in this mode
+      f2d.Delay = 0; // as well as the delay
+      f2d.StoreFFT(DeltaGain, input[1], AnaTemp);
       break;
      case MD_LeftLoop:
-      f2d.StoreFFT(CalibrationFile::LGain, input[0], GetRefDesign(0));
-      f2d.StoreFFT(CalibrationFile::L2RGain, input[1], GetRefDesign(0));
+      f2d.StoreFFT(LGain, input[0], GetRefDesign(0));
+      f2d.StoreFFT(L2RGain, input[1], GetRefDesign(0));
       if (Params.RefSkipEven)
-        f2d.StoreHDN(CalibrationFile::LIntermod, input[0], GetRefDesign(0));
+        f2d.StoreHDN(LIntermod, input[0], GetRefDesign(0));
       break;
      case MD_RightLoop:
-      f2d.StoreFFT(CalibrationFile::RGain, input[1], GetRefDesign(1));
-      f2d.StoreFFT(CalibrationFile::R2LGain, input[0], GetRefDesign(1));
+      f2d.StoreFFT(RGain, input[1], GetRefDesign(1));
+      f2d.StoreFFT(R2LGain, input[0], GetRefDesign(1));
       if (Params.RefSkipEven)
-        f2d.StoreHDN(CalibrationFile::RIntermod, input[1], GetRefDesign(1));
+        f2d.StoreHDN(RIntermod, input[1], GetRefDesign(1));
       break;
     }
   }

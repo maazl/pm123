@@ -28,6 +28,7 @@
 
 #include "Measure.h"
 #include "FFT2Data.h"
+#include "Calibrate.h"
 
 
 Measure::MeasureFile::MeasureFile()
@@ -50,6 +51,7 @@ Measure::MeasureFile::MeasureFile()
   RefIn = false;
   DiffOut = false;
   CalFile = xstring::empty;
+  MicFile = xstring::empty;
 
   GainLow = -40.;
   GainHigh = +20.;
@@ -72,6 +74,8 @@ bool Measure::MeasureFile::ParseHeaderField(const char* string)
     RefIn = (bool)atoi(value);
   else if (!!(value = TryParam(string, "CalibrationFile")))
     CalFile = value;
+  else if (!!(value = TryParam(string, "MicrophoneFile")))
+    CalFile = value;
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
@@ -85,7 +89,8 @@ bool Measure::MeasureFile::WriteHeaderFields(FILE* f)
     "##DiffOut=%u\n"
     "##DiffIn=%u\n"
     "##CalibrationFile=%s\n"
-    , Mode, Chan, DiffOut, RefIn, CalFile.cdata() );
+    "##MicrophoneFile=%s\n"
+    , Mode, Chan, DiffOut, RefIn, CalFile.cdata(), MicFile.cdata() );
   return true;
 }
 
@@ -118,16 +123,133 @@ static inline bool operator==(const fftwf_complex& l, const float& r)
 { return l.imag() == 0. && l.real() == r;
 }
 
+void Measure::Inverse2x2(fftwf_complex& m11, fftwf_complex& m12, fftwf_complex& m21, fftwf_complex& m22)
+{
+  fftwf_complex det = m11 * m22 - m12 * m21;
+  if (det == 0.)
+  { // grumble, no intensity? Can't invert, use identity (= no calibration) in doubt.
+    m11 = 1.;
+    m22 = 1.;
+    m12 = 0.;
+    m21 = 0.;
+  } else
+  { fftwf_complex n22 = m11 / det;
+    m11 = m22 / det;
+    m22 = n22;
+    m12 /= -det;
+    m21 /= -det;
+  }
+}
+
+void Measure::InitAnalyzer()
+{ DataFile cal;
+  Data2FFT d2f(cal, Params.FFTSize, (double)Format.samplerate / Params.FFTSize);
+  // Prepare calibration data
+  if (MesParams.CalFile.length())
+  { if (!cal.Load(MesParams.CalFile))
+    { Fail(xstring().sprintf("Failed to open calibration file %s\n%s", MesParams.CalFile.cdata(), strerror(errno)));
+      return;
+    }
+    bool xtalk = cal.HasColumn(Calibrate::L2RGain) && cal.HasColumn(Calibrate::L2RDelay)
+              && cal.HasColumn(Calibrate::R2LGain) && cal.HasColumn(Calibrate::R2LDelay);
+    if (MesParams.RefIn && !xtalk)
+    { // short way for relative calibration
+      // We apply the R/L delta here to L only,
+      // because in ProcessFFTData the quotient L/R is only used.
+      // So we save a division.
+      if (!cal.HasColumn(Calibrate::DeltaGain) || !!cal.HasColumn(Calibrate::DeltaDelay))
+        Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data and is useless with reference input mode.\n%s", MesParams.CalFile.cdata()));
+       else
+        d2f.LoadFFT(Calibrate::DeltaGain, CalibrationL2L);
+      goto caldone;
+    }
+    if ( !cal.HasColumn(Calibrate::LGain) || !cal.HasColumn(Calibrate::LDelay)
+      || !cal.HasColumn(Calibrate::RGain) || !cal.HasColumn(Calibrate::RDelay) )
+    { if (MesParams.RefIn)
+        goto refin;
+      Fail(xstring().sprintf("The calibration file %s does not contain calibration data and cannot be used.", MesParams.CalFile.cdata()));
+      return;
+    }
+    d2f.LoadFFT(Calibrate::LGain, CalibrationL2L);
+    d2f.LoadFFT(Calibrate::RGain, CalibrationR2R);
+    if (xtalk)
+    { d2f.LoadFFT(Calibrate::L2RGain, CalibrationL2R);
+      d2f.LoadFFT(Calibrate::R2LGain, CalibrationR2L);
+      // do matrix inversions
+      for (unsigned i = 0; i < d2f.TargetSize; ++i)
+        Inverse2x2(CalibrationL2L[i], CalibrationR2L[i], CalibrationL2R[i], CalibrationR2R[i]);
+    } else
+    { CalibrationL2L.Invert();
+      CalibrationR2R.Invert();
+    }
+    if (MesParams.RefIn)
+    { // use relative calibration
+     refin:
+      if (!cal.HasColumn(Calibrate::DeltaGain) || !!cal.HasColumn(Calibrate::DeltaDelay))
+      { Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data. This is recommended with reference input mode.\n%s", MesParams.CalFile.cdata()));
+        goto caldone;
+      }
+      CalibrationR2L /= CalibrationL2L;
+      // We apply the R/L delta here to L only,
+      // because in ProcessFFTData the quotient L/R is only used.
+      // So we save a division.
+      d2f.LoadFFT(Calibrate::DeltaGain, CalibrationL2L);
+      CalibrationR2L *= CalibrationL2L;
+      CalibrationL2R /= CalibrationR2R;
+      d2f.LoadIdentity(CalibrationR2R);
+    }
+  }
+ caldone:
+
+  if (MesParams.MicFile.length())
+  { if (!cal.Load(MesParams.MicFile))
+    { Fail(xstring().sprintf("Failed to open microphone calibration %s\n%s", MesParams.MicFile.cdata(), strerror(errno)));
+      return;
+    }
+    if (!cal.HasColumn(Measure::LGain) || !!cal.HasColumn(Measure::LDelay))
+    { Fail(xstring().sprintf("The microphone calibration file %s has no calibration data and cannot be used.\n%s", MesParams.MicFile.cdata()));
+      return;
+    }
+    if (!CalibrationL2L.size())
+    { // if we have no calibration data so far, go the short way
+      d2f.LoadFFT(Measure::LGain, CalibrationL2L);
+      CalibrationL2L.Invert();
+      goto micdone;
+    }
+    d2f.LoadFFT(Measure::LGain, AnaTemp);
+    // join with calibration above
+    CalibrationL2L /= AnaTemp;
+    if (CalibrationR2L.size())
+      CalibrationR2L /= AnaTemp;
+  }
+ micdone:;
+}
+
 void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 { DEBUGLOG(("Measure::ProcessFFTData(,%g)\n", scale));
+  // calibration
+  if (CalibrationR2L.size())
+  { // have full matrix calibration
+    for (unsigned i = 0; i < input[0].size(); ++i)
+    { fftwf_complex lin = input[0][i];
+      fftwf_complex& r = input[1][i];
+      input[0][i] = lin * CalibrationL2L[i] + r * CalibrationR2L[i];
+      r = lin * CalibrationR2L[i] + r * CalibrationR2R[i];
+    }
+  } else if (CalibrationR2R.size())
+  { // have two channel calibration data
+    input[0] *= CalibrationL2L;
+    input[1] *= CalibrationR2R;
+  } else if (CalibrationL2L.size())
+  { // have one channel calibration data
+    input[0] *= CalibrationL2L;
+  }
+
   // get reference signal
   const FreqDomainData* ref[2];
   if (MesParams.RefIn)
   { // reference signal is on channel 2
     scale = 1; // all scale factors cancel anyway
-
-    // TODO: calibration
-
     ref[0] = &input[1];
 
     if (MesParams.Chan == CH_Both)
@@ -148,9 +270,6 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
         *dp = 0.;
   } else
   { // reference signal is not recorded
-
-    // TODO: calibration
-
     ref[0] = &GetRefDesign(0);
     ref[1] = &GetRefDesign(1);
   }
@@ -172,13 +291,13 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
     switch (MesParams.Chan)
     {case CH_Right:
-      f2d.StoreFFT(MeasureFile::RGain, input[0], *ref[0]);
+      f2d.StoreFFT(RGain, input[0], *ref[0]);
       break;
      case CH_Both:
-      f2d.StoreFFT(MeasureFile::RGain, input[0], *ref[1]);
+      f2d.StoreFFT(RGain, input[0], *ref[1]);
       // no break
      case CH_Left:
-      f2d.StoreFFT(MeasureFile::LGain, input[0], *ref[0]);
+      f2d.StoreFFT(LGain, input[0], *ref[0]);
       // no break
     }
   }
@@ -187,21 +306,22 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 }
 
 void Measure::SetVolume(double volume)
-{
-  if (IsRunning())
+{ if (IsRunning())
     OpenLoop::SetVolume(volume);
   SyncAccess<Measure::MeasureFile> data(Data);
   data->RefVolume = volume;
 }
 
 bool Measure::Start()
-{
+{ if (Data.Mode == MD_Sweep)
+  { Ctx.plugin_api->message_display(MSG_ERROR, "Sorry, sweep mode has not yet been implemented.");
+    return false;
+  }
   return OpenLoop::Start(MODE_MEASURE, Data.RefVolume);
 }
 
 void Measure::Clear()
-{
-  SyncAccess<Measure::MeasureFile> data(Data);
+{ SyncAccess<Measure::MeasureFile> data(Data);
   data->reset();
   OpenLoop::Clear();
 }

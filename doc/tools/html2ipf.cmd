@@ -1811,6 +1811,7 @@ DefineQuotes:
   "Aring  &Ao.",
   "ccedil &cc.",
   "Ccedil &Cc.",
+  "Delta  ",
   "egrave &eg.",
   "Egrave &Eg.",
   "eacute &ea.",

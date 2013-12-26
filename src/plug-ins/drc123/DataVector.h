@@ -45,6 +45,9 @@ struct DataVector
   void clear()                  { memset(begin(), 0, size() * sizeof(*get())); }
   DataVector& operator=(const DataVector& r);
   DataVector& operator+=(const DataVector& r);
+  DataVector& operator*=(const DataVector& r);
+  DataVector& operator/=(const DataVector& r);
+  DataVector& Invert();
 };
 
 template <class T>
@@ -67,6 +70,31 @@ DataVector<T>& DataVector<T>::operator+=(const DataVector<T>& r)
   const T* sp = r.begin();
   foreach(T,*, dp, *this)
     *dp += *sp++;
+  return *this;
+}
+
+template <class T>
+DataVector<T>& DataVector<T>::operator*=(const DataVector<T>& r)
+{ ASSERT(size() == r.size());
+  const T* sp = r.begin();
+  foreach(T,*, dp, *this)
+    *dp *= *sp++;
+  return *this;
+}
+
+template <class T>
+DataVector<T>& DataVector<T>::operator/=(const DataVector<T>& r)
+{ ASSERT(size() == r.size());
+  const T* sp = r.begin();
+  foreach(T,*, dp, *this)
+    *dp /= *sp++;
+  return *this;
+}
+
+template <class T>
+DataVector<T>& DataVector<T>::Invert()
+{ foreach(T,*, dp, *this)
+    *dp = (T)1. / *dp;
   return *this;
 }
 

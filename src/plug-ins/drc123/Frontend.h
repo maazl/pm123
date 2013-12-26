@@ -142,7 +142,7 @@ class Frontend : public NotebookDialogBase
     void          InvalidateGraph();
     void          SetGraphAxes(const Generate::TargetFile& data);
     void          SetupGraph();
-    void          AddMeasureGraphs(ResponseGraph& result, ResponseGraph::Extractor source, Measure::MeasureFile::Column col);
+    void          AddMeasureGraphs(ResponseGraph& result, ResponseGraph::Extractor source, Measure::Column col);
     void          Run();
   };
 
@@ -206,12 +206,11 @@ class Frontend : public NotebookDialogBase
   {private:
     enum
     { UM_UPDATECALLIST = WM_USER + 300  ///< Update combo box with calibration files
-    , UM_UPDATECAL                      ///< Update calibration file description
+    , UM_UPDATEFILE                     ///< Update calibration file description
     };
 
    private:
     ResponseGraph Response;
-    DataFile      Calibration;
    public:
     MeasurePage(Frontend& parent);
     virtual ~MeasurePage();
@@ -223,8 +222,8 @@ class Frontend : public NotebookDialogBase
     virtual void  StoreControlValues();
     virtual void  SetRunning(bool running);
     virtual void  InvalidateGraph();
-    void          UpdateDir();
-    void          UpdateCal();
+    static  void  UpdateDir(ComboBox lb, ControlBase desc, const char* mask);
+    static  xstring UpdateFile(ComboBox lb, ControlBase desc);
     virtual LONG  DoLoadFile(FILEDLG& fdlg);
     virtual xstring DoSaveFile();
   };

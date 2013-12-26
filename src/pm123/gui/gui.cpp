@@ -2033,7 +2033,7 @@ void GUIImp::Init()
   // Init help manager
   xstring infname(amp_startpath + "pm123.inf");
   struct stat fi;
-  if( stat( infname, &fi ) != 0  )
+  if( stat( infname, &fi ) != 0 )
     // If the file of the help does not placed together with the program,
     // we shall give to the help manager to find it.
     infname = "pm123.inf";

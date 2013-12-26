@@ -44,25 +44,33 @@ class Measure : public OpenLoop
   , CH_Right
   };
   struct MesParameters
-  { MeasureMode Mode;
+  { /// Measurement mode
+    MeasureMode Mode;
+    /// Channels to measure
     Channels    Chan;
+    /// Play the reference signal in differential mode,
+    /// i.e. the right output has the inverse signal.
     bool        DiffOut;
+    /// Use right line in channel as reference signal.
     bool        RefIn;
+    /// Soundcard calibration file, NULL if none.
     xstring     CalFile;
+    /// Microphone calibration file, NULL if none.
+    xstring     MicFile;
+  };
+
+  enum Column
+  { Frequency
+  , LGain
+  , LDelay
+  , RGain
+  , RDelay
   };
   /// @brief File with measurement data.
   class MeasureFile
   : public OpenLoopFile
   , public MesParameters
-  {public:
-    enum Column
-    { Frequency
-    , LGain
-    , LDelay
-    , RGain
-    , RDelay
-    };
-   private:
+  {private:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
@@ -77,14 +85,22 @@ class Measure : public OpenLoop
   static MeasureFile Data;
  private:
   MesParameters MesParams;
+  /// Another temporary, not destroyed by ComputeDelay.
   FreqDomainData AnaTemp2;
+  FreqDomainData CalibrationL2L;
+  FreqDomainData CalibrationR2R;
+  FreqDomainData CalibrationR2L;
+  FreqDomainData CalibrationL2R;
 
  protected:
                 Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams);
  public:
   static Measure* Factory(FILTER_PARAMS2& filterparams);
   virtual       ~Measure();
+ private:
+  static  void  Inverse2x2(fftwf_complex& m11, fftwf_complex& m12, fftwf_complex& m21, fftwf_complex& m22);
  protected:
+  virtual void  InitAnalyzer();
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
  public:
   static  bool  IsRunning()                     { return CurrentMode == MODE_MEASURE; }

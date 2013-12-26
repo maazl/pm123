@@ -43,10 +43,10 @@ Frontend::MeasurePage::MeasurePage(Frontend& parent)
 { MajorTitle = "~Measure";
   MinorTitle = "Measure speaker response";
 
-  Response.AddGraph("< L gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::MeasureFile::LGain, ResponseGraph::GF_None, CLR_BLUE);
-  Response.AddGraph("< R gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::MeasureFile::RGain, ResponseGraph::GF_None, CLR_RED);
-  Response.AddGraph("L delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::MeasureFile::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-  Response.AddGraph("R delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::MeasureFile::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
+  Response.AddGraph("< L gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::LGain, ResponseGraph::GF_None, CLR_BLUE);
+  Response.AddGraph("< R gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::RGain, ResponseGraph::GF_None, CLR_RED);
+  Response.AddGraph("L delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
+  Response.AddGraph("R delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
 }
 
 Frontend::MeasurePage::~MeasurePage()
@@ -63,8 +63,9 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
     {case CB_CAL_FILE:
+     case CB_MIC_FILE:
       if (SHORT2FROMMP(mp1) == CBN_ENTER)
-        PostMsg(UM_UPDATECAL, 0,0);
+        PostMsg(UM_UPDATEFILE, mp2, MPFROMSHORT(SHORT1FROMMP(mp1) + 1));
       break;
      case RB_CH_BOTH:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
@@ -89,11 +90,20 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case UM_UPDATECALLIST:
-    UpdateDir();
+    UpdateDir(GetCtrl(CB_CAL_FILE), GetCtrl(ST_CAL_DESC), "*.calibrate");
+    UpdateDir(GetCtrl(CB_MIC_FILE), GetCtrl(ST_MIC_DESC), "*.microphone");
     return 0;
 
-   case UM_UPDATECAL:
-    UpdateCal();
+   case UM_UPDATEFILE:
+    { const xstring& file = UpdateFile(HWNDFROMMP(mp1), GetCtrl(SHORT1FROMMP(mp2)));
+      SyncAccess<Measure::MeasureFile> data(Measure::GetData());
+      switch (SHORT1FROMMP(mp2))
+      {case ST_CAL_DESC:
+        data->CalFile = file; break;
+       case ST_MIC_DESC:
+        data->MicFile = file; break;
+      }
+    }
     return 0;
   }
 
@@ -149,6 +159,7 @@ void Frontend::MeasurePage::SetRunning(bool running)
   ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_CH_BOTH)).CheckState());
 
   ControlBase(+GetCtrl(CB_CAL_FILE)).Enabled(!running);
+  ControlBase(+GetCtrl(CB_MIC_FILE)).Enabled(!running);
   ControlBase(+GetCtrl(CB_REFIN)).Enabled(!running);
 
   OpenLoopPage::SetRunning(running);
@@ -158,11 +169,8 @@ void Frontend::MeasurePage::InvalidateGraph()
 { Response.Invalidate();
 }
 
-void Frontend::MeasurePage::UpdateDir()
-{ DEBUGLOG(("Frontend::MeasurePage::UpdateDir()\n"));
-  ComboBox lb(+GetCtrl(CB_CAL_FILE));
-  ControlBase descr(+GetCtrl(ST_CAL_DESC));
-
+void Frontend::MeasurePage::UpdateDir(ComboBox lb, ControlBase desc, const char* mask)
+{ DEBUGLOG(("Frontend::MeasurePage::UpdateDir(%p, %p)\n", lb.Hwnd, desc.Hwnd));
   xstring currentname;
   if (lb.NextSelection() > 0)
     currentname = lb.Text();
@@ -174,9 +182,9 @@ void Frontend::MeasurePage::UpdateDir()
 
   xstring path = Filter::WorkDir;
   if (!path.length())
-  { descr.Text("No working directory");
+  { desc.Text("No working directory");
   } else
-  { DirScan dir(path, "*.calibrate", FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
+  { DirScan dir(path, mask, FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
     while (dir.Next() == 0)
     { const char* name = dir.Current()->achName;
       if (currentname && stricmp(currentname, name) == 0)
@@ -198,26 +206,26 @@ void Frontend::MeasurePage::UpdateDir()
   lb.Select(selected);
 }
 
-void Frontend::MeasurePage::UpdateCal()
-{ DEBUGLOG(("Frontend::MeasurePage::UpdateCal()\n"));
-  ComboBox lb(+GetCtrl(CB_CAL_FILE));
-  ControlBase descr(+GetCtrl(ST_CAL_DESC));
-
+xstring Frontend::MeasurePage::UpdateFile(ComboBox lb, ControlBase desc)
+{ DEBUGLOG(("Frontend::MeasurePage::UpdateFile(%u, %u)\n", lb.Hwnd, desc.Hwnd));
+  xstring file;
   int sel = lb.NextSelection();
   if (sel > 0)
   { char path[_MAX_PATH];
     xstring workdir(Filter::WorkDir);
     rel2abs(workdir, lb.ItemText(sel), path, sizeof path);
-    { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-      data->CalFile = path;
-    }
-    if (!Calibration.Load(path))
-    { descr.Text(strerror(errno));
+    file = path;
+    DataFile cal;
+    if (!cal.Load(path, true))
+    { desc.Text(strerror(errno));
     } else
-    { descr.Text(Calibration.Description.length() ? Calibration.Description.cdata() : "no description");
+    { desc.Text(cal.Description.length() ? cal.Description.cdata() : "no description");
     }
   } else
-    descr.Text("");
+  { desc.Text("");
+    file = xstring::empty;
+  }
+  return file;
 }
 
 LONG Frontend::MeasurePage::DoLoadFile(FILEDLG& fdlg)

@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1101" level="2" lang="en">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>DRC123: Room measurement</title>
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
+  <meta content="Marcel Müller" name="author">
+</head>
+<body>
+<h2>Measure room response<br>
+</h2>
+<p><img alt="" src="images/measure.png" height="729" width="758"><strong></strong></p>
+<h3>Prerequisites</h3>
+<ul>
+  <li>First of all you need a <a href="microphone.html">measurement
+microphone</a>.</li>
+  <li>Secondly you microphone needs a microphone amplifier. While most
+PC sound devices have such an amplifier most of them are often of
+rather poor
+quality and not suitable for measurement purposes. So I recommend to
+use an external one. </li>
+</ul>
+<h3><br>
+</h3>
+<h3>Setup</h3>
+<ul>
+  <li>Be sure to have <a href="configure.html">configured DRC123</a>
+properly.</li>
+  <li>Optionally select a a <a href="calibration.html">sound card
+calibration</a> file made before.<br>
+  </li>
+  <li>Set all sound controls of your amplifier (like bass, treble,
+balance) to zero or push <i>direct sound</i> button.</li>
+  <li>Disable any effect processors, equalizers and so on.</li>
+</ul>
+<h4><img alt="" src="images/mes-ref.png" align="right" height="183"
+ hspace="5" vspace="5" width="440">Measure <em>with loopback</em>
+reference and <em>external microphone amplifier</em><br>
+</h4>
+If you have the option, use a special cable that returns a mix of line
+out left and right line input. This will compensate for almost any
+properties of your sound device. The mix can be done with two 10
+k&#937; metal film resistors as shown at the right. This will only work if
+you use an
+external microphone amplifier, because the microphone input is usually
+only mono.<br>
+<h4><img alt="" src="images/mes-std.png" align="right" height="145"
+ hspace="5" vspace="5" width="360">Measure <em>without loopback</em>
+reference and <em>external microphone amplifier</em></h4>
+<p>If you do not have the option for the loopback above DRC123 can also
+use an internal loopback. In this case it is recommended to measure
+only in stereo mode because otherwise the delay between the left and
+the right channel is unknown and will cannot be compensated.
+Furthermore you should <em>work with a calibration</em> in this case.<br>
+</p>
+<ol>
+  <li><b>Connect line in</b> of your sound card <b>to
+line out</b>.</li>
+  <li>Select mode <b><i>Stereo loopback</i></b> (default).</li>
+  <li>Press <b><i>Run</i></b> button.</li>
+  <li> Adjust the <b>volume</b> to get a reasonable recording level. </li>
+  <li><b>Wait</b> until the results are reasonable smooth.</li>
+  <li>Press <b><i>Abort/Stop</i></b> button.</li>
+  <li>Enter a <b>description</b> to identify your sound device
+(optional).</li>
+  <li>Enter a <b>file name</b> - without extension.</li>
+  <li>Press <i><b>Save</b></i> button to save the result.</li>
+</ol>
+<p>It is not required that the response is approximately at 0 dB as
+long as the result is smooth.</p>
+<h4>Method 2 - slow, more accurate</h4>
+<ol>
+  <li><img src="images/cal-left.png" alt="" align="right" height="106"
+ hspace="5" width="157"><b>Connect left line in</b> of your sound card <b>to
+left line out and right line in to ground.</b></li>
+  <li>Select mode <b><i>Left channel only</i></b>.</li>
+  <li>Press <b><i>Run</i></b> button.</li>
+  <li>Adjust the <b>volume</b> to get a reasonable recording level.</li>
+  <li><b>Wait</b> until the results are reasonable smooth.</li>
+  <li>Press <b><i>Abort/Stop</i></b> button.</li>
+  <li><b><img alt="" src="images/cal-right.png" align="right"
+ height="106" hspace="5" width="156">Connect right line in</b> of your
+sound card <b>to
+right line out and left line in to ground.</b> </li>
+  <li>Select mode <b><i>Right channel only</i></b>.</li>
+  <li>Press <b><i>Run</i></b> button.</li>
+  <li>Do not change the volume here.</li>
+  <li><b>Wait</b> until the results are reasonable smooth.</li>
+  <li>Press <b><i>Abort/Stop</i></b> button.</li>
+  <li><b><img src="cal-cross.png" alt="" align="right" height="106"
+ hspace="5" width="157">Connect right line in</b> of your sound card <b>to
+left line out and vice versa.</b> </li>
+  <li>Select mode <b><i>Crossed channels</i></b>.</li>
+  <li>Press <b><i>Run</i></b> button.</li>
+  <li><b>Wait</b> until the results are reasonable smooth.</li>
+  <li>Press <b><i>Abort/Stop</i></b> button.</li>
+  <li>Enter a <b>description</b> to identify your sound device
+(optional).</li>
+  <li>Enter a <b>file name</b> - without extension.</li>
+  <li>Press <i><b>Save</b></i> button to save the result.</li>
+</ol>
+<h3>Troubleshooting</h3>
+<p>If you do not get reasonable results in step 5, especially if the
+green and pink graph in the frequency response is noisy and the cyan
+and yellow graph on the right show high values, then it is likely that
+you overdrive your line input. Reduce the volume and repeat from step 4.</p>
+</body>
+</html>

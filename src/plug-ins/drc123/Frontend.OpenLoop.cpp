@@ -149,8 +149,10 @@ void Frontend::OpenLoopPage::SetRunning(bool running)
   { VULeft.Attach(GetCtrl(BX_LEFT));
     VURight.Attach(GetCtrl(BX_RIGHT));
     WinStartTimer(NULL, GetHwnd(), TID_VU, 100);
+    Worker.EvDataUpdate += AnaUpdateDeleg;
   } else
-  { WinStopTimer(NULL, GetHwnd(), TID_VU);
+  { AnaUpdateDeleg.detach();
+    WinStopTimer(NULL, GetHwnd(), TID_VU);
     VULeft.Detach();
     VURight.Detach();
   }

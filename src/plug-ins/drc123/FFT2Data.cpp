@@ -31,15 +31,6 @@
 #include <debuglog.h>
 
 
-FFT2Data::FFT2Data(DataFile& target, double finc, double fbin, double scale, double delay)
-: Target(target)
-, FInc(finc)
-, FBin(fbin)
-, Scale(scale)
-, Delay(delay)
-, IndeterminatePhase(0)
-{}
-
 static int dlcmp(const double& k, const DataRowType& row)
 { double value = row[0];
   if (k > value * 1.0001)
@@ -49,8 +40,22 @@ static int dlcmp(const double& k, const DataRowType& row)
   return 0;
 }
 
+void FFT2Data::StoreValue(unsigned col, double f, double value)
+{ if (isnan(value))
+    return;
+  size_t pos;
+  DataRowType* rp;
+  if (!binary_search<DataRowType,const double>(f, pos, Target, &dlcmp))
+  { rp = Target.insert(pos) = new DataRowType(Target.columns());
+    (*rp)[0] = f;
+  } else
+    rp = Target[pos];
+  (*rp)[col] = value;
+}
 void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
-{ size_t pos;
+{ if (isnan(mag) && isnan(delay))
+    return;
+  size_t pos;
   DataRowType* rp;
   if (!binary_search<DataRowType,const double>(f, pos, Target, &dlcmp))
   { rp = Target.insert(pos) = new DataRowType(Target.columns());
@@ -58,12 +63,13 @@ void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
   } else
     rp = Target[pos];
   (*rp)[col] = mag;
-  if (!isnan(delay))
-    (*rp)[col + 1] = delay;
+  (*rp)[col + 1] = delay;
 }
 
 void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
 { DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
+  Target.ClearColumn(col);
+  Target.ClearColumn(col + 1);
 
   double lastf = 0;
   double lastph = NAN;
@@ -122,6 +128,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
 
 void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
 { DEBUGLOG(("FFT2Data(%p)::StoreHDN(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
+  Target.ClearColumn(col);
 
   double fstart = NAN;
   double fsum = 0;
@@ -133,7 +140,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
   unsigned rvcnt = 0;
 
   for (unsigned i = 1; i < source.size(); ++i)
-  { fftwf_complex& rv = ref[i];
+  { const fftwf_complex& rv = ref[i];
     if (rv.real() || rv.imag()) // if (rv != 0)
     { lastrv = abs(rv);
       if (magcnt)
@@ -153,7 +160,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
       // find next frequency with intensity, if any
       bool last = true;
       for (unsigned j = i + 1; j < source.size(); ++j)
-      { rv = ref[j];
+      { const fftwf_complex& rv = ref[j];
         if (rv.real() || rv.imag()) // if (rv != 0)
         { rvsum += abs(rv);
           ++rvcnt;
@@ -162,7 +169,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
         }
       }
 
-      StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt), NAN);
+      StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt));
       if (last)
         return;
       fsum = 0;
@@ -179,5 +186,29 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
     magsum += abs(source[i]) * Scale;
     ++magcnt;
   }
-  StoreValue(col, fsum / magcnt, magsum / magcnt, NAN);
+  StoreValue(col, fsum / magcnt, magsum / magcnt);
+}
+
+
+void Data2FFT::LoadFFT(unsigned col, FreqDomainData& target)
+{
+  if (target.size() != TargetSize)
+    target.reset(TargetSize);
+  double ph = 0;
+  for (unsigned i = 0; i < target.size(); ++i)
+  { double f = i * FInc;
+    float mag = Source.Interpolate(f, col) * Scale;
+    double delay = Source.Interpolate(f, col + 1);
+    target[i] = fftwf_complex(mag * cos(ph), mag * sin(ph));
+    ph += -2 * M_PI * FInc * delay;
+  }
+  target[TargetSize-1] = target[TargetSize-1].real();
+}
+
+void Data2FFT::LoadIdentity(FreqDomainData& target)
+{
+  if (target.size() != TargetSize)
+    target.reset(TargetSize);
+  for (unsigned i = 0; i < target.size(); ++i)
+    target[i] = 1.;
 }

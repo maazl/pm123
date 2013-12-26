@@ -40,11 +40,12 @@ class FFT2Data
   DataFile& Target;
   double    FInc;
   double    FBin;
-  float     Scale;
+  double    Scale;
   double    Delay;
  public: // results
   unsigned  IndeterminatePhase;
  private:
+  void  StoreValue(unsigned col, double f, double value);
   void  StoreValue(unsigned col, double f, double mag, double delay);
  public:
   /// Create instance for a target.
@@ -55,7 +56,8 @@ class FFT2Data
   /// @param fbin Size of the frequency bins in the FFT data. This is equal to the inverse FFT length in the time domain.
   /// @param scale Multiply all values by \a scale.
   /// @param delay Use this linear phase delay in seconds for phase unwrapping.
-  FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.);
+  FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.)
+  : Target(target), FInc(finc), FBin(fbin), Scale(scale), Delay(delay), IndeterminatePhase(0) {}
 
   /// Store the data in \a source to the target specified at construction.
   /// @param col Start column where the data is to be stored.
@@ -77,6 +79,19 @@ class FFT2Data
   /// @param scale Multiply all values by \a scale.
   /// @pre target.Columns() > col + 1
   void StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
+};
+
+class Data2FFT
+{public:
+  const DataFile& Source;
+  unsigned  TargetSize;
+  double    FInc;
+  double    Scale;
+public:
+  Data2FFT(const DataFile& source, unsigned size, double finc, double scale = 1.)
+  : Source(source), TargetSize(size/2+1), FInc(finc), Scale(scale) {}
+  void LoadFFT(unsigned col, FreqDomainData& target);
+  void LoadIdentity(FreqDomainData& target);
 };
 
 #endif // FFT2DATA_H

@@ -30,6 +30,11 @@
 #include <cpp/smartptr.h>
 
 
+static inline double sqr(double value)
+{ return value * value;
+}
+
+
 Generate::Parameters::Parameters(const Parameters& r)
 {
   foreach (Measure::MeasureFile,*const*, sp, r.Measurements)
@@ -43,6 +48,7 @@ Generate::Parameters::Parameters(const Parameters& r)
   FreqFactor = r.FreqFactor;
   NormFreqLow = r.NormFreqLow;
   NormFreqHigh = r.NormFreqHigh;
+  NormMode = r.NormMode;
   LimitGain = r.LimitGain;
   LimitDelay = r.LimitDelay;
   LimitGainRate = r.LimitGainRate;
@@ -67,6 +73,7 @@ void Generate::Parameters::swap(Parameters& r)
   ::swap(FreqFactor, r.FreqFactor);
   ::swap(NormFreqLow, r.NormFreqLow);
   ::swap(NormFreqHigh, r.NormFreqHigh);
+  ::swap(NormMode, r.NormMode);
   ::swap(LimitGain, r.LimitGain);
   ::swap(LimitDelay, r.LimitDelay);
   ::swap(LimitGainRate, r.LimitGainRate);
@@ -86,9 +93,10 @@ Generate::TargetFile::TargetFile()
   FreqHigh = 20000.;
   FreqBin  = .25;
   FreqFactor = .005;
-  NormFreqLow = 80.;
+  NormFreqLow = 50.;
   NormFreqHigh = 500.;
-  LimitGain = 10.;
+  NormMode = NM_Energy;
+  LimitGain = pow(10, 15./20); // +15 dB
   LimitDelay = .5;
   LimitGainRate = .2;
   LimitDelayRate = .05;
@@ -96,8 +104,8 @@ Generate::TargetFile::TargetFile()
   Filter = FLT_Subsonic|FLT_Supersonic;
   GainLow  = -20.;
   GainHigh = +20.;
-  DelayLow = -.05;
-  DelayHigh = +.15;
+  DelayLow = -.2;
+  DelayHigh = +.2;
 }
 
 
@@ -196,7 +204,7 @@ Generate::Generate(const TargetFile& params)
 : LocalData(params)
 {}
 
-void Generate::Run()
+void Generate::Prepare()
 {
   if (LocalData.Measurements.size() == 0)
     throw "No measurements selected.";
@@ -206,7 +214,7 @@ void Generate::Run()
   foreach (Measure::MeasureFile,*const*, sp, LocalData.Measurements)
   { Measure::MeasureFile& data = **sp;
     if (!data.Load())
-      ; // TODO...
+      throw xstring().sprintf("Failed to load measurement %s.\n%s", data.FileName.cdata(), strerror(errno));
     // Normalize
     // Calculate average gain and delay in the range [NormFreqLow,NormFreqHigh].
     AverageCollector lgain(LocalData.NormFreqLow);
@@ -219,28 +227,49 @@ void Generate::Run()
     DataRowType*const* const rpe = data.end();
     while (rp != rpe)
     { DataRowType& row = **rp;
-      double f = row[Measure::MeasureFile::Frequency];
+      double f = row[Measure::Frequency];
       if (f > LocalData.NormFreqHigh)
         break;
-      lgain.Add(f, row[Measure::MeasureFile::LGain]);
-      rgain.Add(f, row[Measure::MeasureFile::RGain]);
-      ldelay.Add(f, row[Measure::MeasureFile::LDelay]);
-      rdelay.Add(f, row[Measure::MeasureFile::RDelay]);
+      switch (LocalData.NormMode)
+      {default: // NM_Energy
+        lgain.Add(f, sqr(1/row[Measure::LGain]));
+        rgain.Add(f, sqr(1/row[Measure::RGain]));
+        break;
+       case NM_Logarithm:
+        lgain.Add(f, log(row[Measure::LGain]));
+        rgain.Add(f, log(row[Measure::RGain]));
+        break;
+      }
+      ldelay.Add(f, row[Measure::LDelay]);
+      rdelay.Add(f, row[Measure::RDelay]);
       ++rp;
     }
-    double ogain = 2 / (lgain.Finish(LocalData.NormFreqHigh) + rgain.Finish(LocalData.NormFreqHigh));
+    double ogain;
+    switch (LocalData.NormMode)
+    {default: // NM_Energy
+      ogain = sqrt((lgain.Finish(LocalData.NormFreqHigh) + rgain.Finish(LocalData.NormFreqHigh)) / 2);
+      break;
+     case NM_Logarithm:
+      ogain = exp((lgain.Finish(LocalData.NormFreqHigh) + rgain.Finish(LocalData.NormFreqHigh)) / -2);
+      break;
+    }
     double odelay = (ldelay.Finish(LocalData.NormFreqHigh) + rdelay.Finish(LocalData.NormFreqHigh)) / -2;
     // Apply offset
     rp = data.begin();
     while (rp != rpe)
     { DataRowType& row = **rp;
-      row[Measure::MeasureFile::LGain] *= ogain;
-      row[Measure::MeasureFile::RGain] *= ogain;
-      row[Measure::MeasureFile::LDelay] += odelay;
-      row[Measure::MeasureFile::RDelay] += odelay;
+      row[Measure::LGain] *= ogain;
+      row[Measure::RGain] *= ogain;
+      row[Measure::LDelay] += odelay;
+      row[Measure::RDelay] += odelay;
       ++rp;
     }
   }
+}
+
+void Generate::Run()
+{
+  Prepare();
 
   // now calculate the target response
   double f = LocalData.FreqLow;
@@ -248,22 +277,22 @@ void Generate::Run()
   while (f <= LocalData.FreqHigh)
   {
     DataRowType& row = *(LocalData.append() = new DataRowType(5));
-    row[Generate::TargetFile::Frequency] = f;
-    double& lgain = row[Generate::TargetFile::LGain] = 0;
-    double& rgain = row[Generate::TargetFile::RGain] = 0;
-    double& ldelay = row[Generate::TargetFile::LDelay] = 0;
-    double& rdelay = row[Generate::TargetFile::RDelay] = 0;
+    row[Frequency] = f;
+    double lgain = 0;
+    double rgain = 0;
+    double ldelay = 0;
+    double rdelay = 0;
     foreach (Measure::MeasureFile,*const*, sp, LocalData.Measurements)
     { Measure::MeasureFile& data = **sp;
-      lgain += data.Interpolate(f, Measure::MeasureFile::LGain);
-      rgain += data.Interpolate(f, Measure::MeasureFile::RGain);
-      ldelay += data.Interpolate(f, Measure::MeasureFile::LDelay);
-      rdelay += data.Interpolate(f, Measure::MeasureFile::RDelay);
+      lgain += data.Interpolate(f, Measure::LGain);
+      rgain += data.Interpolate(f, Measure::RGain);
+      ldelay += data.Interpolate(f, Measure::LDelay);
+      rdelay += data.Interpolate(f, Measure::RDelay);
     }
-    lgain = ApplyGainLimit(1 / (lgain * scale));
-    rgain = ApplyGainLimit(1 / (rgain * scale));
-    ldelay = ApplyDelayLimit(-ldelay * scale);
-    rdelay = ApplyDelayLimit(-rdelay * scale);
+    row[LGain] = ApplyGainLimit(1 / (lgain * scale));
+    row[RGain] = ApplyGainLimit(1 / (rgain * scale));
+    row[LDelay] = ApplyDelayLimit(-ldelay * scale);
+    row[RDelay] = ApplyDelayLimit(-rdelay * scale);
 
     // next frequency
     f += LocalData.FreqBin + f * LocalData.FreqFactor;

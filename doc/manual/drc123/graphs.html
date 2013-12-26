@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html level="3" lang="en">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>DRC123: Spectrum graphs</title>
+  <link rel="stylesheet" href="../../common/infstyle.css"
+ type="text/css">
+  <meta content="Marcel Müller" name="author">
+</head>
+<body>
+<h2>Spectrum graphs of DRC123</h2>
+<h3>Axes
+</h3>
+<dl>
+  <dt><b>X axis - frequency</b></dt>
+  <dd>The X axis show the logarithmic frequency from 20 Hz to 20 kHz.
+The short cut label <b><tt>k2</tt></b> stands for 0.2 kHz = 200 Hz.
+(The SI prefix k for 1000 replaces the decimal point to conserve space.)</dd>
+  <dt><b>Y axis - amplitude</b></dt>
+  <dd>The left Y axis shows the amplitude response in dB.<br>
+It is used for all amplitude graphs identified by <b><tt>&lt;</tt></b>
+at the left of the label.</dd>
+  <dt><b>Y axis - <a href="#group_delay">group delay</a></b></dt>
+  <dd>The right Y axis is the group delay in units of the current
+frequencies cycle time. I.e. a value of 2 at 80 Hz corresponds to 2 /
+80 s = 25 ms (two cycles).<br>
+It is used for all delay graphs identified by <b><tt>&gt;</tt></b> at
+the right of the label.</dd>
+</dl>
+<p>If a Y value leaves the graph a line is drawn at the top or bottom
+boundary respectively. So you can see whether the values are to high or
+to low.</p>
+<h3>Numbers</h3>
+All numbers are written in short scientific form where the SI prefix
+replaces the decimal dot. E.g.:<br>
+2k = 2000<br>
+k18 = 0,18k = 180<br>
+<h3>Graph labels</h3>
+<dl>
+  <dt><b>&lt;</b>, <b>&gt;</b></dt>
+  <dd>The angle brackets show whether the graph uses the left or the
+right Y axis.<br>
+  </dd>
+  <dt><b>L gain</b>, <b>R gain</b></dt>
+  <dd>Amplitude of the <u>l</u>eft/<u>r</u>ight channel in dB using
+the left Y axis.</dd>
+  <dt><b>L delay</b>, <b>R delay</b></dt>
+  <dd>Group delay of the <u>l</u>eft/<u>r</u>ight channel in seconds.</dd>
+  <dt><b>L ph. del.</b>, <b>R ph. del.</b></dt>
+  <dd>Group delay of the <u>l</u>eft/<u>r</u>ight channel in units of
+degrees of the current frequencies cycle time.</dd>
+  <dt><b>R2L</b>, <b>L2R</b></dt>
+  <dd>Cross talk from right to left/left to right channel in dB using
+the left Y axis.<br>
+The values usually increase at higher frequencies because of the white
+noise floor of your line input which has increased energy compared to
+the pink noise of the <a href="reference.html">reference signal</a>.
+The noise decrease with measurement time. </dd>
+  <dt><b>&#916; gain</b></dt>
+  <dd>Difference between the left and the right channel in dB using the
+left Y axis.</dd>
+  <dt><b>&#916; delay</b></dt>
+  <dd>Time delay between the left and the right channel in degrees
+using the right Y axis.</dd>
+  <dt><b>L IM2</b>, <b>R IM2</b></dt>
+  <dd>Second order intermodulations of the left/right channel. This is
+the energy at frequencies that can be expressed as sum or difference of
+exactly two other frequencies.<br>
+The values usually increase at higher frequencies because of the white
+noise floor of your line input which has increased energy compared to
+the pink noise of the <a href="reference.html">reference signal</a>. </dd>
+</dl>
+<h3><a name="group_delay"></a>Group delay</h3>
+<p>The group delay is the <em>phase change over frequency</em>. The
+absolute phase is mostly meaningless because of delays due to CPU
+processing and sound propagation. But the phase changes are significant
+and contribute to the acoustical ranging.</p>
+</body>
+</html>

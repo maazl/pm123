@@ -302,6 +302,7 @@ PROXYFUNCIMP(void TFNENTRY, OpenLoop)AnaThreadStub(void* arg)
 
 void OpenLoop::AnaThreadFunc()
 { DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, +20, 0);
+  InitAnalyzer();
   for(;;)
   { // wait for work
     AnaEvent.Wait();
@@ -314,6 +315,9 @@ void OpenLoop::AnaThreadFunc()
     ProcessInput(*data);
   }
 }
+
+void OpenLoop::InitAnalyzer()
+{}
 
 double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response)
 {

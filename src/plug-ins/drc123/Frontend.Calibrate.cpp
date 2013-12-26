@@ -49,16 +49,16 @@ Frontend::CalibratePage::CalibratePage(Frontend& parent)
 { MajorTitle = "~Calibrate";
   MinorTitle = "Calibrate sound card";
 
-  Response.AddGraph("< L gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::LGain, ResponseGraph::GF_None, CLR_BLUE);
-  Response.AddGraph("< R gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::RGain, ResponseGraph::GF_None, CLR_RED);
-  Response.AddGraph("L ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::CalibrationFile::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-  Response.AddGraph("R ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::CalibrationFile::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
-  Response.AddGraph("<  gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::DeltaGain, ResponseGraph::GF_None, CLR_CYAN);
-  Response.AddGraph(" ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::CalibrationFile::DeltaDelay, ResponseGraph::GF_Y2, CLR_YELLOW);
-  XTalk.AddGraph("< R2L", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::R2LGain, ResponseGraph::GF_None, CLR_BLUE);
-  XTalk.AddGraph("< L2R", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::L2RGain, ResponseGraph::GF_None, CLR_RED);
-  XTalk.AddGraph("< L IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::LIntermod, ResponseGraph::GF_None, CLR_CYAN);
-  XTalk.AddGraph("< R IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::CalibrationFile::RIntermod, ResponseGraph::GF_None, CLR_YELLOW);
+  Response.AddGraph("< L gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::LGain, ResponseGraph::GF_None, CLR_BLUE);
+  Response.AddGraph("< R gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::RGain, ResponseGraph::GF_None, CLR_RED);
+  Response.AddGraph("L ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
+  Response.AddGraph("R ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
+  Response.AddGraph("<  gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::DeltaGain, ResponseGraph::GF_None, CLR_CYAN);
+  Response.AddGraph(" ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::DeltaDelay, ResponseGraph::GF_Y2, CLR_YELLOW);
+  XTalk.AddGraph("< R2L", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::R2LGain, ResponseGraph::GF_None, CLR_BLUE);
+  XTalk.AddGraph("< L2R", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::L2RGain, ResponseGraph::GF_None, CLR_RED);
+  XTalk.AddGraph("< L IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::LIntermod, ResponseGraph::GF_None, CLR_CYAN);
+  XTalk.AddGraph("< R IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::RIntermod, ResponseGraph::GF_None, CLR_YELLOW);
   //XTalk.AddGraph("R2L del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)6, ResponseGraph::GF_Y2, CLR_GREEN);
   //XTalk.AddGraph("L2R del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)8, ResponseGraph::GF_Y2, CLR_PINK);
 }
@@ -87,11 +87,6 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case RB_CH_RIGHT:
       if (SHORT2FROMMP(mp1) == BN_CLICKED && !RadioButton(GetCtrl(RB_CH_BOTH)).CheckState())
         CheckBox(+GetCtrl(CB_DIFFOUT)).Enabled(true);
-      break;
-     case CB_CAL_FILE:
-      if (SHORT2FROMMP(mp1) == CBN_ENTER)
-        // TODO
-        ;
       break;
     }
     break;
