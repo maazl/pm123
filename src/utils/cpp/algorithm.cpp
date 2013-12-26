@@ -35,7 +35,7 @@
 
 bool binary_search( const void* key, size_t& pos,
   const void* data, size_t num, size_t size, int (*fcmp)(const void* key, const void* elem) )
-{ DEBUGLOG(("binary_search(%p, &%p, %p, %u, %u, *%p)\n", key, &pos, data, num, size, fcmp));
+{ DEBUGLOG2(("binary_search(%p, &%p, %p, %u, %u, *%p)\n", key, &pos, data, num, size, fcmp));
   size_t l = 0;
   size_t r = num;
   while (l < r)
@@ -58,7 +58,7 @@ bool binary_search( const void* key, size_t& pos,
 
 bool binary_search( const void* key, size_t& pos,
   const void*const* data, size_t num, int (*fcmp)(const void* key, const void* elem) )
-{ DEBUGLOG(("binary_search(%p, &%p, %p, %u, *%p)\n", key, &pos, data, num, fcmp));
+{ DEBUGLOG2(("binary_search(%p, &%p, %p, %u, *%p)\n", key, &pos, data, num, fcmp));
   size_t l = 0;
   size_t r = num;
   while (l < r)
