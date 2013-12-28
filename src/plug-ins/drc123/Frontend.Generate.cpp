@@ -325,8 +325,8 @@ void Frontend::GeneratePage::Run()
     MeasurementData.append() = data;
     data->swap(**mp);
     // invert data
-    foreach (DataRowType,*const*, rp, *data)
-    { DataRowType& row = **rp;
+    foreach (DataRow,*const*, rp, *data)
+    { DataRow& row = **rp;
       row[Measure::LGain] = 1 / row[Measure::LGain];
       row[Measure::RGain] = 1 / row[Measure::RGain];
       row[Measure::LDelay] = -row[Measure::LDelay];

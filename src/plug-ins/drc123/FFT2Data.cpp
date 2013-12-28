@@ -31,7 +31,7 @@
 #include <debuglog.h>
 
 
-static int dlcmp(const double& k, const DataRowType& row)
+static int dlcmp(const double& k, const DataRow& row)
 { double value = row[0];
   if (k > value * 1.0001)
     return 1;
@@ -44,9 +44,9 @@ void FFT2Data::StoreValue(unsigned col, double f, double value)
 { if (isnan(value))
     return;
   size_t pos;
-  DataRowType* rp;
-  if (!binary_search<DataRowType,const double>(f, pos, Target, &dlcmp))
-  { rp = Target.insert(pos) = new DataRowType(Target.columns());
+  DataRow* rp;
+  if (!binary_search<DataRow,const double>(f, pos, Target, &dlcmp))
+  { rp = Target.insert(pos) = new DataRow(Target.columns());
     (*rp)[0] = f;
   } else
     rp = Target[pos];
@@ -56,9 +56,9 @@ void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
 { if (isnan(mag) && isnan(delay))
     return;
   size_t pos;
-  DataRowType* rp;
-  if (!binary_search<DataRowType,const double>(f, pos, Target, &dlcmp))
-  { rp = Target.insert(pos) = new DataRowType(Target.columns());
+  DataRow* rp;
+  if (!binary_search<DataRow,const double>(f, pos, Target, &dlcmp))
+  { rp = Target.insert(pos) = new DataRow(Target.columns());
     (*rp)[0] = f;
   } else
     rp = Target[pos];

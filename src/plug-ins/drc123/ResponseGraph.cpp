@@ -66,20 +66,19 @@ static const char SIprefix[] =
 , '.'                                    // [8]
 , 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' }; // 10^3..10^24
 
-void ResponseGraph::AxesText(char* target, double value, int exponent)
+void ResponseGraph::AxesText(char* target, double value)
 { /*if (value == 0.)
   { target[0] = '0';
     target[1] = 0;
     return;
   }*/
-  value *= exp(-exponent * M_LN10);
   // get digits 0123456789
   //            +1.2E+345
   char buf[10];
   sprintf(buf, "%+.1e", value);
   if (buf[0] == '-')
     *target++ = '-';
-  exponent += atoi(buf+5) + 25;
+  int exponent = atoi(buf+5) + 25;
   ASSERT(exponent >= 0 && exponent <= 50);
   char separator = SIprefix[exponent/3];
   target[3] = 0;
@@ -194,6 +193,8 @@ void ResponseGraph::LinAxes(double min, double max, void (ResponseGraph::*drawla
   while (v <= ve)
   { (this->*drawlabel)(v);
     v += l;
+    if (abs(v) < abs(max - min) / 1E6)
+      v = 0;
   }
 }
 
@@ -237,14 +238,14 @@ void ResponseGraph::DrawGraph(const GraphInfo& graph)
   POINTL* const dpe = points + sizeof points / sizeof *points;
 
   SyncAccess<DataFile> data(graph.Data);
-  const DataRowType*const* rp = data->begin();
-  const DataRowType*const* rpe = data->end();
+  const DataRow*const* rp = data->begin();
+  const DataRow*const* rpe = data->end();
 
   bool start = true;
   while (rp != rpe)
   { POINTL* dp;
     for (dp = points; dp < dpe && rp != rpe; ++rp)
-    { const DataRowType& row = **rp;
+    { const DataRow& row = **rp;
       double value = (*graph.ExtractY)(row, graph.User);
       if (isnan(value))
         continue;

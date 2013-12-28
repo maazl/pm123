@@ -55,8 +55,8 @@ Measure::MeasureFile::MeasureFile()
 
   GainLow = -40.;
   GainHigh = +20.;
-  DelayLow = -.05;
-  DelayHigh = +.1;
+  DelayLow = -.075;
+  DelayHigh = +.15;
   VULow = -40;
   VUYellow = -12;
   VURed = -6;
@@ -75,7 +75,7 @@ bool Measure::MeasureFile::ParseHeaderField(const char* string)
   else if (!!(value = TryParam(string, "CalibrationFile")))
     CalFile = value;
   else if (!!(value = TryParam(string, "MicrophoneFile")))
-    CalFile = value;
+    MicFile = value;
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
@@ -91,7 +91,7 @@ bool Measure::MeasureFile::WriteHeaderFields(FILE* f)
     "##CalibrationFile=%s\n"
     "##MicrophoneFile=%s\n"
     , Mode, Chan, DiffOut, RefIn, CalFile.cdata(), MicFile.cdata() );
-  return true;
+  return OpenLoopFile::WriteHeaderFields(f);
 }
 
 const OpenLoop::SVTable Measure::VTable =
@@ -157,8 +157,8 @@ void Measure::InitAnalyzer()
       // We apply the R/L delta here to L only,
       // because in ProcessFFTData the quotient L/R is only used.
       // So we save a division.
-      if (!cal.HasColumn(Calibrate::DeltaGain) || !!cal.HasColumn(Calibrate::DeltaDelay))
-        Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data and is useless with reference input mode.\n%s", MesParams.CalFile.cdata()));
+      if (!cal.HasColumn(Calibrate::DeltaGain) || !cal.HasColumn(Calibrate::DeltaDelay))
+        Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data and is useless with reference input mode.", MesParams.CalFile.cdata()));
        else
         d2f.LoadFFT(Calibrate::DeltaGain, CalibrationL2L);
       goto caldone;
@@ -185,8 +185,8 @@ void Measure::InitAnalyzer()
     if (MesParams.RefIn)
     { // use relative calibration
      refin:
-      if (!cal.HasColumn(Calibrate::DeltaGain) || !!cal.HasColumn(Calibrate::DeltaDelay))
-      { Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data. This is recommended with reference input mode.\n%s", MesParams.CalFile.cdata()));
+      if (!cal.HasColumn(Calibrate::DeltaGain) || !cal.HasColumn(Calibrate::DeltaDelay))
+      { Ctx.plugin_api->message_display(MSG_WARNING, xstring().sprintf("The calibration file %s has no differential data. This is recommended with reference input mode.", MesParams.CalFile.cdata()));
         goto caldone;
       }
       CalibrationR2L /= CalibrationL2L;
@@ -206,8 +206,8 @@ void Measure::InitAnalyzer()
     { Fail(xstring().sprintf("Failed to open microphone calibration %s\n%s", MesParams.MicFile.cdata(), strerror(errno)));
       return;
     }
-    if (!cal.HasColumn(Measure::LGain) || !!cal.HasColumn(Measure::LDelay))
-    { Fail(xstring().sprintf("The microphone calibration file %s has no calibration data and cannot be used.\n%s", MesParams.MicFile.cdata()));
+    if (!cal.HasColumn(Measure::LGain) || !cal.HasColumn(Measure::LDelay))
+    { Fail(xstring().sprintf("The microphone calibration file %s has no calibration data and cannot be used.", MesParams.MicFile.cdata()));
       return;
     }
     if (!CalibrationL2L.size())
@@ -229,7 +229,10 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 { DEBUGLOG(("Measure::ProcessFFTData(,%g)\n", scale));
   // calibration
   if (CalibrationR2L.size())
-  { // have full matrix calibration
+  { // Have full matrix calibration. Calculate
+    // | L |   | CalL2L CalR2L |
+    // |   | * |               |
+    // | R |   | CalL2R CalR2R |
     for (unsigned i = 0; i < input[0].size(); ++i)
     { fftwf_complex lin = input[0][i];
       fftwf_complex& r = input[1][i];

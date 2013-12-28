@@ -156,6 +156,7 @@ static void load_config()
     load_prf_value(generate.FreqFactor);
     load_prf_value(generate.NormFreqLow);
     load_prf_value(generate.NormFreqHigh);
+    load_prf_value(generate.NormMode);
     load_prf_value(generate.LimitGain);
     load_prf_value(generate.LimitGainRate);
     load_prf_value(generate.LimitDelay);
@@ -241,6 +242,7 @@ static void save_config()
     save_prf_value(generate.FreqFactor);
     save_prf_value(generate.NormFreqLow);
     save_prf_value(generate.NormFreqHigh);
+    save_prf_value(generate.NormMode);
     save_prf_value(generate.LimitGain);
     save_prf_value(generate.LimitGainRate);
     save_prf_value(generate.LimitDelay);

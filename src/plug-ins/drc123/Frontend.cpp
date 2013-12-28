@@ -52,19 +52,19 @@
 
 xstringconst DefRecURI("record:///0?samp=48000&stereo&in=line&share=yes");
 
-double Frontend::XtractFrequency(const DataRowType& row, void*)
+double Frontend::XtractFrequency(const DataRow& row, void*)
 { return row[0];
 }
 
-double Frontend::XtractGain(const DataRowType& row, void* col)
+double Frontend::XtractGain(const DataRow& row, void* col)
 { return log(row[(int)col]) * (20. / M_LN10);
 }
 
-double Frontend::XtractDelay(const DataRowType& row, void* col)
+double Frontend::XtractDelay(const DataRow& row, void* col)
 { return row[(int)col];
 }
 
-double Frontend::XtractPhaseDelay(const DataRowType& row, void* col)
+double Frontend::XtractPhaseDelay(const DataRow& row, void* col)
 { return row[(int)col] * row[0] * 360.;
 }
 

@@ -222,10 +222,10 @@ void OpenLoop::GenerateRef()
   // initialize arrays
   const unsigned fdsize = Params.FFTSize / 2 + 1;
   RefDesign[0].reset(fdsize);
-  RefDesign[0].clear(); // all coefficients -> 0
+  RefDesign[0].Set0(); // all coefficients -> 0
   if (RefMode & 3) // !MONO && ! DIFFERENTIAL
   { RefDesign[1].reset(fdsize);
-    RefDesign[1].clear(); // all coefficients -> 0
+    RefDesign[1].Set0(); // all coefficients -> 0
     RefData.reset(2 * Params.FFTSize);
   } else
     RefData.reset(Params.FFTSize);

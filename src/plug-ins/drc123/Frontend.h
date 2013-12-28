@@ -61,10 +61,10 @@ class Frontend : public NotebookDialogBase
   static ViewMode GenerateViewMode;
 
  private:
-  static double XtractFrequency(const DataRowType& row, void*);
-  static double XtractGain(const DataRowType& row, void* col);
-  static double XtractDelay(const DataRowType& row, void* col);
-  static double XtractPhaseDelay(const DataRowType& row, void* col);
+  static double XtractFrequency(const DataRow& row, void*);
+  static double XtractGain(const DataRow& row, void* col);
+  static double XtractDelay(const DataRow& row, void* col);
+  static double XtractPhaseDelay(const DataRow& row, void* col);
 
   static void   SetValue(HWND ctrl, double value, const char* mask = "%g");
   static bool   GetValue(HWND ctrl, double& value);

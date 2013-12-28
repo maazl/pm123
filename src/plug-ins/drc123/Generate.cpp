@@ -223,10 +223,10 @@ void Generate::Prepare()
     AverageCollector rdelay(LocalData.NormFreqLow);
     unsigned pos;
     data.locate(LocalData.NormFreqLow, pos);
-    DataRowType*const* rp = data.begin() + pos;
-    DataRowType*const* const rpe = data.end();
+    DataRow*const* rp = data.begin() + pos;
+    DataRow*const* const rpe = data.end();
     while (rp != rpe)
-    { DataRowType& row = **rp;
+    { DataRow& row = **rp;
       double f = row[Measure::Frequency];
       if (f > LocalData.NormFreqHigh)
         break;
@@ -257,7 +257,7 @@ void Generate::Prepare()
     // Apply offset
     rp = data.begin();
     while (rp != rpe)
-    { DataRowType& row = **rp;
+    { DataRow& row = **rp;
       row[Measure::LGain] *= ogain;
       row[Measure::RGain] *= ogain;
       row[Measure::LDelay] += odelay;
@@ -276,7 +276,7 @@ void Generate::Run()
   const double scale = 1. / LocalData.Measurements.size();
   while (f <= LocalData.FreqHigh)
   {
-    DataRowType& row = *(LocalData.append() = new DataRowType(5));
+    DataRow& row = *(LocalData.append() = new DataRow(5));
     row[Frequency] = f;
     double lgain = 0;
     double rgain = 0;

@@ -37,27 +37,27 @@
 #include <stdio.h>
 
 
-struct DataRowType : public sco_arr<float>
-{               DataRowType(size_t size);
+struct DataRow : public sco_arr<float>
+{               DataRow(size_t size);
   float         operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
   float&        operator[](size_t col)          { return sco_arr<float>::operator[](col); }
-  static int    FrequencyComparer(const float& f, const DataRowType& row);
+  static int    FrequencyComparer(const float& f, const DataRow& row);
   bool          HasValues() const;
 };
 
 class DataFile
-: public sorted_vector_own<DataRowType,float,&DataRowType::FrequencyComparer>
+: public sorted_vector_own<DataRow,float,&DataRow::FrequencyComparer>
 , public ASyncAccess
 {protected:
-  typedef sorted_vector_own<DataRowType,float,&DataRowType::FrequencyComparer> base;
+  typedef sorted_vector_own<DataRow,float,&DataRow::FrequencyComparer> base;
  /*public:
   class Enumerator
-  { DataRowType*const* Current;
-    DataRowType*const* const End;
+  { DataRow*const* Current;
+    DataRow*const* const End;
    public:
     Enumerator(const DataFile& data) : Current(data.begin()), End(data.end()) {}
-    DataRowType* operator*() const              { ASSERT(Current != End); return *Current; }
-    DataRowType* operator->() const             { ASSERT(Current != End); return *Current; }
+    DataRow* operator*() const              { ASSERT(Current != End); return *Current; }
+    DataRow* operator->() const             { ASSERT(Current != End); return *Current; }
     bool        Next()                          { return Current != End && ++Current != End; }
     bool        isEnd() const                   { return Current == End; }
     int         comparef(double f) const;

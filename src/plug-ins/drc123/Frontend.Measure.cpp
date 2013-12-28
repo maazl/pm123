@@ -57,7 +57,6 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_INITDLG:
     Response.Attach(GetCtrl(CC_RESULT));
-    PostMsg(UM_UPDATECALLIST, 0,0);
     break;
 
    case WM_CONTROL:
@@ -76,6 +75,12 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
         ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(true);
       break;
+     case DLG_MEASURE:
+      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED)
+      { PAGESELECTNOTIFY& pn = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+        if (pn.ulPageIdNew == GetPageID())
+          PostMsg(UM_UPDATECALLIST, 0,0);
+      }
     }
     break;
 

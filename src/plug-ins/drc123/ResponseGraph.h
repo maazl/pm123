@@ -39,36 +39,45 @@
 
 
 class DataFile;
-struct DataRowType;
+struct DataRow;
 
 /** @brief Class to draw 2D graphs.
  * @details The class is intended to be used with a \c WC_STATIC control.
  * The control is sub classed as soon as you attach the window handle.
  * Once activated the original drawing of the \c WC_STATIC control is replaced.
+ * To show a graph you need provide exactly one \c AxesInfo and at least one \c GraphInfo.
  */
 class ResponseGraph : public SubclassWindow
 {public:
+  /// Flags for axes.
   enum AxesFlags
   { AF_None       = 0x00
   , AF_LogX       = 0x01    ///< X axes is logarithmic
   , AF_LogY1      = 0x02    ///< Y1 axes is logarithmic
   , AF_LogY2      = 0x04    ///< Y2 axes is logarithmic
   };
+  /// Axes descriptor.
   struct AxesInfo
-  { AxesFlags       Flags;
-    double          XMin;
-    double          XMax;
-    double          Y1Min;
-    double          Y1Max;
-    double          Y2Min;
-    double          Y2Max;
+  { AxesFlags       Flags;  ///< Flags
+    double          XMin;   ///< Lower bound of the X axis. Obligatory.
+    double          XMax;   ///< Upper bound of the X axis. Obligatory. Might be less than \c XMin in linear mode.
+    double          Y1Min;  ///< Lower bound of the left Y axis. Obligatory.
+    double          Y1Max;  ///< Upper bound of the left Y axis. Obligatory. Might be less than \c Y1Min in linear mode.
+    double          Y2Min;  ///< Lower bound of the right Y axis. NAN if no second axis.
+    double          Y2Max;  ///< Upper bound of the right Y axis. NAN if no second axis. Might be less than \c Y2Min in linear mode.
+    /// Create invalid \c AxesInfo.
     AxesInfo() : Flags(AF_None), XMin(NAN), XMax(NAN), Y1Min(NAN), Y1Max(NAN), Y2Min(NAN), Y2Max(NAN) {}
   };
-  typedef double (*Extractor)(const DataRowType& row, void* user);
+
+  /// @brief Delegate to extract a X or Y value from a \c DataRow.
+  /// @details The functions are used to plot the graph.
+  typedef double (*Extractor)(const DataRow& row, void* user);
+  /// Flags for graphs.
   enum GraphFlags
   { GF_None       = 0x00
   , GF_Y2         = 0x01    ///< Use second y axes.
   };
+  /// Graph descriptor.
   struct GraphInfo
   { /// Graph legend to be drawn at the top of the graph.
     /// Should be short.
@@ -93,6 +102,7 @@ class ResponseGraph : public SubclassWindow
   };
 
  private:
+  /// List of currently visible graphs.
   vector_own<GraphInfo> Graphs;
   AxesInfo          Axes;
   double            X0, XS, Y10, Y1S, Y20, Y2S;
@@ -107,7 +117,11 @@ class ResponseGraph : public SubclassWindow
   /// @remarks The function also clips the return value to +-32767 to avoid PM crashes on noisy data.
   LONG              ToYCore(double relative);
 
-  static void       AxesText(char* target, double value, int exponent = 0);
+  /// Format number for display at an axis. Use SI prefixes.
+  /// @param target Target string. The function writes at most 5 characters: "-1k2\0".
+  /// @param value Value to display.
+  /// @pre value == 0 || 1E-25 <= abs(value) < 1E-25
+  static void       AxesText(char* target, double value);
   /// Draw axes label
   /// @param ps Presentation space.
   /// @param at Point where the label belongs to.

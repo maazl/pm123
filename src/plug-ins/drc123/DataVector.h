@@ -35,24 +35,35 @@
 #include <debuglog.h>
 
 
+/** class to hold a vector of numeric data. Extends sco_arr<T>.
+ * @tparam T element type. Must be numeric, i.e. provide basic arithmetic operators
+ * like + - * /. Furthermore binary 0x00 must be a reasonable zero value.
+ * This applies to all built in integral and floating point types as well as to
+ * \c class \c complex<>, although the latter is strictly speaking undefined behavior. */
 template <class T>
 struct DataVector
 : public sco_arr<T>
 {public:
+  /// Create Vector of length 0.
   DataVector()                  {}
-  DataVector(size_t fftlen)     : sco_arr<T>(fftlen) {}
-  virtual ~DataVector();
-  void clear()                  { memset(begin(), 0, size() * sizeof(*get())); }
+  /// Create vector of length len.
+  DataVector(size_t len)     : sco_arr<T>(len) {}
+  /// Set all elements to 0. This does not change the number of elements.
+  void Set0()                  { memset(begin(), 0, size() * sizeof(*get())); }
+  /// Assignment.
   DataVector& operator=(const DataVector& r);
+  /// Add two vectors element by element.
+  /// @pre Both vectors must be of the same length.
   DataVector& operator+=(const DataVector& r);
+  /// Multiply two vectors element by element.
+  /// @pre Both vectors must be of the same length.
   DataVector& operator*=(const DataVector& r);
+  /// Divide two vectors element by element.
+  /// @pre Both vectors must be of the same length.
   DataVector& operator/=(const DataVector& r);
+  /// Calculate the reciprocal of each element.
   DataVector& Invert();
 };
-
-template <class T>
-DataVector<T>::~DataVector()
-{}
 
 template <class T>
 DataVector<T>& DataVector<T>::operator=(const DataVector<T>& r)
@@ -98,7 +109,15 @@ DataVector<T>& DataVector<T>::Invert()
   return *this;
 }
 
+/// @brief Data vector with samples in the time domain.
+/// @details All elements are of type float.
 typedef DataVector<float> TimeDomainData;
+
+/// @brief Data vector of frequency domain data.
+/// @details All elements are of type complex of float.
+/// By convention the first and the last element are real.
+/// Furthermore only the first half of the real to complex DFT data
+/// are stored.
 typedef DataVector<fftwf_complex> FreqDomainData;
 
 /*struct FreqDomainData : public DataVector<fftwf_complex>
