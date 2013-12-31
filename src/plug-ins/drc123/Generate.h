@@ -120,6 +120,7 @@ class Generate
  private:
   double        ApplyGainLimit(double gain);
   double        ApplyDelayLimit(double delay);
+  void          ApplyRateLimit(unsigned col, double rate);
 };
 
 FLAGSATTRIBUTE(Generate::FilterMode);

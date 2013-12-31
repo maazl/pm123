@@ -49,21 +49,28 @@
 #include <os2.h>
 
 
-class Frontend : public NotebookDialogBase
+class Frontend : public ManagedDialog<NotebookDialogBase>
 {public:
-  enum ViewMode
-  { VM_Result
-  , VM_Gain
-  , VM_Delay
+  enum DeconvolutionViewMode
+  { DVM_Target
+  , DVM_GainResult
+  , DVM_DelayResult
+  , DVM_TimeResult
+  };
+  enum GenerateViewMode
+  { GVM_Result
+  , GVM_Gain
+  , GVM_Delay
   };
 
  public:
-  static ViewMode GenerateViewMode;
+  static DeconvolutionViewMode DeconvolutionView;
+  static GenerateViewMode GenerateView;
 
  private:
   static double XtractFrequency(const DataRow& row, void*);
+  static double XtractColumn(const DataRow& row, void* col);
   static double XtractGain(const DataRow& row, void* col);
-  static double XtractDelay(const DataRow& row, void* col);
   static double XtractPhaseDelay(const DataRow& row, void* col);
 
   static void   SetValue(HWND ctrl, double value, const char* mask = "%g");
@@ -85,11 +92,32 @@ class Frontend : public NotebookDialogBase
   class DeconvolutionPage : public PageBase
   {private:
     enum
-    { UM_UPDATEDESCR = WM_USER + 300
+    { UM_UPDATEKERNEL = WM_USER + 300
+    , UM_SETUPGRAPH
+    , UM_UPDATEGRAPH
+    , UM_INVALIDATEGRAPH
     };
     Deconvolution::Parameters Params;
     DataFile      Kernel;
     ResponseGraph Result;
+
+    class_delegate<DeconvolutionPage,const Deconvolution::KernelChangeEventArgs> KernelChangeDeleg;
+    enum FrequencyDomainColumn
+    { FDC_Frequency
+    , FDC_LGain
+    , FDC_LDelay
+    , FDC_RGain
+    , FDC_RDelay
+    , FDC_count
+    };
+    enum TimeDomainColumn
+    { TDC_Frequency
+    , TDC_LKernel
+    , TDC_RKernel
+    , TDC_count
+    };
+    volatile int_ptr<SharedDataFile> RawKernelData;
+    int_ptr<SharedDataFile> CurrentRawKernelData;
    public:
     DeconvolutionPage(Frontend& parent);
     ~DeconvolutionPage();
@@ -97,6 +125,10 @@ class Frontend : public NotebookDialogBase
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    private:
     void          UpdateDir();
+    void          UpdateKernel();
+    void          SetupGraph();
+    void          UpdateGraph();
+    void          KernelChange(const Deconvolution::KernelChangeEventArgs& args);
   };
 
   class FilePage : public PageBase
@@ -205,8 +237,13 @@ class Frontend : public NotebookDialogBase
   class MeasurePage : public OpenLoopPage
   {private:
     enum
-    { UM_UPDATECALLIST = WM_USER + 300  ///< Update combo box with calibration files
-    , UM_UPDATEFILE                     ///< Update calibration file description
+    { /// Update combo boxes with calibration files
+      /// @param mp1 (bool) load selection from data
+      UM_UPDATECALLIST = WM_USER + 300,
+      /// Update description of calibration file
+      /// @param mp1 (HWND) window handle of matching drop down list
+      /// @param mp2 (SHORT) ID of description control to update
+      UM_UPDATEFILE
     };
 
    private:
@@ -222,7 +259,7 @@ class Frontend : public NotebookDialogBase
     virtual void  StoreControlValues();
     virtual void  SetRunning(bool running);
     virtual void  InvalidateGraph();
-    static  void  UpdateDir(ComboBox lb, ControlBase desc, const char* mask);
+            void  UpdateDir(ComboBox lb, ControlBase desc, const char* mask, xstring& selection);
     static  xstring UpdateFile(ComboBox lb, ControlBase desc);
     virtual LONG  DoLoadFile(FILEDLG& fdlg);
     virtual xstring DoSaveFile();
@@ -283,11 +320,14 @@ class Frontend : public NotebookDialogBase
   };
 
  public:
-  static void Init();
+  static  void    Init();
+  static  HWND    Show(HWND owner, HMODULE module);
+ private:
+  static int_ptr<Frontend> Instance;
 
- public:
-  Frontend(HWND owner, HMODULE module);
+                  Frontend(HWND owner, HMODULE module);
   //virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  virtual void    OnDestroy();
 };
 
 

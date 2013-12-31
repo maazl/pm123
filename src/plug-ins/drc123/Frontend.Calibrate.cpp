@@ -74,6 +74,11 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     XTalk.Attach(GetCtrl(CC_RESULT2));
     break;
 
+   case WM_DESTROY:
+    Response.Detach();
+    XTalk.Detach();
+    break;
+
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
     {case RB_CH_BOTH:

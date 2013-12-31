@@ -47,9 +47,9 @@ struct DataVector
   /// Create Vector of length 0.
   DataVector()                  {}
   /// Create vector of length len.
-  DataVector(size_t len)     : sco_arr<T>(len) {}
+  DataVector(size_t len)        : sco_arr<T>(len) {}
   /// Set all elements to 0. This does not change the number of elements.
-  void Set0()                  { memset(begin(), 0, size() * sizeof(*get())); }
+  void Set0()                   { memset(begin(), 0, size() * sizeof(*get())); }
   /// Assignment.
   DataVector& operator=(const DataVector& r);
   /// Add two vectors element by element.
@@ -69,9 +69,7 @@ template <class T>
 DataVector<T>& DataVector<T>::operator=(const DataVector<T>& r)
 { if (size() != r.size())
     reset(r.size());
-  const T* sp = r.begin();
-  foreach(T,*, dp, *this)
-    *dp = *sp++;
+  memcpy(begin(), r.begin(), size() * sizeof(T));
   return *this;
 }
 

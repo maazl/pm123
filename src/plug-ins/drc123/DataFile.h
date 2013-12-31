@@ -37,12 +37,28 @@
 #include <stdio.h>
 
 
+/// Row of measurement data
+/// @remarks The single precision is sufficient for what we are going to do here
+/// and conserves memory.
 struct DataRow : public sco_arr<float>
-{               DataRow(size_t size);
+{ /// Construct a row with \a size columns.
+                DataRow(size_t size);
+  /// Get the col-th column of this row.
+  /// @param col Column number counting from 0.
+  /// The number might be higher then the length of this row.
+  /// @return column value or NAN if no such column exists.
   float         operator[](size_t col) const    { return col >= size() ? NAN : begin()[col]; }
+  /// Access the col-th column of this row.
+  /// @param col Column number counting from 0.
+  /// @return reference to the column value.
+  /// @pre col < size()
   float&        operator[](size_t col)          { return sco_arr<float>::operator[](col); }
-  static int    FrequencyComparer(const float& f, const DataRow& row);
+  /// Check whether this row has at least one non NAN value except for the key
+  /// in the first column.
   bool          HasValues() const;
+  /// Asymmetric comparer used to compare columns against keys.
+  /// The key is assumed to be in the first column.
+  static int    FrequencyComparer(const float& f, const DataRow& row);
 };
 
 class DataFile
@@ -50,20 +66,10 @@ class DataFile
 , public ASyncAccess
 {protected:
   typedef sorted_vector_own<DataRow,float,&DataRow::FrequencyComparer> base;
- /*public:
-  class Enumerator
-  { DataRow*const* Current;
-    DataRow*const* const End;
-   public:
-    Enumerator(const DataFile& data) : Current(data.begin()), End(data.end()) {}
-    DataRow* operator*() const              { ASSERT(Current != End); return *Current; }
-    DataRow* operator->() const             { ASSERT(Current != End); return *Current; }
-    bool        Next()                          { return Current != End && ++Current != End; }
-    bool        isEnd() const                   { return Current == End; }
-    int         comparef(double f) const;
-  };*/
  public:
+  /// File name of the data, optional, updated by \c Load and \c Save.
   xstring       FileName;
+  /// Description of the file, optional.
   xstring       Description;
  private:
   unsigned      MaxColumns;
@@ -93,7 +99,45 @@ class DataFile
   virtual bool  Save(const char* filename = NULL);
   bool          HasColumn(unsigned col) const;
   void          ClearColumn(unsigned col);
-  float         Interpolate(float f, unsigned col) const;
+  void          StoreValue(unsigned col, float key, float value);
+  void          StoreValue(unsigned col, float key, float value1, float value2);
+  //float         Interpolate(float f, unsigned col) const;
+ public:
+  /// @brief Input iterator over a linear interpolating function of a column of a \c DataFile instance.
+  /// @details The class forms a function <i>f</i>(<i>x</i>) that can be retrieved only in forward order,
+  /// i.e. any subsequent <i>x</i> must be greater than or equal to the last one.
+  /// @remarks The iterator uses the forward only restriction to turn the interpolation operation
+  /// from O(n log(n)) into O(n).
+  class InterpolationIterator
+  { const DataRow*const* const End;
+    const unsigned Column;
+    const DataRow*const* Left;
+    const DataRow*const* Right;
+   private:
+    const DataRow*const* SkipNAN(const DataRow*const* ptr);
+   public:
+    /// Create interpolating function over a column of data.
+    /// @param data Data source.
+    /// @param col Column in the data source.
+    /// @pre The rows in the data source must be strictly ordered by the key in the first column.
+    /// Furthermore the Column col must contain at least one non NAN value.
+    InterpolationIterator(const DataFile& data, unsigned col);
+    /// Fetch the next interpolation value at \a key.
+    /// @param key Retrieve the interpolating function value at \a key.
+    /// If key is outside the domain of the data source constant extrapolation is used,
+    /// i.e. the first or the last value respectively is returned.
+    /// @return Function value at \a key.
+    /// @pre key must be greater or equal to any value previously passed to \c Next.
+    float       Next(float key);
+  };
 };
+
+
+class SharedDataFile : public DataFile, public Iref_count
+{public:
+  SharedDataFile(unsigned cols) : DataFile(cols) {}
+  SharedDataFile(const SharedDataFile& r) : DataFile(r) {}
+};
+
 
 #endif // DATAFILE_H

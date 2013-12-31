@@ -30,32 +30,13 @@
 #define DECONVOLUTION_H
 
 #include "Filter.h"
-//#include "Configurable.h"
+#include "DataVector.h"
+#include "Generate.h"
 
 #include <fftw3.h>
 #include <cpp/smartptr.h>
+#include <cpp/event.h>
 
-
-/** Target response coefficient */
-struct Coeff
-{
-  /// natural logarithm of frequency
-  float       LF;
-  /// natural logarithm of gain value
-  float       LV;
-  /// group delay [s]
-  float       GD;
-};
-
-/** Target frequency response */
-struct TargetResponse : public Iref_count
-{
-  /// @brief This array contains the target response of the filter ordered by frequency.
-  /// @details The first entry must be below any frequency that is ever requested
-  /// and the last entry must be above any frequency that is ever requested.
-  /// Otherwise the behavior of the interpolation is undefined.
-  sco_arr<Coeff> Channels[2];
-};
 
 class Deconvolution : public Filter
 {public: // Configuration interface
@@ -65,11 +46,26 @@ class Deconvolution : public Filter
     WFN_HAMMING
   };
   struct Parameters
-  { bool        Enabled;
-    int         FIROrder;
-    int         PlanSize;
-    xstring     FilterFile;
+  { bool        Enabled;        ///< Flag whether the Filter is enabled by the user.
+    int         FIROrder;       ///< Filter kernel length
+    int         PlanSize;       ///< Last FFT plan size used for setup
+    xstring     TargetFile;
     WFN         WindowFunction; ///< Currently selected window function
+  };
+
+  struct KernelChangeEventArgs
+  { const Parameters* Params;
+    unsigned    Channel;
+    unsigned    Samplerate;
+    const FreqDomainData* FreqDomain;
+    double      FreqScale;
+    const TimeDomainData* TimeDomain;
+    double      TimeScale;
+  };
+  struct InstanceEventArgs
+  { Deconvolution& Sender;
+    bool        Destruction;
+    InstanceEventArgs(Deconvolution& sender, bool destruction) : Sender(sender), Destruction(destruction) {}
   };
 
  private:
@@ -78,22 +74,20 @@ class Deconvolution : public Filter
     ParameterSet();
    public:
     static ParameterSet Default;
-    ParameterSet(const Parameters& r) : Parameters(r) {}
-    sco_arr<Coeff> TargetResponse[2];
+    Generate::TargetFile Target;
+    ParameterSet(const Parameters& r);
   };
   /// Currently configured parameter set
   static volatile int_ptr<ParameterSet> ParamSet;
 
  private: // Working set
+  int_ptr<ParameterSet> LocalParamSet;
   bool          NeedInit;
   bool          NeedFIR;
   bool          NeedKernel;
-  bool          Enabled;    ///< Flag whether the EQ is enabled by the user.
-  bool          LastEnabled;///< Flag whether the EQ was enabled at the last call to InRequestBuffer
-  int           LastPlanSize;/// Last FFT plan size used for setup
-  int           LastFIROrder;/// Last filter kernel length used for setup
+  bool          LastEnabled;///< Flag whether the Filter was enabled at the last call to \c InRequestBuffer
   int           CurPlanSize;///< Plan size for the FFT convolution
-  int           CurPlanSize21;/// Plan size / 2 + 1 = conut of complex FFT numbers
+  int           CurPlanSize21;///< Plan size / 2 + 1 = count of complex FFT numbers
   int           CurFIROrder;///< Filter kernel length
   int           CurFIROrder2;///< Filter kernel length / 2
 
@@ -106,13 +100,17 @@ class Deconvolution : public Filter
   PM123_TIME    TempPos;    ///< Position returned during discard
  private: // FFT working set
   float*        Inbox;      ///< Buffer to collect incoming samples
-  float*        TimeDomain; ///< Buffer in the time domain
-  fftwf_complex* FreqDomain;///< Buffer in the frequency domain (shared memory with design)
-  fftwf_complex* Kernel[2]; ///< Since the kernel is real even, it's even real in the time domain
+  TimeDomainData TimeDomain;///< Buffer in the time domain
+  FreqDomainData FreqDomain;///< Buffer in the frequency domain (shared memory with design)
+  FreqDomainData Kernel[2]; ///< Frequency domain representation of the filter kernel.
   float*        Overlap[2]; ///< Keep old samples for convolution
   fftwf_complex* ChannelSave;///< Buffer to keep the frequency domain of a mono input for a second convolution
   fftwf_plan    ForwardPlan;///< FFTW plan for TimeDomain -> FreqDomain
   fftwf_plan    BackwardPlan;///< FFTW plan for FreqDomain -> TimeDomain
+
+  /// Event, when the filter kernel changes.
+  static event<const KernelChangeEventArgs> KernelChange;
+  static volatile unsigned KernelUpdateRequest;
 
  private:
   static double NoWindow(double);
@@ -136,7 +134,7 @@ class Deconvolution : public Filter
   /// the destination pointer is incremented by 2 per sample.
   void          StoreSamplesStereo(float* sp, const int len);
   /// Do convolution and back transformation.
-  void          Convolute(fftwf_complex* sp, fftwf_complex* kp);
+  void          Convolve(fftwf_complex* sp, fftwf_complex* kp);
   void          FilterSamplesFFT(float* newsamples, const float* buf, int len);
   /// Only update the overlap buffer, no filtering.
   void          FilterSamplesNewOverlap(const float* buf, int len);
@@ -164,7 +162,10 @@ class Deconvolution : public Filter
 
   static void   SetParameters(const Parameters& params) { ParamSet = new ParameterSet(params); }
   static void   GetParameters(Parameters& params)       { params = *int_ptr<ParameterSet>(ParamSet); }
-  static void   GetDefaultParameters(Parameters& params) { params = ParameterSet::Default; }
+  static void   GetDefaultParameters(Parameters& params){ params = ParameterSet::Default; }
+
+  static event_pub<const KernelChangeEventArgs>& GetKernelChange() { return KernelChange; }
+  static void   ForceKernelChange()                     { KernelUpdateRequest = true; }
 };
 
 #endif // DECONVOLUTION_H

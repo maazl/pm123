@@ -112,7 +112,7 @@ void ResponseGraph::AxesText(char* target, double value)
   }
 }
 
-void ResponseGraph::DrawLabel(POINTL at, int quadrant, double value, int exponent)
+void ResponseGraph::DrawLabel(POINTL at, int quadrant, double value)
 { char label[5];
   AxesText(label, value);
   size_t len = strlen(label);
@@ -170,7 +170,12 @@ void ResponseGraph::DrawY12Label(double y)
   GpiMove(PS, &xy);
   xy.x = XY2.x;
   GpiLine(PS, &xy);
-  DrawLabel(xy, 3, ry * Y2S + Y20);
+  y = ry * Y2S + Y20;
+  if (Axes.Flags & AF_LogY2)
+    y = exp(y);
+  else if (fabs(y) < fabs(Y2S) / 1E6)
+    y = 0;
+  DrawLabel(xy, 3, y);
 }
 
 static const double logscale[] =
@@ -193,7 +198,7 @@ void ResponseGraph::LinAxes(double min, double max, void (ResponseGraph::*drawla
   while (v <= ve)
   { (this->*drawlabel)(v);
     v += l;
-    if (abs(v) < abs(max - min) / 1E6)
+    if (fabs(v) < fabs(max - min) / 1E6)
       v = 0;
   }
 }

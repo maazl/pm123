@@ -35,7 +35,9 @@
 #include <cpp/url123.h>
 
 
-Frontend::ViewMode Frontend::GenerateViewMode = VM_Result;
+Frontend::DeconvolutionViewMode Frontend::DeconvolutionView = DVM_Target;
+Frontend::GenerateViewMode Frontend::GenerateView = GVM_Result;
+int_ptr<Frontend> Frontend::Instance;
 
 Frontend::GeneratePage::GeneratePage(Frontend& parent)
 : FilePage(parent, DLG_GENERATE)
@@ -50,10 +52,15 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
   {case WM_INITDLG:
-    RadioButton(+GetCtrl(RB_VIEWRESULT + GenerateViewMode)).CheckState(true);
+    RadioButton(+GetCtrl(RB_VIEWTARGET + GenerateView)).CheckState(true);
     Result1.Attach(GetCtrl(CC_RESULT));
     Result2.Attach(GetCtrl(CC_RESULT2));
     PostMsg(UM_UPDATEGRAPH, 0,0);
+    break;
+
+   case WM_DESTROY:
+    Result1.Detach();
+    Result2.Detach();
     break;
 
    case WM_COMMAND:
@@ -70,11 +77,11 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == LN_SELECT)
         PostMsg(UM_UPDATEDESCR, 0,0);
       break;
-     case RB_VIEWRESULT:
+     case RB_VIEWTARGET:
      case RB_VIEWGAIN:
      case RB_VIEWDELAY:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
-      { GenerateViewMode = (ViewMode)(SHORT1FROMMP(mp1) - RB_VIEWRESULT);
+      { GenerateView = (GenerateViewMode)(SHORT1FROMMP(mp1) - RB_VIEWTARGET);
         PostMsg(UM_UPDATEGRAPH, 0,0);
       }
       break;
@@ -218,20 +225,20 @@ void Frontend::GeneratePage::InvalidateGraph()
 }
 
 void Frontend::GeneratePage::SetGraphAxes(const Generate::TargetFile& data)
-{ switch (GenerateViewMode)
+{ switch (GenerateView)
   {default: // VM_RESULT
     Result1.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
       data.GainLow, data.GainHigh, NAN,NAN);
     Result2.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
       data.DelayLow, data.DelayHigh, NAN,NAN);
     break;
-   case VM_Gain:
+   case GVM_Gain:
     Result1.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
       data.GainLow, data.GainHigh, NAN,NAN);
     Result2.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
       data.GainLow, data.GainHigh, NAN,NAN);
     break;
-   case VM_Delay:
+   case GVM_Delay:
     Result1.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
       data.DelayLow, data.DelayHigh, NAN,NAN);
     Result2.SetAxes(ResponseGraph::AF_LogX, data.FreqLow, data.FreqHigh,
@@ -244,16 +251,16 @@ void Frontend::GeneratePage::SetupGraph()
 { const char *text1, *text2;
   Result1.ClearGraphs();
   Result2.ClearGraphs();
-  switch (GenerateViewMode)
+  switch (GenerateView)
   {default: // VM_Result
     text1 = " Frequency response ";
     text2 = " Group delay ";
     Result1.AddGraph("left", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLUE);
     Result1.AddGraph("right", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_RED);
-    Result2.AddGraph("left", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result2.AddGraph("right", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_RED);
+    Result2.AddGraph("left", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLUE);
+    Result2.AddGraph("right", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_RED);
     break;
-   case VM_Gain:
+   case GVM_Gain:
     text1 = " Left response ";
     text2 = " Right response ";
     Result1.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLACK);
@@ -261,13 +268,13 @@ void Frontend::GeneratePage::SetupGraph()
     AddMeasureGraphs(Result1, &Frontend::XtractGain, Measure::LGain);
     AddMeasureGraphs(Result2, &Frontend::XtractGain, Measure::RGain);
     break;
-   case VM_Delay:
+   case GVM_Delay:
     text1 = " Left delay ";
     text2 = " Right delay ";
-    Result1.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLACK);
-    Result2.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_BLACK);
-    AddMeasureGraphs(Result1, &Frontend::XtractDelay, Measure::LDelay);
-    AddMeasureGraphs(Result2, &Frontend::XtractDelay, Measure::RDelay);
+    Result1.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLACK);
+    Result2.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_BLACK);
+    AddMeasureGraphs(Result1, &Frontend::XtractColumn, Measure::LDelay);
+    AddMeasureGraphs(Result2, &Frontend::XtractColumn, Measure::RDelay);
     break;
   }
   ControlBase(+GetCtrl(GB_RESULT)).Text(text1);

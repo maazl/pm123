@@ -43,7 +43,7 @@ Measure::MeasureFile::MeasureFile()
   RefMode = RFM_STEREO;
   RefVolume = .9;
   RefFDist = 1.00;
-  AnaFBin = 1.02;
+  AnaFBin = 1.01;
   AnaSwap = false;
 
   Mode = MD_Noise;

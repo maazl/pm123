@@ -25,7 +25,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/fft123/api&quot;"/>
-									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
+									<listOptionValue builtIn="false" value="&quot;${OS2TK45}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.714285815" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_System"/>
@@ -317,4 +317,5 @@
 			</profile>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 </cproject>

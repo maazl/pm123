@@ -137,16 +137,17 @@ static void load_config()
   do_load_prf_value("filter.WorkDir",  Filter::WorkDir);
   do_load_prf_value("openloop.RecURI", OpenLoop::RecURI);
 
-  { Deconvolution::Parameters deconvolution;
+  { do_load_prf_value("deconvolution.ViewMode", Frontend::DeconvolutionView);
+    Deconvolution::Parameters deconvolution;
     Deconvolution::GetDefaultParameters(deconvolution);
-    load_prf_value(deconvolution.FilterFile);
+    load_prf_value(deconvolution.TargetFile);
     load_prf_value(deconvolution.WindowFunction);
     load_prf_value(deconvolution.Enabled);
     load_prf_value(deconvolution.FIROrder);
     load_prf_value(deconvolution.PlanSize);
     Deconvolution::SetParameters(deconvolution);
   }
-  { do_load_prf_value("generate.ViewMode", Frontend::GenerateViewMode);
+  { do_load_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
     Generate::TargetFile& generate = *pdata;
     load_prf_value(generate.Measurements);
@@ -219,20 +220,21 @@ static void load_config()
   }
 }
 
-static void save_config()
+void save_config()
 {
   do_save_prf_value("filter.WorkDir",  xstring(Filter::WorkDir));
   do_save_prf_value("openloop.RecURI", xstring(OpenLoop::RecURI));
 
-  { Deconvolution::Parameters deconvolution;
+  { do_save_prf_value("deconvolution.ViewMode", Frontend::DeconvolutionView);
+    Deconvolution::Parameters deconvolution;
     Deconvolution::GetParameters(deconvolution);
-    save_prf_value(deconvolution.FilterFile);
+    save_prf_value(deconvolution.TargetFile);
     save_prf_value(deconvolution.WindowFunction);
     save_prf_value(deconvolution.Enabled);
     save_prf_value(deconvolution.FIROrder);
     save_prf_value(deconvolution.PlanSize);
   }
-  { do_save_prf_value("generate.ViewMode", Frontend::GenerateViewMode);
+  { do_save_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
     Generate::TargetFile& generate = *pdata;
     save_prf_value(generate.Measurements);
@@ -325,9 +327,7 @@ BOOL DLLENTRY filter_uninit(Filter* F)
 
 HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
-  Frontend(hwnd, module).Process();
-  save_config();
-  return NULLHANDLE;
+  return Frontend::Show(hwnd, module);
 }
 
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
@@ -344,6 +344,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
 {
   Ctx = *ctx;
+  Frontend::Init();
   load_config();
   return 0;
 }

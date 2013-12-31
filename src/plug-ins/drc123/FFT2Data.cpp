@@ -31,41 +31,61 @@
 #include <debuglog.h>
 
 
-static int dlcmp(const double& k, const DataRow& row)
-{ double value = row[0];
-  if (k > value * 1.0001)
-    return 1;
-  if (k < value / 1.0001)
-    return -1;
-  return 0;
-}
+void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source)
+{ DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p})\n", this, col, source.size(), source.get()));
+  Target.ClearColumn(col);
+  Target.ClearColumn(col + 1);
 
-void FFT2Data::StoreValue(unsigned col, double f, double value)
-{ if (isnan(value))
-    return;
-  size_t pos;
-  DataRow* rp;
-  if (!binary_search<DataRow,const double>(f, pos, Target, &dlcmp))
-  { rp = Target.insert(pos) = new DataRow(Target.columns());
-    (*rp)[0] = f;
-  } else
-    rp = Target[pos];
-  (*rp)[col] = value;
-}
-void FFT2Data::StoreValue(unsigned col, double f, double mag, double delay)
-{ if (isnan(mag) && isnan(delay))
-    return;
-  size_t pos;
-  DataRow* rp;
-  if (!binary_search<DataRow,const double>(f, pos, Target, &dlcmp))
-  { rp = Target.insert(pos) = new DataRow(Target.columns());
-    (*rp)[0] = f;
-  } else
-    rp = Target[pos];
-  (*rp)[col] = mag;
-  (*rp)[col + 1] = delay;
-}
+  double lastf = 0;
+  double lastph = NAN;
 
+  double fstart = NAN;
+  double fsum = 0;
+  double magsum = 0;
+  unsigned magcnt = 0;
+  double delaysum = 0;
+  unsigned delaycnt = 0;
+
+  for (unsigned i = 1; i < source.size(); ++i)
+  { double f = FInc * i;
+    if (f > fstart * FBin)
+    { // reached bin size => store result
+      Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
+      fsum = 0;
+      magsum = 0;
+      magcnt = 0;
+      delaysum = 0;
+      delaycnt = 0;
+      goto next;
+    } else if (isnan(fstart))
+     next:
+      fstart = f;
+    fsum += f;
+    DEBUGLOG2(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
+    // magnitude
+    fftwf_complex sv(source[i]);
+    magsum += abs(sv);
+    ++magcnt;
+    // phase
+    double ph = arg(sv) / (-2*M_PI) - f * Delay; // for some reason there is a negative sign required
+    if (!isnan(lastph))
+    { // create minimum phase
+      double dphi = ph - lastph;
+      dphi -= floor(dphi + .5);
+      if (fabs(dphi) > .25)
+        ++IndeterminatePhase;
+      else
+      { delaysum += dphi / (f - lastf);
+        ++delaycnt;
+      }
+    }
+
+    lastf = f;
+    lastph = ph;
+  }
+  Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
+  DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
+}
 void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
 { DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
   Target.ClearColumn(col);
@@ -89,7 +109,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
     double f = FInc * i;
     if (f > fstart * FBin)
     { // reached bin size => store result
-      StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
+      Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
       fsum = 0;
       magsum = 0;
       magcnt = 0;
@@ -122,7 +142,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
     lastf = f;
     lastph = ph;
   }
-  StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
+  Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
   DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
 }
 
@@ -169,7 +189,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
         }
       }
 
-      StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt));
+      Target.StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt));
       if (last)
         return;
       fsum = 0;
@@ -186,7 +206,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
     magsum += abs(source[i]) * Scale;
     ++magcnt;
   }
-  StoreValue(col, fsum / magcnt, magsum / magcnt);
+  Target.StoreValue(col, fsum / magcnt, magsum / magcnt);
 }
 
 
@@ -194,11 +214,13 @@ void Data2FFT::LoadFFT(unsigned col, FreqDomainData& target)
 {
   if (target.size() != TargetSize)
     target.reset(TargetSize);
+  DataFile::InterpolationIterator ipmag(Source, col);
+  DataFile::InterpolationIterator ipdelay(Source, col + 1);
   double ph = 0;
   for (unsigned i = 0; i < target.size(); ++i)
   { double f = i * FInc;
-    float mag = Source.Interpolate(f, col) * Scale;
-    double delay = Source.Interpolate(f, col + 1);
+    float mag = ipmag.Next(f) * Scale;
+    double delay = ipdelay.Next(f);
     target[i] = fftwf_complex(mag * cos(ph), mag * sin(ph));
     ph += -2 * M_PI * FInc * delay;
   }

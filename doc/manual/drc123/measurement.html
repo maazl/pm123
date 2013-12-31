@@ -10,7 +10,7 @@
 <body>
 <h2>Measure room response<br>
 </h2>
-<p><img alt="" src="images/measure.png" height="729" width="758"><strong></strong></p>
+<p><img alt="" src="images/measure.png" height="718" width="777"><strong></strong></p>
 <h3>Prerequisites</h3>
 <ul>
   <li>First of all you need a <a href="microphone.html">measurement
@@ -21,21 +21,20 @@ rather poor
 quality and not suitable for measurement purposes. So I recommend to
 use an external one. </li>
 </ul>
-<h3><br>
-</h3>
 <h3>Setup</h3>
 <ul>
   <li>Be sure to have <a href="configure.html">configured DRC123</a>
 properly.</li>
   <li>Optionally select a a <a href="calibration.html">sound card
-calibration</a> file made before.<br>
+calibration</a> file made before.</li>
+  <li>Select a calibration file for your microphone if possible.<br>
   </li>
   <li>Set all sound controls of your amplifier (like bass, treble,
 balance) to zero or push <i>direct sound</i> button.</li>
   <li>Disable any effect processors, equalizers and so on.</li>
 </ul>
 <h4><img alt="" src="images/mes-ref.png" align="right" height="183"
- hspace="5" vspace="5" width="440">Measure <em>with loopback</em>
+ hspace="5" vspace="5" width="440">Measure <em>with external loopback</em>
 reference and <em>external microphone amplifier</em><br>
 </h4>
 If you have the option, use a special cable that returns a mix of line
@@ -43,7 +42,8 @@ out left and right line input. This will compensate for almost any
 properties of your sound device. The mix can be done with two 10
 k&#937; metal film resistors as shown at the right. This will only work if
 you use an
-external microphone amplifier, because the microphone input is usually
+external microphone amplifier, because the microphone input has a too
+high sensitivity and is usually
 only mono.<br>
 <h4><img alt="" src="images/mes-std.png" align="right" height="145"
  hspace="5" vspace="5" width="360">Measure <em>without loopback</em>

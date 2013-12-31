@@ -44,9 +44,6 @@ class FFT2Data
   double    Delay;
  public: // results
   unsigned  IndeterminatePhase;
- private:
-  void  StoreValue(unsigned col, double f, double value);
-  void  StoreValue(unsigned col, double f, double mag, double delay);
  public:
   /// Create instance for a target.
   /// @param target The \c DataFile where to store the result.
@@ -59,6 +56,13 @@ class FFT2Data
   FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.)
   : Target(target), FInc(finc), FBin(fbin), Scale(scale), Delay(delay), IndeterminatePhase(0) {}
 
+  /// Store the data in \a source to the target specified at construction.
+  /// @param col Start column where the data is to be stored.
+  /// All together two columns are written. One at index \a col with magnitude
+  /// and one at \a col + 1 with group delay.
+  /// @param source Frequency response to store.
+  /// @pre target.Columns() > col + 1
+  void StoreFFT(unsigned col, const FreqDomainData& source);
   /// Store the data in \a source to the target specified at construction.
   /// @param col Start column where the data is to be stored.
   /// All together two columns are written. One at index \a col with magnitude

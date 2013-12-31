@@ -56,12 +56,12 @@ double Frontend::XtractFrequency(const DataRow& row, void*)
 { return row[0];
 }
 
-double Frontend::XtractGain(const DataRow& row, void* col)
-{ return log(row[(int)col]) * (20. / M_LN10);
+double Frontend::XtractColumn(const DataRow& row, void* col)
+{ return row[(int)col];
 }
 
-double Frontend::XtractDelay(const DataRow& row, void* col)
-{ return row[(int)col];
+double Frontend::XtractGain(const DataRow& row, void* col)
+{ return log(row[(int)col]) * (20. / M_LN10);
 }
 
 double Frontend::XtractPhaseDelay(const DataRow& row, void* col)
@@ -88,8 +88,17 @@ void Frontend::Init()
   OpenLoop::RecURI = xstring(DefRecURI);
 }
 
+HWND Frontend::Show(HWND owner, HMODULE module)
+{
+  int_ptr<Frontend> instance = Instance;
+  if (!instance)
+    Instance = instance = new Frontend(owner, module);
+  instance->SetVisible(true);
+  return instance->GetHwnd();
+}
+
 Frontend::Frontend(HWND owner, HMODULE module)
-: NotebookDialogBase(DLG_FRONTEND, module, DF_AutoResize)
+: ManagedDialog<NotebookDialogBase>(DLG_FRONTEND, module, DF_AutoResize)
 {
   Pages.append() = new ConfigurationPage(*this);
   Pages.append() = new CalibratePage(*this);
@@ -100,6 +109,13 @@ Frontend::Frontend(HWND owner, HMODULE module)
   Pages.append() = new GenerateExtPage(*this);
   Pages.append() = new DeconvolutionPage(*this);
   StartDialog(owner, NB_FRONTEND);
+}
+
+void Frontend::OnDestroy()
+{
+  Instance = NULL;
+  ManagedDialog<NotebookDialogBase>::OnDestroy();
+  save_config();
 }
 
 Frontend::ConfigurationPage::~ConfigurationPage()
@@ -163,196 +179,6 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
-}
-
-
-Frontend::DeconvolutionPage::DeconvolutionPage(Frontend& parent)
-: PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
-{ MajorTitle = "~Playback";
-  MinorTitle = "Deconvolution at playback";
-  Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -40,+10, -10,40);
-  Result.AddGraph("< L gain dB", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)1, ResponseGraph::GF_None, CLR_BLUE);
-  Result.AddGraph("< R gain dB", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)3, ResponseGraph::GF_None, CLR_RED);
-  Result.AddGraph("L delay t >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)2, ResponseGraph::GF_Y2, CLR_GREEN);
-  Result.AddGraph("R delay t >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)4, ResponseGraph::GF_Y2, CLR_PINK);
-}
-
-Frontend::DeconvolutionPage::~DeconvolutionPage()
-{}
-
-static const char* const FIROrders[] =
-{ "16384"
-, "24576"
-, "32768"
-, "49152"
-, "65536"
-, "98304"
-};
-
-MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  switch (msg)
-  {case WM_INITDLG:
-    ComboBox(+GetCtrl(CB_FIRORDER)).InsertItems(FIROrders, countof(FIROrders));
-    // Load initial values
-    PostCommand(PB_UNDO);
-    break;
-
-   case WM_DESTROY:
-    Result.Detach();
-    break;
-
-   case WM_CONTROL:
-    switch (SHORT1FROMMP(mp1))
-    {case DLG_DECONV:
-      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED && ((PAGESELECTNOTIFY*)PVOIDFROMMP(mp2))->ulPageIdNew == GetPageID())
-        PostCommand(PB_RELOAD);
-      break;
-     case LB_KERNEL:
-      if (SHORT2FROMMP(mp1) == LN_SELECT)
-      { xstringbuilder sb;
-        sb.append(ControlBase(+GetCtrl(EF_WORKDIR)).Text());
-        if (sb.length() && sb[sb.length()-1] != '\\')
-          sb.append('\\');
-        ListBox lb(+GetCtrl(LB_KERNEL));
-        int sel = lb.NextSelection();
-        sb.append(lb.ItemText(sel));
-        Params.FilterFile = sb.get();
-        //DEBUGLOG(("%s\n", Params.FilterFile.cdata()));
-        PostMsg(UM_UPDATEDESCR, 0, 0);
-      }
-      break;
-    }
-    return 0;
-
-   case WM_COMMAND:
-    switch (SHORT1FROMMP(mp1))
-    {case PB_DEFAULT:
-      Deconvolution::GetDefaultParameters(Params);
-      goto load;
-
-     case PB_UNDO:
-      Deconvolution::GetParameters(Params);
-     load:
-      { // Load GUI from current configuration
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.FilterFile != NULL);
-        // Populate list box with filter kernels
-        PostCommand(PB_RELOAD);
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(Params.Enabled);
-        RadioButton(+GetCtrl(RB_WIN_NONE + Params.WindowFunction)).CheckState();
-        int selected; // default
-        switch (Params.FIROrder)
-        {case 16384:
-          selected = 0; break;
-         case 24576:
-          selected = 1; break;
-         case 32768:
-          selected = 2; break;
-         default: //case 49152:
-          selected = 3; break;
-         case 65536:
-          selected = 4; break;
-         case 98304:
-          selected = 5; break;
-        }
-        ComboBox(+GetCtrl(CB_FIRORDER)).Select(selected);
-      }
-      break;
-
-     case PB_APPLY:
-      { // Update configuration from GUI
-        Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
-        switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
-        {case 0: // 16384
-          Params.FIROrder = 16384;
-          Params.PlanSize = 32768;
-          break;
-         case 1: // 24576
-          Params.FIROrder = 24576;
-          Params.PlanSize = 32768;
-          break;
-         case 2: // 32768
-          Params.FIROrder = 32768;
-          Params.PlanSize = 65536;
-          break;
-         case 3: // 49152
-          Params.FIROrder = 49152;
-          Params.PlanSize = 65536;
-          break;
-         case 4: // 65536
-          Params.FIROrder = 65536;
-          Params.PlanSize = 131072;
-          break;
-         case 5: // 98304
-          Params.FIROrder = 98304;
-          Params.PlanSize = 131072;
-          break;
-        }
-        Deconvolution::SetParameters(Params);
-      }
-      break;
-
-     case PB_RELOAD:
-      UpdateDir();
-      break;
-    }
-    return 0;
-
-   case UM_UPDATEDESCR:
-    { ControlBase descr(+GetCtrl(ST_DESCR));
-      ControlBase enabled(+GetCtrl(CB_ENABLE));
-      if (!Params.FilterFile)
-      { descr.Text("No working directory");
-        goto disable;
-      }
-      if (!Kernel.Load(Params.FilterFile))
-      { descr.Text(strerror(errno));
-       disable:
-        Result.Detach();
-        enabled.Enabled(false);
-        return 0;
-      }
-      Result.Attach(GetCtrl(CC_RESULT));
-      descr.Text(Kernel.Description.length() ? Kernel.Description.cdata() : "no description");
-      enabled.Enabled(true);
-    }
-    return 0;
-  }
-  return PageBase::DlgProc(msg, mp1, mp2);
-}
-
-void Frontend::DeconvolutionPage::UpdateDir()
-{ ListBox lb(+GetCtrl(LB_KERNEL));
-  ControlBase descr(+GetCtrl(ST_DESCR));
-  lb.DeleteAll();
-  xstring path = Filter::WorkDir;
-  if (!path.length())
-  { descr.Text("No working directory");
-    return;
-  }
-  DirScan dir(path, "*.target", FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
-  stringsetI files;
-  while (dir.Next() == 0)
-    files.ensure(dir.CurrentFile());
-
-  if (files.size())
-    lb.InsertItems((const char*const*)files.begin(), files.size(), LIT_END);
-
-  if (dir.LastRC() != ERROR_NO_MORE_FILES)
-    descr.Text(dir.LastErrorText());
-  else
-  { if (Params.FilterFile)
-    { // restore selection if possible
-      unsigned pos;
-      if (files.locate(sfnameext2(Params.FilterFile), pos))
-        lb.Select(pos);
-      else
-      { Params.FilterFile.reset();
-        CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
-      }
-    }
-    PostMsg(UM_UPDATEDESCR, 0, 0);
-  }
 }
 
 

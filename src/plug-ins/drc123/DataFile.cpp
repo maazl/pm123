@@ -249,7 +249,42 @@ void DataFile::ClearColumn(unsigned col)
   newdata.swap(*this);
 }
 
-float DataFile::Interpolate(float f, unsigned col) const
+static int dlcmp(const float& k, const DataRow& row)
+{ float value = row[0];
+  if (k > value * 1.0001)
+    return 1;
+  if (k < value / 1.0001)
+    return -1;
+  return 0;
+}
+
+void DataFile::StoreValue(unsigned col, float f, float value)
+{ if (isnan(value))
+    return;
+  size_t pos;
+  DataRow* rp;
+  if (!binary_search<DataRow,const float>(f, pos, *this, &dlcmp))
+  { rp = insert(pos) = new DataRow(MaxColumns);
+    (*rp)[0] = f;
+  } else
+    rp = (*this)[pos];
+  (*rp)[col] = value;
+}
+void DataFile::StoreValue(unsigned col, float f, float mag, float delay)
+{ if (isnan(mag) && isnan(delay))
+    return;
+  size_t pos;
+  DataRow* rp;
+  if (!binary_search<DataRow,const float>(f, pos, *this, &dlcmp))
+  { rp = insert(pos) = new DataRow(MaxColumns);
+    (*rp)[0] = f;
+  } else
+    rp = (*this)[pos];
+  (*rp)[col] = mag;
+  (*rp)[col + 1] = delay;
+}
+
+/*float DataFile::Interpolate(float f, unsigned col) const
 {
   // search for frequency f
   size_t pos;
@@ -292,4 +327,42 @@ float DataFile::Interpolate(float f, unsigned col) const
     register float rf = (**rp)[0];
     return (lv * (rf-f) + rv * (f-lf)) / (rf - lf);
   }
+}*/
+
+const DataRow*const* DataFile::InterpolationIterator::SkipNAN(const DataRow*const* ptr)
+{ for(; ptr < End; ++ptr)
+  { if (!isnan((**ptr)[Column]))
+      return ptr;
+  }
+  return NULL;
+}
+
+DataFile::InterpolationIterator::InterpolationIterator(const DataFile& data, unsigned col)
+: End(data.end())
+, Column(col)
+  // place the first two non-NAN rows in Left, Right
+, Left(SkipNAN(data.begin()))
+, Right(SkipNAN(Left+1))
+{ ASSERT(Left);
+}
+
+float DataFile::InterpolationIterator::Next(float key)
+{ float lk = (**Left)[0];
+  // !extrapolate before the start?
+  if (key > lk)
+  { // seek for next row with row[0] > key
+    // !extrapolate behind the end?
+    while (Right)
+    { float rk = (**Right)[0];
+      if (key < rk)
+      { // interpolate
+        register float lv = (**Left)[Column];
+        register float rv = (**Right)[Column];
+        return (lv * (rk-key) + rv * (key-lk)) / (rk-lk);
+      }
+      Right = SkipNAN((Left = Right) + 1);
+      lk = rk;
+    }
+  }
+  return (**Left)[Column];
 }

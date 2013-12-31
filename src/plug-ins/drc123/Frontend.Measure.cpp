@@ -45,8 +45,8 @@ Frontend::MeasurePage::MeasurePage(Frontend& parent)
 
   Response.AddGraph("< L gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::LGain, ResponseGraph::GF_None, CLR_BLUE);
   Response.AddGraph("< R gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::RGain, ResponseGraph::GF_None, CLR_RED);
-  Response.AddGraph("L delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-  Response.AddGraph("R delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)Measure::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
+  Response.AddGraph("L delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Measure::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
+  Response.AddGraph("R delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Measure::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
 }
 
 Frontend::MeasurePage::~MeasurePage()
@@ -57,6 +57,10 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_INITDLG:
     Response.Attach(GetCtrl(CC_RESULT));
+    break;
+
+   case WM_DESTROY:
+    Response.Detach();
     break;
 
    case WM_CONTROL:
@@ -75,12 +79,6 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
         ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(true);
       break;
-     case DLG_MEASURE:
-      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED)
-      { PAGESELECTNOTIFY& pn = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
-        if (pn.ulPageIdNew == GetPageID())
-          PostMsg(UM_UPDATECALLIST, 0,0);
-      }
     }
     break;
 
@@ -95,8 +93,15 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case UM_UPDATECALLIST:
-    UpdateDir(GetCtrl(CB_CAL_FILE), GetCtrl(ST_CAL_DESC), "*.calibrate");
-    UpdateDir(GetCtrl(CB_MIC_FILE), GetCtrl(ST_MIC_DESC), "*.microphone");
+    { xstring cal, mic;
+      if (SHORT1FROMMP(mp1))
+      { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
+        cal = sfnameext2(data->CalFile);
+        mic = sfnameext2(data->MicFile);
+      }
+      UpdateDir(GetCtrl(CB_CAL_FILE), GetCtrl(ST_CAL_DESC), "*.calibrate", cal);
+      UpdateDir(GetCtrl(CB_MIC_FILE), GetCtrl(ST_MIC_DESC), "*.microphone", mic);
+    }
     return 0;
 
    case UM_UPDATEFILE:
@@ -128,6 +133,8 @@ void Frontend::MeasurePage::LoadControlValues(const Measure::MeasureFile& data)
   CheckBox(+GetCtrl(CB_REFIN)).CheckState(data.RefIn);
 
   OpenLoopPage::LoadControlValues(data);
+
+  PostMsg(UM_UPDATECALLIST, MPFROMSHORT(TRUE), 0);
 
   Response.SetAxes(ResponseGraph::AF_LogX, data.RefFMin, data.RefFMax,
     data.GainLow, data.GainHigh, data.DelayLow, data.DelayHigh);
@@ -174,41 +181,38 @@ void Frontend::MeasurePage::InvalidateGraph()
 { Response.Invalidate();
 }
 
-void Frontend::MeasurePage::UpdateDir(ComboBox lb, ControlBase desc, const char* mask)
+void Frontend::MeasurePage::UpdateDir(ComboBox lb, ControlBase desc, const char* mask, xstring& selection)
 { DEBUGLOG(("Frontend::MeasurePage::UpdateDir(%p, %p)\n", lb.Hwnd, desc.Hwnd));
-  xstring currentname;
-  if (lb.NextSelection() > 0)
-    currentname = lb.Text();
+  if (selection == NULL && lb.NextSelection() > 0)
+    selection = lb.Text();
   lb.DeleteAll();
-  const char* names[50];
-  names[0] = "- none -";
-  unsigned count = 1;
-  int selected = 0; // in doubt select first entry
+  lb.InsertItem("- none -");
 
   xstring path = Filter::WorkDir;
   if (!path.length())
   { desc.Text("No working directory");
-  } else
-  { DirScan dir(path, mask, FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
-    while (dir.Next() == 0)
-    { const char* name = dir.Current()->achName;
-      if (currentname && stricmp(currentname, name) == 0)
-      { selected = count + lb.Count();
-        path = dir.CurrentPath();
-      }
-      names[count++] = name;
-      // package full or storage from dir.Current no longer stable?
-      if (count == sizeof names / sizeof *names || dir.RemainingPackageSize() == 1)
-      { lb.InsertItems(names, count, LIT_END);
-        count = 0;
-      }
-    }
+    return;
   }
-  if (count)
-    lb.InsertItems(names, count, LIT_END);
+  DirScan dir(path, mask, FILE_ARCHIVED|FILE_READONLY|FILE_HIDDEN);
+  stringsetI files;
+  while (dir.Next() == 0)
+    files.ensure(dir.CurrentFile());
+
+  if (files.size())
+    lb.InsertItems((const char*const*)files.begin(), files.size(), LIT_END);
 
   // restore previous value
+  unsigned selected;
+  if (selection && files.locate(selection, selected))
+    ++selected;
+  else
+    selected = 0; // in doubt select the first entry;
   lb.Select(selected);
+
+  if (dir.LastRC() != ERROR_NO_MORE_FILES)
+    desc.Text(dir.LastErrorText());
+  else
+    PostMsg(UM_UPDATEFILE, MPFROMHWND(lb.Hwnd), MPFROMSHORT(desc.ID()));
 }
 
 xstring Frontend::MeasurePage::UpdateFile(ComboBox lb, ControlBase desc)

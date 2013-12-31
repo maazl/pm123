@@ -65,6 +65,11 @@
 #define EF_FREQ_BIN     1030
 #define EF_FREQ_FACTOR  1031
 
+#define RB_VIEWTARGET   1040
+#define RB_VIEWGAIN     1041
+#define RB_VIEWDELAY    1042
+#define RB_VIEWTIME     1043
+
 #define NB_FRONTEND     1090
 
 // Configuration
@@ -74,16 +79,13 @@
 #define PB_CURRENT      1104
 
 // Deconvolution
-#define CB_ENABLE       1150
-#define LB_KERNEL       1152
-#define RB_WIN_NONE     1160
-#define RB_WIN_DIMMED_HAMMING 1161
-#define RB_WIN_HAMMING  1162
+#define CB_ENABLE       1160
+#define LB_KERNEL       1162
+#define RB_WIN_NONE     1165
+#define RB_WIN_DIMMED_HAMMING 1166
+#define RB_WIN_HAMMING  1167
 
 // Generate
-#define RB_VIEWRESULT   1200
-#define RB_VIEWGAIN     1201
-#define RB_VIEWDELAY    1202
 #define GB_RESULT       1205
 #define GB_RESULT2      1206
 
@@ -147,5 +149,7 @@
 #define RB_RIGHT_LOOP   1502
 #define RB_BOTH_LOOP    1503
 
-#endif
 
+void save_config();
+
+#endif

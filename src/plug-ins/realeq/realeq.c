@@ -943,7 +943,7 @@ ULONG DLLENTRY filter_init(REALEQ_STRUCT** F, FILTER_PARAMS2* params)
   f->a                     = params->a;
   f->inboxlevel            = 0;
   f->enabled               = FALSE; // flag is set later
-  f->discard               = TRUE;
+  f->discard               = FALSE;
 
   f->format.samplerate     = 0;
   f->format.channels       = 0;
@@ -1460,7 +1460,9 @@ HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
   if (!hwnd)
   {
     if (hdialog)
-      WinDestroyWindow(hdialog);
+    { WinDestroyWindow(hdialog);
+      hdialog = NULLHANDLE;
+    }
     return NULLHANDLE;
   }
 

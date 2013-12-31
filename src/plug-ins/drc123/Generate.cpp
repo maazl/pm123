@@ -96,12 +96,12 @@ Generate::TargetFile::TargetFile()
   NormFreqLow = 50.;
   NormFreqHigh = 500.;
   NormMode = NM_Energy;
-  LimitGain = pow(10, 15./20); // +15 dB
-  LimitDelay = .5;
+  LimitGain = pow(10, 12./20); // +15 dB
+  LimitDelay = .2;
   LimitGainRate = .2;
   LimitDelayRate = .05;
   InvertHighGain = true;
-  Filter = FLT_Subsonic|FLT_Supersonic;
+  Filter = FLT_Subsonic;
   GainLow  = -20.;
   GainHigh = +20.;
   DelayLow = -.2;
@@ -267,11 +267,30 @@ void Generate::Prepare()
   }
 }
 
+struct Interpolator
+{ DataFile::InterpolationIterator LGain;
+  DataFile::InterpolationIterator RGain;
+  DataFile::InterpolationIterator LDelay;
+  DataFile::InterpolationIterator RDelay;
+  Interpolator(const Measure::MeasureFile& data);
+};
+
+Interpolator::Interpolator(const Measure::MeasureFile& data)
+: LGain(data, Measure::LGain)
+, RGain(data, Measure::RGain)
+, LDelay(data, Measure::LDelay)
+, RDelay(data, Measure::RDelay)
+{}
+
 void Generate::Run()
 {
   Prepare();
 
   // now calculate the target response
+  vector_own<Interpolator> iplist(LocalData.Measurements.size());
+  foreach (Measure::MeasureFile,*const*, sp, LocalData.Measurements)
+    iplist.append() = new Interpolator(**sp);
+
   double f = LocalData.FreqLow;
   const double scale = 1. / LocalData.Measurements.size();
   while (f <= LocalData.FreqHigh)
@@ -282,12 +301,12 @@ void Generate::Run()
     double rgain = 0;
     double ldelay = 0;
     double rdelay = 0;
-    foreach (Measure::MeasureFile,*const*, sp, LocalData.Measurements)
-    { Measure::MeasureFile& data = **sp;
-      lgain += data.Interpolate(f, Measure::LGain);
-      rgain += data.Interpolate(f, Measure::RGain);
-      ldelay += data.Interpolate(f, Measure::LDelay);
-      rdelay += data.Interpolate(f, Measure::RDelay);
+    foreach (Interpolator,*const*, ipp, iplist)
+    { Interpolator& ip = **ipp;
+      lgain += ip.LGain.Next(f);
+      rgain += ip.RGain.Next(f);
+      ldelay += ip.LDelay.Next(f);
+      rdelay += ip.RDelay.Next(f);
     }
     row[LGain] = ApplyGainLimit(1 / (lgain * scale));
     row[RGain] = ApplyGainLimit(1 / (rgain * scale));
@@ -299,7 +318,37 @@ void Generate::Run()
   }
 
   // TODO: limit slew rate
+}
 
+void Generate::ApplyRateLimit(unsigned col, double rate)
+{
+  sco_arr<float> differential(LocalData.size());
+  sco_arr<signed char> except(LocalData.size());
+  memset(except.begin(), 0, LocalData.size() * sizeof *except.get());
+  float* dp = differential.begin();
+  signed char* xp = except.begin();
+  float last = 0;
+  float lastf = 0;
+  foreach (DataRow,*const*, sp, LocalData)
+  { float freq = (**sp)[0];
+    float value = (**sp)[col];
+    float diff = (value - last) / (freq - lastf);
+    *dp++ = diff;
+    if (diff > rate)
+      *xp = 1;
+    else if (diff < -rate)
+      *xp = -1;
+    lastf = freq;
+    last = value;
+    ++xp;
+  }
+  dp = differential.begin();
+  float* dpe = differential.end();
+  for (; dp != dpe; ++dp)
+  { double over = fabs(*dp) - rate;
+    if (over > 0)
+      ;
+  }
 }
 
 double Generate::ApplyGainLimit(double gain)
