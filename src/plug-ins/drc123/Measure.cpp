@@ -29,6 +29,7 @@
 #include "Measure.h"
 #include "FFT2Data.h"
 #include "Calibrate.h"
+#include "Deconvolution.h"
 
 
 Measure::MeasureFile::MeasureFile()
@@ -40,18 +41,22 @@ Measure::MeasureFile::MeasureFile()
   RefFMax = 20000.;
   RefExponent = -.2;
   RefSkipEven = false;
+  RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
   RefFDist = 1.00;
+  LineNotchHarmonics = 3;
+  LineNotchFreq = 50.;
   AnaFBin = 1.01;
   AnaSwap = false;
 
   Mode = MD_Noise;
   Chan = CH_Both;
-  RefIn = false;
-  DiffOut = false;
   CalFile = xstring::empty;
   MicFile = xstring::empty;
+  RefIn = false;
+  DiffOut = false;
+  VerifyMode = false;
 
   GainLow = -40.;
   GainHigh = +20.;
@@ -108,16 +113,33 @@ Measure::MeasureFile Measure::Data;
 Measure::Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams)
 : OpenLoop(params, filterparams)
 , MesParams(params)
-{ RefMode = params.Chan == CH_Both ? RFM_STEREO : params.DiffOut ? RFM_DIFFERENTIAL : RFM_MONO;
+{ if (params.Chan == CH_Both)
+    Params.RefMode = RFM_STEREO;
+  else if (params.DiffOut)
+    Params.RefMode = RFM_DIFFERENTIAL;
+  else
+    Params.RefMode = (Mode)params.Chan;
 }
 
 Measure* Measure::Factory(FILTER_PARAMS2& filterparams)
 { SyncAccess<MeasureFile> params(Data);
-  return new Measure(*params, filterparams);
+  Deconvolution* verifier = NULL;
+  if (params->VerifyMode)
+    filterparams.a = verifier = new Deconvolution(filterparams);
+  Measure* result = new Measure(*params, filterparams);
+  result->VerifyFilter = verifier;
+  return result;
 }
 
 Measure::~Measure()
 {}
+
+void Measure::Update(const FILTER_PARAMS2& params)
+{ if (MesParams.VerifyMode)
+    VerifyFilter->Update(params);
+  else
+    OpenLoop::Update(params);
+}
 
 static inline bool operator==(const fftwf_complex& l, const float& r)
 { return l.imag() == 0. && l.real() == r;
@@ -253,24 +275,26 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
   if (MesParams.RefIn)
   { // reference signal is on channel 2
     scale = 1; // all scale factors cancel anyway
-    ref[0] = &input[1];
+    ref[0] = ref[1] = &input[1];
 
-    if (MesParams.Chan == CH_Both)
-    { // dual channel mode
+    const fftwf_complex* rp = GetRefDesign(1).begin();
+    switch (MesParams.Chan)
+    {case CH_Both:
       // split reference signal into two channels
+      AnaTemp2 = input[1]; // copy
       ref[1] = &AnaTemp2;
-      AnaTemp2 = *ref[0]; // copy
       // mute unused frequencies of right channel
-      const fftwf_complex* rp = GetRefDesign(1).begin();
       foreach (fftwf_complex,*, dp, AnaTemp2)
         if (*rp++ == 0.)
           *dp = 0.;
+     case CH_Left:
+      rp = GetRefDesign(0).begin();
+     case CH_Right:
+      // mute unused frequencies of left or single channel
+      foreach (fftwf_complex,*, dp, input[1])
+        if (*rp++ == 0.)
+          *dp = 0.;
     }
-    // mute unused frequencies of left or single channel
-    const fftwf_complex* rp = GetRefDesign(MesParams.Chan == CH_Right).begin();
-    foreach (fftwf_complex,*, dp, input[1])
-      if (*rp++ == 0.)
-        *dp = 0.;
   } else
   { // reference signal is not recorded
     ref[0] = &GetRefDesign(0);
@@ -279,30 +303,45 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
   // Compute average group delay
   double response[2];
-  double delay = ComputeDelay(input[0], *ref[0], response[0]);
-  if (MesParams.Chan == CH_Both)
-  { // Take delay on right channel into account too.
-    delay = (delay + ComputeDelay(input[0], *ref[1], response[1])) / 2;
-    /*if (response[0] * response[1] < 0) // different sign
-    { // Warning speaker inverted
-    }*/
+  int delay;
+  switch (MesParams.Chan)
+  {case CH_Left:
+    delay = ComputeDelay(input[0], *ref[0], response[0]);
+    break;
+   case CH_Right:
+    delay = ComputeDelay(input[0], *ref[1], response[1]);
+    break;
+   default: //case CH_Both:
+    delay = AverageDelay(
+      ComputeDelay(input[0], *ref[0], response[0]),
+      ComputeDelay(input[0], *ref[1], response[1]) );
+    break;
   }
 
   // update results
   { SyncAccess<MeasureFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin, scale, delay);
+    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin);
+    f2d.Scale = scale;
+    f2d.Delay = (double)delay / Format.samplerate;
 
     switch (MesParams.Chan)
     {case CH_Right:
-      f2d.StoreFFT(RGain, input[0], *ref[0]);
+      input[0] /= *ref[1];
+      f2d.StoreFFT(RGain, input[0]);
       break;
-     case CH_Both:
-      f2d.StoreFFT(RGain, input[0], *ref[1]);
+     default: //case CH_Both:
+      AnaTemp = input[0];
+      AnaTemp /= *ref[1];
+      f2d.StoreFFT(RGain, AnaTemp);
       // no break
      case CH_Left:
-      f2d.StoreFFT(LGain, input[0], *ref[0]);
+      input[0] /= *ref[0];
+      f2d.StoreFFT(LGain, input[0]);
       // no break
     }
+    data->AverageDelay = f2d.Delay;
+    data->PhaseUnwrapCount = f2d.PhaseUnwrapCount;
+    data->IndeterminatePhase = f2d.IndeterminatePhase;
   }
 
   OpenLoop::ProcessFFTData(input, scale);

@@ -139,6 +139,9 @@ void Frontend::CalibratePage::SetRunning(bool running)
 void Frontend::CalibratePage::InvalidateGraph()
 { Response.Invalidate();
   XTalk.Invalidate();
+  SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f ms, indeterminate phase: %.0f ppm",
+    1E3 * data->AverageDelay, 2E6 * data->IndeterminatePhase / data->PhaseUnwrapCount ));
 }
 
 LONG Frontend::CalibratePage::DoLoadFile(FILEDLG& fdlg)

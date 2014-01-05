@@ -60,7 +60,7 @@ class OpenLoop : public Filter
     /// The reference is single channel, but the output on the right channel is inverted.
     /// @remarks This could be used with appropriate hardware to suppress common mode noise.
     RFM_DIFFERENTIAL = 0x04
-  }             RefMode;
+  };
   /// Configuration parameters for OpenLoop. You may extend them.
   struct Parameters
   { /// FFT size for reference and analysis.
@@ -76,12 +76,18 @@ class OpenLoop : public Filter
     double      RefExponent;
     /// Do not spend energy in even frequencies.
     bool        RefSkipEven;
+    /// Skip some random frequencies in stereo mode to break symmetry.
+    bool        RefSkipRand;
     /// Type of the reference signal.
     Mode        RefMode;
     /// Reference playback volume
     double      RefVolume;
     /// Minimum Factor between neighbor frequencies in the reference signal.
     double      RefFDist;
+    /// Number of harmonics for the line frequency notch. 0 = off, 1 = line Frequency only.
+    unsigned    LineNotchHarmonics;
+    /// Notch filter for line frequency.
+    double      LineNotchFreq;
     /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
     double      AnaFBin;
     /// Swap channels on input processing.
@@ -96,11 +102,19 @@ class OpenLoop : public Filter
   class OpenLoopFile
   : public DataFile
   , public Parameters
-  {protected:
+  {public:
+    /// Average group delay
+    double      AverageDelay;
+    /// Number of phase unwraps.
+    unsigned    PhaseUnwrapCount;
+    /// Number of times the phase unwrapping was ambiguous.
+    unsigned    IndeterminatePhase;
+   protected:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
-                OpenLoopFile(unsigned cols) : DataFile(cols) {}
+                OpenLoopFile(unsigned cols) : DataFile(cols), AverageDelay(0.), PhaseUnwrapCount(0), IndeterminatePhase(0) {}
+    virtual bool Load(const char* filename = NULL, bool nodata = false);
   };
   /// Info about input for VU meter
   struct Statistics
@@ -160,6 +174,8 @@ class OpenLoop : public Filter
   /// @brief Design function of reference signal of channel 1/2.
   /// @details Channel 2 is only valid if RefMode == RFM_STEREO.
   FreqDomainData RefDesign[2];
+  /// FFT length which is unique with respect to the auto correlation of the reference.
+  unsigned      UncorrelatedFFTSize;
  protected:
   /// Raw data of reference signal.
   TimeDomainData RefData;
@@ -190,8 +206,8 @@ class OpenLoop : public Filter
   PROXYFUNCDEF void DLLENTRY InEventProxy(Filter* w, OUTEVENTTYPE event);
  private: // Reference generator
   PROXYFUNCDEF void TFNENTRY RefThreadStub(void* arg);
-  void          RefThreadFunc();
-  void          OverrideTechInfo(const OUTPUT_PARAMS2*& target);
+          void  RefThreadFunc();
+          void  OverrideTechInfo(const OUTPUT_PARAMS2*& target);
  protected:
   /// @brief Generate the reference signal.
   /// @details This function is called once when the playback starts.
@@ -206,22 +222,41 @@ class OpenLoop : public Filter
   /// You may override this function to do some initialization stuff
   /// in the analyzer thread. It is called before any data is processed by ProcessFFTData.
   virtual void  InitAnalyzer();
+  /// Calculate the cross correlation in a temporary buffer.
+  /// @param signal Signal to correlate.
+  /// @param reference to correlate with.
+  /// @return Result in a temporary buffer. This is valid until the next call to \c CrossCorrelate
+  /// or this instance dies. Note that the result is not normalized.
+  /// @pre @code signal.size() == ref.size() == Params.FFTSize/2+1 @endcode
+  TimeDomainData& CrossCorrelate(const FreqDomainData& signal, const FreqDomainData& ref);
   /// Estimate the most likely delay by cross correlation.
-  /// @param fd1 FFT of the signal to estimate.
-  /// @param fd2 FFT of the reference.
+  /// @param signal FFT of the signal to estimate.
+  /// @param ref FFT of the reference. This also controls the weighting.
   /// @param response [out] reliability and sign of the match.
   /// The value returned contains the relative amount of energy in the match and the sign of the match.
-  /// @return Most likely delay of \a fd1 against \a fd2 in seconds.
+  /// @return Most likely delay of \a fd1 against \a fd2 in samples.
   /// @post The returned value will always be in the interval [0,T]
   /// with T = Params.FFTSize / Format.samplerate.
-  double        ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response);
+          int   ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response);
+  /// @brief Calculate the average delay with phase unwrapping.
+  /// @details The function takes care of ambiguities in the autocorrelation
+  /// of the reference signal, i.e. \c UncorrelatedFFTSize.
+  /// @param delay1 1st delay in samples.
+  /// @param delay2 2nd delay in samples.
+  /// @return average delay in samples.
+          int   AverageDelay(int delay1, int delay2);
   /// @brief Process a block of input data.
   /// @details The function is called once for every \c FFTSize number of input samples.
   /// You can override it by the appropriate analysis function.
   /// @param input Array with the input samples in native PM123 format (interleaved).
   /// There are always \c FFTSize samples in the array.
   /// You must not change the array size, but you can take a strong reference with \c int_ptr<SampleData>.
+  /// @remarks The default implementation calculate the FFT of both channels in the input data
+  /// and passes the result to \c ProcessFFTData.
   virtual void  ProcessInput(SampleData& input);
+  /// @brief Process a block of input data after FFT transformation.
+  /// @param input Array of two channels in frequency domain representation.
+  /// @param scale All values in input need to be multiplied by this scale value.
   virtual void  ProcessFFTData(FreqDomainData (&input)[2], double scale);
 
  protected:
@@ -240,7 +275,7 @@ class OpenLoop : public Filter
  public:
   static  bool  Stop();
   static  void  Clear() { ClearRq = true; }
-  const FreqDomainData& GetRefDesign(unsigned channel) { return RefDesign[channel && RefMode == RFM_STEREO]; }
+  const FreqDomainData& GetRefDesign(unsigned channel) { return RefDesign[channel && (Params.RefMode & RFM_STEREO)]; }
   static  void  GetStatistics(Statistics (&stat)[2]);
 };
 

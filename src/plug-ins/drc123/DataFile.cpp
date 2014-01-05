@@ -258,7 +258,7 @@ static int dlcmp(const float& k, const DataRow& row)
   return 0;
 }
 
-void DataFile::StoreValue(unsigned col, float f, float value)
+/*void DataFile::StoreValue(unsigned col, float f, float value)
 { if (isnan(value))
     return;
   size_t pos;
@@ -284,7 +284,7 @@ void DataFile::StoreValue(unsigned col, float f, float mag, float delay)
   (*rp)[col + 1] = delay;
 }
 
-/*float DataFile::Interpolate(float f, unsigned col) const
+float DataFile::Interpolate(float f, unsigned col) const
 {
   // search for frequency f
   size_t pos;
@@ -365,4 +365,64 @@ float DataFile::InterpolationIterator::Next(float key)
     }
   }
   return (**Left)[Column];
+}
+
+
+DataFile::StoreIterator::StoreIterator(DataFile& data, unsigned col, unsigned discard, float accuracy)
+: Target(data)
+, Column(col)
+, Discard(discard)
+, Accuracy(1. + accuracy)
+, Current(0)
+{}
+
+DataFile::StoreIterator::~StoreIterator()
+{
+  if (Discard)
+    while (Current < Target.size())
+      DiscardColumns();
+}
+
+void DataFile::StoreIterator::DiscardColumns()
+{ DataRow& row = *Target[Current];
+  unsigned col = Column + Discard;
+  do
+    row[--col] = NAN;
+  while (col != Column);
+  if (row.HasValues())
+    ++Current;
+  else
+    Target.erase(Current);
+}
+
+DataRow& DataFile::StoreIterator::RowAtKey(float key)
+{
+  while (Current < Target.size())
+  { DataRow& row = *Target[Current];
+    if (key <= row[0] * Accuracy)
+    { if (key * Accuracy < row[0])
+        // Value before Current => insert
+        break;
+      else
+      { // hit
+        ++Current;
+        return row;
+      }
+    }
+    // key larger than Current, try at later location
+    if (Discard)
+      DiscardColumns();
+    else
+      ++Current;
+  }
+  // insert new row at Current
+  DataRow& row = *(Target.insert(Current++) = new DataRow(Target.MaxColumns));
+  row[0] = key;
+  return row;
+}
+
+void DataFile::StoreIterator::Store(float key, float value1, float value2)
+{ DataRow& row = RowAtKey(key);
+  row[Column] = value1;
+  row[Column+1] = value2;
 }

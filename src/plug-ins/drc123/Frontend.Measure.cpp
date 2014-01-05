@@ -128,8 +128,6 @@ void Frontend::MeasurePage::LoadControlValues(const Measure::MeasureFile& data)
   diffout.CheckState(data.DiffOut);
   diffout.Enabled(data.Chan != Measure::CH_Both);
 
-  /*bool have_calfile = data.CalFile && data.CalFile.length();
-  ControlBase(+GetCtrl(EF_FILE)).Text(have_calfile ? url123(data.FileName).getShortName().cdata() : "");*/
   CheckBox(+GetCtrl(CB_REFIN)).CheckState(data.RefIn);
 
   OpenLoopPage::LoadControlValues(data);
@@ -179,6 +177,9 @@ void Frontend::MeasurePage::SetRunning(bool running)
 
 void Frontend::MeasurePage::InvalidateGraph()
 { Response.Invalidate();
+  SyncAccess<Measure::MeasureFile> data(Measure::GetData());
+  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f ms, indeterminate phase: %.0f ppm",
+    1E3 * data->AverageDelay, 1E6 * (int)data->IndeterminatePhase / (int)data->PhaseUnwrapCount ));
 }
 
 void Frontend::MeasurePage::UpdateDir(ComboBox lb, ControlBase desc, const char* mask, xstring& selection)
@@ -264,16 +265,30 @@ xstring Frontend::MeasurePage::DoSaveFile()
 }
 
 
+void Frontend::MeasureExtPage::LoadControlValues(const Measure::MeasureFile& data)
+{
+  CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState(data.VerifyMode);
+
+  ExtPage::LoadControlValues(data);
+}
+
 void Frontend::MeasureExtPage::LoadControlValues()
 { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-  ExtPage::LoadControlValues(*data);
+  LoadControlValues(*data);
 }
 
 void Frontend::MeasureExtPage::LoadDefaultValues()
-{ ExtPage::LoadControlValues(Measure::DefData);
+{ LoadControlValues(Measure::DefData);
+}
+
+void Frontend::MeasureExtPage::StoreControlValues(Measure::MeasureFile& data)
+{
+  data.VerifyMode = (bool)CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState();
+
+  ExtPage::StoreControlValues(data);
 }
 
 void Frontend::MeasureExtPage::StoreControlValues()
 { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-  ExtPage::StoreControlValues(*data);
+  StoreControlValues(*data);
 }

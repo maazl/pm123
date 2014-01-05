@@ -60,15 +60,16 @@
 
 #define CC_RESULT       1020
 #define CC_RESULT2      1021
-#define CB_FIRORDER     1022
-#define CB_FFTSIZE      1023
-#define EF_FREQ_BIN     1030
-#define EF_FREQ_FACTOR  1031
+#define ST_SUBRESULT    1022
+#define CB_FIRORDER     1030
+#define CB_FFTSIZE      1031
+#define EF_FREQ_BIN     1040
+#define EF_FREQ_FACTOR  1041
 
-#define RB_VIEWTARGET   1040
-#define RB_VIEWGAIN     1041
-#define RB_VIEWDELAY    1042
-#define RB_VIEWTIME     1043
+#define RB_VIEWTARGET   1050
+#define RB_VIEWGAIN     1051
+#define RB_VIEWDELAY    1052
+#define RB_VIEWTIME     1053
 
 #define NB_FRONTEND     1090
 
@@ -121,13 +122,19 @@
 #define EF_VU_LOW       1358
 #define EF_VU_YELLOW    1359
 #define EF_VU_RED       1360
-#define EF_DISCARD      1361
-#define EF_REFEXPONENT  1363
-#define EF_REFFDIST     1364
-#define RB_WHITE_N      1365
-#define RB_PINK_N       1366
-#define RB_BROWN_N      1367
-#define CB_SKIPEVEN     1368
+
+#define EF_DISCARD      1370
+#define EF_REFEXPONENT  1371
+#define EF_REFFDIST     1372
+#define SB_NOTCHORDER   1373
+#define SB_NOTCHFREQ    1374
+
+#define RB_WHITE_N      1380
+#define RB_PINK_N       1381
+#define RB_BROWN_N      1382
+#define CB_SKIPEVEN     1385
+#define CB_SKIPRAND     1386
+#define CB_VERIFYMODE   1387
 
 // Measure
 #define RB_NOISE        1400

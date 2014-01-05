@@ -45,6 +45,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <float.h>
 
 #include <debuglog.h>
 
@@ -177,10 +178,13 @@ static void load_config()
     load_prf_value(measure.RefFMax);
     load_prf_value(measure.RefExponent);
     load_prf_value(measure.RefSkipEven);
+    load_prf_value(measure.RefSkipRand);
     load_prf_value(measure.RefVolume);
     load_prf_value(measure.RefFDist);
     load_prf_value(measure.AnaFBin);
     load_prf_value(measure.AnaSwap);
+    load_prf_value(measure.LineNotchFreq);
+    load_prf_value(measure.LineNotchHarmonics);
     load_prf_value(measure.GainLow);
     load_prf_value(measure.GainHigh);
     load_prf_value(measure.DelayLow);
@@ -190,10 +194,11 @@ static void load_config()
     load_prf_value(measure.VURed);
     load_prf_value(measure.Mode);
     load_prf_value(measure.Chan);
-    load_prf_value(measure.DiffOut);
-    load_prf_value(measure.RefIn);
     load_prf_value(measure.CalFile);
     load_prf_value(measure.MicFile);
+    load_prf_value(measure.DiffOut);
+    load_prf_value(measure.RefIn);
+    load_prf_value(measure.VerifyMode);
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;
@@ -203,10 +208,13 @@ static void load_config()
     load_prf_value(calibrate.RefFMax);
     load_prf_value(calibrate.RefExponent);
     load_prf_value(calibrate.RefSkipEven);
+    load_prf_value(calibrate.RefSkipRand);
     load_prf_value(calibrate.RefVolume);
     load_prf_value(calibrate.RefFDist);
     load_prf_value(calibrate.AnaFBin);
     load_prf_value(calibrate.AnaSwap);
+    load_prf_value(calibrate.LineNotchFreq);
+    load_prf_value(calibrate.LineNotchHarmonics);
     load_prf_value(calibrate.GainLow);
     load_prf_value(calibrate.GainHigh);
     load_prf_value(calibrate.DelayLow);
@@ -264,10 +272,13 @@ void save_config()
     save_prf_value(measure.RefFMax);
     save_prf_value(measure.RefExponent);
     save_prf_value(measure.RefSkipEven);
+    save_prf_value(measure.RefSkipRand);
     save_prf_value(measure.RefVolume);
     save_prf_value(measure.RefFDist);
     save_prf_value(measure.AnaFBin);
     save_prf_value(measure.AnaSwap);
+    save_prf_value(measure.LineNotchFreq);
+    save_prf_value(measure.LineNotchHarmonics);
     save_prf_value(measure.GainLow);
     save_prf_value(measure.GainHigh);
     save_prf_value(measure.DelayLow);
@@ -277,10 +288,11 @@ void save_config()
     save_prf_value(measure.VURed);
     save_prf_value(measure.Mode);
     save_prf_value(measure.Chan);
-    save_prf_value(measure.DiffOut);
-    save_prf_value(measure.RefIn);
     save_prf_value(measure.CalFile);
     save_prf_value(measure.MicFile);
+    save_prf_value(measure.DiffOut);
+    save_prf_value(measure.RefIn);
+    save_prf_value(measure.VerifyMode);
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;
@@ -290,10 +302,13 @@ void save_config()
     save_prf_value(calibrate.RefFMax);
     save_prf_value(calibrate.RefExponent);
     save_prf_value(calibrate.RefSkipEven);
+    save_prf_value(calibrate.RefSkipRand);
     save_prf_value(calibrate.RefVolume);
     save_prf_value(calibrate.RefFDist);
     save_prf_value(calibrate.AnaFBin);
     save_prf_value(calibrate.AnaSwap);
+    save_prf_value(calibrate.LineNotchFreq);
+    save_prf_value(calibrate.LineNotchHarmonics);
     save_prf_value(calibrate.GainLow);
     save_prf_value(calibrate.GainHigh);
     save_prf_value(calibrate.DelayLow);
@@ -327,6 +342,9 @@ BOOL DLLENTRY filter_uninit(Filter* F)
 
 HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
+  // By default there are by far too many FP exceptions
+  _control87( EM_INVALID  | EM_DENORMAL  | EM_ZERODIVIDE |
+              EM_OVERFLOW | EM_UNDERFLOW | EM_INEXACT, MCW_EM );
   return Frontend::Show(hwnd, module);
 }
 

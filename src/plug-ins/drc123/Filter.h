@@ -67,8 +67,8 @@ struct FILTER_STRUCT
   FILTER_STRUCT(FILTER_PARAMS2& params);
  public: // plug-in API interface
   static Filter* Factory(FILTER_PARAMS2& params);
-  virtual void Update(const FILTER_PARAMS2& params);
-  virtual ~FILTER_STRUCT();
+  virtual void  Update(const FILTER_PARAMS2& params);
+  virtual       ~FILTER_STRUCT();
 };
 
 

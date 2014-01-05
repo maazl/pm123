@@ -353,7 +353,8 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
         kernel->Mtx.Request(); // can't block!
         needsetup = true;
       }
-      FFT2Data f2d(*kernel, (double)args.Samplerate/args.Params->PlanSize, 1.01, args.FreqScale);
+      FFT2Data f2d(*kernel, (double)args.Samplerate/args.Params->PlanSize, 1.01);
+      f2d.Scale = args.FreqScale;
       f2d.StoreFFT(args.Channel ? FDC_RGain : FDC_LGain, *args.FreqDomain);
       kernel->Mtx.Release();
       kernel.swap(RawKernelData);
@@ -372,15 +373,15 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
         kernel->Mtx.Request(); // can't block!
         needsetup = true;
       }
-      unsigned col = args.Channel ? TDC_RKernel : TDC_LKernel;
-      kernel->ClearColumn(col);
+      DataFile::StoreIterator storer(*kernel, args.Channel ? TDC_RKernel : TDC_LKernel, 1);
+
       int count = -(args.Params->FIROrder >> 1);
       const float* sp = args.TimeDomain->end() + count;
       while (count < 0)
-        kernel->StoreValue(col, (float)count++ / args.Samplerate, *sp++ * args.TimeScale);
+        storer.Store((float)count++ / args.Samplerate, *sp++ * args.TimeScale);
       sp = args.TimeDomain->begin();
       while (count < args.Params->FIROrder >> 1)
-        kernel->StoreValue(col, (float)count++ / args.Samplerate, *sp++ * args.TimeScale);
+        storer.Store((float)count++ / args.Samplerate, *sp++ * args.TimeScale);
       kernel->Mtx.Release();
       kernel.swap(RawKernelData);
     }

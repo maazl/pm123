@@ -274,10 +274,10 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     virtual ~MeasureExtPage() {}
    protected:
     //virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-    //void          LoadControlValues(const Measure::MeasureFile& data, const GUIParameters& gui);
+    void          LoadControlValues(const Measure::MeasureFile& data);
     virtual void  LoadControlValues();
     virtual void  LoadDefaultValues();
-    //void          StoreControlValues(Measure::MeasureFile& data, GUIParameters& gui);
+    void          StoreControlValues(Measure::MeasureFile& data);
     virtual void  StoreControlValues();
   };
 

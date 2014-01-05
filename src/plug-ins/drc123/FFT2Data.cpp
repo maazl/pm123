@@ -33,9 +33,6 @@
 
 void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source)
 { DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p})\n", this, col, source.size(), source.get()));
-  Target.ClearColumn(col);
-  Target.ClearColumn(col + 1);
-
   double lastf = 0;
   double lastph = NAN;
 
@@ -43,78 +40,28 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source)
   double fsum = 0;
   double magsum = 0;
   unsigned magcnt = 0;
-  double delaysum = 0;
-  unsigned delaycnt = 0;
+  double phsum = 0;
+  double delayfstart = NAN;
+
+  DataFile::StoreIterator storer(Target, col, 2);
 
   for (unsigned i = 1; i < source.size(); ++i)
-  { double f = FInc * i;
-    if (f > fstart * FBin)
-    { // reached bin size => store result
-      Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
-      fsum = 0;
-      magsum = 0;
-      magcnt = 0;
-      delaysum = 0;
-      delaycnt = 0;
-      goto next;
-    } else if (isnan(fstart))
-     next:
-      fstart = f;
-    fsum += f;
-    DEBUGLOG2(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
-    // magnitude
-    fftwf_complex sv(source[i]);
-    magsum += abs(sv);
-    ++magcnt;
-    // phase
-    double ph = arg(sv) / (-2*M_PI) - f * Delay; // for some reason there is a negative sign required
-    if (!isnan(lastph))
-    { // create minimum phase
-      double dphi = ph - lastph;
-      dphi -= floor(dphi + .5);
-      if (fabs(dphi) > .25)
-        ++IndeterminatePhase;
-      else
-      { delaysum += dphi / (f - lastf);
-        ++delaycnt;
-      }
-    }
-
-    lastf = f;
-    lastph = ph;
-  }
-  Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
-  DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
-}
-void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
-{ DEBUGLOG(("FFT2Data(%p)::StoreFFT(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
-  Target.ClearColumn(col);
-  Target.ClearColumn(col + 1);
-
-  double lastf = 0;
-  double lastph = NAN;
-
-  double fstart = NAN;
-  double fsum = 0;
-  double magsum = 0;
-  unsigned magcnt = 0;
-  double delaysum = 0;
-  unsigned delaycnt = 0;
-
-  for (unsigned i = 1; i < source.size(); ++i)
-  { const fftwf_complex& rv = ref[i];
-    if (!rv.real() && !rv.imag()) // if (rv == 0)
+  { fftwf_complex sv(source[i]);
+    double mag = abs(sv);
+    // Some frequencies might have no reference signal.
+    // In this case the quotient response/reference turns into INF or NAN.
+    // We ignore these frequencies.
+    if (isinf(mag) || isnan(mag))
       continue;
-
     double f = FInc * i;
     if (f > fstart * FBin)
     { // reached bin size => store result
-      Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
+      storer.Store(fsum / magcnt, magsum / magcnt * Scale, phsum / (lastf-delayfstart));
       fsum = 0;
       magsum = 0;
       magcnt = 0;
-      delaysum = 0;
-      delaycnt = 0;
+      phsum = 0;
+      delayfstart = lastf;
       goto next;
     } else if (isnan(fstart))
      next:
@@ -122,8 +69,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
     fsum += f;
     DEBUGLOG2(("FFT2Data::StoreFFT - %f, %u\n", fsum, magcnt));
     // magnitude
-    fftwf_complex sv(source[i] / rv);
-    magsum += abs(sv);
+    magsum += mag;
     ++magcnt;
     // phase
     double ph = arg(sv) / (-2*M_PI) - f * Delay; // for some reason there is a negative sign required
@@ -133,22 +79,18 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source, const FreqDo
       dphi -= floor(dphi + .5);
       if (fabs(dphi) > .25)
         ++IndeterminatePhase;
-      else
-      { delaysum += dphi / (f - lastf);
-        ++delaycnt;
-      }
-    }
-
+      phsum += dphi;
+      ++PhaseUnwrapCount;
+    } else
+      delayfstart = f;
     lastf = f;
     lastph = ph;
   }
-  Target.StoreValue(col, fsum / magcnt, magsum / magcnt * Scale, delaysum / delaycnt);
-  DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u\n", IndeterminatePhase));
+  storer.Store(fsum / magcnt, magsum / magcnt * Scale, phsum / (lastf-delayfstart));
+  DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u/%u\n", IndeterminatePhase, PhaseUnwrapCount));
 }
-
 void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
 { DEBUGLOG(("FFT2Data(%p)::StoreHDN(%u, {%u,%p}, {%u,%p})\n", this, col, source.size(), source.get(), ref.size(), ref.get()));
-  Target.ClearColumn(col);
 
   double fstart = NAN;
   double fsum = 0;
@@ -158,6 +100,8 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
   double rvsum = 0;
   double lastrv = NAN;
   unsigned rvcnt = 0;
+
+  DataFile::StoreIterator storer(Target, col, 1);
 
   for (unsigned i = 1; i < source.size(); ++i)
   { const fftwf_complex& rv = ref[i];
@@ -189,7 +133,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
         }
       }
 
-      Target.StoreValue(col, fsum / magcnt, magsum / magcnt / (rvsum / rvcnt));
+      storer.Store(fsum / magcnt, magsum / magcnt / (rvsum / rvcnt));
       if (last)
         return;
       fsum = 0;
@@ -206,7 +150,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
     magsum += abs(source[i]) * Scale;
     ++magcnt;
   }
-  Target.StoreValue(col, fsum / magcnt, magsum / magcnt);
+  storer.Store(fsum / magcnt, magsum / magcnt);
 }
 
 

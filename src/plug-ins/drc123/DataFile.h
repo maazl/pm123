@@ -99,8 +99,8 @@ class DataFile
   virtual bool  Save(const char* filename = NULL);
   bool          HasColumn(unsigned col) const;
   void          ClearColumn(unsigned col);
-  void          StoreValue(unsigned col, float key, float value);
-  void          StoreValue(unsigned col, float key, float value1, float value2);
+  //void          StoreValue(unsigned col, float key, float value);
+  //void          StoreValue(unsigned col, float key, float value1, float value2);
   //float         Interpolate(float f, unsigned col) const;
  public:
   /// @brief Input iterator over a linear interpolating function of a column of a \c DataFile instance.
@@ -129,6 +129,57 @@ class DataFile
     /// @return Function value at \a key.
     /// @pre key must be greater or equal to any value previously passed to \c Next.
     float       Next(float key);
+  };
+
+  /// @brief Output iterator to update column values in sorted order.
+  /// @remarks The iterator uses the forward only restriction to turn the interpolation operation
+  /// from O(n log(n)) into O(n).
+  class StoreIterator
+  { DataFile&   Target;
+    const unsigned Column;
+    const unsigned Discard;
+    float       Accuracy;
+    /// Points to the line in Target that has \e not yet been used to store a value so far.
+    unsigned    Current;
+   private:
+    /// Discard target columns of the current row.
+    /// @pre Discard > 0
+    /// @post Current points to the next row.
+    void        DiscardColumns();
+    /// @brief Ensure next row at \a key.
+    /// @details This either moves Current forward to match key or inserts
+    /// a new row if no matching row exists.
+    /// @return Existing or new row.
+    /// @post Current points to the returned row + 1.
+    DataRow&    RowAtKey(float key);
+   public:
+    /// @brief Create StoreIterator to update a column.
+    /// @param data DataFile to update. The rows in \a data must not be modified
+    /// by anything else but this class during iteration.
+    /// @param col First column to update in the DataFile.
+    /// @param discard If this in non-zero all values of columns [col,col+discard]
+    /// are overwritten not only those with keys passed to Store().
+    /// This is faster than calling DataFile::ClearColumn first.
+    /// @param accuracy If this parameter is non-zero (default) rows with keys that match
+    /// in the interval [key/(1+accuracy),key*(1+accuracy)] are reused rather than
+    /// inserting new rows.
+    StoreIterator(DataFile& data, unsigned col, unsigned discard = 0, float accuracy = 1E-4);
+    ~StoreIterator();
+    /// @brief Store a new value.
+    /// @param Key of the row.
+    /// @param value Value to store in the target column.
+    /// @pre \a key must be larger than any key passed to this iterator instance before.
+    /// @remarks The function overwrites existing values in the key interval
+    /// [key/(1+Accuracy),key*(1+Accuracy)] or creates a new row if there is no matching one.
+    void        Store(float key, float value)   { RowAtKey(key)[Column] = value; }
+    /// @brief Store two new values.
+    /// @param Key of the row.
+    /// @param value1 First value to store in the target column.
+    /// @param value2 Second value to store in the target column + 1.
+    /// @pre \a key must be larger than any key passed to this iterator instance before.
+    /// @remarks The function overwrites existing values in the key interval
+    /// [key/(1+Accuracy),key*(1+Accuracy)] or creates a new row if there is no matching one.
+    void        Store(float key, float value1, float value2);
   };
 };
 

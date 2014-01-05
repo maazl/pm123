@@ -31,6 +31,7 @@
 
 #include "OpenLoop.h"
 
+class Deconvolution;
 
 class Measure : public OpenLoop
 {public:
@@ -48,15 +49,17 @@ class Measure : public OpenLoop
     MeasureMode Mode;
     /// Channels to measure
     Channels    Chan;
+    /// Soundcard calibration file, NULL if none.
+    xstring     CalFile;
+    /// Microphone calibration file, NULL if none.
+    xstring     MicFile;
     /// Play the reference signal in differential mode,
     /// i.e. the right output has the inverse signal.
     bool        DiffOut;
     /// Use right line in channel as reference signal.
     bool        RefIn;
-    /// Soundcard calibration file, NULL if none.
-    xstring     CalFile;
-    /// Microphone calibration file, NULL if none.
-    xstring     MicFile;
+    /// Deconvolution of the reference to verify the result.
+    bool        VerifyMode;
   };
 
   enum Column
@@ -92,11 +95,14 @@ class Measure : public OpenLoop
   FreqDomainData CalibrationR2L;
   FreqDomainData CalibrationL2R;
 
+  sco_ptr<Deconvolution> VerifyFilter;
+
  protected:
                 Measure(const MeasureFile& params, FILTER_PARAMS2& filterparams);
  public:
   static Measure* Factory(FILTER_PARAMS2& filterparams);
   virtual       ~Measure();
+  virtual void  Update(const FILTER_PARAMS2& params);
  private:
   static  void  Inverse2x2(fftwf_complex& m11, fftwf_complex& m12, fftwf_complex& m21, fftwf_complex& m22);
  protected:

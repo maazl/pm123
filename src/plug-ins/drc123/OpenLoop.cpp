@@ -32,6 +32,7 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+#include <float.h>
 
 
 bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
@@ -45,7 +46,9 @@ bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
   else if (!!(value = TryParam(string, "RefExponent")))
     RefExponent = atof(value);
   else if (!!(value = TryParam(string, "RefSkipEven")))
-    RefSkipEven = atoi(value);
+    RefSkipEven = !!atoi(value);
+  else if (!!(value = TryParam(string, "RefSkipRand")))
+    RefSkipRand = !!atoi(value);
   else if (!!(value = TryParam(string, "RefMode")))
     RefMode = (Mode)atoi(value);
   else if (!!(value = TryParam(string, "RefVolume")))
@@ -53,13 +56,19 @@ bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
   else if (!!(value = TryParam(string, "RefFDist")))
     RefFDist = atof(value);
   else if (!!(value = TryParam(string, "AnaSwap")))
-    AnaSwap = atoi(value);
+    AnaSwap = !!atoi(value);
+  else if (!!(value = TryParam(string, "LineNotch")))
+    sscanf(value, "%u,%lf", &LineNotchHarmonics, &LineNotchFreq);
   else if (!!(value = TryParam(string, "DispGain")))
     sscanf(value, "%lf,%lf", &GainLow, &GainHigh);
   else if (!!(value = TryParam(string, "DispDelay")))
     sscanf(value, "%lf,%lf", &DelayLow, &DelayHigh);
   else if (!!(value = TryParam(string, "DispVU")))
     sscanf(value, "%lf,%lf,%lf", &VULow, &VUYellow, &VURed);
+  else if (!!(value = TryParam(string, "AverageDelay")))
+    AverageDelay = atof(value);
+  else if (!!(value = TryParam(string, "PhaseUnwrap")))
+    sscanf(value, "%u,%u", &PhaseUnwrapCount, &IndeterminatePhase);
   else
     return DataFile::ParseHeaderField(string);
   return true;
@@ -70,19 +79,31 @@ bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
     "##FFTSize=%u\n"
     "##DiscardSamp=%u\n"
     "##AnaSwap=%u\n"
+    "##LineNotch=%u,%f\n"
     "##RefFreq=%f,%f\n"
     "##RefExponent=%f\n"
     "##RefSkipEven=%u\n"
+    "##RefSkipRand=%u\n"
     "##RefMode=%u\n"
     "##RefVolume=%f\n"
     "##RefFDist=%f\n"
     "##DispGain=%f,%f\n"
     "##DispDelay=%f,%f\n"
     "##DispVU=%f,%f,%f\n"
-    , FFTSize, DiscardSamp, AnaSwap
-    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefMode, RefVolume, RefFDist
-    , GainLow, GainHigh, DelayLow, DelayHigh, VULow, VUYellow, VURed );
+    "##AverageDelay=%f\n"
+    "##PhaseUnwrap=%u,%u\n"
+    , FFTSize, DiscardSamp, AnaSwap, LineNotchHarmonics, LineNotchFreq
+    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefSkipRand, RefMode, RefVolume, RefFDist
+    , GainLow, GainHigh, DelayLow, DelayHigh, VULow, VUYellow, VURed
+    , AverageDelay, PhaseUnwrapCount, IndeterminatePhase );
   return DataFile::WriteHeaderFields(f);
+}
+
+bool OpenLoop::OpenLoopFile::Load(const char* filename, bool nodata)
+{ AverageDelay = 0.;
+  PhaseUnwrapCount = 0;
+  IndeterminatePhase = 0;
+  return DataFile::Load(filename, nodata);
 }
 
 
@@ -167,6 +188,9 @@ PROXYFUNCIMP(void TFNENTRY, OpenLoop)RefThreadStub(void* arg)
 
 void OpenLoop::RefThreadFunc()
 {
+  // By default there are by far too many FP exceptions
+  _control87( EM_INVALID  | EM_DENORMAL  | EM_ZERODIVIDE |
+              EM_OVERFLOW | EM_UNDERFLOW | EM_INEXACT, MCW_EM );
   // Generate reference signal
   GenerateRef();
   InitComplete = true;
@@ -205,7 +229,7 @@ void OpenLoop::OverrideTechInfo(const OUTPUT_PARAMS2*& target)
   { VParams = *target;
     VInfo = *VParams.Info;
     VTechInfo = *(const TECH_INFO*)VInfo.tech;
-    VTechInfo.channels = RefMode & 3 ? 2 : 1;
+    VTechInfo.channels = Params.RefMode & RFM_STEREO ? 2 : 1;
     VInfo.tech = &VTechInfo;
     VParams.Info = &VInfo;
     target = &VParams;
@@ -223,7 +247,7 @@ void OpenLoop::GenerateRef()
   const unsigned fdsize = Params.FFTSize / 2 + 1;
   RefDesign[0].reset(fdsize);
   RefDesign[0].Set0(); // all coefficients -> 0
-  if (RefMode & 3) // !MONO && ! DIFFERENTIAL
+  if (Params.RefMode & RFM_STEREO) // !MONO && ! DIFFERENTIAL
   { RefDesign[1].reset(fdsize);
     RefDesign[1].Set0(); // all coefficients -> 0
     RefData.reset(2 * Params.FFTSize);
@@ -238,42 +262,52 @@ void OpenLoop::GenerateRef()
     i_max = fdsize - 1;
 
   // generate coefficients
-  int channel = RefMode == RFM_RIGHT;
+  unsigned channel = Params.RefMode == RFM_RIGHT;
   double reflastf[2] = { 0., 0. }; // last frequency
+  int skipcount = 0;
+  double notchspacing = Params.LineNotchFreq / f_bin;
   for (size_t i = i_min; i <= i_max; ++i)
   { if ((i & 1) == 0 && Params.RefSkipEven)
       continue;
     double f = i * f_bin;
+    if (Params.LineNotchHarmonics && Params.LineNotchFreq)
+    { unsigned harmonic = (unsigned)(i / notchspacing + .5);
+      if (harmonic <= Params.LineNotchHarmonics && fabs(i - harmonic * notchspacing) <= .5)
+      { ++skipcount;
+        continue;
+    } }
+    if (Params.RefSkipRand && Params.RefMode == RFM_STEREO && f * Params.RefFDist >= f_bin && skipcount-- == 0)
+    { skipcount = 7 + rand() & 15;
+      continue;
+    }
     double& lastf = reflastf[channel];
     // skip frequency because it is too close to the last one.
     if (f < lastf * Params.RefFDist)
       continue;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
-    double mag = pow(i, Params.RefExponent)
-      * sqrt(lastf ? f - lastf : f_bin * ((RefMode == RFM_STEREO) + 1));
+    double mag = pow(f, Params.RefExponent)
+      * sqrt(lastf ? f - lastf : f_bin * ((Params.RefMode == RFM_STEREO) + 1));
     // apply random phase
     cur = std::polar(mag, i && i != Params.FFTSize/2 ? 2*M_PI * myrand() : 0.);
-    //fprintf(stderr, "f %i %i\n", i, (int)floor(i * f_log + f_inc));
-    //i = (int)floor(i * f_log + f_inc);
     // next frequency
     lastf = f;
-    channel ^= RefMode == RFM_STEREO;
+    channel ^= Params.RefMode == RFM_STEREO;
   }
 
   // iFFT
   { fftw_iodim iodim;
     iodim.n = Params.FFTSize;
     iodim.is = 1;
-    iodim.os = 1 + (RefMode != RFM_MONO); // interleaved stereo?
+    iodim.os = 1 + (Params.RefMode != RFM_MONO); // interleaved stereo?
     fftwf_plan plan = fftwf_plan_guru_dft_c2r(1, &iodim, 0, NULL, RefDesign[0].begin(), RefData.begin()+1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
     fftwf_execute_dft_c2r(plan, RefDesign[0].begin(), RefData.begin());
-    if (RefMode == RFM_DIFFERENTIAL)
+    if (Params.RefMode == RFM_DIFFERENTIAL)
       foreach (float,*, sp, RefData)
       { sp[1] = -sp[0];
         ++sp;
       }
-    else if (RefMode & 3)
+    else if (Params.RefMode & RFM_STEREO)
       fftwf_execute_dft_c2r(plan, RefDesign[1].begin(), RefData.begin() + 1);
     fftwf_destroy_plan(plan);
   }
@@ -291,9 +325,23 @@ void OpenLoop::GenerateRef()
   fnorm *= sqrt(Params.FFTSize);
   foreach (fftwf_complex,*, dp, RefDesign[0])
     *dp *= fnorm;
-  if (RefMode & 3)
+  if (Params.RefMode & RFM_STEREO)
     foreach (fftwf_complex,*, dp, RefDesign[1])
       *dp *= fnorm;
+
+  UncorrelatedFFTSize = Params.FFTSize >> Params.RefSkipEven >> (Params.RefMode == RFM_STEREO &&! Params.RefSkipRand);
+
+  /*{ const TimeDomainData* td = &CrossCorrelate(RefDesign[0], RefDesign[0]);
+    FILE* f = fopen("autocross.ch1","w");
+    foreach(const float,*, sp, *td)
+      fprintf(f, "%f\n", *sp);
+    fclose(f);
+    td = &CrossCorrelate(RefDesign[1], RefDesign[1]);
+    f = fopen("autocross.ch2","w");
+    foreach(const float,*, sp, *td)
+      fprintf(f, "%f\n", *sp);
+    fclose(f);
+  }*/
 }
 
 PROXYFUNCIMP(void TFNENTRY, OpenLoop)AnaThreadStub(void* arg)
@@ -302,6 +350,9 @@ PROXYFUNCIMP(void TFNENTRY, OpenLoop)AnaThreadStub(void* arg)
 
 void OpenLoop::AnaThreadFunc()
 { DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, +20, 0);
+  // By default there are by far too many FP exceptions
+  _control87( EM_INVALID  | EM_DENORMAL  | EM_ZERODIVIDE |
+              EM_OVERFLOW | EM_UNDERFLOW | EM_INEXACT, MCW_EM );
   InitAnalyzer();
   for(;;)
   { // wait for work
@@ -319,20 +370,29 @@ void OpenLoop::AnaThreadFunc()
 void OpenLoop::InitAnalyzer()
 {}
 
-double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& fd2, double& response)
-{
-  const fftwf_complex* sp1 = fd1.begin();
-  const fftwf_complex* sp2 = fd2.begin();
-  foreach(fftwf_complex,*, dp, AnaTemp)
-    *dp = *sp1++ * conj(*sp2++);
+TimeDomainData& OpenLoop::CrossCorrelate(const FreqDomainData& signal, const FreqDomainData& ref)
+{ ASSERT(signal.size() == ref.size());
+  { const fftwf_complex* sp1 = signal.begin();
+    const fftwf_complex* sp2 = ref.begin();
+    foreach(fftwf_complex,*, dp, AnaTemp)
+    { *dp = *sp1++ * conj(*sp2);
+      ++sp2;
+    }
+  }
   fftwf_execute(CrossPlan);
+  return ResCross;
+}
+
+int OpenLoop::ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response)
+{
+  CrossCorrelate(signal, ref);
 
   // Find maximum
   double max = 0;   // maximum cross correlation ...
   float value;
-  unsigned pos = 0; // ... at here
+  int pos = 0; // ... at here
   double ms = 0;
-  foreach(float,*, sp, ResCross)
+  foreach(const float,*, sp, ResCross)
   { double norm = *sp * *sp;
     ms += norm;
     if (norm > max)
@@ -343,11 +403,25 @@ double OpenLoop::ComputeDelay(const FreqDomainData& fd1, const FreqDomainData& f
   }
 
   response = value * fabs(value) / ms;
+  //pos %= UncorrelatedFFTSize;
+  /*/ Map (T/2, T) to (-T/2, 0)
+  if (pos > fd1.size() / 2)
+    pos -= fd1.size();*/
   DEBUGLOG(("OpenLoop::ComputeDelay: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
     value, pos, max / ms, (double)pos / Format.samplerate));
-  return (double)pos / Format.samplerate;
+  return pos;
 }
 
+int OpenLoop::AverageDelay(int delay1, int delay2)
+{
+  delay2 -= delay1;
+  delay2 %= UncorrelatedFFTSize;
+  // delay2 \elem [0,UncorrelatedFFTSize)
+  if (delay2 > (int)(UncorrelatedFFTSize / 2))
+    delay2 -= UncorrelatedFFTSize;
+  delay1 += delay2 / 2;
+  return delay1 % UncorrelatedFFTSize;
+}
 
 void OpenLoop::ProcessInput(SampleData& input)
 { DEBUGLOG(("OpenLoop(%p)::ProcessInput(.)\n", this));

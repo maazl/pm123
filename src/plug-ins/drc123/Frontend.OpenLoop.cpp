@@ -273,6 +273,8 @@ void Frontend::ExtPage::LoadControlValues(const OpenLoop::OpenLoopFile& data)
   }
   SetValue(GetCtrl(EF_DISCARD), (double)data.DiscardSamp / data.FFTSize, "%.1f");
   SetValue(GetCtrl(EF_FREQ_BIN), (data.AnaFBin - 1) * 100.);
+  SpinButton(+GetCtrl(SB_NOTCHORDER)).Value(data.LineNotchHarmonics);
+  SpinButton(+GetCtrl(SB_NOTCHFREQ)).Value((long)(data.LineNotchFreq + .5));
 
   SetValue(GetCtrl(EF_FREQ_LOW), data.RefFMin);
   SetValue(GetCtrl(EF_FREQ_HIGH), data.RefFMax);
@@ -288,6 +290,7 @@ void Frontend::ExtPage::LoadControlValues(const OpenLoop::OpenLoopFile& data)
   SetValue(GetCtrl(EF_REFFDIST), (data.RefFDist - 1) * 100.);
   // RB_xxx_N is synchronized by WM_CONTROL
   CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState(data.RefSkipEven);
+  CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState(data.RefSkipRand);
 }
 
 void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
@@ -307,6 +310,8 @@ void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
     data.DiscardSamp = (unsigned)(data.FFTSize * tmp +.5);
   if (GetValue(GetCtrl(EF_FREQ_BIN), tmp))
     data.AnaFBin = tmp / 100. + 1;
+  data.LineNotchHarmonics = SpinButton(+GetCtrl(SB_NOTCHORDER)).Value();
+  data.LineNotchFreq = SpinButton(+GetCtrl(SB_NOTCHFREQ)).Value();
 
   GetValue(GetCtrl(EF_FREQ_LOW), data.RefFMin);
   GetValue(GetCtrl(EF_FREQ_HIGH), data.RefFMax);
@@ -322,4 +327,5 @@ void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
   if (GetValue(GetCtrl(EF_REFFDIST), tmp))
     data.RefFDist = tmp / 100. + 1;
   data.RefSkipEven = CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState() & 1;
+  data.RefSkipRand = CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState() & 1;
 }

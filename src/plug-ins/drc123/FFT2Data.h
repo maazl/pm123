@@ -37,24 +37,33 @@
  */
 class FFT2Data
 {public: // parameters
+  /// DataFile where to store the results.
   DataFile& Target;
+  /// Width of the bins in the FFT data in the frequency domain.
+  /// In general samplerate / fftsize.
   double    FInc;
+  /// Size of the frequency bins in the FFT data. This is equal to the inverse FFT length in the time domain.
   double    FBin;
+  /// Multiply all values by Scale.
   double    Scale;
+  /// Use this linear phase delay in seconds for phase unwrapping.
   double    Delay;
  public: // results
+  /// Number of phase unwraps.
+  unsigned  PhaseUnwrapCount;
+  /// Number of times the phase unwrapping was ambiguous.
   unsigned  IndeterminatePhase;
  public:
   /// Create instance for a target.
-  /// @param target The \c DataFile where to store the result.
+  /// @param target The \c DataFile where to store the results.
   /// The DataFile might be initial. The required lines are created on demand.
   /// @param finc Width of the bins in the FFT data in the frequency domain.
   /// In general samplerate / fftsize.
   /// @param fbin Size of the frequency bins in the FFT data. This is equal to the inverse FFT length in the time domain.
-  /// @param scale Multiply all values by \a scale.
-  /// @param delay Use this linear phase delay in seconds for phase unwrapping.
-  FFT2Data(DataFile& target, double finc, double fbin, double scale = 1., double delay = 0.)
-  : Target(target), FInc(finc), FBin(fbin), Scale(scale), Delay(delay), IndeterminatePhase(0) {}
+  FFT2Data(DataFile& target, double finc, double fbin)
+  : Target(target), FInc(finc), FBin(fbin), Scale(0.), Delay(0.), PhaseUnwrapCount(0), IndeterminatePhase(0) {}
+
+  void ResetPhaseCount() { PhaseUnwrapCount = 0; IndeterminatePhase = 0; }
 
   /// Store the data in \a source to the target specified at construction.
   /// @param col Start column where the data is to be stored.
@@ -63,15 +72,6 @@ class FFT2Data
   /// @param source Frequency response to store.
   /// @pre target.Columns() > col + 1
   void StoreFFT(unsigned col, const FreqDomainData& source);
-  /// Store the data in \a source to the target specified at construction.
-  /// @param col Start column where the data is to be stored.
-  /// All together two columns are written. One at index \a col with magnitude
-  /// and one at \a col + 1 with group delay.
-  /// @param source Frequency response to store.
-  /// @param ref Reference signal.
-  /// Only bins where the magnitude of the reference is > 0 are used.
-  /// @pre target.Columns() > col + 1
-  void StoreFFT(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
   /// Store harmonic distortion and noise.
   /// @param col Column where the data is to be stored.
   /// @param source Frequency response to store.
