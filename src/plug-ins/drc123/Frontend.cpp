@@ -182,18 +182,48 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 
+void Frontend::FilePage::SetModified()
+{ if (Modified)
+    return;
+  Modified = true;
+  if (WinQueryWindowTextLength(+GetCtrl(EF_FILE)))
+    ControlBase(+GetCtrl(PB_SAVE)).Enabled(true);
+}
+
+void Frontend::FilePage::ClearModified()
+{ if (Modified)
+    return;
+  Modified = false;
+  ControlBase(+GetCtrl(PB_SAVE)).Enabled(false);
+}
+
 MRESULT Frontend::FilePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
-  {case WM_COMMAND:
+  {case WM_INITDLG:
+    // load initial file content
+    ControlBase(+GetCtrl(PB_SAVE)).Enabled(false);
+    PostMsg(WM_COMMAND, MPFROMSHORT(PB_RELOAD), MPFROM2SHORT(CMDSRC_OTHER, FALSE));
+    break;
+
+   case WM_COMMAND:
     switch (SHORT1FROMMP(mp1))
     {case PB_LOAD:
       if (LoadFile())
+      { ClearModified();
         LoadControlValues();
+      }
       break;
      case PB_SAVE:
       StoreControlValues();
-      SaveFile();
+      if (SaveFile())
+        ClearModified();
+      break;
+     case PB_RELOAD:
+      if (DoLoadFile(NULL))
+      { ClearModified();
+        LoadControlValues();
+      }
       break;
     }
     return 0;
@@ -201,8 +231,12 @@ MRESULT Frontend::FilePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
     {case EF_FILE:
-      if (SHORT2FROMMP(mp1) == EN_CHANGE)
+      if (SHORT2FROMMP(mp1) == EN_CHANGE && Modified)
         ControlBase(+GetCtrl(PB_SAVE)).Enabled(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
+      return 0;
+     case ML_DESCR:
+      if (SHORT2FROMMP(mp1) == MLN_CHANGE)
+        SetModified();
       return 0;
     }
     if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED && SHORT1FROMMP(mp1) == ControlBase(GetHwnd()).ID())
@@ -220,7 +254,7 @@ MRESULT Frontend::FilePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void Frontend::FilePage::LoadControlValues(const DataFile& data)
 {
-  bool have_filename = data.FileName && data.FileName.length();
+  bool have_filename = !!data.FileName.length();
   ControlBase(+GetCtrl(PB_SAVE)).Enabled(have_filename);
   ControlBase(+GetCtrl(EF_FILE)).Text(have_filename ? url123::normalizeURL(data.FileName).getShortName().cdata() : "");
   ControlBase(+GetCtrl(ML_DESCR)).Text(data.Description);
@@ -231,11 +265,14 @@ void Frontend::FilePage::StoreControlValues(DataFile& data)
   const xstring& file = ControlBase(+GetCtrl(EF_FILE)).Text();
   if (file.length())
     data.FileName = xstring(Filter::WorkDir) + file;
+  else
+    data.FileName = xstring::empty;
 }
 
-LONG Frontend::FilePage::DoLoadFile(FILEDLG& fdlg)
+LONG Frontend::FilePage::DoLoadFileDlg(FILEDLG& fdlg)
 { (*Ctx.plugin_api->file_dlg)(HWND_DESKTOP, GetHwnd(), &fdlg);
-  return fdlg.lReturn;
+  return fdlg.lReturn == DID_OK && !DoLoadFile(fdlg.szFullFile)
+    ? 0 : fdlg.lReturn;
 }
 
 bool Frontend::FilePage::LoadFile()
@@ -244,7 +281,7 @@ bool Frontend::FilePage::LoadFile()
   fdlg.fl = FDS_OPEN_DIALOG|FDS_CENTER|FDS_FILTERUNION;
   fdlg.ulUser = FDU_FILE_ONLY;
   strncpy(fdlg.szFullFile, xstring(Filter::WorkDir), sizeof fdlg.szFullFile);
-  switch (DoLoadFile(fdlg))
+  switch (DoLoadFileDlg(fdlg))
   {case DID_OK:
     return true;
    default:
@@ -255,15 +292,16 @@ bool Frontend::FilePage::LoadFile()
   }
 }
 
-void Frontend::FilePage::SaveFile()
+bool Frontend::FilePage::SaveFile()
 {
   const xstring& err = DoSaveFile();
   if (!err)
-    return;
+    return true;
   // failed
   xstringbuilder sb;
   sb.append(err);
   sb.append('\n');
   sb.append(strerror(errno));
   WinMessageBox(HWND_DESKTOP, GetHwnd(), sb, "Failed to save file", 0, MB_OK|MB_ERROR|MB_MOVEABLE);
+  return false;
 }

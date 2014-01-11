@@ -122,7 +122,7 @@ void Frontend::GeneratePage::StoreControlValues()
 
   FilePage::StoreControlValues(*data);
 
-  if (data->FileName)
+  if (data->FileName.length())
     data->FileName = data->FileName + ".target";
 
   xstringbuilder path(_MAX_PATH);
@@ -146,27 +146,25 @@ void Frontend::GeneratePage::StoreControlValues()
 }
 
 
-LONG Frontend::GeneratePage::DoLoadFile(FILEDLG& fdlg)
+LONG Frontend::GeneratePage::DoLoadFileDlg(FILEDLG& fdlg)
 {
   fdlg.pszTitle = "Load DRC123 target file";
   // PM crashes if type is not writable
   char type[_MAX_PATH] = "DRC123 Target File (*.target)";
   fdlg.pszIType = type;
-  LONG ret = FilePage::DoLoadFile(fdlg);
+  LONG ret = FilePage::DoLoadFileDlg(fdlg);
   if (ret == DID_OK)
-  { { SyncAccess<Generate::TargetFile> data(Generate::GetData());
-      if (!data->Load(fdlg.szFullFile))
-        return 0;
-      LoadControlValues(*data);
-    }
     SetupGraph();
-  }
   return ret;
 }
 
+bool Frontend::GeneratePage::DoLoadFile(const char* filename)
+{ SyncAccess<Generate::TargetFile> data(Generate::GetData());
+  return data->Load(filename);
+}
+
 xstring Frontend::GeneratePage::DoSaveFile()
-{
-  SyncAccess<Generate::TargetFile> data(Generate::GetData());
+{ SyncAccess<Generate::TargetFile> data(Generate::GetData());
   if (data->Save(data->FileName))
     return xstring();
   return data->FileName;
@@ -193,7 +191,7 @@ void Frontend::GeneratePage::UpdateDir()
   { SyncAccess<Generate::TargetFile> data(Generate::GetData());
     unsigned pos;
     foreach (const Measure::MeasureFile,*const*, sp, data->Measurements)
-      if (files.locate((*sp)->FileName, pos))
+      if (files.locate(sfnameext2((*sp)->FileName), pos))
         lb.Select(pos);
   }
 
@@ -207,16 +205,23 @@ void Frontend::GeneratePage::UpdateDescr()
 { ListBox lb(GetCtrl(LB_KERNEL));
   xstringbuilder sb;
   int selected = LIT_FIRST;
+  unsigned index;
   while ((selected = lb.NextSelection(selected)) != LIT_NONE)
   { xstring file(Filter::WorkDir);
     file = file + lb.ItemText(selected);
     DataFile data;
     if (data.Load(file, true))
-      sb.append(data.Description);
-    else
+    { ++index;
+      if (data.Description.length())
+      { if (sb.length() && sb[sb.length()-1] != '\n')
+          sb.append('\n');
+        sb.appendf("%u: ", index);
+        sb.append(data.Description);
+      }
+    } else
       sb.append(strerror(errno));
   }
-  ControlBase(+GetCtrl(ST_DESCR)).Text(sb.length() ? sb.cdata() : "\33 select measurements");
+  ControlBase(+GetCtrl(ST_DESCR)).Text(!index ? "\33 select measurements" : sb.length() ? sb.cdata() : "no description");
 }
 
 void Frontend::GeneratePage::InvalidateGraph()
@@ -311,7 +316,6 @@ void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, ResponseGra
   }
 }
 
-
 void Frontend::GeneratePage::Run()
 { // prepare generator
   sco_ptr<Generate> generator;
@@ -345,6 +349,7 @@ void Frontend::GeneratePage::Run()
     data->swap(generator->LocalData);
   }
   // and update graphs
+  SetModified();
   SetupGraph();
 }
 

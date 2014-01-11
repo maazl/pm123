@@ -151,6 +151,8 @@ static void load_config()
   { do_load_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
     Generate::TargetFile& generate = *pdata;
+    load_prf_value(generate.FileName);
+    load_prf_value(generate.Description);
     load_prf_value(generate.Measurements);
     load_prf_value(generate.FreqLow);
     load_prf_value(generate.FreqHigh);
@@ -172,6 +174,8 @@ static void load_config()
   }
   { SyncAccess<Measure::MeasureFile> pdata(Measure::GetData());
     Measure::MeasureFile& measure = *pdata;
+    load_prf_value(measure.FileName);
+    load_prf_value(measure.Description);
     load_prf_value(measure.FFTSize);
     load_prf_value(measure.DiscardSamp);
     load_prf_value(measure.RefFMin);
@@ -202,6 +206,8 @@ static void load_config()
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;
+    load_prf_value(calibrate.FileName);
+    load_prf_value(calibrate.Description);
     load_prf_value(calibrate.FFTSize);
     load_prf_value(calibrate.DiscardSamp);
     load_prf_value(calibrate.RefFMin);
@@ -245,6 +251,8 @@ void save_config()
   { do_save_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
     Generate::TargetFile& generate = *pdata;
+    save_prf_value(generate.FileName);
+    save_prf_value(generate.Description);
     save_prf_value(generate.Measurements);
     save_prf_value(generate.FreqLow);
     save_prf_value(generate.FreqHigh);
@@ -266,6 +274,8 @@ void save_config()
   }
   { SyncAccess<Measure::MeasureFile> pdata(Measure::GetData());
     Measure::MeasureFile& measure = *pdata;
+    save_prf_value(measure.FileName);
+    save_prf_value(measure.Description);
     save_prf_value(measure.FFTSize);
     save_prf_value(measure.DiscardSamp);
     save_prf_value(measure.RefFMin);
@@ -296,6 +306,8 @@ void save_config()
   }
   { SyncAccess<Calibrate::CalibrationFile> pdata(Calibrate::GetData());
     Calibrate::CalibrationFile& calibrate = *pdata;
+    save_prf_value(calibrate.FileName);
+    save_prf_value(calibrate.Description);
     save_prf_value(calibrate.FFTSize);
     save_prf_value(calibrate.DiscardSamp);
     save_prf_value(calibrate.RefFMin);

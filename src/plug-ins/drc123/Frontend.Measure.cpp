@@ -29,6 +29,7 @@
 #define  INCL_PM
 #define  INCL_BASE
 #define  INCL_GPI
+#define DEBUG_LOG 2
 
 #include "Frontend.h"
 #include "Measure.h"
@@ -36,7 +37,6 @@
 #include <fileutil.h>
 #include <cpp/url123.h>
 #include <cpp/directory.h>
-
 
 Frontend::MeasurePage::MeasurePage(Frontend& parent)
 : OpenLoopPage(parent, DLG_MEASURE, Measure::VTable)
@@ -53,7 +53,7 @@ Frontend::MeasurePage::~MeasurePage()
 {}
 
 MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
+{ DEBUGLOG2(("Frontend::MeasurePage(%p)::DlgProc(%x, %p, %p)\n", this, msg, mp1, mp2));
   switch (msg)
   {case WM_INITDLG:
     Response.Attach(GetCtrl(CC_RESULT));
@@ -69,26 +69,29 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case CB_MIC_FILE:
       if (SHORT2FROMMP(mp1) == CBN_ENTER)
         PostMsg(UM_UPDATEFILE, mp2, MPFROMSHORT(SHORT1FROMMP(mp1) + 1));
-      break;
-     case RB_CH_BOTH:
+      return 0;
+     case RB_STEREO:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
-        ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(false);
-      break;
-     case RB_CH_LEFT:
-     case RB_CH_RIGHT:
-      if (SHORT2FROMMP(mp1) == BN_CLICKED)
-        ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(true);
-      break;
-    }
-    break;
-
-   case WM_COMMAND:
-    switch (SHORT1FROMMP(mp1))
-    {case PB_START:
-      { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-        data->Mode = (Measure::MeasureMode)(RadioButton(+GetCtrl(RB_STEREO_LOOP)).CheckID() - RB_STEREO_LOOP);
+      { ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(false);
+        goto modi;
       }
-      break;
+      return 0;
+     case RB_LEFT:
+     case RB_RIGHT:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+      { ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(true);
+        goto modi;
+      }
+      return 0;
+     case RB_NOISE:
+     case RB_SWEEP:
+     case CB_DIFFOUT:
+     case CB_REFIN:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+      {modi:
+        SetModified();
+      }
+      return 0;
     }
     break;
 
@@ -105,7 +108,8 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case UM_UPDATEFILE:
-    { const xstring& file = UpdateFile(HWNDFROMMP(mp1), GetCtrl(SHORT1FROMMP(mp2)));
+    { SetModified();
+      const xstring& file = UpdateFile(HWNDFROMMP(mp1), GetCtrl(SHORT1FROMMP(mp2)));
       SyncAccess<Measure::MeasureFile> data(Measure::GetData());
       switch (SHORT1FROMMP(mp2))
       {case ST_CAL_DESC:
@@ -123,7 +127,7 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 void Frontend::MeasurePage::LoadControlValues(const Measure::MeasureFile& data)
 {
   RadioButton(+GetCtrl(RB_NOISE + data.Mode)).CheckState(true);
-  RadioButton(+GetCtrl(RB_CH_BOTH + data.Chan)).CheckState(true);
+  RadioButton(+GetCtrl(RB_STEREO + data.Chan)).CheckState(true);
   CheckBox diffout(+GetCtrl(CB_DIFFOUT));
   diffout.CheckState(data.DiffOut);
   diffout.Enabled(data.Chan != Measure::CH_Both);
@@ -146,14 +150,14 @@ void Frontend::MeasurePage::LoadControlValues()
 void Frontend::MeasurePage::StoreControlValues(Measure::MeasureFile& data)
 {
   data.Mode = (Measure::MeasureMode)(RadioButton(+GetCtrl(RB_NOISE)).CheckID() - RB_NOISE);
-  data.Chan = (Measure::Channels)(RadioButton(+GetCtrl(RB_CH_BOTH)).CheckID() - RB_CH_BOTH);
+  data.Chan = (Measure::Channels)(RadioButton(+GetCtrl(RB_STEREO)).CheckID() - RB_STEREO);
   data.DiffOut = (bool)CheckBox(+GetCtrl(CB_DIFFOUT)).CheckState();
 
   data.RefIn = (bool)CheckBox(+GetCtrl(CB_REFIN)).CheckState();
 
   OpenLoopPage::StoreControlValues(data);
 
-  if (data.FileName)
+  if (data.FileName.length())
     data.FileName = data.FileName + ".measure";
 }
 void Frontend::MeasurePage::StoreControlValues()
@@ -165,8 +169,8 @@ void Frontend::MeasurePage::SetRunning(bool running)
 {
   RadioButton(+GetCtrl(RB_NOISE)).EnableAll(!running);
   RadioButton(+GetCtrl(RB_WHITE_N)).EnableAll(!running);
-  RadioButton(+GetCtrl(RB_CH_BOTH)).EnableAll(!running);
-  ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_CH_BOTH)).CheckState());
+  RadioButton(+GetCtrl(RB_STEREO)).EnableAll(!running);
+  ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_STEREO)).CheckState());
 
   ControlBase(+GetCtrl(CB_CAL_FILE)).Enabled(!running);
   ControlBase(+GetCtrl(CB_MIC_FILE)).Enabled(!running);
@@ -238,32 +242,25 @@ xstring Frontend::MeasurePage::UpdateFile(ComboBox lb, ControlBase desc)
   return file;
 }
 
-LONG Frontend::MeasurePage::DoLoadFile(FILEDLG& fdlg)
-{
-  fdlg.pszTitle = "Load DRC123 measurement file";
+LONG Frontend::MeasurePage::DoLoadFileDlg(FILEDLG& fdlg)
+{ fdlg.pszTitle = "Load DRC123 measurement file";
   // PM crashes if type is not writable
   char type[_MAX_PATH] = "DRC123 Measurement File (*.measure)";
   fdlg.pszIType = type;
-  LONG ret = OpenLoopPage::DoLoadFile(fdlg);
-  if (ret == DID_OK)
-  { { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-      if (!data->Load(fdlg.szFullFile))
-        return 0;
-      LoadControlValues(*data);
-    }
-    InvalidateGraph();
-  }
-  return ret;
+  return OpenLoopPage::DoLoadFileDlg(fdlg);
+}
+
+bool Frontend::MeasurePage::DoLoadFile(const char* filename)
+{ SyncAccess<Measure::MeasureFile> data(Measure::GetData());
+  return data->Load(filename);
 }
 
 xstring Frontend::MeasurePage::DoSaveFile()
-{
-  SyncAccess<Measure::MeasureFile> data(Measure::GetData());
+{ SyncAccess<Measure::MeasureFile> data(Measure::GetData());
   if (data->Save(data->FileName))
     return xstring();
   return data->FileName;
 }
-
 
 void Frontend::MeasureExtPage::LoadControlValues(const Measure::MeasureFile& data)
 {

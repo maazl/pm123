@@ -44,10 +44,10 @@ Measure::MeasureFile::MeasureFile()
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFDist = 1.00;
+  RefFDist = 20E-6;
   LineNotchHarmonics = 3;
   LineNotchFreq = 50.;
-  AnaFBin = 1.01;
+  AnaFBin = .002;
   AnaSwap = false;
 
   Mode = MD_Noise;
@@ -320,7 +320,7 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
   // update results
   { SyncAccess<MeasureFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin);
+    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin + 1);
     f2d.Scale = scale;
     f2d.Delay = (double)delay / Format.samplerate;
 

@@ -82,13 +82,13 @@ class OpenLoop : public Filter
     Mode        RefMode;
     /// Reference playback volume
     double      RefVolume;
-    /// Minimum Factor between neighbor frequencies in the reference signal.
+    /// Minimum increment factor between neighbor frequencies in the reference signal.
     double      RefFDist;
     /// Number of harmonics for the line frequency notch. 0 = off, 1 = line Frequency only.
     unsigned    LineNotchHarmonics;
     /// Notch filter for line frequency.
     double      LineNotchFreq;
-    /// Factor to aggregate adjacent frequencies in the interval [f..f*FBin].
+    /// Increment factor to aggregate adjacent frequencies in the interval [f..f+f*FBin].
     double      AnaFBin;
     /// Swap channels on input processing.
     bool        AnaSwap;

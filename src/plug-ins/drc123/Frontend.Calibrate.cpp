@@ -29,6 +29,7 @@
 #define  INCL_PM
 #define  INCL_BASE
 #define  INCL_GPI
+#define DEBUG_LOG 2
 
 #include "Frontend.h"
 #include "Calibrate.h"
@@ -67,7 +68,7 @@ Frontend::CalibratePage::~CalibratePage()
 {}
 
 MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
+{ DEBUGLOG2(("Frontend::CalibratePage(%p)::DlgProc(%x, %p, %p)\n", this, msg, mp1, mp2));
   switch (msg)
   {case WM_INITDLG:
     Response.Attach(GetCtrl(CC_RESULT));
@@ -81,18 +82,13 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
-    {case RB_CH_BOTH:
-      if (SHORT2FROMMP(mp1) == BN_CLICKED && RadioButton(HWNDFROMMP(mp2)).CheckState())
-      { CheckBox diffout(+GetCtrl(CB_DIFFOUT));
-        diffout.CheckState(false);
-        diffout.Enabled(false);
-      }
-      break;
-     case RB_CH_LEFT:
-     case RB_CH_RIGHT:
-      if (SHORT2FROMMP(mp1) == BN_CLICKED && !RadioButton(GetCtrl(RB_CH_BOTH)).CheckState())
-        CheckBox(+GetCtrl(CB_DIFFOUT)).Enabled(true);
-      break;
+    {case RB_STEREO:
+     case RB_LEFT:
+     case RB_RIGHT:
+     case RB_DIFF:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+        SetModified();
+      return 0;
     }
     break;
   }
@@ -102,7 +98,7 @@ MRESULT Frontend::CalibratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void Frontend::CalibratePage::LoadControlValues(const Calibrate::CalibrationFile& data)
 {
-  RadioButton(+GetCtrl(RB_STEREO_LOOP + data.Mode)).CheckState(true);
+  RadioButton(+GetCtrl(RB_STEREO + data.Mode)).CheckState(true);
 
   OpenLoopPage::LoadControlValues(data);
 
@@ -118,11 +114,11 @@ void Frontend::CalibratePage::LoadControlValues()
 
 void Frontend::CalibratePage::StoreControlValues(Calibrate::CalibrationFile& data)
 {
-  data.Mode = (Calibrate::MeasureMode)(RadioButton(+GetCtrl(RB_STEREO_LOOP)).CheckID() - RB_STEREO_LOOP);
+  data.Mode = (Calibrate::MeasureMode)(RadioButton(+GetCtrl(RB_STEREO)).CheckID() - RB_STEREO);
 
   OpenLoopPage::StoreControlValues(data);
 
-  if (data.FileName)
+  if (data.FileName.length())
     data.FileName = data.FileName + ".calibrate";
 }
 void Frontend::CalibratePage::StoreControlValues()
@@ -132,7 +128,7 @@ void Frontend::CalibratePage::StoreControlValues()
 
 void Frontend::CalibratePage::SetRunning(bool running)
 {
-  RadioButton(+GetCtrl(RB_STEREO_LOOP)).EnableAll(!running);
+  RadioButton(+GetCtrl(RB_STEREO)).EnableAll(!running);
   OpenLoopPage::SetRunning(running);
 }
 
@@ -144,22 +140,17 @@ void Frontend::CalibratePage::InvalidateGraph()
     1E3 * data->AverageDelay, 2E6 * data->IndeterminatePhase / data->PhaseUnwrapCount ));
 }
 
-LONG Frontend::CalibratePage::DoLoadFile(FILEDLG& fdlg)
-{
-  fdlg.pszTitle = "Load DRC123 calibration file";
+LONG Frontend::CalibratePage::DoLoadFileDlg(FILEDLG& fdlg)
+{ fdlg.pszTitle = "Load DRC123 calibration file";
   // PM crashes if type is not writable
   char type[_MAX_PATH] = "DRC123 Calibration File (*.calibrate)";
   fdlg.pszIType = type;
-  LONG ret = OpenLoopPage::DoLoadFile(fdlg);
-  if (ret == DID_OK)
-  { { SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
-      if (!data->Load(fdlg.szFullFile))
-        return false;
-      LoadControlValues(*data);
-    }
-  }
-  InvalidateGraph();
-  return ret;
+  return OpenLoopPage::DoLoadFileDlg(fdlg);
+}
+
+bool Frontend::CalibratePage::DoLoadFile(const char* filename)
+{ SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
+  return data->Load(filename);
 }
 
 xstring Frontend::CalibratePage::DoSaveFile()
@@ -168,7 +159,6 @@ xstring Frontend::CalibratePage::DoSaveFile()
     return xstring();
   return data->FileName;
 }
-
 
 /*MRESULT Frontend::CalibrateExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {

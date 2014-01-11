@@ -78,7 +78,9 @@ bool DataFile::WriteHeaderFields(FILE* f)
 }
 
 DataFile::DataFile(unsigned cols)
-: MaxColumns(cols)
+: FileName(xstring::empty)
+, Description(xstring::empty)
+, MaxColumns(cols)
 {}
 DataFile::DataFile(const DataFile& r)
 : FileName(r.FileName)
@@ -91,7 +93,7 @@ DataFile::~DataFile()
 
 void DataFile::reset(unsigned cols)
 { base::clear();
-  Description.reset();
+  Description = xstring::empty;
   MaxColumns = cols;
 }
 
@@ -108,11 +110,15 @@ void DataFile::swap(DataFile& r)
 }
 
 bool DataFile::Load(const char* filename, bool nodata)
-{ DEBUGLOG(("DataFile(%p)::Load(%s, %u)\n", this, filename, nodata));
+{ DEBUGLOG(("DataFile(%p{%s})::Load(%s, %u)\n", this, FileName.cdata(), filename, nodata));
   clear();
   if (filename == NULL)
+  { if (!FileName.length())
+    { errno = EINVAL;
+      return false;
+    }
     filename = FileName;
-
+  }
   FILE* f = fopen(filename, "r");
   if (!f)
     return false;

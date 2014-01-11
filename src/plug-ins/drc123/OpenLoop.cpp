@@ -276,13 +276,13 @@ void OpenLoop::GenerateRef()
       { ++skipcount;
         continue;
     } }
-    if (Params.RefSkipRand && Params.RefMode == RFM_STEREO && f * Params.RefFDist >= f_bin && skipcount-- == 0)
+    if (Params.RefSkipRand && Params.RefMode == RFM_STEREO && f + f * Params.RefFDist >= f_bin && skipcount-- == 0)
     { skipcount = 7 + rand() & 15;
       continue;
     }
     double& lastf = reflastf[channel];
     // skip frequency because it is too close to the last one.
-    if (f < lastf * Params.RefFDist)
+    if (f < lastf + lastf * Params.RefFDist)
       continue;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];

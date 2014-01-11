@@ -100,8 +100,19 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         } else
           Params.TargetFile = xstring::empty;
         PostMsg(UM_UPDATEKERNEL, 0, 0);
+        SetModified(true);
       }
       break;
+     case CB_FIRORDER:
+      if (SHORT2FROMMP(mp1) == CBN_ENTER)
+        SetModified(true);
+      break;
+     case RB_WIN_NONE:
+     case RB_WIN_DIMMED_HAMMING:
+     case RB_WIN_HAMMING:
+       if (SHORT2FROMMP(mp1) == BN_CLICKED)
+         SetModified(true);
+       break;
      case RB_VIEWTARGET:
      case RB_VIEWGAIN:
      case RB_VIEWDELAY:
@@ -111,6 +122,13 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PostMsg(UM_SETUPGRAPH, 0,0);
       }
       break;
+     case CB_ENABLE:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+      { Deconvolution::Parameters params;
+        Deconvolution::GetParameters(params);
+        params.Enabled = !!CheckBox(+GetCtrl(CB_ENABLE)).CheckState();
+        Deconvolution::SetParameters(params);
+      }
     }
     return 0;
 
@@ -118,15 +136,17 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case PB_DEFAULT:
       Deconvolution::GetDefaultParameters(Params);
+      SetModified(true);
       goto load;
 
      case PB_UNDO:
       // Load GUI from current configuration
       Deconvolution::GetParameters(Params);
+      CheckBox(+GetCtrl(CB_ENABLE)).CheckState(Params.Enabled);
+      SetModified(false);
      load:
       { // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
-        CheckBox(+GetCtrl(CB_ENABLE)).CheckState(Params.Enabled);
         RadioButton(+GetCtrl(RB_WIN_NONE + Params.WindowFunction)).CheckState(true);
         int selected; // default
         switch (Params.FIROrder)
@@ -149,7 +169,6 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case PB_APPLY:
       { // Update configuration from GUI
-        Params.Enabled = !!CheckBox(+GetCtrl(CB_ENABLE)).CheckState();
         Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
         switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
         {case 0: // 16384
@@ -178,6 +197,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
         Deconvolution::SetParameters(Params);
+        SetModified(false);
       }
       break;
 
@@ -202,6 +222,12 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+void Frontend::DeconvolutionPage::SetModified(bool modi)
+{
+  ControlBase(+GetCtrl(PB_APPLY)).Enabled(modi);
+  ControlBase(+GetCtrl(PB_UNDO)).Enabled(modi);
 }
 
 void Frontend::DeconvolutionPage::UpdateDir()
@@ -267,7 +293,7 @@ void Frontend::DeconvolutionPage::SetupGraph()
     Result.AddGraph("< L gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLUE);
     Result.AddGraph("< R gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_RED);
     Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_Y2, CLR_PINK);
+    Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
     break;
    case DVM_GainResult:
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, NAN,NAN);
@@ -282,7 +308,7 @@ void Frontend::DeconvolutionPage::SetupGraph()
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -.2,.2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
     Result.AddGraph("L delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_RDelay, ResponseGraph::GF_None, CLR_RED);
     Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_GREEN);
     Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_PINK);
     Deconvolution::ForceKernelChange();
@@ -314,7 +340,7 @@ void Frontend::DeconvolutionPage::UpdateGraph()
     Result.ClearGraphs();
     CurrentRawKernelData = RawKernelData;
     Result.AddGraph("L delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_RDelay, ResponseGraph::GF_None, CLR_RED);
     Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_GREEN);
     Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_PINK);
     break;

@@ -67,9 +67,10 @@ class DataFile
 {protected:
   typedef sorted_vector_own<DataRow,float,&DataRow::FrequencyComparer> base;
  public:
-  /// File name of the data, optional, updated by \c Load and \c Save.
+  /// File name of the data, optional, never \c NULL.
+  /// Updated by \c Load and \c Save.
   xstring       FileName;
-  /// Description of the file, optional.
+  /// Description of the file, optional, never \c NULL.
   xstring       Description;
  private:
   unsigned      MaxColumns;

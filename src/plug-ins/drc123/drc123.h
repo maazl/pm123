@@ -109,6 +109,10 @@
 #define PB_TEST         1304
 #define BX_TEST         1305
 #define SB_VOLUME       1308
+#define RB_STEREO       1310
+#define RB_LEFT         1311
+#define RB_RIGHT        1312
+#define RB_DIFF         1314
 
 // Open loop extended settings
 #define EF_FREQ_LOW     1350
@@ -139,9 +143,6 @@
 // Measure
 #define RB_NOISE        1400
 #define RB_SWEEP        1401
-#define RB_CH_BOTH      1410
-#define RB_CH_LEFT      1411
-#define RB_CH_RIGHT     1412
 #define CB_DIFFOUT      1415
 #define CB_REFIN        1420
 
@@ -151,10 +152,6 @@
 #define ST_MIC_DESC     1433
 
 // Calibrate
-#define RB_STEREO_LOOP  1500
-#define RB_LEFT_LOOP    1501
-#define RB_RIGHT_LOOP   1502
-#define RB_BOTH_LOOP    1503
 
 
 void save_config();

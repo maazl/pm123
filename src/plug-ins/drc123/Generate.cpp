@@ -115,7 +115,7 @@ void Generate::TargetFile::swap(TargetFile& r)
 }
 
 bool Generate::TargetFile::ParseHeaderField(const char* string)
-{const char* value;
+{ const char* value;
   if (!!(value = TryParam(string, "Measurement")))
   { Measure::MeasureFile* file = new Measure::MeasureFile();
     file->FileName = value;

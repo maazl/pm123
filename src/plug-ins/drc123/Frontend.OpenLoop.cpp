@@ -87,11 +87,6 @@ MRESULT Frontend::OpenLoopPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PostMsg(UM_VOLUME, 0,0);
       }
       return 0;
-
-     case EF_FILE:
-      if (SHORT2FROMMP(mp1) == EN_CHANGE)
-        ControlBase(+GetCtrl(PB_SAVE)).Enabled(WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0);
-      return 0;
     }
     break;
 
@@ -112,6 +107,7 @@ MRESULT Frontend::OpenLoopPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     if (UpdateRq)
     { UpdateRq = false;
       InvalidateGraph();
+      SetModified();
     }
     return 0;
 
@@ -122,6 +118,7 @@ MRESULT Frontend::OpenLoopPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       (*Worker.SetVolume)(volume);
       (*Worker.Clear)();
       InvalidateGraph();
+      SetModified();
     }
     return 0;
   }
@@ -157,6 +154,14 @@ void Frontend::OpenLoopPage::SetRunning(bool running)
     VULeft.Detach();
     VURight.Detach();
   }
+}
+
+LONG Frontend::OpenLoopPage::DoLoadFileDlg(FILEDLG& fdlg)
+{
+  LONG ret = FilePage::DoLoadFileDlg(fdlg);
+  if (ret == DID_OK)
+    InvalidateGraph();
+  return ret;
 }
 
 bool Frontend::OpenLoopPage::LoadFile()
@@ -272,7 +277,7 @@ void Frontend::ExtPage::LoadControlValues(const OpenLoop::OpenLoopFile& data)
     cbfftsize.Select(select);
   }
   SetValue(GetCtrl(EF_DISCARD), (double)data.DiscardSamp / data.FFTSize, "%.1f");
-  SetValue(GetCtrl(EF_FREQ_BIN), (data.AnaFBin - 1) * 100.);
+  SetValue(GetCtrl(EF_FREQ_BIN), data.AnaFBin * 100.);
   SpinButton(+GetCtrl(SB_NOTCHORDER)).Value(data.LineNotchHarmonics);
   SpinButton(+GetCtrl(SB_NOTCHFREQ)).Value((long)(data.LineNotchFreq + .5));
 
@@ -287,7 +292,7 @@ void Frontend::ExtPage::LoadControlValues(const OpenLoop::OpenLoopFile& data)
   SetValue(GetCtrl(EF_VU_RED), data.VURed);
 
   SetValue(GetCtrl(EF_REFEXPONENT), data.RefExponent);
-  SetValue(GetCtrl(EF_REFFDIST), (data.RefFDist - 1) * 100.);
+  SetValue(GetCtrl(EF_REFFDIST), data.RefFDist * 1E6);
   // RB_xxx_N is synchronized by WM_CONTROL
   CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState(data.RefSkipEven);
   CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState(data.RefSkipRand);
@@ -309,7 +314,7 @@ void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
   if (GetValue(GetCtrl(EF_DISCARD), tmp))
     data.DiscardSamp = (unsigned)(data.FFTSize * tmp +.5);
   if (GetValue(GetCtrl(EF_FREQ_BIN), tmp))
-    data.AnaFBin = tmp / 100. + 1;
+    data.AnaFBin = tmp / 100.;
   data.LineNotchHarmonics = SpinButton(+GetCtrl(SB_NOTCHORDER)).Value();
   data.LineNotchFreq = SpinButton(+GetCtrl(SB_NOTCHFREQ)).Value();
 
@@ -325,7 +330,7 @@ void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
 
   GetValue(GetCtrl(EF_REFEXPONENT), data.RefExponent);
   if (GetValue(GetCtrl(EF_REFFDIST), tmp))
-    data.RefFDist = tmp / 100. + 1;
+    data.RefFDist = tmp / 1E6;
   data.RefSkipEven = CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState() & 1;
   data.RefSkipRand = CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState() & 1;
 }

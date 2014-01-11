@@ -43,10 +43,10 @@ Calibrate::CalibrationFile::CalibrationFile()
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFDist = 1.;
+  RefFDist = 0.;
   LineNotchHarmonics = 0;
   LineNotchFreq = 50.;
-  AnaFBin = 1.02;
+  AnaFBin = .01;
   AnaSwap = false;
 
   Mode = MD_StereoLoop;
@@ -121,7 +121,7 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
   // Update results file
   { SyncAccess<CalibrationFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin);
+    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin + 1);
     f2d.Scale = scale;
     f2d.Delay = (double)delay / Format.samplerate;
     switch (CalParams.Mode)
