@@ -44,7 +44,8 @@ Measure::MeasureFile::MeasureFile()
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFDist = 20E-6;
+  RefFreqFactor = 20E-6;
+  RefEnergyDist = false;
   LineNotchHarmonics = 3;
   LineNotchFreq = 50.;
   AnaFBin = .002;

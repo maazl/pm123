@@ -8,9 +8,9 @@
   <meta content="Marcel Müller" name="author">
 </head>
 <body>
-<h2>Measure room response<br>
+<h2>Measure room response
 </h2>
-<p><img alt="" src="images/measure.png" height="718" width="777"><strong></strong></p>
+<p><img alt="" src="images/measure.png" height="717" width="812"><strong></strong></p>
 <h3>Prerequisites</h3>
 <ul>
   <li>First of all you need a <a href="microphone.html">measurement
@@ -27,15 +27,15 @@ use an external one. </li>
 properly.</li>
   <li>Optionally select a a <a href="calibration.html">sound card
 calibration</a> file made before.</li>
-  <li>Select a calibration file for your microphone if possible.<br>
-  </li>
+  <li>Select a calibration file for your <a href="microphone.html">microphone</a>
+if possible. </li>
   <li>Set all sound controls of your amplifier (like bass, treble,
 balance) to zero or push <i>direct sound</i> button.</li>
-  <li>Disable any effect processors, equalizers and so on.</li>
+  <li>Disable any effect processors, equalizers (like RealEQ) and so on.</li>
 </ul>
 <h4><img alt="" src="images/mes-ref.png" align="right" height="183"
  hspace="5" vspace="5" width="440">Measure <em>with external loopback</em>
-reference and <em>external microphone amplifier</em><br>
+reference and <em>external microphone amplifier</em>
 </h4>
 If you have the option, use a special cable that returns a mix of line
 out left and right line input. This will compensate for almost any
@@ -52,58 +52,35 @@ reference and <em>external microphone amplifier</em></h4>
 use an internal loopback. In this case it is recommended to measure
 only in stereo mode because otherwise the delay between the left and
 the right channel is unknown and will cannot be compensated.
-Furthermore you should <em>work with a calibration</em> in this case.<br>
-</p>
+Furthermore you should <em>work with a calibration</em> in this case.</p>
+<h3>Do the <em>measurements</em></h3>
+<h4></h4>
 <ol>
-  <li><b>Connect line in</b> of your sound card <b>to
-line out</b>.</li>
-  <li>Select mode <b><i>Stereo loopback</i></b> (default).</li>
+  <li>Place <b>the microphone</b> at a <b>location</b> where you
+intend to listen music.</li>
+  <li>Select <b>mode <i>Noise</i></b> (default).</li>
+  <li>Select the <b>channels</b> to measure.</li>
   <li>Press <b><i>Run</i></b> button.</li>
-  <li> Adjust the <b>volume</b> to get a reasonable recording level. </li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
+  <li> Adjust the <b>volume</b> to get a reasonable recording level.</li>
+  <li><b>Avoid</b> any <b>noise</b> in the room during the
+measurement. Neither move items nor your body.</li>
+  <li><b>Wait</b> until the results are reasonable smooth and stable.
+The indeterminate phase rate below the graph is a good indicator for
+the quality of the measurement. Good values are at 100 ppm and less.</li>
   <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li>Enter a <b>description</b> to identify your sound device
+  <li>Enter a <b>description</b> to identify your measurement
 (optional).</li>
   <li>Enter a <b>file name</b> - without extension.</li>
   <li>Press <i><b>Save</b></i> button to save the result.</li>
 </ol>
-<p>It is not required that the response is approximately at 0 dB as
-long as the result is smooth.</p>
-<h4>Method 2 - slow, more accurate</h4>
-<ol>
-  <li><img src="images/cal-left.png" alt="" align="right" height="106"
- hspace="5" width="157"><b>Connect left line in</b> of your sound card <b>to
-left line out and right line in to ground.</b></li>
-  <li>Select mode <b><i>Left channel only</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li>Adjust the <b>volume</b> to get a reasonable recording level.</li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li><b><img alt="" src="images/cal-right.png" align="right"
- height="106" hspace="5" width="156">Connect right line in</b> of your
-sound card <b>to
-right line out and left line in to ground.</b> </li>
-  <li>Select mode <b><i>Right channel only</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li>Do not change the volume here.</li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li><b><img src="cal-cross.png" alt="" align="right" height="106"
- hspace="5" width="157">Connect right line in</b> of your sound card <b>to
-left line out and vice versa.</b> </li>
-  <li>Select mode <b><i>Crossed channels</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li>Enter a <b>description</b> to identify your sound device
-(optional).</li>
-  <li>Enter a <b>file name</b> - without extension.</li>
-  <li>Press <i><b>Save</b></i> button to save the result.</li>
-</ol>
+<p>It is not required that the response is approximately at 0 dB.</p>
+<p>Repeat the procedure for different locations of the microphone and
+save the result to different file names.<br>
+It is not required that all measurements are done with exactly the same
+parameters. But if you measure the left and right channel separately
+you must not change anything between this measurements.</p>
 <h3>Troubleshooting</h3>
-<p>If you do not get reasonable results in step 5, especially if the
-green and pink graph in the frequency response is noisy and the cyan
-and yellow graph on the right show high values, then it is likely that
-you overdrive your line input. Reduce the volume and repeat from step 4.</p>
+<p><br>
+</p>
 </body>
 </html>

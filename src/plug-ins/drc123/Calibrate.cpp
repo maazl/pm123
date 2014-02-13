@@ -43,7 +43,8 @@ Calibrate::CalibrationFile::CalibrationFile()
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFDist = 0.;
+  RefFreqFactor = 0.;
+  RefEnergyDist = false;
   LineNotchHarmonics = 0;
   LineNotchFreq = 50.;
   AnaFBin = .01;

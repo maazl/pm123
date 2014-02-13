@@ -292,7 +292,7 @@ void Frontend::ExtPage::LoadControlValues(const OpenLoop::OpenLoopFile& data)
   SetValue(GetCtrl(EF_VU_RED), data.VURed);
 
   SetValue(GetCtrl(EF_REFEXPONENT), data.RefExponent);
-  SetValue(GetCtrl(EF_REFFDIST), data.RefFDist * 1E6);
+  SetValue(GetCtrl(EF_REFFDIST), data.RefFreqFactor * 1E6);
   // RB_xxx_N is synchronized by WM_CONTROL
   CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState(data.RefSkipEven);
   CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState(data.RefSkipRand);
@@ -330,7 +330,7 @@ void Frontend::ExtPage::StoreControlValues(OpenLoop::OpenLoopFile& data)
 
   GetValue(GetCtrl(EF_REFEXPONENT), data.RefExponent);
   if (GetValue(GetCtrl(EF_REFFDIST), tmp))
-    data.RefFDist = tmp / 1E6;
+    data.RefFreqFactor = tmp / 1E6;
   data.RefSkipEven = CheckBox(+GetCtrl(CB_SKIPEVEN)).CheckState() & 1;
   data.RefSkipRand = CheckBox(+GetCtrl(CB_SKIPRAND)).CheckState() & 1;
 }

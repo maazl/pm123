@@ -27,6 +27,7 @@
  */
 
 #include "Generate.h"
+#include "FFT2Data.h"
 #include <cpp/smartptr.h>
 
 
@@ -151,7 +152,7 @@ bool Generate::TargetFile::WriteHeaderFields(FILE* f)
     "##FreqBin=%f,%f\n"
     "##NormFreq=%f,%f\n"
     "##LimitGain=%f,%f\n"
-    "##Limitdelay=%f,%f\n"
+    "##LimitDelay=%f,%f\n"
     "##InvertHighGain=%u\n"
     "##FilterMode=%u\n"
     "##DispGain=%f,%f\n"
@@ -268,10 +269,10 @@ void Generate::Prepare()
 }
 
 struct Interpolator
-{ DataFile::InterpolationIterator LGain;
-  DataFile::InterpolationIterator RGain;
-  DataFile::InterpolationIterator LDelay;
-  DataFile::InterpolationIterator RDelay;
+{ GainInterpolationIterator LGain;
+  GainInterpolationIterator RGain;
+  DelayInterpolationIterator LDelay;
+  DelayInterpolationIterator RDelay;
   Interpolator(const Measure::MeasureFile& data);
 };
 
@@ -303,10 +304,10 @@ void Generate::Run()
     double rdelay = 0;
     foreach (Interpolator,*const*, ipp, iplist)
     { Interpolator& ip = **ipp;
-      lgain += ip.LGain.Next(f);
-      rgain += ip.RGain.Next(f);
-      ldelay += ip.LDelay.Next(f);
-      rdelay += ip.RDelay.Next(f);
+      lgain += ip.LGain.FetchNext(f);
+      rgain += ip.RGain.FetchNext(f);
+      ldelay += ip.LDelay.FetchNext(f);
+      rdelay += ip.RDelay.FetchNext(f);
     }
     row[LGain] = ApplyGainLimit(1 / (lgain * scale));
     row[RGain] = ApplyGainLimit(1 / (rgain * scale));

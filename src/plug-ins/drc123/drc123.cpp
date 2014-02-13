@@ -184,7 +184,8 @@ static void load_config()
     load_prf_value(measure.RefSkipEven);
     load_prf_value(measure.RefSkipRand);
     load_prf_value(measure.RefVolume);
-    load_prf_value(measure.RefFDist);
+    load_prf_value(measure.RefFreqFactor);
+    load_prf_value(measure.RefEnergyDist);
     load_prf_value(measure.AnaFBin);
     load_prf_value(measure.AnaSwap);
     load_prf_value(measure.LineNotchFreq);
@@ -216,7 +217,8 @@ static void load_config()
     load_prf_value(calibrate.RefSkipEven);
     load_prf_value(calibrate.RefSkipRand);
     load_prf_value(calibrate.RefVolume);
-    load_prf_value(calibrate.RefFDist);
+    load_prf_value(calibrate.RefFreqFactor);
+    load_prf_value(calibrate.RefEnergyDist);
     load_prf_value(calibrate.AnaFBin);
     load_prf_value(calibrate.AnaSwap);
     load_prf_value(calibrate.LineNotchFreq);
@@ -284,7 +286,8 @@ void save_config()
     save_prf_value(measure.RefSkipEven);
     save_prf_value(measure.RefSkipRand);
     save_prf_value(measure.RefVolume);
-    save_prf_value(measure.RefFDist);
+    save_prf_value(measure.RefFreqFactor);
+    save_prf_value(measure.RefEnergyDist);
     save_prf_value(measure.AnaFBin);
     save_prf_value(measure.AnaSwap);
     save_prf_value(measure.LineNotchFreq);
@@ -316,7 +319,8 @@ void save_config()
     save_prf_value(calibrate.RefSkipEven);
     save_prf_value(calibrate.RefSkipRand);
     save_prf_value(calibrate.RefVolume);
-    save_prf_value(calibrate.RefFDist);
+    save_prf_value(calibrate.RefFreqFactor);
+    save_prf_value(calibrate.RefEnergyDist);
     save_prf_value(calibrate.AnaFBin);
     save_prf_value(calibrate.AnaSwap);
     save_prf_value(calibrate.LineNotchFreq);

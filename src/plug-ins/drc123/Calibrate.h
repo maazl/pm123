@@ -47,7 +47,7 @@ class Calibrate : public OpenLoop
   struct CalParameters
   { MeasureMode Mode;
     // GUI injection
-    double      Gain2Low, Gain2High;    ///< Display range for x talk/IM gain
+    double      Gain2Low, Gain2High;    ///< Display range for X talk/IM gain
   };
   enum Column
   { Frequency

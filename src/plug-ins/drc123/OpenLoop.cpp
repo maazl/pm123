@@ -53,8 +53,10 @@ bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
     RefMode = (Mode)atoi(value);
   else if (!!(value = TryParam(string, "RefVolume")))
     RefVolume = atof(value);
-  else if (!!(value = TryParam(string, "RefFDist")))
-    RefFDist = atof(value);
+  else if (!!(value = TryParam(string, "RefFreqFactor")))
+    RefFreqFactor = atof(value);
+  else if (!!(value = TryParam(string, "RefEnergyDist")))
+    RefEnergyDist = !!atoi(value);
   else if (!!(value = TryParam(string, "AnaSwap")))
     AnaSwap = !!atoi(value);
   else if (!!(value = TryParam(string, "LineNotch")))
@@ -86,14 +88,15 @@ bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
     "##RefSkipRand=%u\n"
     "##RefMode=%u\n"
     "##RefVolume=%f\n"
-    "##RefFDist=%f\n"
+    "##RefFreqFactor=%f\n"
+    "##RefEnergyDist=%u\n"
     "##DispGain=%f,%f\n"
     "##DispDelay=%f,%f\n"
     "##DispVU=%f,%f,%f\n"
     "##AverageDelay=%f\n"
     "##PhaseUnwrap=%u,%u\n"
     , FFTSize, DiscardSamp, AnaSwap, LineNotchHarmonics, LineNotchFreq
-    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefSkipRand, RefMode, RefVolume, RefFDist
+    , RefFMin, RefFMax, RefExponent, RefSkipEven, RefSkipRand, RefMode, RefVolume, RefFreqFactor, RefEnergyDist
     , GainLow, GainHigh, DelayLow, DelayHigh, VULow, VUYellow, VURed
     , AverageDelay, PhaseUnwrapCount, IndeterminatePhase );
   return DataFile::WriteHeaderFields(f);
@@ -276,18 +279,20 @@ void OpenLoop::GenerateRef()
       { ++skipcount;
         continue;
     } }
-    if (Params.RefSkipRand && Params.RefMode == RFM_STEREO && f + f * Params.RefFDist >= f_bin && skipcount-- == 0)
+    if (Params.RefSkipRand && Params.RefMode == RFM_STEREO && f + f * Params.RefFreqFactor >= f_bin && skipcount-- == 0)
     { skipcount = 7 + rand() & 15;
       continue;
     }
     double& lastf = reflastf[channel];
     // skip frequency because it is too close to the last one.
-    if (f < lastf + lastf * Params.RefFDist)
+    if (f < lastf + lastf * Params.RefFreqFactor)
       continue;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
-    double mag = pow(f, Params.RefExponent)
-      * sqrt(lastf ? f - lastf : f_bin * ((Params.RefMode == RFM_STEREO) + 1));
+    double mag = pow(f, Params.RefExponent);
+    if (Params.RefEnergyDist)
+      // TODO: distribute energy to left and right neighbor.
+      mag *= sqrt(lastf ? f - lastf : f_bin * ((Params.RefMode == RFM_STEREO) + 1));
     // apply random phase
     cur = std::polar(mag, i && i != Params.FFTSize/2 ? 2*M_PI * myrand() : 0.);
     // next frequency

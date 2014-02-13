@@ -2,18 +2,15 @@
 <html resid="1101" level="2" lang="en">
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>DRC123: Extended options</title>
+  <title>DRC123: Extended measurement options</title>
   <link rel="stylesheet" href="../../common/infstyle.css"
  type="text/css">
   <meta content="Marcel Müller" name="author">
 </head>
 <body>
-<h2>Extended options (calibration, measurement)
+<h2>Extended measurement options
 </h2>
-<p><img alt="" src="images/extendedoptions.png" height="656" width="739"><strong></strong></p>
-<p><em>Normally there is no need to adjust the extended settings.</em>
-However, if you know what you are doing you might improve some things
-here.</p>
+<p><img alt="" src="images/measureext.png" height="684" width="739"><strong></strong></p>
 <h3>General Parameters</h3>
 <dl>
   <dt><b>FFT size/cycle length</b></dt>
@@ -22,7 +19,10 @@ it must be a power of two.</dd>
   <dd>This is also the number of samples after that the reference
 signal repeats itself. This implies that all frequencies used for
 measurement are multiples of the <i>cycle time</i> = <i>cycle length</i>
-/ <i>sampling rate</i>.</dd>
+/ <i>sampling rate</i>.<br>
+Reasonable values depend on the room you intend to measure. Typically
+262144 is enough for standard measurements. But if you have long
+reverberation you need to increase the value. </dd>
   <dt><b>Discard first cycles</b></dt>
   <dd>After pressing Start the first n samples of the test recording
 are discarded. This is required to give the room a chance to reach a
@@ -47,8 +47,6 @@ This also controls the X axis of the <a href="graphs.html">graphs</a>.</dd>
   <dd>Range of the right Y axis of the frequency response graph.<br>
 The units are degrees (of full cycles at the particular frequency) in
 the calibration page and seconds in the measurement page.</dd>
-  <dt><b>Cross talk/IM gain</b></dt>
-  <dd>Range of the Y axis of the cross talk/intermodulation graph.</dd>
   <dt><b>Record level indicator range</b></dt>
   <dd>Set the level of the left boundary of the record level indicators.</dd>
   <dt><b>Record level indicator limits</b></dt>
@@ -61,19 +59,45 @@ green to yellow and red respectively.</dd>
   <dd>This is the weight exponent used for the relative intensity of
 different frequencies.<br>
     <var>I</var> ~ <var>f<sup><small>exponent</small></sup></var><br>
-Reasonable values are in the range [-1,0]<sup><var></var></sup><var></var>.</dd>
+Reasonable values are in the range [-0.5,0]<sup><var></var></sup><var></var>.</dd>
   <dt><b>Minimum factor to next frequency</b></dt>
   <dd>To limit the phase noise it could be helpful to set this factor
 to a value slightly larger than 1. This causes the energy of
 frequencies closer than the given factor to be collected in bins with
 are at least this factor away.</dd>
+  <dt><dt><b>Line frequency notch</b></dt>
+  </dt>
+  <dd>Although good equipment will
+not be sensitive in practice often the power line frequency and its
+harmonics appear as noise. Selecting a nonzero value will eliminate the
+line frequency and the selected number of harmonics from the
+measurement. Selecting 1 removes only the line frequency itself, 2
+removes also the double line frequency.<br>
+The drawback is that high group delays cannot longer be handled
+correctly at the line frequency.<br>
+Reasonable values are 0 if you do not need this work around and 3 to
+remove up to the 3<small><sup>rd</sup></small> harmonic. Of course, you
+need to setup the line frequency of your country correctly for this to
+work. Usually 50 or 60 Hz.</dd>
   <dt><b>Use only odd frequencies in spectrum</b></dt>
   <dd>If this option is checked all frequencies that fit an even number
 of times in the cycle time are not used. This causes second order
 intermodulations, i.e. sums and differences of other frequencies,
 always to appear at even frequencies that do not contribute to the
-result.<br>
-Disabling this option also disables the IM graphs in calibration. </dd>
+result.</dd>
+  <dt><b>Skip some frequencies in stereo mode</b></dt>
+  <dd>When entering stereo mode every second frequency is used for each
+channel. This introduces a unwanted symmetry into the autocorrelation
+function of the test signal. When this option is enabled some randomly
+chosen frequencies in the spectrum are eliminated. This breaks the
+symmetry and enables the measurement to deal with twice as large delays
+- the same than in single channel mode.</dd>
+  <dt><b>Enable verification mode</b></dt>
+  <dd>This option is intended <em>for testing only</em>. It will apply
+the currently selected <a href="deconvolution.html">deconvolution
+filter</a> to the reference signal before output. Ideally the measured
+response should be flat with this option enabled. This is how your
+music is played with DRC123.</dd>
 </dl>
 </body>
 </html>

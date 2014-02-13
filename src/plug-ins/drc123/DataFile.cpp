@@ -352,7 +352,7 @@ DataFile::InterpolationIterator::InterpolationIterator(const DataFile& data, uns
 { ASSERT(Left);
 }
 
-float DataFile::InterpolationIterator::Next(float key)
+float DataFile::InterpolationIterator::FetchNext(float key)
 { float lk = (**Left)[0];
   // !extrapolate before the start?
   if (key > lk)

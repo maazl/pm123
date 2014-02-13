@@ -29,7 +29,6 @@
 #define  INCL_PM
 #define  INCL_BASE
 #define  INCL_GPI
-#define DEBUG_LOG 2
 
 #include "Frontend.h"
 #include "Calibrate.h"

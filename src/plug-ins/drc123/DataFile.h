@@ -110,26 +110,31 @@ class DataFile
   /// @remarks The iterator uses the forward only restriction to turn the interpolation operation
   /// from O(n log(n)) into O(n).
   class InterpolationIterator
-  { const DataRow*const* const End;
+  {protected:
+    /// End of data.
+    const DataRow*const* const End;
+    /// Column to interpolate.
     const unsigned Column;
+    /// Left bound = first non NAN value less than or equal to the last key returned.
     const DataRow*const* Left;
+    /// Next non NAN value after \c Left. Might be \c End.
     const DataRow*const* Right;
-   private:
+   protected:
     const DataRow*const* SkipNAN(const DataRow*const* ptr);
    public:
     /// Create interpolating function over a column of data.
     /// @param data Data source.
     /// @param col Column in the data source.
     /// @pre The rows in the data source must be strictly ordered by the key in the first column.
-    /// Furthermore the Column col must contain at least one non NAN value.
+    /// Furthermore the Column \a col must contain at least one non NAN value.
     InterpolationIterator(const DataFile& data, unsigned col);
-    /// Fetch the next interpolation value at \a key.
+    /// Fetch the next linear interpolation value at \a key.
     /// @param key Retrieve the interpolating function value at \a key.
     /// If key is outside the domain of the data source constant extrapolation is used,
     /// i.e. the first or the last value respectively is returned.
     /// @return Function value at \a key.
     /// @pre key must be greater or equal to any value previously passed to \c Next.
-    float       Next(float key);
+    float       FetchNext(float key);
   };
 
   /// @brief Output iterator to update column values in sorted order.
@@ -164,7 +169,7 @@ class DataFile
     /// @param accuracy If this parameter is non-zero (default) rows with keys that match
     /// in the interval [key/(1+accuracy),key*(1+accuracy)] are reused rather than
     /// inserting new rows.
-    StoreIterator(DataFile& data, unsigned col, unsigned discard = 0, float accuracy = 1E-4);
+    StoreIterator(DataFile& data, unsigned col, unsigned discard = 0, float accuracy = 1E-5);
     ~StoreIterator();
     /// @brief Store a new value.
     /// @param Key of the row.

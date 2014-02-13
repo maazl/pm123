@@ -83,7 +83,9 @@ class OpenLoop : public Filter
     /// Reference playback volume
     double      RefVolume;
     /// Minimum increment factor between neighbor frequencies in the reference signal.
-    double      RefFDist;
+    double      RefFreqFactor;
+    /// Distribute energy of unused frequencies to their neighbors.
+    bool        RefEnergyDist;
     /// Number of harmonics for the line frequency notch. 0 = off, 1 = line Frequency only.
     unsigned    LineNotchHarmonics;
     /// Notch filter for line frequency.

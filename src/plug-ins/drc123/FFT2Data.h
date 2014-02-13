@@ -85,13 +85,30 @@ class FFT2Data
   void StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
 };
 
+class GainInterpolationIterator : public DataFile::InterpolationIterator
+{protected:
+  float     LastKey;
+ public:
+  GainInterpolationIterator(const DataFile& data, unsigned col)
+  : InterpolationIterator(data, col), LastKey(0) {}
+  float FetchNext(float key);
+};
+class DelayInterpolationIterator : public DataFile::InterpolationIterator
+{protected:
+  float     LastKey;
+ public:
+  DelayInterpolationIterator(const DataFile& data, unsigned col)
+  : InterpolationIterator(data, col), LastKey(0) {}
+  float FetchNext(float key);
+};
+
 class Data2FFT
 {public:
   const DataFile& Source;
   unsigned  TargetSize;
   double    FInc;
   double    Scale;
-public:
+ public:
   Data2FFT(const DataFile& source, unsigned size, double finc, double scale = 1.)
   : Source(source), TargetSize(size/2+1), FInc(finc), Scale(scale) {}
   void LoadFFT(unsigned col, FreqDomainData& target);
