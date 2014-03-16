@@ -182,6 +182,18 @@ void DialogBase::PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2)
   PMRASSERT(WinPostMsg(HwndFrame, msg, mp1, mp2));
 }
 
+bool DialogBase::PullMsg(ULONG msg, MPARAM* mp1, MPARAM* mp2)
+{ DEBUGLOG(("DialogBase(%p)::PullMsg(%lu,)\n", this, msg));
+  QMSG qmsg;
+  if (!WinPeekMsg(NULL, &qmsg, HwndFrame, msg, msg, PM_REMOVE))
+    return false;
+  if (mp1)
+    *mp1 = qmsg.mp1;
+  if (mp2)
+    *mp2 = qmsg.mp2;
+  return true;
+}
+
 void DialogBase::SetHelpMgr(HWND hhelp)
 { DEBUGLOG(("DialogBase(%p)::SetHelpMgr(%p)\n", this, hhelp));
   PMRASSERT(WinAssociateHelpInstance(hhelp, GetHwnd()));

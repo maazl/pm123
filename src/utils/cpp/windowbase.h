@@ -104,12 +104,31 @@ class DialogBase
   /// Set the window title
   void              SetTitle(const char* title);
 
+  /// Post a message to this window.
   void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
+  /// @brief Remove a message for this window from the message queue.
+  /// @param mp1 [out] put MP1 from the message here. Might be NULL if MP1 is not required.
+  /// @param mp2 [out] put MP2 from the message here. Might be NULL if MP2 is not required.
+  /// @return true if a message has been found.
+  /// @details This function always removes only one message. If no message is found,
+  /// \a *mp1 and \a *mp2 are unchanged.
+  bool              PullMsg(ULONG msg, MPARAM* mp1 = NULL, MPARAM* mp2 = NULL);
+  /// Post a \c WM_COMMAND message to this window. The origin will always be \c CMDSRC_OTHER.
+  /// @param uscmd Command ID.
   void              PostCommand(USHORT uscmd) { PostMsg(WM_COMMAND, MPFROMSHORT(uscmd), MPFROM2SHORT(CMDSRC_OTHER, FALSE)); }
   /// Dialog item functions
   HWND              GetCtrl(ULONG id) { return WinWindowFromID(HwndFrame, id); }
+  /// Send a message to a clidren of this window.
+  /// @param id Window ID of the child.
+  /// @param msg Message to send.
+  /// @param mp1 1st message parameter.
+  /// @param mp2 2nd message parameter.
+  /// @return Result of the message.
   MRESULT           SendCtrlMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
                     { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
+  /// Enable or disable a child control.
+  /// @param id Window ID of the child.
+  /// @param check \c true: enable, \c false: disable.
   void              EnableCtrl(ULONG id, bool check) { WinEnableControl(HwndFrame, id, check); }
 
   /// Set Help Manager
