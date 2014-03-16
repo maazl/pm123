@@ -97,11 +97,14 @@ class ResponseGraph : public SubclassWindow
     GraphFlags      Flags;
     /// Graph color in the system's standard color table.
     LONG            Color;
+    GraphInfo(const xstring& legend, SyncRef<DataFile> data, AggregateIterator& reader, GraphFlags flags, LONG color)
+    : Legend(legend), Data(data), Reader(&reader), Flags(flags), Color(color) {}
   };
 
- private:
+ public:
   /// List of currently visible graphs.
   vector_own<GraphInfo> Graphs;
+ private:
   AxesInfo          Axes;
   double            X0, XS, Y10, Y1S, Y20, Y2S;
   HPS               PS;
@@ -203,14 +206,6 @@ class ResponseGraph : public SubclassWindow
   /// Set axes of graph.
   void              SetAxes(AxesFlags flags, double xmin, double xmax, double y1min, double y1max, double y2min, double y2max)
   { Axes.Flags = flags; Axes.XMin = xmin; Axes.XMax = xmax; Axes.Y1Min = y1min; Axes.Y1Max = y1max; Axes.Y2Min = y2min; Axes.Y2Max = y2max; PrepareAxes(); }
-  /// Add a new graph to draw.
-  void              AddGraph(const GraphInfo& graph) { Graphs.append() = new GraphInfo(graph); }
-  /// Add a new graph to draw.
-  void              AddGraph(const xstring& legend, SyncRef<DataFile> data, AggregateIterator& reader, GraphFlags flags, LONG color)
-  { GraphInfo* gi = new GraphInfo(); Graphs.append() = gi;
-    gi->Legend = legend; gi->Data = data; gi->Reader = &reader; gi->Flags = flags; gi->Color = color; }
-  /// Clear all graphs.
-  void              ClearGraphs() { Graphs.clear(); }
 };
 
 FLAGSATTRIBUTE(ResponseGraph::AxesFlags);

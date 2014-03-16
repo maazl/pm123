@@ -59,16 +59,16 @@ Frontend::CalibratePage::CalibratePage(Frontend& parent)
 { MajorTitle = "~Calibrate";
   MinorTitle = "Calibrate sound card";
 
-  Response.AddGraph("< L gain",    Calibrate::GetData(), IterLGain,  ResponseGraph::GF_Bounds, CLR_BLUE);
-  Response.AddGraph("< R gain",    Calibrate::GetData(), IterRGain,  ResponseGraph::GF_Bounds, CLR_RED);
-  Response.AddGraph("L ph.del. >", Calibrate::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_GREEN);
-  Response.AddGraph("R ph.del. >", Calibrate::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_PINK);
-  Response.AddGraph("<  gain",    Calibrate::GetData(), IterDGain,  ResponseGraph::GF_Bounds, CLR_CYAN);
-  Response.AddGraph(" ph.del. >", Calibrate::GetData(), IterDDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_YELLOW);
-  XTalk.AddGraph("< R2L",   Calibrate::GetData(), IterR2LGain,   ResponseGraph::GF_Bounds, CLR_BLUE);
-  XTalk.AddGraph("< L2R",   Calibrate::GetData(), IterL2RGain,   ResponseGraph::GF_Bounds, CLR_RED);
-  XTalk.AddGraph("< L IM2", Calibrate::GetData(), IterLIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds, CLR_CYAN);
-  XTalk.AddGraph("< R IM2", Calibrate::GetData(), IterRIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds, CLR_YELLOW);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("< L gain",    Calibrate::GetData(), IterLGain,  ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_BLUE);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("< R gain",    Calibrate::GetData(), IterRGain,  ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_RED);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("L ph.del. >", Calibrate::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_GREEN);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("R ph.del. >", Calibrate::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_PINK);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("<  gain",    Calibrate::GetData(), IterDGain,  ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_CYAN);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo(" ph.del. >", Calibrate::GetData(), IterDDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_YELLOW);
+  XTalk.Graphs.append() = new ResponseGraph::GraphInfo("< R2L",   Calibrate::GetData(), IterR2LGain,   ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_BLUE);
+  XTalk.Graphs.append() = new ResponseGraph::GraphInfo("< L2R",   Calibrate::GetData(), IterL2RGain,   ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_RED);
+  XTalk.Graphs.append() = new ResponseGraph::GraphInfo("< L IM2", Calibrate::GetData(), IterLIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_CYAN);
+  XTalk.Graphs.append() = new ResponseGraph::GraphInfo("< R IM2", Calibrate::GetData(), IterRIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_YELLOW);
   //XTalk.AddGraph("R2L del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)6, ResponseGraph::GF_Y2, CLR_GREEN);
   //XTalk.AddGraph("L2R del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)8, ResponseGraph::GF_Y2, CLR_PINK);
 }

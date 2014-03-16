@@ -46,10 +46,10 @@ Frontend::MeasurePage::MeasurePage(Frontend& parent)
 { MajorTitle = "~Measure";
   MinorTitle = "Measure speaker response";
 
-  Response.AddGraph("< L gain", Measure::GetData(), IterLGain, ResponseGraph::GF_Bounds, CLR_BLUE);
-  Response.AddGraph("< R gain", Measure::GetData(), IterRGain, ResponseGraph::GF_Bounds, CLR_RED);
-  Response.AddGraph("L delay >", Measure::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_GREEN);
-  Response.AddGraph("R delay >", Measure::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_PINK);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Measure::GetData(), IterLGain, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_BLUE);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", Measure::GetData(), IterRGain, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_RED);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", Measure::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_GREEN);
+  Response.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", Measure::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_PINK);
 }
 
 Frontend::MeasurePage::~MeasurePage()

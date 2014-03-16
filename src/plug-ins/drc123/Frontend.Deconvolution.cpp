@@ -295,38 +295,38 @@ void Frontend::DeconvolutionPage::UpdateKernel()
 }
 
 void Frontend::DeconvolutionPage::SetupGraph()
-{ Result.ClearGraphs();
+{ Result.Graphs.clear();
   switch (DeconvolutionView)
   {default: // DVM_TARGET
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, -.2,.2);
-    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Y2, CLR_PINK);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", Kernel, IterRGain, ResponseGraph::GF_Average, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Average, CLR_GREEN);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Average, CLR_PINK);
     break;
    case DVM_GainResult:
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.AddGraph("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_PINK);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_Average, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_GREEN);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", Kernel, IterRGain, ResponseGraph::GF_Average, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_DelayResult:
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -.2,.2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.AddGraph("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_None, CLR_PINK);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_Average, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_Average, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Average, CLR_GREEN);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Average, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_TimeResult:
     Result.SetAxes(ResponseGraph::AF_None, -1,+1, -2,2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(TDC_count);
-    Result.AddGraph("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_None, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_Bounds, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_Bounds, CLR_RED);
     Deconvolution::ForceKernelChange();
     break;
   }
@@ -338,28 +338,24 @@ void Frontend::DeconvolutionPage::UpdateGraph()
   {default:
     return;
    case DVM_GainResult:
-    Result.ClearGraphs();
+    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
-    Result.AddGraph("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_PINK);
+    Result.Graphs[0]->Data =
+    Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
    case DVM_DelayResult:
-    Result.ClearGraphs();
+    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
-    Result.AddGraph("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_None, CLR_PINK);
+    Result.Graphs[0]->Data =
+    Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
    case DVM_TimeResult:
-    Result.ClearGraphs();
+    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
     if (CurrentRawKernelData->size())
       Result.SetAxes(ResponseGraph::AF_None, (*(*CurrentRawKernelData)[0])[0],(*(*CurrentRawKernelData)[CurrentRawKernelData->size()-1])[0], -2,2, NAN,NAN);
-    Result.AddGraph("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_Bounds, CLR_BLUE);
-    Result.AddGraph("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_Bounds, CLR_RED);
+    Result.Graphs[0]->Data =
+    Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
   }
   Result.Invalidate();

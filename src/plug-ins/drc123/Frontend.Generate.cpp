@@ -304,30 +304,30 @@ void Frontend::GeneratePage::SetGraphAxes(const Generate::TargetFile& data)
 
 void Frontend::GeneratePage::SetupGraph()
 { const char *text1, *text2;
-  Result1.ClearGraphs();
-  Result2.ClearGraphs();
+  Result1.Graphs.clear();
+  Result2.Graphs.clear();
   switch (GenerateView)
   {default: // VM_Result
     text1 = " Frequency response ";
     text2 = " Group delay ";
-    Result1.AddGraph("left", Generate::GetData(), IterLGain, ResponseGraph::GF_Bounds, CLR_BLUE);
-    Result1.AddGraph("right", Generate::GetData(), IterRGain, ResponseGraph::GF_Bounds, CLR_RED);
-    Result2.AddGraph("left", Generate::GetData(), IterLDelay, ResponseGraph::GF_Bounds, CLR_BLUE);
-    Result2.AddGraph("right", Generate::GetData(), IterRDelay, ResponseGraph::GF_Bounds, CLR_RED);
+    Result1.Graphs.append() = new ResponseGraph::GraphInfo("left", Generate::GetData(), IterLGain, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_BLUE);
+    Result1.Graphs.append() = new ResponseGraph::GraphInfo("right", Generate::GetData(), IterRGain, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_RED);
+    Result2.Graphs.append() = new ResponseGraph::GraphInfo("left", Generate::GetData(), IterLDelay, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_BLUE);
+    Result2.Graphs.append() = new ResponseGraph::GraphInfo("right", Generate::GetData(), IterRDelay, ResponseGraph::GF_Bounds|ResponseGraph::GF_Average, CLR_RED);
     break;
    case GVM_Gain:
     text1 = " Left response ";
     text2 = " Right response ";
-    Result1.AddGraph("result", Generate::GetData(), IterLGain, ResponseGraph::GF_None, CLR_BLACK);
-    Result2.AddGraph("result", Generate::GetData(), IterRGain, ResponseGraph::GF_None, CLR_BLACK);
+    Result1.Graphs.append() = new ResponseGraph::GraphInfo("result", Generate::GetData(), IterLGain, ResponseGraph::GF_Average, CLR_BLACK);
+    Result2.Graphs.append() = new ResponseGraph::GraphInfo("result", Generate::GetData(), IterRGain, ResponseGraph::GF_Average, CLR_BLACK);
     AddMeasureGraphs(Result1, IterMesLGain);
     AddMeasureGraphs(Result2, IterMesRGain);
     break;
    case GVM_Delay:
     text1 = " Left delay ";
     text2 = " Right delay ";
-    Result1.AddGraph("result", Generate::GetData(), IterLDelay, ResponseGraph::GF_None, CLR_BLACK);
-    Result2.AddGraph("result", Generate::GetData(), IterRDelay, ResponseGraph::GF_None, CLR_BLACK);
+    Result1.Graphs.append() = new ResponseGraph::GraphInfo("result", Generate::GetData(), IterLDelay, ResponseGraph::GF_Average, CLR_BLACK);
+    Result2.Graphs.append() = new ResponseGraph::GraphInfo("result", Generate::GetData(), IterRDelay, ResponseGraph::GF_Average, CLR_BLACK);
     AddMeasureGraphs(Result1, IterMesLDelay);
     AddMeasureGraphs(Result2, IterMesRDelay);
     break;
@@ -362,7 +362,7 @@ void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, AggregateIt
       memcpy(cp + 3, caption.cdata() + caption.length() - 20, 20);
     }
     // data
-    result.AddGraph(caption, data, iter, ResponseGraph::GF_None, ColorMap[i]);
+    result.Graphs.append() = new ResponseGraph::GraphInfo(caption, data, iter, ResponseGraph::GF_Average, ColorMap[i]);
   }
 }
 
