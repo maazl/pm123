@@ -348,11 +348,11 @@ LoadWizard::LoadWizard(HMODULE module, HWND owner, const xstring& title)
   StartDialog(owner, HWND_DESKTOP);
 }
 
-static const char* SamplingRates[] =
+static const char* const SamplingRates[] =
 { "8000", "11025", "12000", "16000", "22050", "24000", "32000", "44100", "48000", "96000" };
 
-static int SamplingRateCmp(int* key, const char* elem)
-{ return *key - atoi(elem);
+static int SamplingRateCmp(const int& key, const char& elem)
+{ return key - atoi(&elem);
 }
 
 MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -373,7 +373,7 @@ MRESULT LoadWizard::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { SpinButton sb(GetCtrl(SB_RATE));
         sb.SetArray(SamplingRates, sizeof SamplingRates/sizeof *SamplingRates);
         size_t pos;
-        if ( !binary_search(&Configuration.SourceRate, pos, SamplingRates, sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp)
+        if ( !binary_search<const char,const int>(Configuration.SourceRate, pos, &SamplingRates[0], sizeof SamplingRates/sizeof *SamplingRates, &SamplingRateCmp)
           && ( pos == sizeof SamplingRates/sizeof *SamplingRates
             || (pos && 2*Configuration.SourceRate < atoi(SamplingRates[pos]) + atoi(SamplingRates[pos-1])) ))
           --pos;
