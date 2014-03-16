@@ -29,8 +29,7 @@
 #ifndef FFT2DATA_H
 #define FFT2DATA_H
 
-#include "DataFile.h"
-#include "DataVector.h"
+#include "OpenLoop.h"
 
 
 /** Helper class to convert FFT results into DataFile content.
@@ -63,8 +62,6 @@ class FFT2Data
   FFT2Data(DataFile& target, double finc, double fbin)
   : Target(target), FInc(finc), FBin(fbin), Scale(0.), Delay(0.), PhaseUnwrapCount(0), IndeterminatePhase(0) {}
 
-  void ResetPhaseCount() { PhaseUnwrapCount = 0; IndeterminatePhase = 0; }
-
   /// Store the data in \a source to the target specified at construction.
   /// @param col Start column where the data is to be stored.
   /// All together two columns are written. One at index \a col with magnitude
@@ -85,22 +82,24 @@ class FFT2Data
   void StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref);
 };
 
-class GainInterpolationIterator : public DataFile::InterpolationIterator
-{protected:
-  float     LastKey;
- public:
-  GainInterpolationIterator(const DataFile& data, unsigned col)
-  : InterpolationIterator(data, col), LastKey(0) {}
-  float FetchNext(float key);
+
+class FFT2OpenLoopData : public FFT2Data
+{public:
+  /// Create instance for a target.
+  /// @param target The \c DataFile where to store the results.
+  /// The DataFile might be initial. The required lines are created on demand.
+  /// @param finc Width of the bins in the FFT data in the frequency domain.
+  /// In general samplerate / fftsize.
+  /// @param fbin Size of the frequency bins in the FFT data. This is equal to the inverse FFT length in the time domain.
+  FFT2OpenLoopData(OpenLoop::OpenLoopFile& target, double finc, double fbin)
+  : FFT2Data(target, finc, fbin) {}
+
+  /// Store result of group delay computation and phase unwrapping
+  /// @param channel 0 = left, 1 = right
+  /// @pre channel <= 1
+  void StorePhaseInfo(unsigned channel);
 };
-class DelayInterpolationIterator : public DataFile::InterpolationIterator
-{protected:
-  float     LastKey;
- public:
-  DelayInterpolationIterator(const DataFile& data, unsigned col)
-  : InterpolationIterator(data, col), LastKey(0) {}
-  float FetchNext(float key);
-};
+
 
 class Data2FFT
 {public:

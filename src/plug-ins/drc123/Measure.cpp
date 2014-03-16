@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,20 +35,20 @@
 Measure::MeasureFile::MeasureFile()
 : OpenLoopFile(5)
 { // Set Default Parameters
-  FFTSize = 262144;
-  DiscardSamp = 262144;
+  FFTSize = 1<<19;
+  DiscardSamp = 1<<19;
   RefFMin = 20.;
   RefFMax = 20000.;
-  RefExponent = -.2;
+  RefExponent = 0;
   RefSkipEven = false;
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFreqFactor = 20E-6;
+  RefFreqFactor = 500E-6;
   RefEnergyDist = false;
   LineNotchHarmonics = 3;
   LineNotchFreq = 50.;
-  AnaFBin = .002;
+  AnaFBin = 0;
   AnaSwap = false;
 
   Mode = MD_Noise;
@@ -63,6 +63,7 @@ Measure::MeasureFile::MeasureFile()
   GainHigh = +20.;
   DelayLow = -.075;
   DelayHigh = +.15;
+  DispBounds = true;
   VULow = -40;
   VUYellow = -12;
   VURed = -6;
@@ -302,47 +303,33 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
     ref[1] = &GetRefDesign(1);
   }
 
-  // Compute average group delay
-  double response[2];
-  int delay;
-  switch (MesParams.Chan)
-  {case CH_Left:
-    delay = ComputeDelay(input[0], *ref[0], response[0]);
-    break;
-   case CH_Right:
-    delay = ComputeDelay(input[0], *ref[1], response[1]);
-    break;
-   default: //case CH_Both:
-    delay = AverageDelay(
-      ComputeDelay(input[0], *ref[0], response[0]),
-      ComputeDelay(input[0], *ref[1], response[1]) );
-    break;
-  }
-
   // update results
-  { SyncAccess<MeasureFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin + 1);
+  { double response;
+    SyncAccess<MeasureFile> data(Data);
+    FFT2OpenLoopData f2d(*data, (double)Format.samplerate / Params.FFTSize, Params.AnaFBin + 1);
     f2d.Scale = scale;
-    f2d.Delay = (double)delay / Format.samplerate;
 
     switch (MesParams.Chan)
     {case CH_Right:
       input[0] /= *ref[1];
+      f2d.Delay = ComputeDelay(input[1], *ref[1], response);
       f2d.StoreFFT(RGain, input[0]);
+      f2d.StorePhaseInfo(1);
       break;
      default: //case CH_Both:
       AnaTemp = input[0];
       AnaTemp /= *ref[1];
+      f2d.Delay = ComputeDelay(input[1], *ref[1], response);
       f2d.StoreFFT(RGain, AnaTemp);
+      f2d.StorePhaseInfo(1);
       // no break
      case CH_Left:
       input[0] /= *ref[0];
+      f2d.Delay = ComputeDelay(input[0], *ref[0], response);
       f2d.StoreFFT(LGain, input[0]);
+      f2d.StorePhaseInfo(0);
       // no break
     }
-    data->AverageDelay = f2d.Delay;
-    data->PhaseUnwrapCount = f2d.PhaseUnwrapCount;
-    data->IndeterminatePhase = f2d.IndeterminatePhase;
   }
 
   OpenLoop::ProcessFFTData(input, scale);

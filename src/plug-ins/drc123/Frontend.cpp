@@ -51,21 +51,15 @@
 
 
 xstringconst DefRecURI("record:///0?samp=48000&stereo&in=line&share=yes");
+int_ptr<Frontend> Frontend::Instance;
 
-double Frontend::XtractFrequency(const DataRow& row, void*)
-{ return row[0];
+
+double Frontend::DBGainIterator::ScaleResult(double value) const
+{ return log(value) * (20./M_LN10);
 }
 
-double Frontend::XtractColumn(const DataRow& row, void* col)
-{ return row[(int)col];
-}
-
-double Frontend::XtractGain(const DataRow& row, void* col)
-{ return log(row[(int)col]) * (20. / M_LN10);
-}
-
-double Frontend::XtractPhaseDelay(const DataRow& row, void* col)
-{ return row[(int)col] * row[0] * 360.;
+double Frontend::PhaseDelayIterator::ScaleResult(double value) const
+{ return value * LastX * 360.;
 }
 
 void Frontend::SetValue(HWND ctrl, double value, const char* mask)
@@ -117,6 +111,7 @@ void Frontend::OnDestroy()
   ManagedDialog<NotebookDialogBase>::OnDestroy();
   save_config();
 }
+
 
 Frontend::ConfigurationPage::~ConfigurationPage()
 {}
@@ -203,7 +198,7 @@ MRESULT Frontend::FilePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   {case WM_INITDLG:
     // load initial file content
     ControlBase(+GetCtrl(PB_SAVE)).Enabled(false);
-    PostMsg(WM_COMMAND, MPFROMSHORT(PB_RELOAD), MPFROM2SHORT(CMDSRC_OTHER, FALSE));
+    PostCommand(PB_RELOAD);
     break;
 
    case WM_COMMAND:

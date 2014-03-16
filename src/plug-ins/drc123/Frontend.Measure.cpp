@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,13 +39,17 @@
 
 Frontend::MeasurePage::MeasurePage(Frontend& parent)
 : OpenLoopPage(parent, DLG_MEASURE, Measure::VTable)
+, IterLGain(Measure::LGain)
+, IterRGain(Measure::RGain)
+, IterLDelay(Measure::LDelay)
+, IterRDelay(Measure::RDelay)
 { MajorTitle = "~Measure";
   MinorTitle = "Measure speaker response";
 
-  Response.AddGraph("< L gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::LGain, ResponseGraph::GF_None, CLR_BLUE);
-  Response.AddGraph("< R gain", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Measure::RGain, ResponseGraph::GF_None, CLR_RED);
-  Response.AddGraph("L delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Measure::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-  Response.AddGraph("R delay >", Measure::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Measure::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
+  Response.AddGraph("< L gain", Measure::GetData(), IterLGain, ResponseGraph::GF_Bounds, CLR_BLUE);
+  Response.AddGraph("< R gain", Measure::GetData(), IterRGain, ResponseGraph::GF_Bounds, CLR_RED);
+  Response.AddGraph("L delay >", Measure::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_GREEN);
+  Response.AddGraph("R delay >", Measure::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_PINK);
 }
 
 Frontend::MeasurePage::~MeasurePage()
@@ -181,8 +185,9 @@ void Frontend::MeasurePage::SetRunning(bool running)
 void Frontend::MeasurePage::InvalidateGraph()
 { Response.Invalidate();
   SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f ms, indeterminate phase: %.0f ppm",
-    1E3 * data->AverageDelay, 1E6 * (int)data->IndeterminatePhase / (int)data->PhaseUnwrapCount ));
+  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f / %.1f ms, indeterminate phase: %u / %u",
+    1E3 * data->AverageDelay[0], 1E3 * data->AverageDelay[1],
+    data->IndeterminatePhase[0], data->IndeterminatePhase[1] ));
 }
 
 void Frontend::MeasurePage::UpdateDir(ComboBox lb, ControlBase desc, const char* mask, xstring& selection)

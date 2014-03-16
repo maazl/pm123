@@ -35,12 +35,62 @@
 #include <cpp/url123.h>
 
 
-Frontend::DeconvolutionViewMode Frontend::DeconvolutionView = DVM_Target;
+Frontend::GeneratePage::ResponseGainIterator::ResponseGainIterator(unsigned col, unsigned collow)
+: DBGainIterator(col)
+, InterpolateLow(collow)
+, InterpolateHigh(collow+1)
+{}
+
+bool Frontend::GeneratePage::ResponseGainIterator::Reset(const DataFile& data)
+{ bool ret = DBGainIterator::Reset(data);
+  InterpolateLow.Reset(data);
+  InterpolateHigh.Reset(data);
+  return ret;
+}
+
+void Frontend::GeneratePage::ResponseGainIterator::ReadNext(double f)
+{ DBGainIterator::ReadNext(f);
+  InterpolateLow.ReadNext(f);
+  InterpolateHigh.ReadNext(f);
+  MinValue = InterpolateLow.GetValue();
+  MaxValue = InterpolateHigh.GetValue();
+}
+
+Frontend::GeneratePage::ResponseDelayIterator::ResponseDelayIterator(unsigned col, unsigned collow)
+: DelayAverageIterator(col)
+, InterpolateLow(collow)
+, InterpolateHigh(collow+1)
+{}
+
+bool Frontend::GeneratePage::ResponseDelayIterator::Reset(const DataFile& data)
+{ bool ret = DelayAverageIterator::Reset(data);
+  InterpolateLow.Reset(data);
+  InterpolateHigh.Reset(data);
+  return ret;
+}
+
+void Frontend::GeneratePage::ResponseDelayIterator::ReadNext(double f)
+{ DelayAverageIterator::ReadNext(f);
+  InterpolateLow.ReadNext(f);
+  InterpolateHigh.ReadNext(f);
+  MinValue = InterpolateLow.GetValue();
+  MaxValue = InterpolateHigh.GetValue();
+}
+
+
 Frontend::GenerateViewMode Frontend::GenerateView = GVM_Result;
-int_ptr<Frontend> Frontend::Instance;
+
 
 Frontend::GeneratePage::GeneratePage(Frontend& parent)
 : FilePage(parent, DLG_GENERATE)
+, IterLGain(Generate::LGain, Generate::LGainLow)
+, IterRGain(Generate::RGain, Generate::RGainLow)
+, IterLDelay(Generate::LDelay, Generate::LDelayLow)
+, IterRDelay(Generate::RDelay, Generate::RDelayLow)
+, IterMesLGain(Measure::LGain)
+, IterMesRGain(Measure::RGain)
+, IterMesLDelay(Measure::LDelay)
+, IterMesRDelay(Measure::RDelay)
 { MajorTitle = "~Generate";
   MinorTitle = "Generate deconvolution filter";
 }
@@ -75,14 +125,14 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case LB_KERNEL:
       if (SHORT2FROMMP(mp1) == LN_SELECT)
-        PostMsg(UM_UPDATEDESCR, 0,0);
+        EnsureMsg(UM_UPDATEDESCR);
       break;
      case RB_VIEWTARGET:
      case RB_VIEWGAIN:
      case RB_VIEWDELAY:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
       { GenerateView = (GenerateViewMode)(SHORT1FROMMP(mp1) - RB_VIEWTARGET);
-        PostMsg(UM_UPDATEGRAPH, 0,0);
+        EnsureMsg(UM_UPDATEGRAPH);
       }
       break;
     }
@@ -198,7 +248,7 @@ void Frontend::GeneratePage::UpdateDir()
   if (dir.LastRC() != ERROR_NO_MORE_FILES)
     descr.Text(dir.LastErrorText());
   else
-    PostMsg(UM_UPDATEDESCR, 0, 0);
+    EnsureMsg(UM_UPDATEDESCR);
 }
 
 void Frontend::GeneratePage::UpdateDescr()
@@ -210,7 +260,7 @@ void Frontend::GeneratePage::UpdateDescr()
   { xstring file(Filter::WorkDir);
     file = file + lb.ItemText(selected);
     DataFile data;
-    if (data.Load(file, true))
+    if (data.Load(file))
     { ++index;
       if (data.Description.length())
       { if (sb.length() && sb[sb.length()-1] != '\n')
@@ -260,26 +310,26 @@ void Frontend::GeneratePage::SetupGraph()
   {default: // VM_Result
     text1 = " Frequency response ";
     text2 = " Group delay ";
-    Result1.AddGraph("left", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result1.AddGraph("right", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_RED);
-    Result2.AddGraph("left", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result2.AddGraph("right", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_RED);
+    Result1.AddGraph("left", Generate::GetData(), IterLGain, ResponseGraph::GF_Bounds, CLR_BLUE);
+    Result1.AddGraph("right", Generate::GetData(), IterRGain, ResponseGraph::GF_Bounds, CLR_RED);
+    Result2.AddGraph("left", Generate::GetData(), IterLDelay, ResponseGraph::GF_Bounds, CLR_BLUE);
+    Result2.AddGraph("right", Generate::GetData(), IterRDelay, ResponseGraph::GF_Bounds, CLR_RED);
     break;
    case GVM_Gain:
     text1 = " Left response ";
     text2 = " Right response ";
-    Result1.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLACK);
-    Result2.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_BLACK);
-    AddMeasureGraphs(Result1, &Frontend::XtractGain, Measure::LGain);
-    AddMeasureGraphs(Result2, &Frontend::XtractGain, Measure::RGain);
+    Result1.AddGraph("result", Generate::GetData(), IterLGain, ResponseGraph::GF_None, CLR_BLACK);
+    Result2.AddGraph("result", Generate::GetData(), IterRGain, ResponseGraph::GF_None, CLR_BLACK);
+    AddMeasureGraphs(Result1, IterMesLGain);
+    AddMeasureGraphs(Result2, IterMesRGain);
     break;
    case GVM_Delay:
     text1 = " Left delay ";
     text2 = " Right delay ";
-    Result1.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_BLACK);
-    Result2.AddGraph("result", Generate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_BLACK);
-    AddMeasureGraphs(Result1, &Frontend::XtractColumn, Measure::LDelay);
-    AddMeasureGraphs(Result2, &Frontend::XtractColumn, Measure::RDelay);
+    Result1.AddGraph("result", Generate::GetData(), IterLDelay, ResponseGraph::GF_None, CLR_BLACK);
+    Result2.AddGraph("result", Generate::GetData(), IterRDelay, ResponseGraph::GF_None, CLR_BLACK);
+    AddMeasureGraphs(Result1, IterMesLDelay);
+    AddMeasureGraphs(Result2, IterMesRDelay);
     break;
   }
   ControlBase(+GetCtrl(GB_RESULT)).Text(text1);
@@ -299,7 +349,7 @@ static const LONG ColorMap[] =
 , CLR_YELLOW
 };
 
-void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, ResponseGraph::Extractor source, Measure::Column col)
+void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, AggregateIterator& iter)
 {
   for (unsigned i = 0; i < MeasurementData.size() && i < sizeof ColorMap/sizeof *ColorMap; ++i)
   { DataFile& data = *MeasurementData[i];
@@ -312,7 +362,7 @@ void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, ResponseGra
       memcpy(cp + 3, caption.cdata() + caption.length() - 20, 20);
     }
     // data
-    result.AddGraph(caption, data, &Frontend::XtractFrequency, source, (void*)col, ResponseGraph::GF_None, ColorMap[i]);
+    result.AddGraph(caption, data, iter, ResponseGraph::GF_None, ColorMap[i]);
   }
 }
 

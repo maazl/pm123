@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,20 +34,20 @@
 Calibrate::CalibrationFile::CalibrationFile()
 : OpenLoopFile(13)
 { // Set Default Parameters
-  FFTSize = 131072;
+  FFTSize = 65536;
   DiscardSamp = 65536;
   RefFMin = 10.;
-  RefFMax = 20000.;
-  RefExponent = -.5;
+  RefFMax = 22000.;
+  RefExponent = 0.;
   RefSkipEven = true;
   RefSkipRand = true;
   RefMode = RFM_STEREO;
   RefVolume = .9;
-  RefFreqFactor = 0.;
+  RefFreqFactor = 0.002;
   RefEnergyDist = false;
   LineNotchHarmonics = 0;
   LineNotchFreq = 50.;
-  AnaFBin = .01;
+  AnaFBin = 0.01;
   AnaSwap = false;
 
   Mode = MD_StereoLoop;
@@ -58,6 +58,7 @@ Calibrate::CalibrationFile::CalibrationFile()
   DelayHigh = +360;
   Gain2Low = -90.;
   Gain2High = -40.;
+  DispBounds = true;
   VULow = -40;
   VUYellow = -12;
   VURed = -6;
@@ -116,15 +117,10 @@ ULONG Calibrate::InCommand(ULONG msg, const OUTPUT_PARAMS2* info)
 void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 { // Calculate the average group delay to avoid overflows in delta-phi.
   double response;
-  int delay = ComputeDelay(input[CalParams.Mode == MD_RightLoop], GetRefDesign(CalParams.Mode == MD_RightLoop), response);
-  if (CalParams.Mode == MD_StereoLoop)
-    delay = AverageDelay(delay, ComputeDelay(input[1], GetRefDesign(1), response));
-
   // Update results file
   { SyncAccess<CalibrationFile> data(Data);
-    FFT2Data f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin + 1);
+    FFT2OpenLoopData f2d(*data, (double)Format.samplerate / Params.FFTSize, data->AnaFBin + 1);
     f2d.Scale = scale;
-    f2d.Delay = (double)delay / Format.samplerate;
     switch (CalParams.Mode)
     {case MD_StereoLoop:
       if (Params.RefSkipEven)
@@ -136,27 +132,28 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       }
       AnaTemp = input[0];
       AnaTemp /= GetRefDesign(1);
+      f2d.Delay = data->AverageDelay[1] = ComputeDelay(input[1], GetRefDesign(1), response);
       f2d.StoreFFT(R2LGain, AnaTemp);
       AnaTemp = input[1];
       AnaTemp /= GetRefDesign(0);
+      f2d.Delay = ComputeDelay(input[0], GetRefDesign(0), response);
       f2d.StoreFFT(L2RGain, AnaTemp);
-      f2d.IndeterminatePhase = 0; // The two graphs above do not count
       input[0] /= GetRefDesign(0);
       f2d.StoreFFT(LGain, input[0]);
+      f2d.StorePhaseInfo(0);
       input[1] /= GetRefDesign(1);
+      f2d.Delay = data->AverageDelay[1];
       f2d.StoreFFT(RGain, input[1]);
+      f2d.StorePhaseInfo(1);
       break;
      case MD_BothLoop:
-      f2d.Scale = 1; // scale factor cancels in this mode
-      f2d.Delay = 0; // as well as the delay
+      f2d.Scale = 1; // scale factor cancels in this mode as well as the delay
       input[1] /= input[0];
       // blank all frequencies without intensity
       { const FreqDomainData& ref = GetRefDesign(0);
         for (unsigned i = 0; i < ref.size(); ++i)
-        { const fftwf_complex& r = ref[i];
-          if (r.real() == 0 && r.imag() == 0) // ref[i] == 0
+          if (ref[i] == 0.F)
             input[1][i] = NAN;
-        }
       }
       f2d.StoreFFT(DeltaGain, input[1]);
       break;
@@ -164,24 +161,23 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       if (Params.RefSkipEven)
         f2d.StoreHDN(LIntermod, input[0], GetRefDesign(0));
       input[1] /= GetRefDesign(0);
+      f2d.Delay = ComputeDelay(input[0], GetRefDesign(0), response);
       f2d.StoreFFT(L2RGain, input[1]);
-      f2d.IndeterminatePhase = 0; // The graph above does not count
       input[0] /= GetRefDesign(0);
       f2d.StoreFFT(LGain, input[0]);
+      f2d.StorePhaseInfo(0);
       break;
      case MD_RightLoop:
       if (Params.RefSkipEven)
         f2d.StoreHDN(RIntermod, input[1], GetRefDesign(1));
+      f2d.Delay = ComputeDelay(input[1], GetRefDesign(1), response);
       input[0] /= GetRefDesign(1);
       f2d.StoreFFT(R2LGain, input[0]);
-      f2d.IndeterminatePhase = 0; // The graph above does not count
       input[1] /= GetRefDesign(1);
       f2d.StoreFFT(RGain, input[1]);
+      f2d.StorePhaseInfo(1);
       break;
     }
-    data->AverageDelay = f2d.Delay;
-    data->PhaseUnwrapCount = f2d.PhaseUnwrapCount;
-    data->IndeterminatePhase = f2d.IndeterminatePhase;
   }
 
   OpenLoop::ProcessFFTData(input, scale);

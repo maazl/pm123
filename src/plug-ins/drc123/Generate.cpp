@@ -27,7 +27,7 @@
  */
 
 #include "Generate.h"
-#include "FFT2Data.h"
+#include "Iterators.h"
 #include <cpp/smartptr.h>
 
 
@@ -89,7 +89,7 @@ void Generate::Parameters::swap(Parameters& r)
 
 
 Generate::TargetFile::TargetFile()
-: DataFile(5)
+: DataFile(13)
 { FreqLow  = 20.;
   FreqHigh = 20000.;
   FreqBin  = .25;
@@ -268,20 +268,50 @@ void Generate::Prepare()
   }
 }
 
+struct SumCollector
+{ double Sum;
+  double Low;
+  double High;
+  void   Reset()                    { Sum = 0, Low = NAN, High = NAN; }
+         SumCollector()             { Reset(); }
+  void   operator+=(double value);
+};
+
+void SumCollector::operator+=(double value)
+{ Sum += value;
+  if (!(Low <= value))
+    Low = value;
+  if (!(High >= value))
+    High = value;
+}
+
 struct Interpolator
-{ GainInterpolationIterator LGain;
-  GainInterpolationIterator RGain;
-  DelayInterpolationIterator LDelay;
-  DelayInterpolationIterator RDelay;
+{ AverageIterator LGain;
+  AverageIterator RGain;
+  DelayAverageIterator LDelay;
+  DelayAverageIterator RDelay;
+  bool Valid;
   Interpolator(const Measure::MeasureFile& data);
+  void FetchNext(double f);
 };
 
 Interpolator::Interpolator(const Measure::MeasureFile& data)
-: LGain(data, Measure::LGain)
-, RGain(data, Measure::RGain)
-, LDelay(data, Measure::LDelay)
-, RDelay(data, Measure::RDelay)
-{}
+: LGain(Measure::LGain)
+, RGain(Measure::RGain)
+, LDelay(Measure::LDelay)
+, RDelay(Measure::RDelay)
+{ Valid = LGain.Reset(data)
+       && RGain.Reset(data)
+       && LDelay.Reset(data)
+       && RDelay.Reset(data);
+}
+
+inline void Interpolator::FetchNext(double f)
+{ LGain.ReadNext(f);
+  RGain.ReadNext(f);
+  LDelay.ReadNext(f);
+  RDelay.ReadNext(f);
+}
 
 void Generate::Run()
 {
@@ -290,29 +320,41 @@ void Generate::Run()
   // now calculate the target response
   vector_own<Interpolator> iplist(LocalData.Measurements.size());
   foreach (Measure::MeasureFile,*const*, sp, LocalData.Measurements)
-    iplist.append() = new Interpolator(**sp);
+  { Interpolator* ip = new Interpolator(**sp);
+    if (ip->Valid)
+      iplist.append() = ip;
+  }
 
   double f = LocalData.FreqLow;
   const double scale = 1. / LocalData.Measurements.size();
   while (f <= LocalData.FreqHigh)
   {
-    DataRow& row = *(LocalData.append() = new DataRow(5));
+    DataRow& row = *(LocalData.append() = new DataRow(LocalData.columns()));
     row[Frequency] = f;
-    double lgain = 0;
-    double rgain = 0;
-    double ldelay = 0;
-    double rdelay = 0;
+    SumCollector lgain;
+    SumCollector rgain;
+    SumCollector ldelay;
+    SumCollector rdelay;
     foreach (Interpolator,*const*, ipp, iplist)
     { Interpolator& ip = **ipp;
-      lgain += ip.LGain.FetchNext(f);
-      rgain += ip.RGain.FetchNext(f);
-      ldelay += ip.LDelay.FetchNext(f);
-      rdelay += ip.RDelay.FetchNext(f);
+      ip.FetchNext(f);
+      lgain += ip.LGain.GetValue();
+      rgain += ip.RGain.GetValue();
+      ldelay += ip.LDelay.GetValue();
+      rdelay += ip.RDelay.GetValue();
     }
-    row[LGain] = ApplyGainLimit(1 / (lgain * scale));
-    row[RGain] = ApplyGainLimit(1 / (rgain * scale));
-    row[LDelay] = ApplyDelayLimit(-ldelay * scale);
-    row[RDelay] = ApplyDelayLimit(-rdelay * scale);
+    row[LGain] = ApplyGainLimit(1 / (lgain.Sum * scale));
+    row[RGain] = ApplyGainLimit(1 / (rgain.Sum * scale));
+    row[LDelay] = ApplyDelayLimit(-ldelay.Sum * scale);
+    row[RDelay] = ApplyDelayLimit(-rdelay.Sum * scale);
+    row[LGainLow] = 1 / lgain.High;
+    row[LGainHigh] = 1 / lgain.Low;
+    row[RGainLow] = 1 / rgain.High;
+    row[RGainHigh] = 1 / rgain.Low;
+    row[LDelayLow] = -ldelay.High;
+    row[LDelayHigh] = -ldelay.Low;
+    row[RDelayLow] = -rdelay.High;
+    row[RDelayHigh] = -rdelay.Low;
 
     // next frequency
     f += LocalData.FreqBin + f * LocalData.FreqFactor;

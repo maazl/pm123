@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -98,25 +98,29 @@ class OpenLoop : public Filter
     // GUI injection
     double      GainLow, GainHigh;    ///< Display range for gain response
     double      DelayLow, DelayHigh;  ///< Display range for delay
-    double      VULow;
-    double      VUYellow, VURed;
+    bool        DispBounds;           ///< Show upper and lower bound of averaging
+    double      VULow;                ///< Lower limit of VU meter (upper limit is always 0 dBFS)
+    double      VUYellow, VURed;      ///< Starting level of yellow and red area in the VU meter
   };
   class OpenLoopFile
   : public DataFile
   , public Parameters
   {public:
-    /// Average group delay
-    double      AverageDelay;
-    /// Number of phase unwraps.
-    unsigned    PhaseUnwrapCount;
+    /// Average group delay per channel
+    double      AverageDelay[2];
+    /// Number of phase unwraps per channel
+    unsigned    PhaseUnwrapCount[2];
     /// Number of times the phase unwrapping was ambiguous.
-    unsigned    IndeterminatePhase;
+    unsigned    IndeterminatePhase[2];
+   private:
+    void        Reset();
    protected:
     virtual bool ParseHeaderField(const char* string);
     virtual bool WriteHeaderFields(FILE* f);
    public:
-                OpenLoopFile(unsigned cols) : DataFile(cols), AverageDelay(0.), PhaseUnwrapCount(0), IndeterminatePhase(0) {}
-    virtual bool Load(const char* filename = NULL, bool nodata = false);
+                OpenLoopFile(unsigned cols) : DataFile(cols) { Reset(); }
+    virtual bool Load(const char* filename = NULL, bool nodata = false)
+                                      { Reset(); return DataFile::Load(filename, nodata); }
   };
   /// Info about input for VU meter
   struct Statistics
@@ -236,17 +240,17 @@ class OpenLoop : public Filter
   /// @param ref FFT of the reference. This also controls the weighting.
   /// @param response [out] reliability and sign of the match.
   /// The value returned contains the relative amount of energy in the match and the sign of the match.
-  /// @return Most likely delay of \a fd1 against \a fd2 in samples.
+  /// @return Most likely delay of \a fd1 against \a fd2 in seconds.
   /// @post The returned value will always be in the interval [0,T]
   /// with T = Params.FFTSize / Format.samplerate.
-          int   ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response);
-  /// @brief Calculate the average delay with phase unwrapping.
+         double ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response);
+  /*// @brief Calculate the average delay with phase unwrapping.
   /// @details The function takes care of ambiguities in the autocorrelation
   /// of the reference signal, i.e. \c UncorrelatedFFTSize.
   /// @param delay1 1st delay in samples.
   /// @param delay2 2nd delay in samples.
   /// @return average delay in samples.
-          int   AverageDelay(int delay1, int delay2);
+          int   AverageDelay(int delay1, int delay2);*/
   /// @brief Process a block of input data.
   /// @details The function is called once for every \c FFTSize number of input samples.
   /// You can override it by the appropriate analysis function.

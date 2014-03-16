@@ -430,7 +430,6 @@ DLGTEMPLATE DLG_MEASURE_X
       CTLDATA CD_EFDATA(12)
     AUTORADIOBUTTON "white noise",    RB_WHITE_N,  180, 74,  52, 12
     AUTORADIOBUTTON "pink noise",     RB_PINK_N,   236, 74,  52, 12
-    AUTORADIOBUTTON "brown noise",    RB_BROWN_N,  292, 74,  52, 12
     LTEXT    "Minimum factor to ~next frequency",
                                       ST_GENERIC,   10, 62, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_REFFDIST, 118, 64,  48,  8, ES_MARGIN
@@ -595,7 +594,6 @@ DLGTEMPLATE DLG_CALIBRATE_X
       CTLDATA CD_EFDATA(12)
     AUTORADIOBUTTON "white noise",    RB_WHITE_N,  180, 62,  52, 12
     AUTORADIOBUTTON "pink noise",     RB_PINK_N,   236, 62,  52, 12
-    AUTORADIOBUTTON "brown noise",    RB_BROWN_N,  292, 62,  52, 12
     LTEXT    "Minimum factor to ~next frequency",
                                       ST_GENERIC,   10, 50, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_REFFDIST, 118, 52,  48,  8, ES_MARGIN

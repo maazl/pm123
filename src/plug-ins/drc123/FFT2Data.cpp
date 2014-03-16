@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,6 +27,7 @@
  */
 
 #include "FFT2Data.h"
+#include "Iterators.h"
 #include <cpp/algorithm.h>
 #include <debuglog.h>
 
@@ -43,7 +44,10 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source)
   double phsum = 0;
   double delayfstart = NAN;
 
-  DataFile::StoreIterator storer(Target, col, 2);
+  PhaseUnwrapCount = 0;
+  IndeterminatePhase = 0;
+
+  StoreIterator storer(Target, col, 2);
 
   for (unsigned i = 1; i < source.size(); ++i)
   { fftwf_complex sv(source[i]);
@@ -86,7 +90,7 @@ void FFT2Data::StoreFFT(unsigned col, const FreqDomainData& source)
     lastf = f;
     lastph = ph;
   }
-  storer.Store(fsum / magcnt, magsum / magcnt * Scale, phsum / (lastf-delayfstart));
+  storer.Store(fsum / magcnt, magsum / magcnt * Scale, phsum / (lastf-delayfstart) + Delay);
   DEBUGLOG(("FFT2Data::StoreFFT: IndeterminatePhase: %u/%u\n", IndeterminatePhase, PhaseUnwrapCount));
 }
 void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDomainData& ref)
@@ -101,7 +105,7 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
   double lastrv = NAN;
   unsigned rvcnt = 0;
 
-  DataFile::StoreIterator storer(Target, col, 1);
+  StoreIterator storer(Target, col, 1);
 
   for (unsigned i = 1; i < source.size(); ++i)
   { const fftwf_complex& rv = ref[i];
@@ -154,99 +158,32 @@ void FFT2Data::StoreHDN(unsigned col, const FreqDomainData& source, const FreqDo
 }
 
 
-float GainInterpolationIterator::FetchNext(float key)
-{ double gain;
-  float lk = (**Left)[0];
-  // extrapolate before the start or after the end?
-  if (key <= lk || !Right)
-  { gain = (**Left)[Column];
-  } else
-  { float lv = (**Left)[Column];
-    float rk = (**Right)[0];
-    float rv = (**Right)[Column];
-    // Integral over [LastKey,lk]
-    if (LastKey < lk)
-      gain = lv * (lk-LastKey);
-    else
-      gain = (rk*lv - .5*lk*(lv+rv) + .5*LastKey*(rv-lv)) / (rk-lk) * (lk-LastKey);
-    // seek for next row with row[0] > key
-    for (;;)
-    { if (key < rk)
-      { // add integral over [lk,key]
-        gain += (rk*lv - .5*lk*(lv+rv) + .5*key*(rv-lv)) / (rk-lk) * (key-lk);
-        break;
-      }
-      // add integral over [lk,rk]
-      gain += .5 * (lv+rv) * (rk-lk);
-      // next value
-      Right = SkipNAN((Left = Right) + 1);
-      if (!Right)
-      { // extrapolate remaining part
-        gain += lv * (key-lk);
-        break;
-      }
-      // update lk, rk, lv, rv
-      lk = rk;
-      lv = rv;
-      rk = (**Right)[0];
-      rv = (**Right)[Column];
-    }
-    gain /= key-LastKey;
-  }
-  LastKey = key;
-  return gain;
+void FFT2OpenLoopData::StorePhaseInfo(unsigned channel)
+{ ((OpenLoop::OpenLoopFile&)Target).AverageDelay[channel] = Delay;
+  ((OpenLoop::OpenLoopFile&)Target).PhaseUnwrapCount[channel] = PhaseUnwrapCount;
+  ((OpenLoop::OpenLoopFile&)Target).IndeterminatePhase[channel] = IndeterminatePhase;
 }
 
-float DelayInterpolationIterator::FetchNext(float key)
-{ double delay;
-  float lk = (**Left)[0];
-  // extrapolate before the start or after the end?
-  if (key <= lk || !Right)
-  { delay = (**Left)[Column];
-  } else
-  { float rk = (**Right)[0];
-    // Integral over [LastKey,lk]
-    delay = (**(LastKey < lk ? Left : Right))[Column] * (lk-LastKey);
-    for (;;)
-    { if (key < rk)
-      { // add integral over [Left,key]
-        delay += (**Right)[Column] * (key-lk);
-        break;
-      }
-      // add integral over [Left,Right]
-      delay += (**Right)[Column] * (rk-lk);
-      // next value
-      Right = SkipNAN((Left = Right) + 1);
-      if (!Right)
-      { // extrapolate remaining part
-        delay += (**Left)[Column] * (key-lk);
-        break;
-      }
-      // update lk, rk
-      lk = rk;
-      rk = (**Right)[0];
-    }
-    delay /= key-LastKey;
-  }
-  LastKey = key;
-  return delay;
-}
 
 void Data2FFT::LoadFFT(unsigned col, FreqDomainData& target)
 {
   if (target.size() != TargetSize)
     target.reset(TargetSize);
-  GainInterpolationIterator ipmag(Source, col);
-  DelayInterpolationIterator ipdelay(Source, col + 1);
+  AverageIterator ipmag(col);
+  DelayAverageIterator ipdelay(col + 1);
   double delay = 0;
-  for (unsigned i = 0; i < target.size(); ++i)
-  { double f = i * FInc;
-    float mag = ipmag.FetchNext(f) * Scale;
-    delay += ipdelay.FetchNext(f);
-    double ph = -2 * M_PI * FInc * delay;
-    target[i] = fftwf_complex(mag * cos(ph), mag * sin(ph));
+  if (ipmag.Reset(Source) && ipdelay.Reset(Source))
+  { for (unsigned i = 0; i < target.size(); ++i)
+    { double f = i * FInc;
+      ipmag.ReadNext(f);
+      ipdelay.ReadNext(f);
+      float mag = ipmag.GetValue() * Scale;
+      delay += ipdelay.GetValue();
+      double ph = -2 * M_PI * FInc * delay;
+      target[i] = fftwf_complex(mag * cos(ph), mag * sin(ph));
+    }
+    target[TargetSize-1] = target[TargetSize-1].real();
   }
-  target[TargetSize-1] = target[TargetSize-1].real();
 }
 
 void Data2FFT::LoadIdentity(FreqDomainData& target)

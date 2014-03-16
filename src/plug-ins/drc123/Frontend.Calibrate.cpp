@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,19 +46,29 @@ double Frontend::CalibratePage::XtractDeltaDelay(const DataRowType& row, void* c
 
 Frontend::CalibratePage::CalibratePage(Frontend& parent)
 : OpenLoopPage(parent, DLG_CALIBRATE, Calibrate::VTable)
+, IterLGain(Calibrate::LGain)
+, IterRGain(Calibrate::RGain)
+, IterDGain(Calibrate::DeltaGain)
+, IterLDelay(Calibrate::LDelay)
+, IterRDelay(Calibrate::RDelay)
+, IterDDelay(Calibrate::DeltaDelay)
+, IterR2LGain(Calibrate::R2LGain)
+, IterL2RGain(Calibrate::L2RGain)
+, IterLIntermod(Calibrate::LIntermod)
+, IterRIntermod(Calibrate::RIntermod)
 { MajorTitle = "~Calibrate";
   MinorTitle = "Calibrate sound card";
 
-  Response.AddGraph("< L gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::LGain, ResponseGraph::GF_None, CLR_BLUE);
-  Response.AddGraph("< R gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::RGain, ResponseGraph::GF_None, CLR_RED);
-  Response.AddGraph("L ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-  Response.AddGraph("R ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
-  Response.AddGraph("<  gain", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::DeltaGain, ResponseGraph::GF_None, CLR_CYAN);
-  Response.AddGraph(" ph.del. >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractPhaseDelay, (void*)Calibrate::DeltaDelay, ResponseGraph::GF_Y2, CLR_YELLOW);
-  XTalk.AddGraph("< R2L", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::R2LGain, ResponseGraph::GF_None, CLR_BLUE);
-  XTalk.AddGraph("< L2R", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::L2RGain, ResponseGraph::GF_None, CLR_RED);
-  XTalk.AddGraph("< L IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::LIntermod, ResponseGraph::GF_None, CLR_CYAN);
-  XTalk.AddGraph("< R IM2", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Calibrate::RIntermod, ResponseGraph::GF_None, CLR_YELLOW);
+  Response.AddGraph("< L gain",    Calibrate::GetData(), IterLGain,  ResponseGraph::GF_Bounds, CLR_BLUE);
+  Response.AddGraph("< R gain",    Calibrate::GetData(), IterRGain,  ResponseGraph::GF_Bounds, CLR_RED);
+  Response.AddGraph("L ph.del. >", Calibrate::GetData(), IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_GREEN);
+  Response.AddGraph("R ph.del. >", Calibrate::GetData(), IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_PINK);
+  Response.AddGraph("<  gain",    Calibrate::GetData(), IterDGain,  ResponseGraph::GF_Bounds, CLR_CYAN);
+  Response.AddGraph(" ph.del. >", Calibrate::GetData(), IterDDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Bounds, CLR_YELLOW);
+  XTalk.AddGraph("< R2L",   Calibrate::GetData(), IterR2LGain,   ResponseGraph::GF_Bounds, CLR_BLUE);
+  XTalk.AddGraph("< L2R",   Calibrate::GetData(), IterL2RGain,   ResponseGraph::GF_Bounds, CLR_RED);
+  XTalk.AddGraph("< L IM2", Calibrate::GetData(), IterLIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds, CLR_CYAN);
+  XTalk.AddGraph("< R IM2", Calibrate::GetData(), IterRIntermod, ResponseGraph::GF_None|ResponseGraph::GF_Bounds, CLR_YELLOW);
   //XTalk.AddGraph("R2L del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)6, ResponseGraph::GF_Y2, CLR_GREEN);
   //XTalk.AddGraph("L2R del. t >", Calibrate::GetData(), &Frontend::XtractFrequency, &Frontend::XtractDelay, (void*)8, ResponseGraph::GF_Y2, CLR_PINK);
 }
@@ -135,8 +145,9 @@ void Frontend::CalibratePage::InvalidateGraph()
 { Response.Invalidate();
   XTalk.Invalidate();
   SyncAccess<Calibrate::CalibrationFile> data(Calibrate::GetData());
-  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f ms, indeterminate phase: %.0f ppm",
-    1E3 * data->AverageDelay, 2E6 * data->IndeterminatePhase / data->PhaseUnwrapCount ));
+  ControlBase(+GetCtrl(ST_SUBRESULT)).Text(xstring().sprintf( "average delay: %.1f / %.1f ms, indeterminate phase: %u / %u",
+    1E3 * data->AverageDelay[0], 1E3 * data->AverageDelay[1],
+    data->IndeterminatePhase[0], data->IndeterminatePhase[1] ));
 }
 
 LONG Frontend::CalibratePage::DoLoadFileDlg(FILEDLG& fdlg)

@@ -32,6 +32,7 @@
 #define  INCL_WIN
 #include "drc123.h"
 #include "DataFile.h"
+#include "Iterators.h"
 #include "Deconvolution.h"
 #include "Calibrate.h"
 #include "Measure.h"
@@ -69,6 +70,19 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   , GVM_Gain            ///< Show gain of the target response and the contributing measurements.
   , GVM_Delay           ///< Show group delay of the target response and the contributing measurements.
   };
+ private:
+  class DBGainIterator : public AverageIterator
+  {protected:
+    virtual double      ScaleResult(double) const;
+   public:
+    DBGainIterator(unsigned col) : AverageIterator(col) {}
+  };
+  class PhaseDelayIterator : public DelayAverageIterator
+  {protected:
+    virtual double      ScaleResult(double) const;
+   public:
+    PhaseDelayIterator(unsigned col) : DelayAverageIterator(col) {}
+  };
 
  public:
   /// Currently active graph view in the deconvolution page.
@@ -77,15 +91,6 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   static GenerateViewMode GenerateView;
 
  private:
-  /// Extractor for ReponseGraph: X-axis = first column = frequency.
-  static double XtractFrequency(const DataRow& row, void*);
-  /// Extractor for ReponseGraph: Y-axis, select a column unconverted.
-  static double XtractColumn(const DataRow& row, void* col);
-  /// Extractor for ReponseGraph: Y-axis, select a column and convert from gain to dB.
-  static double XtractGain(const DataRow& row, void* col);
-  /// Extractor for ReponseGraph: Y-axis, select a column and convert from group delay to a phase angle at the current frequency.
-  static double XtractPhaseDelay(const DataRow& row, void* col);
-
   /// Helper function to set the window text of a numeric text box.
   /// @param ctrl Control to manipulate.
   /// @param value Value to set.
@@ -98,11 +103,17 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   static bool   GetValue(HWND ctrl, double& value);
 
  private:
+  class MyPageBase : public PageBase
+  {protected:
+    MyPageBase(Frontend& parent, ULONG dlgid) : PageBase(parent, dlgid, parent.ResModule, DF_AutoResize) {}
+    void        EnsureMsg(ULONG msg)          { PullMsg(msg); PostMsg(msg, 0,0); }
+  };
+
   /// Page #1 of the dialog: Configuration
-  class ConfigurationPage : public PageBase
+  class ConfigurationPage : public MyPageBase
   {public:
     ConfigurationPage(Frontend& parent)
-    : PageBase(parent, DLG_CONFIG, parent.ResModule, DF_AutoResize)
+    : MyPageBase(parent, DLG_CONFIG)
     { MajorTitle = "~Configure";
       MinorTitle = "Configuration";
     }
@@ -112,7 +123,7 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   };
 
   /// Deconvolution (playback) control page.
-  class DeconvolutionPage : public PageBase
+  class DeconvolutionPage : public MyPageBase
   {private:
     enum
     { UM_UPDATEKERNEL = WM_USER + 300
@@ -123,6 +134,12 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     Deconvolution::Parameters Params;
     DataFile      Kernel;
     ResponseGraph Result;
+    DBGainIterator IterLGain;
+    DBGainIterator IterRGain;
+    DelayAverageIterator IterLDelay;
+    DelayAverageIterator IterRDelay;
+    AverageIterator IterLKernel;
+    AverageIterator IterRKernel;
 
     class_delegate<DeconvolutionPage,const Deconvolution::KernelChangeEventArgs> KernelChangeDeleg;
     enum FrequencyDomainColumn
@@ -158,11 +175,11 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   /// @brief Abstract base page for dialog pages that are based on a single \c DataFile.
   /// @details The class handles a entry field for the file name \c EF_FILE,
   /// a MLE control for the file description \c ML_DESCR as well as a load and save button \c PB_LOAD and \c PB_SAVE.
-  class FilePage : public PageBase
+  class FilePage : public MyPageBase
   {private:
     bool          Modified;
    protected:
-    FilePage(Frontend& parent, ULONG dlgid) : PageBase(parent, dlgid, parent.ResModule, DF_AutoResize), Modified(false) {}
+    FilePage(Frontend& parent, ULONG dlgid) : MyPageBase(parent, dlgid), Modified(false) {}
     void          SetModified();
     void          ClearModified();
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -221,9 +238,34 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     , UM_UPDATEDESCR
     , UM_UPDATEGRAPH
     };
+
+    class ResponseGainIterator : public DBGainIterator
+    { AverageIterator InterpolateLow;
+      AverageIterator InterpolateHigh;
+     public:
+      ResponseGainIterator(unsigned col, unsigned collow);
+      virtual bool Reset(const DataFile& data);
+      virtual void ReadNext(double f);
+    };
+    class ResponseDelayIterator : public DelayAverageIterator
+    { DelayAverageIterator InterpolateLow;
+      DelayAverageIterator InterpolateHigh;
+     public:
+      ResponseDelayIterator(unsigned col, unsigned collow);
+      virtual bool Reset(const DataFile& data);
+      virtual void ReadNext(double f);
+    };
    private:
     ResponseGraph Result1;
     ResponseGraph Result2;
+    ResponseGainIterator IterLGain;
+    ResponseGainIterator IterRGain;
+    ResponseDelayIterator IterLDelay;
+    ResponseDelayIterator IterRDelay;
+    DBGainIterator IterMesLGain;
+    DBGainIterator IterMesRGain;
+    DelayAverageIterator IterMesLDelay;
+    DelayAverageIterator IterMesRDelay;
     /// Backup copy of measurement data for graphs.
     vector_own<DataFile> MeasurementData;
    public:
@@ -243,7 +285,7 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     void          InvalidateGraph();
     void          SetGraphAxes(const Generate::TargetFile& data);
     void          SetupGraph();
-    void          AddMeasureGraphs(ResponseGraph& result, ResponseGraph::Extractor source, Measure::Column col);
+    void          AddMeasureGraphs(ResponseGraph& result, AggregateIterator& iter);
     void          Run();
   };
 
@@ -322,6 +364,10 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
 
    private:
     ResponseGraph Response;
+    DBGainIterator IterLGain;
+    DBGainIterator IterRGain;
+    DelayAverageIterator IterLDelay;
+    DelayAverageIterator IterRDelay;
    public:
     MeasurePage(Frontend& parent);
     virtual ~MeasurePage();
@@ -360,9 +406,17 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   {private:
     ResponseGraph Response;
     ResponseGraph XTalk;
-   /*private:
-    static double XtractDeltaGain(const DataRowType& row, void* col);
-    static double XtractDeltaDelay(const DataRowType& row, void* col);*/
+    DBGainIterator IterLGain;
+    DBGainIterator IterRGain;
+    DBGainIterator IterDGain;
+    PhaseDelayIterator IterLDelay;
+    PhaseDelayIterator IterRDelay;
+    PhaseDelayIterator IterDDelay;
+    DBGainIterator IterR2LGain;
+    DBGainIterator IterL2RGain;
+    DBGainIterator IterLIntermod;
+    DBGainIterator IterRIntermod;
+
    public:
     CalibratePage(Frontend& parent);
     virtual ~CalibratePage();

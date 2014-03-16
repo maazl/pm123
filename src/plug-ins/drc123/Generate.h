@@ -78,6 +78,14 @@ class Generate
   , LDelay
   , RGain
   , RDelay
+  , LGainLow
+  , LGainHigh
+  , LDelayLow
+  , LDelayHigh
+  , RGainLow
+  , RGainHigh
+  , RDelayLow
+  , RDelayHigh
   };
   class TargetFile
   : public DataFile
@@ -87,7 +95,7 @@ class Generate
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 TargetFile();
-    void        reset()                         { DataFile::reset(5); }
+    void        reset()                         { DataFile::reset(13); }
     void        swap(TargetFile& r);
     virtual bool Load(const char* filename, bool nodata = false);
   };

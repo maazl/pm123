@@ -135,7 +135,6 @@
 
 #define RB_WHITE_N      1380
 #define RB_PINK_N       1381
-#define RB_BROWN_N      1382
 #define CB_SKIPEVEN     1385
 #define CB_SKIPRAND     1386
 #define CB_VERIFYMODE   1387

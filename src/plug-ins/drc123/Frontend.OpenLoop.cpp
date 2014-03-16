@@ -84,7 +84,7 @@ MRESULT Frontend::OpenLoopPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == SPBN_CHANGE && !VolumeRq)
       { // defer execution to posted message
         VolumeRq = true;
-        PostMsg(UM_VOLUME, 0,0);
+        EnsureMsg(UM_VOLUME);
       }
       return 0;
     }
@@ -116,7 +116,6 @@ MRESULT Frontend::OpenLoopPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { VolumeRq = false;
       double volume = SpinButton(+GetCtrl(SB_VOLUME)).Value() / 100.;
       (*Worker.SetVolume)(volume);
-      (*Worker.Clear)();
       InvalidateGraph();
       SetModified();
     }
@@ -173,7 +172,7 @@ bool Frontend::OpenLoopPage::LoadFile()
 void Frontend::OpenLoopPage::AnaUpdateNotify(const int&)
 { DEBUGLOG(("Frontend::OpenLoopPage(%p)::AnaUpdateNotify()\n", this));
   UpdateRq = true;
-  PostMsg(UM_UPDATE, 0,0);
+  EnsureMsg(UM_UPDATE);
 }
 
 
@@ -208,8 +207,6 @@ MRESULT Frontend::ExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             id = RB_WHITE_N;
           else if (value == -.5)
             id = RB_PINK_N;
-          else if (value == -1.)
-            id = RB_BROWN_N;
         }
         if (id)
           RadioButton(+GetCtrl(id)).CheckState(true);
@@ -224,10 +221,6 @@ MRESULT Frontend::ExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case RB_PINK_N:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
         ControlBase(+GetCtrl(EF_REFEXPONENT)).Text("-0.5");
-      break;
-     case RB_BROWN_N:
-      if (SHORT2FROMMP(mp1) == BN_CLICKED)
-        ControlBase(+GetCtrl(EF_REFEXPONENT)).Text("-1");
       break;
      default:
       { if ( SHORT1FROMMP(mp1) == ControlBase(GetHwnd()).ID()

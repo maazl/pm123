@@ -48,8 +48,17 @@
 #include <debuglog.h>
 
 
+Frontend::DeconvolutionViewMode Frontend::DeconvolutionView = DVM_Target;
+
+
 Frontend::DeconvolutionPage::DeconvolutionPage(Frontend& parent)
-: PageBase(parent, DLG_DECONV, parent.ResModule, DF_AutoResize)
+: MyPageBase(parent, DLG_DECONV)
+, IterLGain(Generate::LGain)
+, IterRGain(Generate::RGain)
+, IterLDelay(Generate::LDelay)
+, IterRDelay(Generate::RDelay)
+, IterLKernel(TDC_LKernel)
+, IterRKernel(TDC_RKernel)
 , KernelChangeDeleg(Deconvolution::GetKernelChange(), *this, &DeconvolutionPage::KernelChange)
 { DEBUGLOG(("Frontend::DeconvolutionPage(%p)::DeconvolutionPage(&%p)) - %p\n", this, &parent, &Params.TargetFile));
   MajorTitle = "~Playback";
@@ -99,7 +108,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           Params.TargetFile = Params.TargetFile + lb.ItemText(sel);
         } else
           Params.TargetFile = xstring::empty;
-        PostMsg(UM_UPDATEKERNEL, 0, 0);
+        EnsureMsg(UM_UPDATEKERNEL);
         SetModified(true);
       }
       break;
@@ -119,7 +128,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case RB_VIEWTIME:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
       { DeconvolutionView = (DeconvolutionViewMode)(SHORT1FROMMP(mp1) - RB_VIEWTARGET);
-        PostMsg(UM_SETUPGRAPH, 0,0);
+        EnsureMsg(UM_SETUPGRAPH);
       }
       break;
      case CB_ENABLE:
@@ -261,7 +270,7 @@ void Frontend::DeconvolutionPage::UpdateDir()
         CheckBox(+GetCtrl(CB_ENABLE)).Enabled(false);
       }
     }
-    PostMsg(UM_UPDATEKERNEL, 0, 0);
+    EnsureMsg(UM_UPDATEKERNEL);
   }
 }
 
@@ -290,34 +299,34 @@ void Frontend::DeconvolutionPage::SetupGraph()
   switch (DeconvolutionView)
   {default: // DVM_TARGET
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, -.2,.2);
-    Result.AddGraph("< L gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_Y2, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_Y2, CLR_PINK);
+    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Y2, CLR_GREEN);
+    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Y2, CLR_PINK);
     break;
    case DVM_GainResult:
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.AddGraph("< L gain", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)FDC_LGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)FDC_RGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("< L gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("< R gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_PINK);
+    Result.AddGraph("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_GREEN);
+    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_DelayResult:
     Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -.2,.2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.AddGraph("L delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_RDelay, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_PINK);
+    Result.AddGraph("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_None, CLR_GREEN);
+    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_None, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_TimeResult:
     Result.SetAxes(ResponseGraph::AF_None, -1,+1, -2,2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(TDC_count);
-    Result.AddGraph("left", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)TDC_LKernel, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("right", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)TDC_RKernel, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_None, CLR_RED);
     Deconvolution::ForceKernelChange();
     break;
   }
@@ -331,26 +340,26 @@ void Frontend::DeconvolutionPage::UpdateGraph()
    case DVM_GainResult:
     Result.ClearGraphs();
     CurrentRawKernelData = RawKernelData;
-    Result.AddGraph("< L gain", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)FDC_LGain, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("< R gain", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)FDC_RGain, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("< L gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::LGain, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("< R gain", Kernel, &Frontend::XtractFrequency, &Frontend::XtractGain, (void*)Generate::RGain, ResponseGraph::GF_None, CLR_PINK);
+    Result.AddGraph("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("< L gain", Kernel, IterLGain, ResponseGraph::GF_None, CLR_GREEN);
+    Result.AddGraph("< R gain", Kernel, IterRGain, ResponseGraph::GF_None, CLR_PINK);
     break;
    case DVM_DelayResult:
     Result.ClearGraphs();
     CurrentRawKernelData = RawKernelData;
-    Result.AddGraph("L delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_LDelay, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("R delay >", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)FDC_RDelay, ResponseGraph::GF_None, CLR_RED);
-    Result.AddGraph("L delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::LDelay, ResponseGraph::GF_None, CLR_GREEN);
-    Result.AddGraph("R delay >", Kernel, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)Generate::RDelay, ResponseGraph::GF_None, CLR_PINK);
+    Result.AddGraph("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_None, CLR_BLUE);
+    Result.AddGraph("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("L delay >", Kernel, IterLDelay, ResponseGraph::GF_None, CLR_GREEN);
+    Result.AddGraph("R delay >", Kernel, IterRDelay, ResponseGraph::GF_None, CLR_PINK);
     break;
    case DVM_TimeResult:
     Result.ClearGraphs();
     CurrentRawKernelData = RawKernelData;
     if (CurrentRawKernelData->size())
       Result.SetAxes(ResponseGraph::AF_None, (*(*CurrentRawKernelData)[0])[0],(*(*CurrentRawKernelData)[CurrentRawKernelData->size()-1])[0], -2,2, NAN,NAN);
-    Result.AddGraph("left", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)TDC_LKernel, ResponseGraph::GF_None, CLR_BLUE);
-    Result.AddGraph("right", *CurrentRawKernelData, &Frontend::XtractFrequency, &Frontend::XtractColumn, (void*)TDC_RKernel, ResponseGraph::GF_None, CLR_RED);
+    Result.AddGraph("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_Bounds, CLR_BLUE);
+    Result.AddGraph("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_Bounds, CLR_RED);
     break;
   }
   Result.Invalidate();
@@ -399,7 +408,7 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
         kernel->Mtx.Request(); // can't block!
         needsetup = true;
       }
-      DataFile::StoreIterator storer(*kernel, args.Channel ? TDC_RKernel : TDC_LKernel, 1);
+      StoreIterator storer(*kernel, args.Channel ? TDC_RKernel : TDC_LKernel, 1);
 
       int count = -(args.Params->FIROrder >> 1);
       const float* sp = args.TimeDomain->end() + count;
@@ -413,5 +422,5 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
     }
     break;
   }
-  PostMsg(needsetup ? UM_UPDATEGRAPH : UM_INVALIDATEGRAPH, 0,0);
+  EnsureMsg(needsetup ? UM_UPDATEGRAPH : UM_INVALIDATEGRAPH);
 }

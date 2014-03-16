@@ -29,12 +29,24 @@
 #define INCL_GPI
 #include "ResponseGraph.h"
 #include "DataFile.h"
+#include "Iterators.h"
 
 #include <cpp/pmutils.h>
 #include <os2.h>
 #include <math.h>
 #include <stdio.h>
+#include <limits.h>
 
+
+POINTL ResponseGraph::Graph[MAX_X_WIDTH];
+//POINTL ResponseGraph::GraphLow[MAX_X_WIDTH];
+//POINTL ResponseGraph::GraphHigh[MAX_X_WIDTH];
+
+
+/*double ResponseGraph::FromX(double x)
+{ double val = X0 + XS * (x - XY1.x) / (XY2.x - XY1.x);
+  return Axes.Flags & AF_LogX ? exp(val) : val;
+}*/
 
 LONG ResponseGraph::ToX(double x)
 { if (Axes.Flags & AF_LogX)
@@ -60,6 +72,21 @@ LONG ResponseGraph::ToYCore(double relative)
   LONG result = (LONG)(relative * (XY2.y - XY1.y) + .5) + XY1.y;
     return result;
 }
+
+/*LONG ResponseGraph::ToY(double y, bool y2)
+{ if (isnan(y))
+    return LONG_MIN;
+  if (y2)
+  { if (Axes.Flags & AF_LogY2)
+      y = log(y);
+    y = (y - Y20) / Y2S;
+  } else
+  { if (Axes.Flags & AF_LogY1)
+      y = log(y);
+    y = (y - Y10) / Y1S;
+  }
+  return ToYCore(y);
+}*/
 
 static const char SIprefix[] =
 { 'y', 'z', 'a', 'f', 'p', 'n', 'u', 'm' // 10^-24..10^-3
@@ -227,47 +254,54 @@ void ResponseGraph::LogAxes(double min, double max, void (ResponseGraph::*drawla
   }
 }
 
-static inline double to_y_rel(double value, bool logscale, double y0, double ys)
-{ if (logscale)
-    value = log(value);
-  return (value - y0) / ys;
+bool ResponseGraph::PrepareGraph(const GraphInfo& graph, double (AggregateIterator::*getter)() const)
+{ SyncAccess<DataFile> data(graph.Data);
+  DEBUGLOG(("ResponseGraph(%p)::PrepareGraph(&%p{%p, },)\n", this, &graph, &*data));
+  if (!graph.Reader->Reset(*data))
+    return false;
+  const LONG maxcount = XY2.x - XY1.x;
+  const double offset = graph.Flags & GF_Average ? .5 : 0.;
+  double x = X0 + XS * (-1 + offset) / maxcount;
+  graph.Reader->ReadNext(Axes.Flags & AF_LogX ? exp(x) : x);
+  double y;
+  for (LONG i = 0; i <= maxcount; ++i)
+  { x = X0 + XS * (i + offset) / maxcount;
+    graph.Reader->ReadNext(Axes.Flags & AF_LogX ? exp(x) : x);
+    y = (graph.Reader->*getter)();
+    if (isnan(y))
+      Graph[i].y = LONG_MIN;
+    else if (graph.Flags & GF_Y2)
+    { if (Axes.Flags & AF_LogY2)
+        y = log(y);
+      Graph[i].y = ToYCore((y - Y20) / Y2S);
+    } else
+    { if (Axes.Flags & AF_LogY1)
+        y = log(y);
+      Graph[i].y = ToYCore((y - Y10) / Y1S);
+    }
+    //GraphLow[i].y = ToY(graph.Reader->LowValue, graph.Flags & GF_Y2);
+    //GraphHigh[i].y = ToY(graph.Reader->HighValue, graph.Flags & GF_Y2);
+  }
+  return true;
 }
 
-void ResponseGraph::DrawGraph(const GraphInfo& graph)
+void ResponseGraph::DrawGraph(POINTL* data)
 {
-  if (isnan(Axes.XMin) || isnan(Axes.XMax))
-    return;
-  GpiSetColor(PS, graph.Color);
-
-  POINTL points[1000];
-  POINTL* const dpe = points + sizeof points / sizeof *points;
-
-  SyncAccess<DataFile> data(graph.Data);
-  const DataRow*const* rp = data->begin();
-  const DataRow*const* rpe = data->end();
-
-  bool start = true;
-  while (rp != rpe)
-  { POINTL* dp;
-    for (dp = points; dp < dpe && rp != rpe; ++rp)
-    { const DataRow& row = **rp;
-      double value = (*graph.ExtractY)(row, graph.User);
-      if (isnan(value))
-        continue;
-      value = graph.Flags & GF_Y2
-        ? to_y_rel(value, Axes.Flags & AF_LogY1, Y20, Y2S)
-        : to_y_rel(value, Axes.Flags & AF_LogY2, Y10, Y1S);
-      dp->y = ToYCore(value);
-      value = (*graph.ExtractX)(row, graph.User);
-      if (isnan(value))
-        continue;
-      dp->x = ToX(value);
-      ++dp;
+  const POINTL* const end = data + (XY2.x - XY1.x);
+  for(;;)
+  { // get runs of non NAN values
+    for(;;)
+    { if (data == end)
+        return;
+      if (data->y != LONG_MIN)
+        break;
+      ++data;
     }
-    if (start)
-      GpiMove(PS, points);
-    GpiPolyLine(PS, dp - points, points);
-    start = false;
+    POINTL* start = data; // first non NAN point
+    while (++data != end && data->y != LONG_MIN);
+    // now data points one after the last non NAN point
+    GpiMove(PS, start);
+    GpiPolyLine(PS, data - start, start);
   }
 }
 
@@ -289,6 +323,10 @@ void ResponseGraph::Draw()
   GpiSetBackColor(PS, CLR_WHITE);
   GpiSetPattern(PS, PATSYM_BLANK);
   GpiSetBackMix(PS, BM_OVERPAINT);
+  GpiMove(PS, &XY1);
+  GpiBox(PS, DRO_FILL, &XY2, 0,0);
+  if (isnan(Axes.XMin) || isnan(Axes.XMax))
+    return;
   FATTRS fattrs =
   { sizeof(FATTRS)
   , 0, 0
@@ -298,9 +336,6 @@ void ResponseGraph::Draw()
   GpiCreateLogFont(PS, NULL, 0, &fattrs);
   GpiQueryFontMetrics(PS, sizeof FontMetrics, &FontMetrics);
   GpiIntersectClipRectangle(PS, (RECTL*)&XY1);
-
-  GpiMove(PS, &XY1);
-  GpiBox(PS, DRO_FILL, &XY2, 0,0);
 
   GpiSetColor(PS, CLR_DARKGRAY);
   GpiSetBackMix(PS, BM_LEAVEALONE);
@@ -321,17 +356,56 @@ void ResponseGraph::Draw()
   GpiMove(ps, &XY1);
   GpiBox(ps, DRO_OUTLINE, &XY2, 0,0);*/
 
-  // draw graphs
+  // Setup X axis
+  for (LONG i = 0; i <= XY2.x - XY1.x; ++i)
+    Graph[i].x = i + XY1.x;
+
+  // Draw Bound graphs first
+  for (unsigned i = Graphs.size(); i--; )
+  { const GraphInfo& graph = *Graphs[i];
+    if ( !(graph.Flags & GF_Bounds)
+      || !PrepareGraph(graph, &AggregateIterator::GetMinValue) )
+      continue;
+    LONG color = Graphs[i]->Color;
+    if (!(graph.Flags & GF_RGB))
+      GpiQueryLogColorTable(PS, 0, color, 1, &color); // get RGB
+    // raise brightness
+    color = (color | 0x03030300) >> 2;
+    // Set color
+    GpiCreateLogColorTable(PS, 0, LCOLF_RGB, 0, 0, NULL);
+    GpiSetColor(PS, color);
+    DrawGraph(Graph);
+    if (!PrepareGraph(graph, &AggregateIterator::GetMaxValue))
+      continue;
+    DrawGraph(Graph);
+    GpiCreateLogColorTable(PS, LCOL_RESET, LCOLF_INDRGB, 0, 0, NULL);
+  }
+
   // Draw in reverse order to keep the important ones at the top.
-  unsigned i;
-  for (i = Graphs.size(); i--; )
-    DrawGraph(*Graphs[i]);
+  for (unsigned i = Graphs.size(); i--; )
+  { const GraphInfo& graph = *Graphs[i];
+    if (!PrepareGraph(graph, &AggregateIterator::GetValue))
+      continue;
+    if (graph.Flags & GF_RGB)
+      GpiCreateLogColorTable(PS, 0, LCOLF_RGB, 0, 0, NULL);
+    else
+      GpiCreateLogColorTable(PS, LCOL_RESET, LCOLF_INDRGB, 0, 0, NULL);
+    GpiSetColor(PS, graph.Color);
+    DrawGraph(Graph);
+  }
 
   // Draw legend
   GpiSetCharDirection(PS, CHDIRN_LEFTRIGHT);
   for (unsigned i = Graphs.size(); i--; )
-  { GpiSetColor(PS, Graphs[i]->Color);
-    DrawLegend(Graphs[i]->Legend, i);
+  { const GraphInfo& graph = *Graphs[i];
+    if (graph.Legend)
+    { if (graph.Flags & GF_RGB)
+        GpiCreateLogColorTable(PS, 0, LCOLF_RGB, 0, 0, NULL);
+      else
+        GpiCreateLogColorTable(PS, LCOL_RESET, LCOLF_INDRGB, 0, 0, NULL);
+      GpiSetColor(PS, graph.Color);
+      DrawLegend(graph.Legend, i);
+    }
   }
 }
 

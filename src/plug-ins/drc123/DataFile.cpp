@@ -92,7 +92,8 @@ DataFile::~DataFile()
 {}
 
 void DataFile::reset(unsigned cols)
-{ base::clear();
+{ DEBUGLOG(("DataFile(%p{%s})::reset(%u)\n", this, FileName.cdata(), cols));
+  base::clear();
   Description = xstring::empty;
   MaxColumns = cols;
 }
@@ -103,7 +104,8 @@ void DataFile::columns(unsigned cols)
 }
 
 void DataFile::swap(DataFile& r)
-{ base::swap(r);
+{ DEBUGLOG(("DataFile(%p{%s})::swap(&%p{%s})\n", this, FileName.cdata(), &r, r.FileName.cdata()));
+  base::swap(r);
   FileName.swap(r.FileName);
   Description.swap(r.Description);
   ::swap(MaxColumns, r.MaxColumns);
@@ -253,182 +255,4 @@ void DataFile::ClearColumn(unsigned col)
     }
   }
   newdata.swap(*this);
-}
-
-static int dlcmp(const float& k, const DataRow& row)
-{ float value = row[0];
-  if (k > value * 1.0001)
-    return 1;
-  if (k < value / 1.0001)
-    return -1;
-  return 0;
-}
-
-/*void DataFile::StoreValue(unsigned col, float f, float value)
-{ if (isnan(value))
-    return;
-  size_t pos;
-  DataRow* rp;
-  if (!binary_search<DataRow,const float>(f, pos, *this, &dlcmp))
-  { rp = insert(pos) = new DataRow(MaxColumns);
-    (*rp)[0] = f;
-  } else
-    rp = (*this)[pos];
-  (*rp)[col] = value;
-}
-void DataFile::StoreValue(unsigned col, float f, float mag, float delay)
-{ if (isnan(mag) && isnan(delay))
-    return;
-  size_t pos;
-  DataRow* rp;
-  if (!binary_search<DataRow,const float>(f, pos, *this, &dlcmp))
-  { rp = insert(pos) = new DataRow(MaxColumns);
-    (*rp)[0] = f;
-  } else
-    rp = (*this)[pos];
-  (*rp)[col] = mag;
-  (*rp)[col + 1] = delay;
-}
-
-float DataFile::Interpolate(float f, unsigned col) const
-{
-  // search for frequency f
-  size_t pos;
-  if (locate(f, pos))
-  { // exact match
-    register float value = (*(*this)[pos])[col];
-    // but if nan then treat as inexact match
-    if (!isnan(value))
-      return value;
-  }
-  // left bound
-  DataRow*const* pe = begin();
-  DataRow*const* lp = pe + pos;
-  float lv = NAN;
-  do
-  { if (lp == pe) // at the start
-      break;
-    lv = (**--lp)[col];
-  } while (isnan(lv));
-  // right bound
-  DataRow*const* rp = pe + pos;
-  float rv = NAN;
-  pe = end();
-  for (;;)
-  { if (rp == pe) // behind the end
-      break;
-    rv = (**rp)[col];
-    if (!isnan(rv))
-      break;
-    ++rp;
-  }
-
-  // interpolate
-  if (isnan(rv))
-    return lv; // use extrapolation
-  else if(isnan(lv))
-    return rv; // use extrapolation
-  else
-  { register float lf = (**lp)[0];
-    register float rf = (**rp)[0];
-    return (lv * (rf-f) + rv * (f-lf)) / (rf - lf);
-  }
-}*/
-
-const DataRow*const* DataFile::InterpolationIterator::SkipNAN(const DataRow*const* ptr)
-{ for(; ptr < End; ++ptr)
-  { if (!isnan((**ptr)[Column]))
-      return ptr;
-  }
-  return NULL;
-}
-
-DataFile::InterpolationIterator::InterpolationIterator(const DataFile& data, unsigned col)
-: End(data.end())
-, Column(col)
-  // place the first two non-NAN rows in Left, Right
-, Left(SkipNAN(data.begin()))
-, Right(SkipNAN(Left+1))
-{ ASSERT(Left);
-}
-
-float DataFile::InterpolationIterator::FetchNext(float key)
-{ float lk = (**Left)[0];
-  // !extrapolate before the start?
-  if (key > lk)
-  { // seek for next row with row[0] > key
-    // !extrapolate behind the end?
-    while (Right)
-    { float rk = (**Right)[0];
-      if (key < rk)
-      { // interpolate
-        register float lv = (**Left)[Column];
-        register float rv = (**Right)[Column];
-        return (lv * (rk-key) + rv * (key-lk)) / (rk-lk);
-      }
-      Right = SkipNAN((Left = Right) + 1);
-      lk = rk;
-    }
-  }
-  return (**Left)[Column];
-}
-
-
-DataFile::StoreIterator::StoreIterator(DataFile& data, unsigned col, unsigned discard, float accuracy)
-: Target(data)
-, Column(col)
-, Discard(discard)
-, Accuracy(1. + accuracy)
-, Current(0)
-{}
-
-DataFile::StoreIterator::~StoreIterator()
-{
-  if (Discard)
-    while (Current < Target.size())
-      DiscardColumns();
-}
-
-void DataFile::StoreIterator::DiscardColumns()
-{ DataRow& row = *Target[Current];
-  unsigned col = Column + Discard;
-  do
-    row[--col] = NAN;
-  while (col != Column);
-  if (row.HasValues())
-    ++Current;
-  else
-    Target.erase(Current);
-}
-
-DataRow& DataFile::StoreIterator::RowAtKey(float key)
-{
-  while (Current < Target.size())
-  { DataRow& row = *Target[Current];
-    if (key <= row[0] * Accuracy)
-    { if (key * Accuracy < row[0])
-        // Value before Current => insert
-        break;
-      else
-      { // hit
-        ++Current;
-        return row;
-      }
-    }
-    // key larger than Current, try at later location
-    if (Discard)
-      DiscardColumns();
-    else
-      ++Current;
-  }
-  // insert new row at Current
-  DataRow& row = *(Target.insert(Current++) = new DataRow(Target.MaxColumns));
-  row[0] = key;
-  return row;
-}
-
-void DataFile::StoreIterator::Store(float key, float value1, float value2)
-{ DataRow& row = RowAtKey(key);
-  row[Column] = value1;
-  row[Column+1] = value2;
 }

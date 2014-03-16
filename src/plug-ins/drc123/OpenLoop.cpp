@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2013 Marcel Mueller
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,15 @@
 #include <float.h>
 
 
+void OpenLoop::OpenLoopFile::Reset()
+{ AverageDelay[0] =
+  AverageDelay[1] = 0.;
+  PhaseUnwrapCount[0] =
+  PhaseUnwrapCount[1] =
+  IndeterminatePhase[0] =
+  IndeterminatePhase[1] = 0;
+}
+
 bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
 { const char* value;
   if (!!(value = TryParam(string, "FFTSize")))
@@ -68,9 +77,11 @@ bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
   else if (!!(value = TryParam(string, "DispVU")))
     sscanf(value, "%lf,%lf,%lf", &VULow, &VUYellow, &VURed);
   else if (!!(value = TryParam(string, "AverageDelay")))
-    AverageDelay = atof(value);
+    sscanf(value, "%lf,%lf", &AverageDelay[0], &AverageDelay[1]);
   else if (!!(value = TryParam(string, "PhaseUnwrap")))
-    sscanf(value, "%u,%u", &PhaseUnwrapCount, &IndeterminatePhase);
+    sscanf(value, "%u,%u", &PhaseUnwrapCount[0], &PhaseUnwrapCount[1]);
+  else if (!!(value = TryParam(string, "IndetPhase")))
+    sscanf(value, "%u,%u", &IndeterminatePhase[0], &IndeterminatePhase[1]);
   else
     return DataFile::ParseHeaderField(string);
   return true;
@@ -81,32 +92,26 @@ bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
     "##FFTSize=%u\n"
     "##DiscardSamp=%u\n"
     "##AnaSwap=%u\n"
-    "##LineNotch=%u,%f\n"
-    "##RefFreq=%f,%f\n"
-    "##RefExponent=%f\n"
+    "##LineNotch=%u,%g\n"
+    "##RefFreq=%g,%g\n"
+    "##RefExponent=%g\n"
     "##RefSkipEven=%u\n"
     "##RefSkipRand=%u\n"
     "##RefMode=%u\n"
-    "##RefVolume=%f\n"
-    "##RefFreqFactor=%f\n"
+    "##RefVolume=%g\n"
+    "##RefFreqFactor=%g\n"
     "##RefEnergyDist=%u\n"
-    "##DispGain=%f,%f\n"
-    "##DispDelay=%f,%f\n"
-    "##DispVU=%f,%f,%f\n"
-    "##AverageDelay=%f\n"
+    "##DispGain=%g,%g\n"
+    "##DispDelay=%g,%g\n"
+    "##DispVU=%g,%g,%g\n"
+    "##AverageDelay=%g\n"
     "##PhaseUnwrap=%u,%u\n"
+    "##IndetPhase=%u,%u\n"
     , FFTSize, DiscardSamp, AnaSwap, LineNotchHarmonics, LineNotchFreq
     , RefFMin, RefFMax, RefExponent, RefSkipEven, RefSkipRand, RefMode, RefVolume, RefFreqFactor, RefEnergyDist
     , GainLow, GainHigh, DelayLow, DelayHigh, VULow, VUYellow, VURed
-    , AverageDelay, PhaseUnwrapCount, IndeterminatePhase );
+    , AverageDelay[0], AverageDelay[1], PhaseUnwrapCount[0], PhaseUnwrapCount[1], IndeterminatePhase[0], IndeterminatePhase[1] );
   return DataFile::WriteHeaderFields(f);
-}
-
-bool OpenLoop::OpenLoopFile::Load(const char* filename, bool nodata)
-{ AverageDelay = 0.;
-  PhaseUnwrapCount = 0;
-  IndeterminatePhase = 0;
-  return DataFile::Load(filename, nodata);
 }
 
 
@@ -285,7 +290,7 @@ void OpenLoop::GenerateRef()
     }
     double& lastf = reflastf[channel];
     // skip frequency because it is too close to the last one.
-    if (f < lastf + lastf * Params.RefFreqFactor)
+    if (f < lastf + sqrt(lastf) * Params.RefFreqFactor)
       continue;
     // calculate coefficients
     fftwf_complex& cur = RefDesign[channel][i];
@@ -388,7 +393,7 @@ TimeDomainData& OpenLoop::CrossCorrelate(const FreqDomainData& signal, const Fre
   return ResCross;
 }
 
-int OpenLoop::ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response)
+double OpenLoop::ComputeDelay(const FreqDomainData& signal, const FreqDomainData& ref, double& response)
 {
   CrossCorrelate(signal, ref);
 
@@ -408,16 +413,17 @@ int OpenLoop::ComputeDelay(const FreqDomainData& signal, const FreqDomainData& r
   }
 
   response = value * fabs(value) / ms;
-  //pos %= UncorrelatedFFTSize;
-  /*/ Map (T/2, T) to (-T/2, 0)
-  if (pos > fd1.size() / 2)
-    pos -= fd1.size();*/
   DEBUGLOG(("OpenLoop::ComputeDelay: Cross correlation max = %g@%u, ratio = %g, delay = %g\n",
     value, pos, max / ms, (double)pos / Format.samplerate));
-  return pos;
+
+  // Calculate minimum absolute delay taking care of symmetries in the reference.
+  pos %= UncorrelatedFFTSize;
+  if (pos > (int)(UncorrelatedFFTSize / 2))
+    pos -= UncorrelatedFFTSize;
+  return (double)pos / Format.samplerate;
 }
 
-int OpenLoop::AverageDelay(int delay1, int delay2)
+/*int OpenLoop::AverageDelay(int delay1, int delay2)
 {
   delay2 -= delay1;
   delay2 %= UncorrelatedFFTSize;
@@ -426,7 +432,7 @@ int OpenLoop::AverageDelay(int delay1, int delay2)
     delay2 -= UncorrelatedFFTSize;
   delay1 += delay2 / 2;
   return delay1 % UncorrelatedFFTSize;
-}
+}*/
 
 void OpenLoop::ProcessInput(SampleData& input)
 { DEBUGLOG(("OpenLoop(%p)::ProcessInput(.)\n", this));

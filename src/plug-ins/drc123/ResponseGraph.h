@@ -40,6 +40,8 @@
 
 class DataFile;
 struct DataRow;
+class AggregateIterator;
+
 
 /** @brief Class to draw 2D graphs.
  * @details The class is intended to be used with a \c WC_STATIC control.
@@ -49,6 +51,9 @@ struct DataRow;
  */
 class ResponseGraph : public SubclassWindow
 {public:
+  enum
+  { MAX_X_WIDTH   = 2048    ///< Maximum graph width in device pixels (static buffer).
+  };
   /// Flags for axes.
   enum AxesFlags
   { AF_None       = 0x00
@@ -69,32 +74,25 @@ class ResponseGraph : public SubclassWindow
     AxesInfo() : Flags(AF_None), XMin(NAN), XMax(NAN), Y1Min(NAN), Y1Max(NAN), Y2Min(NAN), Y2Max(NAN) {}
   };
 
-  /// @brief Delegate to extract a X or Y value from a \c DataRow.
-  /// @details The functions are used to plot the graph.
-  typedef double (*Extractor)(const DataRow& row, void* user);
   /// Flags for graphs.
   enum GraphFlags
   { GF_None       = 0x00
   , GF_Y2         = 0x01    ///< Use second y axes.
+  , GF_Bounds     = 0x02    ///< Show upper and lower bounds after averaging.
+  , GF_Average    = 0x04    ///< The ReadIterator returns average values starting from the last call to FetchNext.
+  , GF_RGB        = 0x10    ///< The Color value is RGB rather than an Index.
   };
   /// Graph descriptor.
   struct GraphInfo
   { /// Graph legend to be drawn at the top of the graph.
-    /// Should be short.
+    /// Should be quite short.
     xstring         Legend;
     /// Link to an interface to provide a synchronized version of the data source.
     /// The mutex is acquired before drawing and released when finished.
     SyncRef<DataFile> Data;
-    /// Extractor function used to extract the X value to be drawn.
-    /// @details This function is applied to any row in \a Data.
-    /// If the returned value is NaN then this row is ignored.
-    Extractor       ExtractX;
-    /// Extractor function used to extract the Y value to be drawn.
-    /// @details This function is applied to any row in \a Data.
-    /// If the returned value is NaN then this row is ignored.
-    Extractor       ExtractY;
-    /// User Parameter passed to the functions above as second argument.
-    void*           User;
+    /// @brief Iterator over the data above to extract values.
+    /// @details GraphInfo does \e not take the ownership of this Iterator.
+    AggregateIterator* Reader;
     /// Drawing flags. See @see GraphFlags.
     GraphFlags      Flags;
     /// Graph color in the system's standard color table.
@@ -109,13 +107,20 @@ class ResponseGraph : public SubclassWindow
   HPS               PS;
   POINTL            XY1, XY2;
   FONTMETRICS       FontMetrics;
+  // Static buffer for drawing purposes to avoid frequent allocations.
+  static POINTL     Graph[MAX_X_WIDTH];
+  //static POINTL     GraphLow[MAX_X_WIDTH];
+  //static POINTL     GraphHigh[MAX_X_WIDTH];
  private:
+  /*/// Convert X coordinate from screen to graph.
+  double            FromX(double x);*/
   /// Convert X coordinate from graph to screen.
   LONG              ToX(double x);
   /// Convert relative Y position to Y coordinate.
   /// @param relative Coordinate, reasonable range: [0,1]
   /// @remarks The function also clips the return value to +-32767 to avoid PM crashes on noisy data.
   LONG              ToYCore(double relative);
+  //LONG              ToY(double y, bool y2);
 
   /// Format number for display at an axis. Use SI prefixes.
   /// @param target Target string. The function writes at most 5 characters: "-1k2\0".
@@ -156,9 +161,14 @@ class ResponseGraph : public SubclassWindow
   /// This function decides whether to draw the X or the Y axis.
   /// @details The function draws only at 1/2/5 locations.
   void              LogAxes(double min, double max, void (ResponseGraph::*drawlabel)(double value));
-  /// Draw a graph
+  /// Prepare XY points for a graph.
   /// @param graph Info of the graph to draw.
-  void              DrawGraph(const GraphInfo& graph);
+  /// @param getter Method to extract Y value from the iterator.
+  /// @return false: failed to prepare graph => don't draw.
+  bool              PrepareGraph(const GraphInfo& graph, double (AggregateIterator::*getter)() const);
+  /// Draw a graph
+  /// @param data XY points to draw.
+  void              DrawGraph(POINTL* data);
   /// @brief Draw legend of a graph.
   /// @param text Label to draw.
   /// @param index Ordinal number of the graph, starting from 0.
@@ -196,9 +206,9 @@ class ResponseGraph : public SubclassWindow
   /// Add a new graph to draw.
   void              AddGraph(const GraphInfo& graph) { Graphs.append() = new GraphInfo(graph); }
   /// Add a new graph to draw.
-  void              AddGraph(const xstring& legend, SyncRef<DataFile> data, Extractor xtractX, Extractor xtractY, void* user, GraphFlags flags, LONG color)
+  void              AddGraph(const xstring& legend, SyncRef<DataFile> data, AggregateIterator& reader, GraphFlags flags, LONG color)
   { GraphInfo* gi = new GraphInfo(); Graphs.append() = gi;
-    gi->Legend = legend; gi->Data = data; gi->ExtractX = xtractX; gi->ExtractY = xtractY; gi->User = user; gi->Flags = flags; gi->Color = color; }
+    gi->Legend = legend; gi->Data = data; gi->Reader = &reader; gi->Flags = flags; gi->Color = color; }
   /// Clear all graphs.
   void              ClearGraphs() { Graphs.clear(); }
 };
