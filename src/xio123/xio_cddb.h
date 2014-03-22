@@ -93,7 +93,7 @@ class XIOcddb : public XIOreadonly
 
  public:
   /* Initializes the cddb protocol. */
-  XIOcddb::XIOcddb();
+  XIOcddb();
   virtual ~XIOcddb();
   virtual int open(const char* filename, XOFLAGS oflags);
   virtual int read(void* result, unsigned int count);

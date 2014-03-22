@@ -457,7 +457,7 @@ APIRET XIOfile32::doQueryFileInfo(XSTATL* st)
 }
 
 APIRET XIOfile32::doSetFileSize(int64_t size)
-{ if (size > 0x7ffffff | size < 0)
+{ if (size > 0x7ffffff || size < 0)
     return ERROR_INVALID_PARAMETER;
   return DosSetFileSize(s_handle, (long)size);
 }
