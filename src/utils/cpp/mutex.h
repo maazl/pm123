@@ -321,6 +321,7 @@ class SyncRef
   SyncRef(T& obj) : Obj(&obj) {}
   template <class T2>
   SyncRef(const SyncRef<T2>& r) : Obj(r.Obj) {}
+  SyncRef<T> operator=(T& obj) { Obj = &obj; return *this; }
 };
 
 template <class T>
