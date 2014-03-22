@@ -176,7 +176,7 @@ HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 }
 
 /* Processing of a command messages. */
-ULONG DLLENTRY output_command(WAVOUT* a, ULONG msg, const OUTPUT_PARAMS2* info)
+ULONG DLLENTRY output_command(WAVOUT* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info)
 { DEBUGLOG(("wavout:output_command(%p, %d, %p)\n", a, msg, info));
 
   switch (msg)
@@ -207,7 +207,7 @@ ULONG DLLENTRY output_command(WAVOUT* a, ULONG msg, const OUTPUT_PARAMS2* info)
 
 /* This function is called by the decoder or last in chain
    filter plug-in to play samples. */
-int DLLENTRY output_request_buffer(WAVOUT* a, FORMAT_INFO2* format, float** buf)
+int DLLENTRY output_request_buffer(WAVOUT* a, const FORMAT_INFO2* format, float** buf)
 { return a->RequestBuffer(format, buf);
 }
 

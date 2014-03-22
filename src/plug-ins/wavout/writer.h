@@ -130,7 +130,7 @@ typedef struct OUTPUT_STRUCT
   ULONG PlayingSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, void* param);
 
   // data interface
-  int RequestBuffer(FORMAT_INFO2* format, float** buf);
+  int RequestBuffer(const FORMAT_INFO2* format, float** buf);
   void CommitBuffer(int len, PM123_TIME pos);
 
 } WAVOUT;
