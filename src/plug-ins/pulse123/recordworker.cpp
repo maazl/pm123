@@ -133,13 +133,13 @@ xstring RecordWorker::Params::ToURL() const
 }
 
 
-RecordWorker::RecordWorker()
+RecordWorker::DECODER_STRUCT()
 : Running(false)
 , RecordTID(-1)
 { DEBUGLOG(("RecordWorker(%p)::RecordWorker()\n", this));
 }
 
-RecordWorker::~RecordWorker()
+RecordWorker::~DECODER_STRUCT()
 { DEBUGLOG(("RecordWorker(%p)::~RecordWorker()\n", this));
   TID tid = RecordTID;
   if (tid >= 0)

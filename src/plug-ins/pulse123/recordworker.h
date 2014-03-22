@@ -38,7 +38,7 @@
 //#include <os2.h>
 
 
-class RecordWorker
+typedef struct DECODER_STRUCT
 {public:
   struct Params
   { xstring          Server;
@@ -65,8 +65,8 @@ class RecordWorker
   int                RecordTID;
 
  public:
-  RecordWorker();
-  ~RecordWorker();
+  DECODER_STRUCT();
+  ~DECODER_STRUCT();
 
   ULONG Setup(const DECODER_PARAMS2& params);
   ULONG Play(const xstring& url);
@@ -78,7 +78,7 @@ class RecordWorker
   void  RecordThread();
   PROXYFUNCDEF void TFNENTRY RecordThreadStub(void* data);
   void  Error(const char* fmt, ...);
-};
+} RecordWorker;
 
 
 #endif

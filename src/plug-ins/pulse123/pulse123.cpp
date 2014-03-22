@@ -177,7 +177,7 @@ ULONG DLLENTRY output_uninit(PlaybackWorker* a)
 }
 
 /// Processing of a command messages.
-ULONG DLLENTRY output_command(PlaybackWorker* a, ULONG msg, OUTPUT_PARAMS2* info)
+ULONG DLLENTRY output_command(PlaybackWorker* a, OUTMSGTYPE msg, const OUTPUT_PARAMS2* info)
 { DEBUGLOG(("pulse123:output_command(%p, %d, %p)\n", a, msg, info));
 
   switch (msg)
@@ -255,38 +255,38 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
   return PLUGIN_OK;
 }
 
-int DLLENTRY decoder_init(void** w)
+int DLLENTRY decoder_init(RecordWorker** w)
 { *w = new RecordWorker();
   return PLUGIN_OK;
 }
 
-BOOL DLLENTRY decoder_uninit(void* w)
-{ delete (RecordWorker*)w;
+BOOL DLLENTRY decoder_uninit(RecordWorker* w)
+{ delete w;
   return TRUE;
 }
 
-ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
+ULONG DLLENTRY decoder_command(RecordWorker* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
 { DEBUGLOG(("pulse123:decoder_command(%p, %i, )\n", w, msg));
   switch (msg)
   {case DECODER_SETUP:
-    return ((RecordWorker*)w)->Setup(*params);
+    return w->Setup(*params);
    case DECODER_PLAY:
-    return ((RecordWorker*)w)->Play(params->URL);
+    return w->Play(params->URL);
    case DECODER_STOP:
-    return ((RecordWorker*)w)->Stop();
+    return w->Stop();
    default:
     return PLUGIN_UNSUPPORTED;
   }
 }
 
-void DLLENTRY decoder_event(void* w, OUTEVENTTYPE event)
-{ ((RecordWorker*)w)->Event(event);
+void DLLENTRY decoder_event(RecordWorker* w, OUTEVENTTYPE event)
+{ w->Event(event);
 }
 
-ULONG DLLENTRY decoder_status(void* w)
-{ return ((RecordWorker*)w)->GetState();
+ULONG DLLENTRY decoder_status(RecordWorker* w)
+{ return w->GetState();
 }
 
-PM123_TIME DLLENTRY decoder_length(void* w)
+PM123_TIME DLLENTRY decoder_length(RecordWorker* w)
 { return -1;
 }
