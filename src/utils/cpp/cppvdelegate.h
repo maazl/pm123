@@ -78,7 +78,7 @@ struct vdelegate0 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*);
   typedef R DLLENTRYP(callee_fn)();
   vdelegate0(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate0<R,P>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1>
@@ -86,7 +86,7 @@ struct vdelegate1 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1);
   typedef R DLLENTRYP(callee_fn)(P1);
   vdelegate1(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate1<R,P,P1>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1, class P2>
@@ -94,7 +94,7 @@ struct vdelegate2 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1,P2);
   typedef R DLLENTRYP(callee_fn)(P1,P2);
   vdelegate2(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate2<R,P,P1,P2>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1, class P2, class P3>
@@ -102,7 +102,7 @@ struct vdelegate3 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1,P2,P3);
   typedef R DLLENTRYP(callee_fn)(P1,P2,P3);
   vdelegate3(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate3<R,P,P1,P2,P3>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1, class P2, class P3, class P4>
@@ -110,7 +110,7 @@ struct vdelegate4 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1,P2,P3,P4);
   typedef R DLLENTRYP(callee_fn)(P1,P2,P3,P4);
   vdelegate4(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate4<R,P,P1,P2,P3,P4>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1, class P2, class P3, class P4, class P5>
@@ -118,7 +118,7 @@ struct vdelegate5 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1,P2,P3,P4,P5);
   typedef R DLLENTRYP(callee_fn)(P1,P2,P3,P4,P5);
   vdelegate5(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate5<R,P,P1,P2,P3,P4,P5>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 template <class R, class P, class P1, class P2, class P3, class P4, class P5, class P6>
@@ -126,7 +126,7 @@ struct vdelegate6 : private VDELEGATE
 { typedef R DLLENTRYP(called_fn)(P*,P1,P2,P3,P4,P5,P6);
   typedef R DLLENTRYP(callee_fn)(P1,P2,P3,P4,P5,P6);
   vdelegate6(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
-  vdelegate6<R,P,P1,P2,P3,P4,P5,P6>& assign(called_fn func, P* ptr) { mkvdelegate(this, (V_FUNC)func, 0, ptr); return *this; }
+  void assign(called_fn func, P* ptr) { vdelegate(this, func, ptr); }
   operator callee_fn() { return (callee_fn)this; }
 };
 #undef PARSIZE
