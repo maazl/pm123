@@ -134,7 +134,7 @@ BOOL ULset::remove(unsigned long ul)
 }
 
 
-void CD_drive::updateError(char *fmt, ...)
+void CD_drive::updateError(const char *fmt, ...)
 {
    DEBUGLOG2(("cddaplay:CD_drive(%p)::updateError(%s)\n", this, fmt));
    va_list args;

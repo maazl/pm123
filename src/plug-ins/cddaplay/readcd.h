@@ -222,7 +222,7 @@ class CD_drive
 
       BOOL loadCDDBInfo(BOOL refresh = FALSE);
 
-      void updateError(char *fmt, ...);
+      void updateError(const char *fmt, ...);
 
    protected:
       // Factory and cache

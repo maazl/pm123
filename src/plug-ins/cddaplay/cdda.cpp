@@ -353,7 +353,7 @@ ULONG DLLENTRY decoder_fileinfo(const char *filename, DECODER_INFO *info)
 }
 
 // this is REALLY slow if size is small and the window is visible...
-void appendToMLE(HWND MLEhwnd, char *buffer, int size)
+void appendToMLE(HWND MLEhwnd, const char *buffer, int size)
 {
    ULONG iMLESize;
    if(size == -1) size = strlen(buffer);
@@ -394,13 +394,13 @@ void appendToMLE(HWND MLEhwnd, char *buffer, int size)
               MPFROMLONG(iMLESize));
 }
 
-void writeToLog(char *buffer, int size)
+void writeToLog(const char *buffer, int size)
 {
    HWND MLEhwnd = WinWindowFromID(nethwnd,MLE_NETLOG);
    appendToMLE(MLEhwnd, buffer, size);
 }
 
-void displayMessage(char *fmt, ...)
+void displayMessage(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
@@ -418,7 +418,7 @@ void displayMessage(char *fmt, ...)
    appendToMLE(MLEhwnd, buffer, -1);
 }
 
-void displayError(char *fmt, ...)
+void displayError(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);

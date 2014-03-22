@@ -29,9 +29,9 @@
 
 #include "cddb.h"
 
-void displayError(char *fmt, ...);
-void displayMessage(char *fmt, ...);
-void writeToLog(char *buffer, int size);
+void displayError(const char *fmt, ...);
+void displayMessage(const char *fmt, ...);
+void writeToLog(const char *buffer, int size);
 
 // used internally to manage CDDB and saved in cddaplay.ini file
 typedef struct
