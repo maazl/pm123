@@ -106,7 +106,7 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
 {
   if (!handle)
     return PLUGIN_NO_PLAY;
- 
+
   ULONG ret = PLUGIN_OK;
   if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ|INFO_META))
   { *what |= INFO_CHILD|INFO_TECH|INFO_OBJ|INFO_META;
@@ -117,13 +117,13 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
     } else if (!reader->Parse(info, cb, param))
       ret = PLUGIN_GO_FAILED;
   }
-  
+
   return ret;
 }
 
 
-ULONG DLLENTRY decoder_savefile(const char* url, const char* format, int what, const INFO_BUNDLE* info,
-                                DECODER_SAVE_ENUMERATION_CB cb, void* param)
+ULONG DLLENTRY decoder_savefile(const char* url, const char* format, int* what, const INFO_BUNDLE* info,
+                                DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* error)
 { sco_ptr<PlaylistWriter> writer(PlaylistWriter::FormatFactory(url, format));
   if (writer == NULL)
     return PLUGIN_UNSUPPORTED;
@@ -132,9 +132,12 @@ ULONG DLLENTRY decoder_savefile(const char* url, const char* format, int what, c
   if (file == NULL)
     return PLUGIN_NO_READ;
 
-  writer->Init(info, what, file);
-  
   PlaylistWriter::Item item;
+
+  ULONG rc = PLUGIN_ERROR;
+  if (!writer->Init(info, *what, file))
+    goto fail;
+
   while ((*cb)(param, &item.Url, &item.Info, &item.Valid, &item.Override) == PLUGIN_OK)
   { // Cached => Valid
     // Reliable => Valid
@@ -142,13 +145,22 @@ ULONG DLLENTRY decoder_savefile(const char* url, const char* format, int what, c
     item.Valid    ^= item.Override;
     item.Override &= ~item.Valid;
     // Write item
-    writer->AppendItem(item);
+    if (!writer->AppendItem(item))
+      goto fail;
   }
-  
+
+  if (writer->Finish())
+  { rc = PLUGIN_OK;
+    goto done;
+  }
+
+ fail:
+  *error = xio_strerror(xio_errno());
+ done:
   // Destroy writer before close
   writer = NULL;
   xio_fclose(file);
-  return PLUGIN_OK;
+  return rc;
 }
 
 
@@ -324,4 +336,3 @@ static void load_ini()
    }
 }
 */
-

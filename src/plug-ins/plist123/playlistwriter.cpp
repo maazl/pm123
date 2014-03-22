@@ -386,9 +386,9 @@ bool M3U8Writer::Init(const INFO_BUNDLE* info, int valid, XFILE* stream)
 void M3U8Writer::Write(const char* data)
 { // convert to UTF-8
   if (data)
-    if (ch_convert(0, data, 1208, EncodedLine, sizeof EncodedLine, 0) == NULL)
+  { if (ch_convert(0, data, 1208, EncodedLine, sizeof EncodedLine, 0) == NULL)
       OK = false;
     else
       M3UWriter::Write(EncodedLine);
+  }
 }
-
