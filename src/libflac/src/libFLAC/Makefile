@@ -11,7 +11,7 @@ CFLAGS_USR = -DFLAC__CPU_IA32 -DFLAC__USE_3DNOW -DFLAC__HAS_NASM -DFLAC__ALIGN_M
 	-Wmissing-prototypes -Wstrict-prototypes -Winline
 CFLAGS_DBG_USR = -DFLAC__OVERFLOW_DETECT
 CFLAGS_OPT_USR = -DFLaC__INLINE=INLINE
-AFLAGS_USR = -Iia32 -DOBJ_FORMAT_aout
+AFLAGS_USR = -DOBJ_FORMAT_aout
 
 !include $(TOPDIR)\config\makerules
 
