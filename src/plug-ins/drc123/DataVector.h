@@ -49,7 +49,7 @@ struct DataVector
   /// Create vector of length len.
   DataVector(size_t len)        : sco_arr<T>(len) {}
   /// Set all elements to 0. This does not change the number of elements.
-  void Set0()                   { memset(begin(), 0, size() * sizeof(*get())); }
+  void Set0()                   { memset(this->begin(), 0, this->size() * sizeof(*this->get())); }
   /// Assignment.
   DataVector& operator=(const DataVector& r);
   /// Add two vectors element by element.
@@ -67,15 +67,15 @@ struct DataVector
 
 template <class T>
 DataVector<T>& DataVector<T>::operator=(const DataVector<T>& r)
-{ if (size() != r.size())
-    reset(r.size());
-  memcpy(begin(), r.begin(), size() * sizeof(T));
+{ if (this->size() != r.size())
+    this->reset(r.size());
+  memcpy(this->begin(), r.begin(), this->size() * sizeof(T));
   return *this;
 }
 
 template <class T>
 DataVector<T>& DataVector<T>::operator+=(const DataVector<T>& r)
-{ ASSERT(size() == r.size());
+{ ASSERT(this->size() == r.size());
   const T* sp = r.begin();
   foreach(T,*, dp, *this)
     *dp += *sp++;
@@ -84,7 +84,7 @@ DataVector<T>& DataVector<T>::operator+=(const DataVector<T>& r)
 
 template <class T>
 DataVector<T>& DataVector<T>::operator*=(const DataVector<T>& r)
-{ ASSERT(size() == r.size());
+{ ASSERT(this->size() == r.size());
   const T* sp = r.begin();
   foreach(T,*, dp, *this)
     *dp *= *sp++;
@@ -93,7 +93,7 @@ DataVector<T>& DataVector<T>::operator*=(const DataVector<T>& r)
 
 template <class T>
 DataVector<T>& DataVector<T>::operator/=(const DataVector<T>& r)
-{ ASSERT(size() == r.size());
+{ ASSERT(this->size() == r.size());
   const T* sp = r.begin();
   foreach(T,*, dp, *this)
     *dp /= *sp++;

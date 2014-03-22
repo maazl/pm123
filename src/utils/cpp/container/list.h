@@ -235,7 +235,7 @@ template <class T>
 void list_int<T>::clear()
 { int_ptr<T> deleter;
   do
-  { deleter.fromCptr(next(deleter));
+  { deleter.fromCptr(this->next(deleter));
   } while (deleter);
   list<T>::clear();
 }
