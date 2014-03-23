@@ -166,17 +166,17 @@ void GlueImp::Virtualize(int i)
   Procs.output_playing_pos     = par.output_playing_pos;
   Procs.output_playing_data    = par.output_playing_data;
   Procs.A                      = fil.GetFilterPtr();
-  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = OParams.OutEvent;
+  void DLLENTRYP(last_output_event)(struct FILTER_STRUCT* w, OUTEVENTTYPE event) = (void DLLENTRYPF()(struct FILTER_STRUCT*, OUTEVENTTYPE))OParams.OutEvent;
   // next filter
   Virtualize(i-1);
   // store new callback if virtualized by the plug-in.
   BOOL vcallback = par.output_event != last_output_event;
-  last_output_event = (void DLLENTRYPF()(void*, OUTEVENTTYPE))par.output_event; // swap...
+  last_output_event = par.output_event; // swap...
   par.output_event  = (void DLLENTRYPF()(struct FILTER_STRUCT*, OUTEVENTTYPE))OParams.OutEvent;
   par.w             = (struct FILTER_STRUCT*)OParams.W;
   if (vcallback)
   { // set params for next instance.
-    OParams.OutEvent = last_output_event;
+    OParams.OutEvent = (void DLLENTRYPF()(void*, OUTEVENTTYPE))last_output_event;
     OParams.W        = fil.GetFilterPtr();
     DEBUGLOG(("Glue::Virtualize: callback virtualized: %p %p\n", OParams.OutEvent, OParams.W));
   }

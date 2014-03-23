@@ -425,8 +425,9 @@ int_ptr<Module> CommandProcessor::ParsePlugin(const char* arg)
 void CommandProcessor::DoOption(bool amp_cfg::* option)
 { Reply.append(ReadCfg().*option ? "on" : "off");
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { Ctrl::Op op = ParseBool(Request);
     Cfg::ChangeAccess cfg;
     switch (op)
@@ -445,27 +446,35 @@ void CommandProcessor::DoOption(bool amp_cfg::* option)
 void CommandProcessor::DoOption(int amp_cfg::* option)
 { Reply.appendf("%i", ReadCfg().*option);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
-    Cfg::ChangeAccess().*option = ParseInt(Request);
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = ParseInt(Request);
+  }
 }
 void CommandProcessor::DoOption(unsigned amp_cfg::* option)
 { Reply.appendf("%u", ReadCfg().*option);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { int i = ParseInt(Request);
     if (i < 0)
       throw SyntaxException("Argument \"%s\" must not be negative.", i);
-    Cfg::ChangeAccess().*option = i;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = i;
   }
 }
 void CommandProcessor::DoOption(xstring amp_cfg::* option)
 { Reply.append(xstring(ReadCfg().*option));
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
-    Cfg::ChangeAccess().*option = Request;
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Request;
+  }
 }
 void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
 { static const strmap<10,cfg_anav> map[] =
@@ -476,12 +485,14 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
   };
   Reply.append(map[ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {song|song,time|time} but found \"%s\".", Request);
-    Cfg::ChangeAccess().*option = mp->Val;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_button amp_cfg::* option)
@@ -492,12 +503,14 @@ void CommandProcessor::DoOption(cfg_button amp_cfg::* option)
   };
   Reply.append(map[ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { const strmap<6,cfg_button>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {alt|ctrl|shift} but found \"%s\".", Request);
-    Cfg::ChangeAccess().*option = mp->Val;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_action amp_cfg::* option)
@@ -508,20 +521,25 @@ void CommandProcessor::DoOption(cfg_action amp_cfg::* option)
   };
   Reply.append(map[ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { const strmap<10,cfg_action>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {enqueue|load|navigate} but found \"%s\".", Request);
-    Cfg::ChangeAccess().*option = mp->Val;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
 { Reply.append(dispmap[3 - ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
-    Cfg::ChangeAccess().*option = ParseDisp(Request);
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = ParseDisp(Request);
+  }
 }
 void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
 { static const strmap<9,cfg_scroll> map[] =
@@ -531,12 +549,15 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
   };
   Reply.append(map[ReadCfg().*option * 5 % 3].Str);
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  }
   else if (Request)
   { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {none|once|infinite} but found \"%s\".", Request);
-    Cfg::ChangeAccess().*option = mp->Val;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = mp->Val;
   }
 }
 void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
@@ -552,12 +573,14 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
   , { "tiny",    CFG_MODE_TINY }
   };
   if (Request == Cmd_SetDefault)
-    Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (Request)
+  { Cfg::ChangeAccess cfg;
+    cfg.*option = Cfg::Default.*option;
+  } else if (Request)
   { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
     if (!mp)
       throw SyntaxException("Expected {0|1|2|normal|regular|small|tiny} but found \"%s\".", Request);
-    Cfg::ChangeAccess().*option = mp->Val;
+    Cfg::ChangeAccess cfg;
+    cfg.*option = mp->Val;
   }
 };
 
@@ -1731,7 +1754,7 @@ PLUGIN_TYPE CommandProcessor::LoadPlugin(PLUGIN_TYPE type)
 
   try
   { int_ptr<Module> pm = Module::GetByKey(Request);
-    if (type == PLUGIN_DECODER|PLUGIN_FILTER|PLUGIN_OUTPUT|PLUGIN_VISUAL)
+    if (type == (PLUGIN_DECODER|PLUGIN_FILTER|PLUGIN_OUTPUT|PLUGIN_VISUAL))
       type &= (PLUGIN_TYPE)pm->GetParams().type;
 
     type = InstantiatePlugin(*pm, params, type & PLUGIN_DECODER)

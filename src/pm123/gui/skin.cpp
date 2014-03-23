@@ -77,7 +77,7 @@ static char    s_display[1024]; // scroller text
 static size_t  s_len;    // Length of the text in the scroller
 static size_t  s_len2;   // Length of the text in the scroller with spacer
 static size_t  s_offset; // Offset of the text in the scroller (<= 0)
-static int     s_inc;    // current direction: -1 = forward, 1 = backward, 0 = stop 
+static int     s_inc;    // current direction: -1 = forward, 1 = backward, 0 = stop
 static int     s_pause;  // Scroller pause at the endpoint
 static bool    s_done;   // Scroller completed once
 static HDC     s_dc     = NULLHANDLE;
@@ -908,17 +908,17 @@ bmp_set_text( const char* string )
       }
     }
     s_len = bmp_text_length( s_display );
-    
+
     // Scroll required?
     RECTL  s_rec = bmp_text_rect();
-    if (s_len > s_rec.xRight - s_rec.xLeft + 1) 
+    if (s_len > s_rec.xRight - s_rec.xLeft + 1)
     { s_inc    = -1;
       s_pause  = 20;
-      
+
       // Duplicate text to make the scroller turn around easy.
-      strlcat( s_display, "     ", sizeof s_display ); 
+      strlcat( s_display, "     ", sizeof s_display );
       s_len2 = bmp_text_length( s_display );
-      strlcat( s_display, string, sizeof s_display ); 
+      strlcat( s_display, string, sizeof s_display );
     }
 
   } else {
@@ -951,7 +951,7 @@ bmp_scroll_text( void )
     --s_pause;
     return FALSE;
   }
-  
+
   if (s_done && scroll == CFG_SCROLL_ONCE)
     return FALSE;
 
@@ -1722,7 +1722,7 @@ static void bmp_init_default_skin(HPS hps, vector_own<SkinnedVisual>& visuals)
   visual->cy   = 30;
   visual->param = "";
   visual->plugin = amp_basepath + "visplug\\analyzer.dll";
-  
+
   visuals.clear();
   visuals.append() = visual;
 }
@@ -2068,7 +2068,11 @@ bool bmp_load_skin(const char *filename, HWND hplayer)
             case UL_R_MSG_LEN:      bmp_ulong[ UL_R_MSG_LEN      ] = atoi(p); break;
             case UL_SLIDER_WIDTH:   bmp_ulong[ UL_SLIDER_WIDTH   ] = atoi(p); break;
             case UL_S_MSG_LEN:      bmp_ulong[ UL_S_MSG_LEN      ] = atoi(p); break;
-            case UL_FONT:           Cfg::ChangeAccess().font = atoi(p); break;
+            case UL_FONT:
+            { Cfg::ChangeAccess cfg;
+              cfg.font = atoi(p);
+              break;
+            }
             case UL_TIMER_SPACE:    bmp_ulong[ UL_TIMER_SPACE    ] = atoi(p); break;
             case UL_TIMER_SEPARATE: bmp_ulong[ UL_TIMER_SEPARATE ] = FALSE;   break;
             case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;

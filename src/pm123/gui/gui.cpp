@@ -342,7 +342,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case DLT_PLAYLISTTREE:
         return MRFROMLONG(ShowHidePlaylist(action ? PlaylistManager::GetByKey(pp->GetPlayable()) : PlaylistManager::FindByKey(pp->GetPlayable()), action));
       }
-      return false;
+      return MRFROMLONG(false);
     }
 
    case WMP_EDIT_META:
@@ -584,7 +584,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ForceLocationMsg();
     }
     return 0;
-    
+
    case WMP_PLAYABLE_EVENT:
     { APlayable* root = CurrentIter->GetRoot();
       DEBUGLOG(("GUIImp::DlgProc: WMP_PLAYABLE_EVENT %p %x/%x - %p\n", mp1, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2), root));
@@ -640,7 +640,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ForceLocationMsg();
     }
     return 0;
-    
+
    case WMP_REFRESH_ACCEL:
     { // eat other identical messages
       QMSG qmsg;
@@ -896,7 +896,9 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_M_NORMAL:
        case IDM_M_SMALL:
        case IDM_M_TINY:
-        Cfg::ChangeAccess().mode = (cfg_mode)(cmd - IDM_M_NORMAL);
+        { Cfg::ChangeAccess cfg;
+          cfg.mode = (cfg_mode)(cmd - IDM_M_NORMAL);
+        }
         break;
 
        case IDM_M_MINIMIZE:
@@ -1736,11 +1738,12 @@ void GUIImp::Paint(HPS hps, UpdateFlags mask)
     if (mask & UPD_TIMERS)
       RefreshTimers(hps, back_index, back_offset);
     if (mask & UPD_PLINDEX)
-      if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
+    { if (root && (root->GetInfo().tech->attributes & (TATTR_SONG|TATTR_PLAYLIST)) == TATTR_PLAYLIST)
       { int total = root->GetInfo().rpl->songs;
         bmp_draw_plind(hps, front_index + 1, total);
       } else
         bmp_draw_plind(hps, -1, -1);
+    }
   }
   if (mask & UPD_PLMODE)
     bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
@@ -2255,4 +2258,3 @@ void GUI::Init()
 void GUI::Uninit()
 { GUIImp::Uninit();
 }
-

@@ -366,7 +366,7 @@ class CommandProcessor : public ACommandProcessor
 template <class T>
 inline CommandProcessor::Option::Option(T amp_cfg::* option)
 : Handler((void (CommandProcessor::*)(void*))(void (CommandProcessor::*)(T amp_cfg::*))&CommandProcessor::DoOption)
-, Arg((void*)option)
+, Arg((char*)&(((amp_cfg*)0)->*option))
 {}
 
 #endif

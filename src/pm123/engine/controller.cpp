@@ -152,15 +152,17 @@ class CtrlImp
   /// If we try to move the current song pointer out of the range of the that that \a si relies on,
   /// the function returns false and \a si is in reset state.
          bool  SkipCore(SongIterator& si, int count);
-  /// Jump to the location si. The function will destroy the content of \a si.
-  /// @param newscan The parameter \a newscan can be used to update the scan mode at the same time.
-  /// If it is non-zero a the action takes place. Therefore some additional bit have to be set
-  /// if the scan mode should be set to \c DECFAST_NORMAL_PLAY.
+  /// Result of NavigateCore
   enum NavigateResult
   { NR_OK      ///< Navigation succeeded.
   , NR_Failed  ///< Navigation error, Error info placed in ControlCommand.
   , NR_NoScan  ///< Navigation OK, but failed to set scan mode.
-  }            NavigateCore(Location& si, signed char newscan = 2);
+  };
+  /// Jump to the location si. The function will destroy the content of \a si.
+  /// @param newscan The parameter \a newscan can be used to update the scan mode at the same time.
+  /// If it is non-zero a the action takes place. Therefore some additional bit have to be set
+  /// if the scan mode should be set to \c DECFAST_NORMAL_PLAY.
+  NavigateResult NavigateCore(Location& si, signed char newscan = 2);
   /// Load new root into the player.
   /// @param pe New item to load or NULL if none.
          void  LoadCore(PrefetchEntry* pe);
@@ -333,7 +335,7 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
   PM123_TIME at = start;
   if (pe.Loc.GetPosition() >= 0)
     at = pe.Loc.GetPosition();
-  
+
   if (Scan < 0 && reverse)
   { if (stop > 0)
     { at = stop - 1.; // do not seek to the end, because this will cause problems.
