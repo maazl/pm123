@@ -194,10 +194,9 @@ CommandProcessor::SyntaxException::SyntaxException(const char* fmt, ...)
 CommandProcessor::CommandProcessor()
 : CurSI(&GUI::GetDefaultPL())
 , Command(NULL)
-, vd_message(&CommandProcessor::MessageHandler, this)
-, vd_message2(&CommandProcessor::MessageHandler, this)
 , MetaFlags(DECODER_HAVE_NONE)
-{}
+{ MessageFunc = vd_message.assign(&CommandProcessor::MessageHandler, this);
+}
 
 void CommandProcessor::EscapeNEL(xstringbuilder& target, size_t start)
 { while (true)
@@ -238,7 +237,7 @@ void DLLENTRY CommandProcessor::MessageHandler(CommandProcessor* that, MESSAGE_T
 void CommandProcessor::Exec()
 { DEBUGLOG(("CommandProcessor::Exec() %s\n", Request));
   // redirect error handler
-  EventHandler::LocalRedirect ehr(vd_message);
+  EventHandler::LocalRedirect ehr(MessageFunc);
 
   Request += strspn(Request, " \t"); // skip leading blanks
   // remove trailing blanks
@@ -1926,17 +1925,17 @@ MRESULT EXPENTRY ServiceWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case CommandProcessor::UM_LOAD_PLUGIN:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
-      EventHandler::LocalRedirect red(cmd->vd_message2);
+      EventHandler::LocalRedirect red(cmd->MessageFunc);
       return MRFROMLONG(cmd->LoadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
    case CommandProcessor::UM_UNLOAD_PLUGIN:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
-      EventHandler::LocalRedirect red(cmd->vd_message2);
+      EventHandler::LocalRedirect red(cmd->MessageFunc);
       return MRFROMLONG(cmd->UnloadPlugin((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
    case CommandProcessor::UM_LOAD_PLUGIN_LIST:
     { CommandProcessor* cmd = (CommandProcessor*)PVOIDFROMMP(mp1);
-      EventHandler::LocalRedirect red(cmd->vd_message2);
+      EventHandler::LocalRedirect red(cmd->MessageFunc);
       return MRFROMLONG(cmd->ReplacePluginList((PLUGIN_TYPE)LONGFROMMP(mp2)));
     }
   }

@@ -39,7 +39,7 @@
 #include "proxyhelper.h"
 #include "../configuration.h"
 #include "../pm123.h" // for hab
-#include <cpp/cppvdelegate.h>
+#include <vdelegate.h>
 #include <limits.h>
 
 #include <debuglog.h>
@@ -173,11 +173,11 @@ void OutputProxy1::LoadPlugin()
   mod.LoadMandatoryFunction(&voutput_command,        "output_command");
   mod.LoadMandatoryFunction(&voutput_play_samples,   "output_play_samples");
 
-  output_command         = vdelegate(&vd_output_command,         &proxy_1_output_command,         this);
-  output_request_buffer  = vdelegate(&vd_output_request_buffer,  &proxy_1_output_request_buffer,  this);
-  output_commit_buffer   = vdelegate(&vd_output_commit_buffer,   &proxy_1_output_commit_buffer,   this);
-  output_playing_pos     = vdelegate(&vd_output_playing_pos,     &proxy_1_output_playing_pos,     this);
-  output_playing_samples = vdelegate(&vd_output_playing_samples, &proxy_1_output_playing_samples, this);
+  output_command         = vd_output_command        .assign(&proxy_1_output_command,         this);
+  output_request_buffer  = vd_output_request_buffer .assign(&proxy_1_output_request_buffer,  this);
+  output_commit_buffer   = vd_output_commit_buffer  .assign(&proxy_1_output_commit_buffer,   this);
+  output_playing_pos     = vd_output_playing_pos    .assign(&proxy_1_output_playing_pos,     this);
+  output_playing_samples = vd_output_playing_samples.assign(&proxy_1_output_playing_samples, this);
 }
 
 inline void OutputProxy1::SendSamples(void* a)

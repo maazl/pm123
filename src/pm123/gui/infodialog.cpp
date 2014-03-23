@@ -41,11 +41,10 @@
 #include "../configuration.h"
 #include "../eventhandler.h"
 #include <utilfct.h> // do_warpsans
-
+#include <vdelegate.h>
 #include <cpp/container/inst_index.h>
 #include <cpp/pmutils.h>
 #include <cpp/dlgcontrols.h>
-#include <cpp/cppvdelegate.h>
 
 #include <stdio.h>
 //#include <time.h>
@@ -282,7 +281,7 @@ class InfoDialog
 void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg::StatusReport* that, MESSAGE_TYPE type, const xstring& msg);
 
 inline InfoDialog::MetaWriteDlg::StatusReport::StatusReport()
-: OldHandler(EventHandler::SetLocalHandler(vdelegate(&VDErrorHandler, &InfoDialogMetaWriteErrorHandler, this)))
+: OldHandler(EventHandler::SetLocalHandler(VDErrorHandler.assign(&InfoDialogMetaWriteErrorHandler, this)))
 {}
 
 

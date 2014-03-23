@@ -46,7 +46,6 @@
 #include "../pm123.h" // for startpath
 #include <cpp/container/inst_index.h>
 #include <cpp/url123.h>
-#include <cpp/cppvdelegate.h>
 #include <fileutil.h>
 
 //#define DEBUG_LOG 1
@@ -199,7 +198,7 @@ class ModuleImp : private Module
 const XSTRING_API ModuleImp::XstringApi =
 { &xstring_alloc_core,
   &xstring_free_core,
-  (xstring DLLENTRYP()(const char*))&xstring_create,
+  (xstring DLLENTRYPF()(const char*))&xstring_create,
   &xstring_free,
   &xstring_length,
   &xstring_equal,
@@ -335,9 +334,9 @@ void ModuleImp::Load()
 
   if (pinit)
   { PluginApi.message_display = &PROXYFUNCREF(Module)PluginDisplayMessage;
-    PluginApi.profile_query   = vdelegate(&((ModuleImp*)this)->vd_query_profile, &PROXYFUNCREF(ModuleImp)proxy_query_profile, (ModuleImp*)this);
-    PluginApi.profile_write   = vdelegate(&((ModuleImp*)this)->vd_write_profile, &PROXYFUNCREF(ModuleImp)proxy_write_profile, (ModuleImp*)this);
-    PluginApi.exec_command    = vdelegate(&((ModuleImp*)this)->vd_exec_command,  &PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
+    PluginApi.profile_query   = ((ModuleImp*)this)->vd_query_profile.assign(&PROXYFUNCREF(ModuleImp)proxy_query_profile, (ModuleImp*)this);
+    PluginApi.profile_write   = ((ModuleImp*)this)->vd_write_profile.assign(&PROXYFUNCREF(ModuleImp)proxy_write_profile, (ModuleImp*)this);
+    PluginApi.exec_command    = ((ModuleImp*)this)->vd_exec_command.assign(&PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
     PluginApi.obj_invalidate  = &PROXYFUNCREF(ModuleImp)proxy_obj_invalidate;
     PluginApi.obj_supported   = &PROXYFUNCREF(ModuleImp)proxy_obj_supported;
     PluginApi.file_dlg        = &amp_file_dlg;

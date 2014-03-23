@@ -35,11 +35,11 @@
 #include "../configuration.h"
 #include "../eventhandler.h"
 #include "proxyhelper.h"
-#include <cpp/cppvdelegate.h>
 #include <cpp/container/stringset.h>
 #include <charset.h>
 #include <fileutil.h>
 #include <wildcards.h>
+#include <vdelegate.h>
 #include <cpp/url123.h>
 #include "../pm123.h" // for hab
 #include <stdio.h>
@@ -359,13 +359,13 @@ void DecoderProxy1::LoadPlugin()
   mod.LoadOptionalFunction(&vdecoder_saveinfo, "decoder_saveinfo");
   mod.LoadOptionalFunction(&vdecoder_editmeta, "decoder_editmeta");
   mod.LoadOptionalFunction(&decoder_getwizard, "decoder_getwizard");
-  decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
-  decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
+  decoder_command   = vd_decoder_command.assign( &proxy_1_decoder_command,  this);
+  decoder_fileinfo  = vd_decoder_fileinfo.assign(&proxy_1_decoder_fileinfo, this);
   if (vdecoder_saveinfo)
-    decoder_saveinfo= vdelegate(&vd_decoder_saveinfo, &proxy_1_decoder_saveinfo, this);
+    decoder_saveinfo= vd_decoder_saveinfo.assign(&proxy_1_decoder_saveinfo, this);
   if (vdecoder_editmeta)
-    decoder_editmeta= vdelegate(&vd_decoder_editmeta, &proxy_1_decoder_editmeta, this);
-  decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
+    decoder_editmeta= vd_decoder_editmeta.assign(&proxy_1_decoder_editmeta, this);
+  decoder_length    = vd_decoder_length.assign(  &proxy_1_decoder_length,   this);
 
   FileTypesCount     = 0;
   delete[] FileTypes;

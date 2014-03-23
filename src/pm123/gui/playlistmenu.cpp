@@ -36,7 +36,7 @@
 #include "playlistmenu.h"
 #include "../core/playable.h"
 #include "../core/job.h"
-#include <cpp/cppvdelegate.h>
+#include <vdelegate.h>
 #include <utilfct.h>
 
 #include <debuglog.h>
@@ -75,7 +75,7 @@ PlaylistMenu::PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast)
   MaxMenu(DEF_MAX_MENU)
 { DEBUGLOG(("PlaylistMenu(%p)::PlaylistMenu(%x, %u,%u)\n", this, owner, mid1st, midlast));
   // Generate dialog procedure and replace the current one
-  Old_DlgProc = WinSubclassWindow(owner, (PFNWP)vreplace1(&VR_DlgProc, pm_DlgProcStub, this));
+  Old_DlgProc = WinSubclassWindow(owner, (PFNWP)VR_DlgProc.assign(pm_DlgProcStub, this));
   PMASSERT(Old_DlgProc != NULL);
 }
 

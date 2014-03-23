@@ -35,7 +35,7 @@
 #include "../core/job.h"
 #include "../engine/controller.h"
 #include "../engine/plugman.h"
-#include <cpp/cppvdelegate.h>
+#include <vdelegate.h>
 #include <cpp/windowbase.h>
 
 
@@ -110,8 +110,8 @@ class CommandProcessor : public ACommandProcessor
   static void EscapeNEL(xstringbuilder& target, size_t start);
   //void PostMessage(MESSAGE_TYPE type, const char* fmt, ...);
   static void DLLENTRY MessageHandler(CommandProcessor* that, MESSAGE_TYPE type, const xstring& msg);
-  vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message;
-  vdelegate2<void,CommandProcessor,MESSAGE_TYPE,const xstring&> vd_message2; // for thread 1
+  VDELEGATE vd_message;
+  void DLLENTRYP(MessageFunc)(MESSAGE_TYPE, const xstring&);
   //void ThrowSyntaxException(const char* msg, ...);
   //static void ThrowArgumentException(const char* arg)
   //{ throw SyntaxException(xstring::sprintf("Invalid argument \"%s\".", arg)); }
