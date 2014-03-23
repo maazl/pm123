@@ -135,32 +135,32 @@ class VDELEGATE
  public:
   VDELEGATE() {}
   template <class R, class P>
-  inline vd_traits0<R,P>::callee_fn assign(R DLLENTRYP(func)(P*), P* ptr)
-  { return (vd_traits0<R,P>::callee_fn)mkvdelegate(this, (V_FUNC)func, 0, ptr);
+  inline typename vd_traits0<R,P>::callee_fn assign(R DLLENTRYP(func)(P*), P* ptr)
+  { return (typename vd_traits0<R,P>::callee_fn)mkvdelegate(this, (V_FUNC)func, 0, ptr);
   }
   template <class R, class P, class P1>
-  inline vd_traits1<R,P,P1>::callee_fn assign(R DLLENTRYP(func)(P*,P1), P* ptr)
-  { return (vd_traits1<R,P,P1>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1), ptr);
+  inline typename vd_traits1<R,P,P1>::callee_fn assign(R DLLENTRYP(func)(P*,P1), P* ptr)
+  { return (typename vd_traits1<R,P,P1>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1), ptr);
   }
   template <class R, class P, class P1, class P2>
-  inline vd_traits2<R,P,P1,P2>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2), P* ptr)
-  { return (vd_traits2<R,P,P1,P2>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2), ptr);
+  inline typename vd_traits2<R,P,P1,P2>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2), P* ptr)
+  { return (typename vd_traits2<R,P,P1,P2>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2), ptr);
   }
   template <class R, class P, class P1, class P2, class P3>
-  inline vd_traits3<R,P,P1,P2,P3>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3), P* ptr)
-  { return (vd_traits3<R,P,P1,P2,P3>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3), ptr);
+  inline typename vd_traits3<R,P,P1,P2,P3>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3), P* ptr)
+  { return (typename vd_traits3<R,P,P1,P2,P3>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3), ptr);
   }
   template <class R, class P, class P1, class P2, class P3, class P4>
-  inline vd_traits4<R,P,P1,P2,P3,P4>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4), P* ptr)
-  { return (vd_traits4<R,P,P1,P2,P3,P4>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4), ptr);
+  inline typename vd_traits4<R,P,P1,P2,P3,P4>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4), P* ptr)
+  { return (typename vd_traits4<R,P,P1,P2,P3,P4>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4), ptr);
   }
   template <class R, class P, class P1, class P2, class P3, class P4, class P5>
-  inline vd_traits5<R,P,P1,P2,P3,P4,P5>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5), P* ptr)
-  { return (vd_traits5<R,P,P1,P2,P3,P4,P5>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5), ptr);
+  inline typename vd_traits5<R,P,P1,P2,P3,P4,P5>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5), P* ptr)
+  { return (typename vd_traits5<R,P,P1,P2,P3,P4,P5>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5), ptr);
   }
   template <class R, class P, class P1, class P2, class P3, class P4, class P5, class P6>
-  inline vd_traits6<R,P,P1,P2,P3,P4,P5,P6>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5,P6), P* ptr)
-  { return (vd_traits6<R,P,P1,P2,P3,P4,P5,P6>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5)+PARSIZE(P6), ptr);
+  inline typename vd_traits6<R,P,P1,P2,P3,P4,P5,P6>::callee_fn assign(R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5,P6), P* ptr)
+  { return (typename vd_traits6<R,P,P1,P2,P3,P4,P5,P6>::callee_fn)mkvdelegate(this, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5)+PARSIZE(P6), ptr);
   }
 };
 
@@ -172,28 +172,28 @@ class VREPLACE1
  public:
   VREPLACE1() {}
   template <class R, class P>
-  inline vd_traits0<R,P>::called_fn assign(R DLLENTRYP(func)(P*), P* ptr)
-  { return (vd_traits0<R,P>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits0<R,P>::called_fn assign(R DLLENTRYP(func)(P*), P* ptr)
+  { return (typename vd_traits0<R,P>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
   template <class R, class P, class P2>
-  inline vd_traits1<R,P,P2>::called_fn assign(R DLLENTRYP(func)(P*,P2), P* ptr)
-  { return (vd_traits1<R,P,P2>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits1<R,P,P2>::called_fn assign(R DLLENTRYP(func)(P*,P2), P* ptr)
+  { return (typename vd_traits1<R,P,P2>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
   template <class R, class P, class P2, class P3>
-  inline vd_traits2<R,P,P2,P3>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3), P* ptr)
-  { return (vd_traits2<R,P,P2,P3>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits2<R,P,P2,P3>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3), P* ptr)
+  { return (typename vd_traits2<R,P,P2,P3>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
   template <class R, class P, class P2, class P3, class P4>
-  inline vd_traits3<R,P,P2,P3,P4>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4), P* ptr)
-  { return (vd_traits3<R,P,P2,P3,P4>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits3<R,P,P2,P3,P4>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4), P* ptr)
+  { return (typename vd_traits3<R,P,P2,P3,P4>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
   template <class R, class P, class P2, class P3, class P4, class P5>
-  inline vd_traits4<R,P,P2,P3,P4,P5>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4,P5), P* ptr)
-  { return (vd_traits4<R,P,P2,P3,P4,P5>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits4<R,P,P2,P3,P4,P5>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4,P5), P* ptr)
+  { return (typename vd_traits4<R,P,P2,P3,P4,P5>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
   template <class R, class P, class P2, class P3, class P4, class P5, class P6>
-  inline vd_traits5<R,P,P2,P3,P4,P5,P6>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4,P5,P6), P* ptr)
-  { return (vd_traits5<R,P,P2,P3,P4,P5,P6>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
+  inline typename vd_traits5<R,P,P2,P3,P4,P5,P6>::called_fn assign(R DLLENTRYP(func)(P*,P2,P3,P4,P5,P6), P* ptr)
+  { return (typename vd_traits5<R,P,P2,P3,P4,P5,P6>::called_fn)mkvreplace1(this, (V_FUNC)func, ptr);
   }
 };
 
