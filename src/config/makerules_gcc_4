@@ -1,0 +1,140 @@
+# GCC with EMX
+
+.SUFFIXES:
+.SUFFIXES: .c .cpp .e .nasm .S .o .obj .rc .res
+
+MFLAGS     = -nologo
+MDUMMY     =
+
+OBJ        = .o
+CO         = .o
+LBI        = .lib
+LBO        = .a
+RES        = .res
+
+AS         = nasm
+AFLAGS     = $(AFLAGS_USR) -f aout -DUNDERSCORE
+
+GAS        = as
+GAFLAGS    =
+
+CC         = g++
+CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -fmessage-length=132 -DOS2 -DOS2EMX_PLAIN_CHAR
+CFLAGS     = $(CFLAGS) -funsigned-char -march=pentium -mtune=pentiumpro
+CFLAGS_CPP = -Wno-non-virtual-dtor
+CFLAGS_DBG = $(CFLAGS_DBG_USR) -g -DDEBUG=$(DEBUG)
+CFLAGS_OPT = $(CFLAGS_OPT_USR) -O3 -fomit-frame-pointer -funroll-loops -finline-functions
+# regparm is buggy with gcc/2
+#CFLAGS_OPT = $(CFLAGS_OPT_USR) -O3 -fomit-frame-pointer -funroll-loops -finline-functions -mregparm=3
+CFLAGS_MEM = -DDEBUG_MEM
+
+CL         = gcc
+LFLAGS     = -Zcrtdll -Zomf -lstdc++
+LFLAGS_DLL = -Zdll
+LFLAGS_DBG = -g
+LFLAGS_OPT = -s
+LFLAGS_OUT = -o .^\
+LDEF_PREFX =
+LDEF_SUFFX = _icc.def
+LOBJ_PREFX =
+LOBJ_SUFFX =
+LLIB_PREFX =
+LLIB_SUFFX =
+!ifndef DEBUG
+POSTLINKCMD = lxlite $@ /nbl /t /zs && touch $@
+!endif
+
+LB         = ar cr
+LBENDL     =
+
+LI         = emximp
+IFLAGS_OUT = -o
+
+RC         = rc
+RFLAGS     = -n
+
+LIBS_TCP   =
+LIBS_MM    = -lmmpm2
+LIBS_UNI   =
+
+C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
+CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
+# for RC
+INCLUDE            = $(INCDIR);$(INCLUDE)
+
+#!ifdef TCP40
+MFLAGS = $(MFLAGS) TCP40=Yes
+CFLAGS = $(CFLAGS) -DTCPV40HDRS
+!ifdef GCC_ROOT
+LFLAGS = $(LFLAGS) -L$(GCC_ROOT)\local\lib\tcpipv4
+!else
+!ifdef GCC_HOME
+LFLAGS = $(LFLAGS) -L$(GCC_HOME)\local\lib\tcpipv4
+!else
+!ifdef PATH_EMXPGCC
+LFLAGS = $(LFLAGS) -L$(PATH_EMXPGCC)\local\lib\tcpipv4
+!else
+!error GCC_HOME or GCC_ROOT or PATH_EMXPGCC must be defined.
+!endif
+!endif
+!endif
+#!endif
+
+!ifdef DEBUG
+CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
+LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
+!else
+CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
+LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
+MFLAGS = $(MFLAGS) NDEBUG=1
+!endif
+
+!ifdef DEBUG_MEM
+CFLAGS = $(CFLAGS) $(CFLAGS_MEM)
+MFLAGS = $(MFLAGS) DEBUG_MEM=1
+LFLAGS = $(LFLAGS) $(TOPDIR)\utils\cpp\debugmem$(CO)
+!endif
+
+!ifdef DEBUG_LOG
+CFLAGS = $(CFLAGS) -DDEBUG_LOG=$(DEBUG_LOG)
+MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
+!endif
+
+.asm.o:
+   $(AS) $(AFLAGS) $<
+
+.nasm.o:
+   $(AS) $(AFLAGS) $<
+
+.S.o:
+   gcc -I$(TOPDIR) -DASSEMBLER -E $< -o $<.e
+   $(GAS) $(GAFLAGS) $<.e -o $@
+
+.c.e:
+   $(CC) $(CFLAGS) -E -x c -c $< -o $@
+
+.c.o:
+   $(CC) $(CFLAGS) -x c -c $< -o $@
+
+.cpp.e:
+   $(CC) $(CFLAGS) -E $(CFLAGS_CPP) -c $< -o $@
+
+.cpp.S:
+   $(CC) $(CFLAGS) -S $(CFLAGS_CPP) -c $< -o $@
+
+.cpp.o:
+   $(CC) $(CFLAGS) $(CFLAGS_CPP) -c $< -o $@
+
+.rc.res:
+   $(RC) $(RFLAGS) -r $<
+
+all:    $(TARGET) $(MDUMMY)
+
+!ifdef INCDIR
+!ifndef SRCFIL
+SRCFIL = *.cpp *.c
+!endif
+depend: $(MDUMMY)
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -R -x -I$(INCDIR) -c -s -i
+!endif
