@@ -19,12 +19,14 @@ Tools Needed to Compile
 You will need the following tools and libraries to compile PM123 via
 gcc:
 
-  gcc 3.3.5 csd 1
-  NASM
-  Operating System/2 Information Presentation Facility Compiler (included in to
+- gcc 3.3.5 csd 1
+- NASM
+- Operating System/2 Information Presentation Facility Compiler (included in to
   IBM OS/2 Developer's Toolkit).
-  WarpIN (if you want to create an installation package)
-  Info-ZIP (if you want to create the ZIP package)
+- IBM LINK386 (also included in to IBM OS/2 Developer's Toolkit).
+- IBM NMAKE or Watcom WMAKE
+- WarpIN (if you want to create an installation package)
+- Info-ZIP (if you want to create the ZIP package)
 
 Open IBM Visualage C++ is currently untested and likely to fail at some C++ codes.
 
