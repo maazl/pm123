@@ -799,7 +799,12 @@ void CtrlImp::MsgPlayStop()
     return;
 
   if (playing)
-  { // start playback
+  { if (!PrefetchList.size())
+    { // no song
+      Reply(RC_NoSong);
+      return;
+    }
+    // start playback
     APlayable* pp = Current().Loc.GetCurrent();
     if (pp == NULL)
     { Reply(RC_NoSong);
