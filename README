@@ -42,7 +42,7 @@ How to Compile
 You can use the following commands with the main makefile and NMAKE:
 
 all:         will compile EVERYTHING in "src"
-filename:    will compile that module (ie.: "pm123.exe", "analyzer.dll", etc)
+filename:    will compile that module (ie.: "src\pm123\pm123.exe", etc.)
 clean:       will clean up all the compiled binaries in "src"
 dist:        will do "distfiles", "distpackage" and "distzip"
 distfiles:   will copy all the needed binaries and files from "src", "doc" and
@@ -52,7 +52,7 @@ distzip:     will build the ZIP file from the files in "dist\files"
 distclean:   will clean everything made by "dist"
 test:        will run some test cases against the PM123 core engine and it's
              plug-ins.
-depend:      update unclude dependencies in makefiles
+depend:      update include dependencies in makefiles
 
 You can also use all of the individual makefiles in each of the subdirectories
 of the "src" directory. Each of them contain an "all" and "clean" command.
@@ -60,12 +60,12 @@ of the "src" directory. Each of them contain an "all" and "clean" command.
 In all cases, you can add "DEBUG=1 DEBUG_LOG=1" to MAKE's command line to build
 a debug version of one of PM123's module. Example:
 
-   [c:\devel\pm123-1_2-src] nmake pm123.exe DEBUG=1 DEBUG_LOG=1
+  [c:\devel\pm123-1_2-src] nmake pm123.exe DEBUG=1 DEBUG_LOG=1
 
-Also you can add "TCP40=1" to MAKE's command line to build modules with
-TCP/IP v4.0 (16bit) support. Example:
-
-   [c:\devel\pm123-1_2-src] nmake all TCP40=1
+Additionally you may add "DEBUG_MEM=1" to add some guard code to memory
+allocation to trace memory leaks and out of bounds memory access. This option
+must be enable for the entire code. Combining code compiled with and w/o this
+option will result in a broken binary.
 
 
 Directory Structure
