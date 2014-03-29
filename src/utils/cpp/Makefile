@@ -28,7 +28,7 @@ cpputil_plugin$(LBO) : $(OBJECTS) $(OBJECTS3) debugmem$(CO)
 	$(LB) $@ $(OBJECTS) $(OBJECTS3) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del cpputil$(LBO) xstring$(LBO) $(OBJECTS) $(OBJECTS2) $(OBJECTS3) 2> nul
+	-@del cpputil$(LBO) xstring$(LBO) $(OBJECTS) $(OBJECTS2) $(OBJECTS3) debugmem$(CO) 2> nul
 
 LIBTEST = cpputil$(LBO) ..\utilfct$(LBO)
 
