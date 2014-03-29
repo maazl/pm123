@@ -930,7 +930,7 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, const OUTPUT_P
 ULONG DLLENTRY filter_init(REALEQ_STRUCT** F, FILTER_PARAMS2* params)
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc(sizeof(REALEQ_STRUCT));
-  DEBUGLOG(("filter_init(%p->%p, {%u, ..., %p, ..., %p})\n", F, f, params->size, params->a, params->w));
+  DEBUGLOG(("filter_init(%p->%p, {..., %p, ..., %p})\n", F, f, params->a, params->w));
 
   *F = f;
 
