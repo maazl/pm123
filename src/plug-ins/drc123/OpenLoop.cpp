@@ -104,7 +104,7 @@ bool OpenLoop::OpenLoopFile::WriteHeaderFields(FILE* f)
     "##DispGain=%g,%g\n"
     "##DispDelay=%g,%g\n"
     "##DispVU=%g,%g,%g\n"
-    "##AverageDelay=%g\n"
+    "##AverageDelay=%g,%g\n"
     "##PhaseUnwrap=%u,%u\n"
     "##IndetPhase=%u,%u\n"
     , FFTSize, DiscardSamp, AnaSwap, LineNotchHarmonics, LineNotchFreq
