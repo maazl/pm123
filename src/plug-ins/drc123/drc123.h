@@ -112,7 +112,7 @@
 #define RB_STEREO       1310
 #define RB_LEFT         1311
 #define RB_RIGHT        1312
-#define RB_DIFF         1314
+#define RB_DIFF         1313
 
 // Open loop extended settings
 #define EF_FREQ_LOW     1350

@@ -25,6 +25,8 @@ drc123.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
 clean: $(MDUMMY)
 	-@del drc123.dll $(OBJECTS) $(RESOURCE) 2> nul
 
+drc123$(RES):	drc123.h
+
 Calibrate.cpp:	Calibrate.h FFT2Data.h ..\..\utils\debuglog.h
 Calibrate.h:	OpenLoop.h DataFile.h DataVector.h ..\..\utils\cpp/mutex.h ..\..\fft123\api\fftw3.h
 OpenLoop.h:	Filter.h DataFile.h DataVector.h ..\..\utils\cpp/xstring.h ..\..\utils\cpp/mutex.h ..\..\utils\cpp/event.h ..\..\utils\cpp/smartptr.h ..\..\fft123\api\fftw3.h
@@ -67,5 +69,5 @@ Frontend.Generate.cpp:	Frontend.h Generate.h ..\..\utils\fileutil.h ..\..\utils\
 Generate.cpp:	Generate.h Iterators.h ..\..\utils\cpp/smartptr.h
 OpenLoop.cpp:	OpenLoop.h
 Frontend.Deconvolution.cpp:	Frontend.h Deconvolution.h FFT2Data.h ..\..\utils\fileutil.h ..\..\utils\cpp/dlgcontrols.h ..\..\utils\cpp/directory.h ..\..\utils\cpp/container/stringset.h ..\..\utils\debuglog.h
-Iterators.h:	DataFile.h
+Iterators.h:	DataFile.h ..\..\utils\cpp/cpputil.h
 Iterators.cpp:	Iterators.h DataFile.h
