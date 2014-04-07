@@ -82,7 +82,7 @@ void InterpolationIterator::ReadNext(double key)
 
 bool AggregateIterator::Reset(const DataFile& data)
 { MinValue = MaxValue = NAN;
-  LastX = 0.;
+  LastX = -1E-6; // Residual value to avoid 0/0 at ReadNext(0)"
   return FileIterator::Reset(data);
 }
 

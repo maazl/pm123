@@ -131,7 +131,8 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
         f2d.StoreHDN(RIntermod, input[1], AnaTemp);
       }
       f2d.Delay = data->AverageDelay[0] = ComputeDelay(input[0], GetRefDesign(0), response);
-      f2d.Delay = data->AverageDelay[1] = ComputeDelay(input[1], GetRefDesign(1), response);
+      f2d.Delay += data->AverageDelay[1] = ComputeDelay(input[1], GetRefDesign(1), response);
+      f2d.Delay /= 2;
       AnaTemp = input[0];
       AnaTemp /= GetRefDesign(1);
       f2d.StoreFFT(R2LGain, AnaTemp);
@@ -139,6 +140,7 @@ void Calibrate::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       AnaTemp /= GetRefDesign(0);
       f2d.StoreFFT(L2RGain, AnaTemp);
       input[0] /= GetRefDesign(0);
+      f2d.Delay = data->AverageDelay[0];
       f2d.StoreFFT(LGain, input[0]);
       f2d.StorePhaseInfo(0);
       input[1] /= GetRefDesign(1);

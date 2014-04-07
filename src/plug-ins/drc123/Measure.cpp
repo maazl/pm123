@@ -287,15 +287,15 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
       ref[1] = &AnaTemp2;
       // mute unused frequencies of right channel
       foreach (fftwf_complex,*, dp, AnaTemp2)
-        if (*rp++ == 0.)
-          *dp = 0.;
+        if (*rp++ == 0.F)
+          *dp = 0.F;
      case CH_Left:
       rp = GetRefDesign(0).begin();
      case CH_Right:
       // mute unused frequencies of left or single channel
       foreach (fftwf_complex,*, dp, input[1])
-        if (*rp++ == 0.)
-          *dp = 0.;
+        if (*rp++ == 0.F)
+          *dp = 0.F;
     }
   } else
   { // reference signal is not recorded
@@ -311,21 +311,21 @@ void Measure::ProcessFFTData(FreqDomainData (&input)[2], double scale)
 
     switch (MesParams.Chan)
     {case CH_Right:
+      f2d.Delay = ComputeDelay(input[0], *ref[1], response);
       input[0] /= *ref[1];
-      f2d.Delay = ComputeDelay(input[1], *ref[1], response);
       f2d.StoreFFT(RGain, input[0]);
       f2d.StorePhaseInfo(1);
       break;
      default: //case CH_Both:
+      f2d.Delay = ComputeDelay(input[0], *ref[1], response);
       AnaTemp = input[0];
       AnaTemp /= *ref[1];
-      f2d.Delay = ComputeDelay(input[1], *ref[1], response);
       f2d.StoreFFT(RGain, AnaTemp);
       f2d.StorePhaseInfo(1);
       // no break
      case CH_Left:
-      input[0] /= *ref[0];
       f2d.Delay = ComputeDelay(input[0], *ref[0], response);
+      input[0] /= *ref[0];
       f2d.StoreFFT(LGain, input[0]);
       f2d.StorePhaseInfo(0);
       // no break
