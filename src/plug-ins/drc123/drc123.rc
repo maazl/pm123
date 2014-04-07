@@ -56,7 +56,7 @@ DLGTEMPLATE DLG_CONFIG
       PRESPARAMS PP_FONTNAMESIZE "12.Helv.Italic.Bold"
     CTEXT "Version 1.0a",             ST_GENERIC,   12,178, 364, 10, DT_VCENTER
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,2, 1,1,0,1)
-    CTEXT "(C) 2013 Marcel Mueller",  ST_GENERIC,   12,168, 364, 10, DT_VCENTER
+    CTEXT "(C) 2013-2014 Marcel Mueller",ST_GENERIC,12,168, 364, 10, DT_VCENTER
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,2, 1,1,0,1)
 
     GROUPBOX " Configuration ",       GB_GENERIC,    4, 76, 380, 42

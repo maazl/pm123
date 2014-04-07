@@ -177,10 +177,12 @@ void Data2FFT::LoadFFT(unsigned col, FreqDomainData& target)
     { double f = i * FInc;
       ipmag.ReadNext(f);
       ipdelay.ReadNext(f);
-      float mag = ipmag.GetValue() * Scale;
-      delay += ipdelay.GetValue();
-      double ph = -2 * M_PI * FInc * delay;
-      target[i] = fftwf_complex(mag * cos(ph), mag * sin(ph));
+      double mag = ipmag.GetValue() * Scale;
+      double ph = ipdelay.GetValue();
+      if (!isnan(ph))
+        delay += ipdelay.GetValue();
+      ph = -2 * M_PI * FInc * delay;
+      target[i] = std::polar(mag, ph);
     }
     target[TargetSize-1] = target[TargetSize-1].real();
   }
