@@ -166,7 +166,7 @@ ULONG WAVOUT::PlayingSamples(PM123_TIME offset, OUTPUT_PLAYING_BUFFER_CB cb, voi
    filter plug-in to play samples. */
 int WAVOUT::RequestBuffer(const FORMAT_INFO2* format, float** buf)
 { DEBUGLOG(("WAVOUT(%p)::RequestBuffer({ %i, %i}, %p) - %i, %i\n", this,
-    format->samplerate, format->channels, buf, Format.samplerate, Format.channels));
+    format ? format->samplerate : -2, format ? format->channels : -2, buf, Format.samplerate, Format.channels));
   ASSERT(PlayQueue.size());
 
   if (!buf)
