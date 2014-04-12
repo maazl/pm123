@@ -1,246 +1,273 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head>
-  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>xstring API reference in PM123 Plug-ins</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>xstring API reference
-in PM123 Plug-ins</h2>
-<h4>xstring</h4>
-<blockquote>
-  <pre>typedef struct<br>{ const char* cstr; /* pointer to C style null terminated string */<br>} xstring;</pre>
-</blockquote>
-<p>The <tt>xstring</tt> structure is binary
-compatible to a C style pointer to a constant string. The structure is
-only used to provide type safety.<br>
-You may read the <tt>cstr</tt> member safely as long as the <tt>xstring</tt>
-instance does not change asynchronously.</p>
-<h4><a name="xstring_init"></a>xstring_init<tt><var></var></tt></h4>
-<p>There is no such function for performance reasons. Simply <em>initialize
-all <tt>xstring</tt>s with the constant <tt>xstring_NULL</tt>
-or use <tt>memset(</tt>...<tt>,&nbsp;0,&nbsp;</tt>...<tt>)</tt></em>.
-But don't forget to do so and do not assign <tt>xstring_NULL</tt> to
-used <tt>xstring</tt>s.</p>
-<h4><a name="xstring_create"></a>xstring_create</h4>
-<blockquote>
-  <pre>xstring DLLENTRY <b>xstring_create</b>( const char* <var>cstr</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to assign, might be
-    <tt>NULL</tt>.</li>
-  <li><var>return value</var> - new <tt>xstring</tt>.</li>
-</ul>
-<p>Initialize a new <tt>xstring</tt> from a C style string. The return
-value can be directly assigned to a new <tt>xstring</tt> and might be
-used for constant <tt>xstring</tt>s. <strong>You must not use this
-function to assign existing, used <tt>xstring</tt>s.</strong> Use <a
- href="#xstring_assign"><tt>xstring_assign</tt></a> instead.</p>
-<h4><a name="xstring_free"></a>xstring_free
-</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_free</b>( volatile xstring* <var>dst</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)
-- <tt>xstring</tt> to free.</li>
-</ul>
-<p>Set the <tt>xstring</tt> to <tt>NULL</tt> and release the storage
-where <tt><var>dst</var></tt>
-points to if it is not used by another <tt>xstring</tt>
-instance. If <tt>*</tt><tt><var>dst</var></tt>
-is <tt>NULL</tt> this is a no-op.</p>
-<p>Calling <tt>xstring_free</tt> twice for the same object
-will not be an error and it is allowed to use the <tt>xstring</tt>
-instance afterwards normally. In fact <tt>xstring_free</tt> is
-equivalent to call <tt>xstring_assign</tt> with <tt>NULL</tt>.</p>
-<h4><a name="xstring_length"></a>xstring_length</h4>
-<blockquote>
-  <pre>unsigned DLLENTRY <b>xstring_length</b>( const xstring* <var>src</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>src</var></tt>
-- <tt>xstring</tt> to query,<tt><var></var></tt> <em>must not be <tt>NULL</tt></em>.</li>
-  <li><var>return value</var> - Length in Characters not including a
-terminating <tt>\0</tt>.</li>
-</ul>
-Note that this <em>not equivalent to <tt>strlen(src-&gt;cstr)</tt></em>.
-<tt>xstring</tt>s have an intrinsic length and they may contain <tt>\0</tt>
-bytes.&nbsp;<tt>xstring_length</tt> is O(1) (unlike <tt>strlen</tt>).<br>
-<h4><a name="xstring_equal"></a>xstring_equal</h4>
-<blockquote>
-  <pre>char&nbsp;DLLENTRY <b>xstring_equal</b>( const&nbsp;xstring* <var>src1</var>, const xstring* <var>src2</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>src1</var></tt>
-- First string to compare.</li>
-  <li><tt><var>src2</var></tt>
-- First string to compare.</li>
-  <li><var>return value</var><br>
-    <tt>0</tt> - the strings are not equal<br>
-    <tt>1</tt> - the strings are equal</li>
-</ul>
-<p>Compares two instances of <tt>xstring</tt> binary. <tt>NULL</tt>
-strings are only equal to them self. Both strings must not change
-asynchronously.</p>
-<p>Note that the result may be not the same than comparing the two
-strings with <tt>strcmp</tt> since <tt>xstring</tt>s may contain null
-bytes and be different afterwards.</p>
-<p>The comparison only takes O(n) if both strings have the same length
-and do not share the same storage as copies made with <tt>xstring_copy</tt>
-do.</p>
-<h4><a name="xstring_compare"></a>xstring_compare</h4>
-<blockquote>
-  <pre>int&nbsp;DLLENTRY <b>xstring_compare</b>( const&nbsp;xstring* <var>src1</var>, const xstring* <var>src2</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>src1</var></tt>
-- First string to compare.</li>
-  <li><tt><var>src2</var></tt>
-- First string to compare.</li>
-  <li><var>return value</var><br>
-    <tt>&lt;0</tt> - <tt>*<var>src1</var></tt> is less than <tt>*<var>src2</var></tt><br>
-    <tt>=0</tt> - the strings are equal<br>
-    <tt>&gt;0</tt> - <tt>*<var>src1</var></tt> is greater than <tt>*<var>src2</var></tt>
-  </li>
-</ul>
-<p>Compares two instances of <tt>xstring</tt> binary. <tt>NULL</tt>
-strings are less than anything else including <tt>""</tt>. Both
-strings must not change asynchronously.</p>
-<p>Note that the result may be not the same than comparing the two
-strings with <tt>strcmp</tt> since <tt>xstring</tt>s may contain null
-bytes and be different afterwards.</p>
-<h4><a name="xstring_copy"></a>xstring_copy</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_copy</b>( volatile xstring* <var>dst</var>, const xstring* <var>src</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
-Destination string.</li>
-  <li><tt><var>src</var></tt> - New value.</li>
-</ul>
-<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
-and place a new reference to <tt>*</tt><var><tt>src</tt></var>
-into <tt>*</tt><var><tt>dst</tt></var>.</p>
-<p>Note that <em><tt>xstring_copy</tt> will
-never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
-It will only increment the reference count.</p>
-<h4><a name="xstring_copy_safe"></a>xstring_copy_safe</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_copy_safe</b>( volatile xstring* <var>dst</var>, volatile const xstring* <var>src</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
-Destination string.</li>
-  <li><tt><var>src</var></tt> - New value.</li>
-</ul>
-<p><tt>xstring_copy_safe</tt> is <em>strongly thread-safe</em> version
-of <tt>xstring_copy</tt>. Fetching the value of <tt>*</tt><var><tt>src</tt></var>
-and placing a strong reference to it in <tt>*</tt><var><tt>dst</tt></var>
-is atomic.</p>
-<p>Note that <em><tt>xstring_copy_safe</tt> will
-never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
-It will only increment the reference count.</p>
-<h4><a name="xstring_assign"></a>xstring_assign</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_assign</b>( volatile xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)
-- Destination string.</li>
-  <li><tt><var>cstr</var></tt>&nbsp;-
-New C string to assign.</li>
-</ul>
-<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>,&nbsp;allocate
-a new <tt>xstring</tt>, initialize it with the content of <var><tt>cstr</tt></var>
-and assign it to <tt>*</tt><tt><var>dst</var></tt>.
-If <var><tt>cstr</tt></var> is <tt>NULL
-<var></var></tt><tt>*</tt><tt><var>dst</var></tt>
-is cleared.</p>
-<h4><a name="xstring_cmpassign"></a>xstring_cmpassign</h4>
-<blockquote>
-  <pre>char DLLENTRY <b>xstring_cmpassign</b>( xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
-Destination string.</li>
-  <li><tt><var>cstr</var></tt> - New C string to assign.</li>
-  <li>return value<br>
-    <tt>0</tt> - the strings are equal, <tt>*<var>dst</var></tt> is
-unchanged<br>
-    <tt>1</tt> - the strings were not equal, <tt>*<var>dst</var></tt>
-has been assigned.</li>
-</ul>
-<p>Copies the value of <var><tt>cstr</tt></var> into <tt>*<var>dst</var></tt>
-if and only if the strings are different. This is useful to keep track
-of changes. Furthermore if the storage of <tt>*<var>dst</var></tt> is
-shared with other <tt>xstring</tt> instances, an assignment of an
-identical string will not destroy the storage sharing.</p>
-<h4><a name="xstring_append"></a>xstring_append</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_append</b>( xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)
-- Destination string to append to.</li>
-  <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to append.</li>
-</ul>
-<p>Appends the string <tt>*<var>src</var></tt> to <tt>*<var>dst</var></tt>.
-Both must not be <tt>NULL</tt>. The operation is not atomic.</p>
-<p>You should avoid repeated calls to <tt>xstring_append</tt> to
-concatenate multiple strings for performance reasons. This will in
-total perform O(n<small><sup>2</sup></small>). It is better to allocate
-the required storage at once with <tt>xstring_alloc</tt> and fill the
-content afterwards.</p>
-<h4><a name="xstring_allocate"></a>xstring_allocate</h4>
-<blockquote>
-  <pre>char* DLLENTRY <b>xstring_allocate</b>( xstring* <var>dst</var>, unsigned int <var>len</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt> (in/out) -
-Destination string. <strong>The string must be initialized</strong>,
-at least to <tt>NULL</tt>.</li>
-  <li><tt><var>len</var></tt>&nbsp;-
-Length of the new string.</li>
-  <li><var>return value</var> - Allocated storage where <var><tt>dst</tt></var>
-now points to. The return value will never be <tt>NULL</tt>.</li>
-</ul>
-<p>Allocate a new <tt>xstring</tt> with
-uninitialized storage of&nbsp;<tt><var>len</var></tt>
-characters and assign it to <tt>*</tt><tt><var>dst</var></tt>.
-The old value of <tt>*</tt><tt><var>dst</var></tt>
-is freed. The returned value is always the same as the new value of <tt><var>dst</var>-&gt;cstr</tt>
-except for constness.</p>
-<p>You may then write up to <tt><var>len</var></tt>
-characters to the memory where the return value points to. It is
-allowed to write one additional <tt>\0</tt> byte behind
-the&nbsp;<tt><var>len</var></tt>
-characters, but no other value must be placed there. The null byte is
-initialized by <tt>xstring_alloc</tt> anyway.</p>
-<p>You may
-modify the returned memory until the next xstring API function call for
-<tt>*<var>dst</var></tt>.</p>
-<h4><a name="xstring_sprintf"></a>xstring_sprintf, <tt><var></var></tt><a
- name="xstring_vsprintf"></a>xstring_vsprintf</h4>
-<blockquote>
-  <pre>void DLLENTRY <b>xstring_sprintf</b>( volatile xstring* <var>dst</var>, const char* <var>fmt</var>, ... );<br>void DLLENTRY <b>xstring_vsprintf</b>( volatile xstring* <var>dst</var>, const char* <var>fmt</var>, va_list <var>va</var> );</pre>
-</blockquote>
-<ul>
-  <li><tt><var>dst</var></tt>&nbsp;(in/out)
-- Destination string.&nbsp;<strong>The string must be initialized</strong>,
-at least to <tt>NULL</tt>.</li>
-  <li><tt><var>fmt</var></tt> - Format
-string (like <tt>printf</tt>).</li>
-  <li><tt>...</tt> - Variable argument list (like <tt>printf</tt>).</li>
-  <li><tt><var>va</var></tt> -&nbsp;Variable
-argument list (like <tt>vprintf</tt>).</li>
-</ul>
-<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
-and place a formatted output into <tt>*</tt><tt><var>dst</var></tt>.
-The behavior of this functions is similar to <tt>sprintf</tt>/<tt>vsprintf</tt>
-but unlike the C library functions these functions are safe with
-respect to the length of the returned string. They will always allocate
-enough memory automatically.</p>
-</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>xstring API reference in PM123 Plugins</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>xstring API reference
+      in PM123 Plugins</h2>
+    <h4>xstring</h4>
+    <blockquote>
+      <pre>typedef struct<br>{ const char* cstr; /* pointer to C style null terminated string */<br>} xstring;</pre>
+    </blockquote>
+    <p>The <tt>xstring</tt> structure is binary
+      compatible to a C style pointer to a constant string. The structure is
+      only used to provide type safety.<br>
+      You may read the <tt>cstr</tt> member safely as long as the <tt>xstring</tt>
+      instance does not change asynchronously, but <strong>you must not assign
+        it</strong>. Neither the <span style="font-family: monospace;">cstr</span>
+      member nor the entire structure.</p>
+    <h4><a name="xstring_init"></a>xstring_init<tt><var></var></tt></h4>
+    <p>There is no such function for performance reasons. Simply <em>initialize
+        all <tt>xstring</tt>s with the constant <tt>xstring_NULL</tt>
+        or use <tt>memset(</tt>...<tt>,&nbsp;0,&nbsp;</tt>...<tt>)</tt></em>.
+      But don't forget to do so and do not assign <tt>xstring_NULL</tt> to
+      used <tt>xstring</tt>s.</p>
+    <h4><a name="xstring_create"></a>xstring_create</h4>
+    <blockquote>
+      <pre>xstring DLLENTRY <b>xstring_create</b>( const char* <var>cstr</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to assign, might be <tt>NULL</tt>.</li>
+      <li><var>return value</var> - new <tt>xstring</tt>.</li>
+    </ul>
+    <p>Initialize a new <tt>xstring</tt> from a C style string. The return
+      value can be directly assigned to a new <tt>xstring</tt> and might be
+      used for constant <tt>xstring</tt>s. <strong>You must not use this
+        function to assign existing, used <tt>xstring</tt>s.</strong> Use <a href="#xstring_assign"><tt>xstring_assign</tt></a>
+      instead.</p>
+    <h4><a name="xstring_free"></a>xstring_free</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_free</b>( volatile xstring* <var>dst</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)
+        - <tt>xstring</tt> to free.</li>
+    </ul>
+    <p>Set the <tt>xstring</tt> to <tt>NULL</tt> and release the storage
+      where <tt><var>dst</var></tt>
+      points to if it is not used by another <tt>xstring</tt>
+      instance. If <tt>*</tt><tt><var>dst</var></tt>
+      is <tt>NULL</tt> this is a no-op.</p>
+    <p>Calling <tt>xstring_free</tt> twice for the same object
+      will not be an error and it is allowed to use the <tt>xstring</tt>
+      instance afterwards normally. In fact <tt>xstring_free</tt> is
+      equivalent to call <a href="#xstring_assign"><tt>xstring_assign</tt></a>
+      with <tt>NULL</tt>.</p>
+    <h4><a name="xstring_length"></a>xstring_length</h4>
+    <blockquote>
+      <pre>unsigned DLLENTRY <b>xstring_length</b>( const xstring* <var>src</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>src</var></tt>
+        - <tt>xstring</tt> to query,<tt><var></var></tt> <em>must not be <tt>NULL</tt></em>.</li>
+      <li><var>return value</var> - Length in Characters not including a
+        terminating <tt>\0</tt>.</li>
+    </ul>
+    Note that this <em>not equivalent to <tt>strlen(src-&gt;cstr)</tt></em>.
+    <tt>xstring</tt>s have an intrinsic length and they may contain <tt>\0</tt>
+    bytes.&nbsp;<tt>xstring_length</tt> is O(1) (unlike <tt>strlen</tt>).<br>
+    <h4><a name="xstring_equal"></a>xstring_equal</h4>
+    <blockquote>
+      <pre>char&nbsp;DLLENTRY <b>xstring_equal</b>( const&nbsp;xstring* <var>src1</var>, const xstring* <var>src2</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>src1</var></tt>
+        - First string to compare.</li>
+      <li><tt><var>src2</var></tt>
+        - First string to compare.</li>
+      <li><var>return value</var><br>
+        <tt>0</tt> - the strings are not equal<br>
+        <tt>1</tt> - the strings are equal</li>
+    </ul>
+    <p>Compares two instances of <tt>xstring</tt> binary. <tt>NULL</tt>
+      strings are only equal to them self. Both strings must not change
+      asynchronously.</p>
+    <p>Note that the result may be not the same than comparing the two
+      strings with <tt>strcmp</tt> since <tt>xstring</tt>s may contain null
+      bytes and differ afterwards.</p>
+    <p>The comparison only takes O(n) if both strings have the same length
+      and do not share the same storage as copies made with <tt>xstring_copy</tt>
+      do.</p>
+    <h4><a name="xstring_compare"></a>xstring_compare</h4>
+    <blockquote>
+      <pre>int&nbsp;DLLENTRY <b>xstring_compare</b>( const&nbsp;xstring* <var>src1</var>, const xstring* <var>src2</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>src1</var></tt>
+        - First string to compare.</li>
+      <li><tt><var>src2</var></tt>
+        - First string to compare.</li>
+      <li><var>return value</var><br>
+        <tt>&lt;0</tt> - <tt>*<var>src1</var></tt> is less than <tt>*<var>src2</var></tt><br>
+        <tt>=0</tt> - the strings are equal<br>
+        <tt>&gt;0</tt> - <tt>*<var>src1</var></tt> is greater than <tt>*<var>src2</var></tt>
+      </li>
+    </ul>
+    <p>Compares two instances of <tt>xstring</tt> binary. <tt>NULL</tt>
+      strings are less than anything else including <tt>""</tt>. Both
+      strings must not change asynchronously.</p>
+    <p>Note that the result may be not the same than comparing the two
+      strings with <tt>strcmp</tt> since <tt>xstring</tt>s may contain null
+      bytes and differ afterwards.</p>
+    <h4><a name="xstring_copy"></a>xstring_copy</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_copy</b>( volatile xstring* <var>dst</var>, const xstring* <var>src</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+        Destination string.</li>
+      <li><tt><var>src</var></tt> - New value.</li>
+    </ul>
+    <p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
+      and place a new reference to <tt>*</tt><var><tt>src</tt></var>
+      into <span style="font-family: monospace;">*<var>dst</var></span>. The
+      change to <span style="font-family: monospace;">*<var>dst</var></span> is
+      atomic.</p>
+    <p>Note that <em><tt>xstring_copy</tt> will
+        never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
+      It will only increment the reference count.</p>
+    <h4><a name="xstring_copy_safe"></a>xstring_copy_safe</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_copy_safe</b>( volatile xstring* <var>dst</var>, volatile const xstring* <var>src</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+        Destination string.</li>
+      <li><tt><var>src</var></tt> - New value.</li>
+    </ul>
+    <p><tt>xstring_copy_safe</tt> is <em>strongly thread-safe</em> version
+      of <tt>xstring_copy</tt>. Fetching the value of <tt>*</tt><var><tt>src</tt></var>
+      and placing a strong reference to it in <tt>*</tt><var><tt>dst</tt></var>
+      is atomic.</p>
+    <p>Note that <em><tt>xstring_copy_safe</tt> will
+        never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
+      It will only increment the reference count.</p>
+    <h4><a name="xstring_assign"></a>xstring_assign</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_assign</b>( volatile xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)
+        - Destination string.</li>
+      <li><tt><var>cstr</var></tt>&nbsp;-
+        New C string to assign. Might be <span style="font-family: monospace;">NULL</span>.</li>
+    </ul>
+    <p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>,&nbsp;allocate
+a
+      new <tt>xstring</tt>, initialize it with the content of <var><tt>cstr</tt></var>
+      and assign it to <tt>*</tt><tt><var>dst</var></tt>.
+      If <var><tt>cstr</tt></var> is <tt>NULL
+        <var></var></tt><tt>*</tt><tt><var>dst</var></tt>
+      is cleared. The change to <span style="font-family: monospace;">*<var>dst</var></span>
+      is atomic.</p>
+    <h4><a name="xstring_cmpassign"></a>xstring_cmpassign</h4>
+    <blockquote>
+      <pre>char DLLENTRY <b>xstring_cmpassign</b>( xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+        Destination string.</li>
+      <li><tt><var>cstr</var></tt> - New C string to assign.</li>
+      <li>return value<br>
+        <tt>0</tt> - the strings are equal, <tt>*<var>dst</var></tt> is
+        unchanged<br>
+        <tt>1</tt> - the strings were not equal, <tt>*<var>dst</var></tt>
+        has been assigned.</li>
+    </ul>
+    <p>Copies the value of <var><tt>cstr</tt></var> into <tt>*<var>dst</var></tt>
+      if and only if the strings are different. This is useful to keep track
+      of changes. Furthermore if the storage of <tt>*<var>dst</var></tt> is
+      shared with other <tt>xstring</tt> instances, an assignment of an
+      identical string will not destroy the storage sharing.</p>
+    <h4><a name="xstring_append"></a>xstring_append</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_append</b>( xstring* <var>dst</var>, const char* <var>cstr</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)
+        - Destination string to append to.</li>
+      <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to append.</li>
+    </ul>
+    <p>Appends the string <tt>*<var>src</var></tt> to <tt>*<var>dst</var></tt>.
+      Both must not be <tt>NULL</tt>. The operation is not atomic.</p>
+    <p>You should avoid repeated calls to <tt>xstring_append</tt> to
+      concatenate multiple strings for performance reasons. This will in
+      total perform O(n<small><sup>2</sup></small>). It is better to allocate
+      the required storage at once with <tt>xstring_allocate</tt> and fill the
+      content afterwards.</p>
+    <h4><a name="xstring_allocate"></a>xstring_allocate</h4>
+    <blockquote>
+      <pre>char* DLLENTRY <b>xstring_allocate</b>( xstring* <var>dst</var>, unsigned int <var>len</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt> (in/out) -
+        Destination string. <strong>The string must be initialized</strong>,
+        at least to <tt>NULL</tt>.</li>
+      <li><tt><var>len</var></tt>&nbsp;-
+        Length of the new string.</li>
+      <li><var>return value</var> - Allocated storage where <var><tt>dst</tt></var>
+        now points to. The return value will never be <tt>NULL</tt>.</li>
+    </ul>
+    <p>Allocate a new <tt>xstring</tt> with
+      uninitialized storage of&nbsp;<tt><var>len</var></tt>
+      characters and assign it to <tt>*</tt><tt><var>dst</var></tt>.
+      The old value of <tt>*</tt><tt><var>dst</var></tt>
+      is freed. The returned value is always the same as the new value of <tt><var>dst</var>-&gt;cstr</tt>
+      except for constness.</p>
+    <p>You may then write up to <tt><var>len</var></tt>
+      characters to the memory where the return value points to. It is
+      allowed to write one additional <tt>\0</tt> byte behind
+      the&nbsp;<tt><var>len</var></tt>
+      characters, but no other value must be placed there. The null byte is
+      initialized by <tt>xstring_alloc</tt> anyway.</p>
+    <p>You may
+      modify the returned memory until the next xstring API function call for
+      <tt>*<var>dst</var></tt>.</p>
+    <h4><a name="xstring_sprintf"></a>xstring_sprintf, <tt><var></var></tt><a name="xstring_vsprintf"></a>xstring_vsprintf</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_sprintf</b>( volatile xstring* <var>dst</var>, const char* <var>fmt</var>, ... );<br>void DLLENTRY <b>xstring_vsprintf</b>( volatile xstring* <var>dst</var>, const char* <var>fmt</var>, va_list <var>va</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)
+        - Destination string.&nbsp;<strong>The string must be initialized</strong>,
+        at least to <tt>NULL</tt>.</li>
+      <li><tt><var>fmt</var></tt> - Format
+        string (like <tt>printf</tt>).</li>
+      <li><tt>...</tt> - Variable argument list (like <tt>printf</tt>).</li>
+      <li><tt><var>va</var></tt> -&nbsp;Variable
+        argument list (like <tt>vprintf</tt>).</li>
+    </ul>
+    <p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
+      and place a formatted output into <tt>*</tt><tt><var>dst</var></tt>.
+      The behavior of this functions is similar to <tt>sprintf</tt>/<tt>vsprintf</tt>
+      but unlike the C library functions these functions are safe with
+      respect to the length of the returned string. They will always allocate
+      enough memory automatically.</p>
+    <h4><a name="xstring_deduplicate"></a>xstring_deduplicate</h4>
+    <blockquote>
+      <pre>void DLLENTRY <b>xstring_deduplicate</b>( volatile xstring* <var>dst</var> );</pre>
+    </blockquote>
+    <ul>
+      <li><tt><var>dst</var></tt>&nbsp;(in/out)
+        - String to deduplicate.&nbsp;<strong>The string must be initialized</strong>,
+        at least to <tt>NULL</tt>.</li>
+    </ul>
+    <p>The string is put into an internal repository of PM123 and if a match is
+      found the instance is replaced by the instance in the repository and the
+      current instance is discarded. The operation is atomic.</p>
+    <p>Deduplication means that value equality is turned into reference
+      equality. Since the referenced content of <span style="font-family: monospace;">xstring</span>s
+      is immutable this is always safe. This could dramatically reduce the
+      memory footprint of PM123 if many identical strings are held at different
+      places.</p>
+    <p>However deduplication also takes additional resources. Approximately 6
+      bytes for the repository entry and CPU for the dictionary lookup. The
+      repository has to be locked forthe deduplication . So be careful where you
+      use it. Also note the the meta data of songs returned by decoder plugins
+      is automatically deduplicated. In general you should only care about
+      string that are local to your plugin.</p>
+  </body>
 </html>

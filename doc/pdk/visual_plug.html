@@ -1,62 +1,63 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
-<head>
-  <title>Visual plug-ins</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>PM123 visual plug-ins</h2>
-<p>Currently, Visual
-plug-ins allow the creation of internal or external windows and they
-can
-tap into PM123 in several ways: they can retrieve currently playing
-samples, control PM123 and so on.</p>
-<p>Visual plug-ins must implement and export the functions defined in <tt>plugin.h</tt>.
-The interface has changed with plug-in level 3. <em>Plug-ins with
-interface level less than 3 are no longer supported!</em>
-</p>
-Visual plug-ins must implement and export the functions defined in
-visual_plug.h.
-<blockquote>
-  <pre>HWND DLLENTRY <b>vis_init</b>(VISPLUGININIT* <var>initdata</var>);</pre>
-</blockquote>
-Visual plug-in's <tt>vis_init</tt> routine gets called every time
-plug-in
-gets activated. The <tt>VISPLUGININIT</tt> structure contains the
-initialization data that
-PM123 passes to the plug-in.
-<blockquote>
-  <pre>typedef struct {<br>  int           x, y, cx, cy; /* Location where the plug-in should create its window */<br>  HWND          hwnd;         /* PM123's window handle */<br>  PPLUGIN_PROCS procs;        /* Pointers to functions which plug-ins can utilize */<br>  char          *param;       /* Parameters passed to the plug-in */<br>  HAB           hab;          /* PM123's anchor block handle */<br>} VISPLUGININIT;</pre>
-</blockquote>
-<p>
-On return from the initialization function, the function should return
-the plug-in's window handle. The plug-in shouldn't not rely that <var><tt>initdata</tt></var>
-structure is pointing to the right location all the time, instead it
-should
-make its own copy of the structure.
-</p>
-<p>The plug-in parameter <tt>param</tt> in the <tt>VISPLUGININIT</tt>
-structure
-optionally contains parameters from the skin's .SKN file.
-</p>
-<p>If the plug-in creates a window, here's a window procedure you
-should
-base yours on:
-</p>
-<blockquote>
-  <pre>MRESULT EXPENTRY PlugWinProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)<br>{<br>  switch (msg)<br>  {<br>    case DM_DRAGOVER:<br>    case DM_DROP:<br>    case 0x041f:<br>    case 0x041e:<br>    case WM_CONTEXTMENU:<br>    case WM_BUTTON2MOTIONSTART:<br>    case WM_BUTTON1MOTIONSTART:<br>      WinSendMsg(plug.hwnd, msg, mp1, mp2);<br>      break;<br><br>    /* your stuff */<br><br>    default:<br>      return WinDefWindowProc(hwnd, msg, mp1, mp2);<br>  }<br>}</pre>
-</blockquote>
-If you want to create a window inside PM123's window, use <tt>WinCreateWindow()</tt>
-in
-<tt>vis_init()</tt>:
-<blockquote>
-  <pre>WinRegisterClass(hab,<br>                 "ExamplePlugin",<br>                 PlugWinProc,<br>                 CS_SIZEREDRAW, 0);<br><br>hwndClient = WinCreateWindow(initdata-&gt;hwnd,<br>                             "ExamplePlugin",<br>                             "PM123 Example Visual Plug-in",<br>                             WS_VISIBLE,<br>                             initdata-&gt;x,  initdata-&gt;y,<br>                             initdata-&gt;cx, initdata-&gt;cy,<br>                             initdata-&gt;hwnd,<br>                             HWND_TOP,<br>                             initdata-&gt;id,<br>                             NULL, NULL);<br>return hwndClient;</pre>
-</blockquote>
-Visual plug-ins should deinitialize and destroy their windows and free
-allocated
-memory when receiving a
-<blockquote>
-  <pre>int DLLENTRY <b>plugin_deinit</b>();</pre>
-</blockquote>
-</body>
+  <head>
+    <meta content="text/html; charset=iso-8859-1" http-equiv="content-type">
+    <title>Visual plugins</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>PM123 visual plugins</h2>
+    <p>Currently, Visual
+      plugins allow the creation of internal or external windows and they
+      can
+      tap into PM123 in several ways: they can retrieve currently playing
+      samples, control PM123 and so on.</p>
+    <p>Visual plugins must implement and export the functions defined in <tt>plugin.h</tt>.
+      The interface has changed with plugin level 3. <em>Plugins with
+        interface level less than 3 are no longer supported!</em>
+    </p>
+    Visual plugins must implement and export the functions defined in
+    visual_plug.h.
+    <blockquote>
+      <pre>HWND DLLENTRY <b>vis_init</b>(VISPLUGININIT* <var>initdata</var>);</pre>
+    </blockquote>
+    Visual plugin's <tt>vis_init</tt> routine gets called every time
+    plugin
+    gets activated. The <tt>VISPLUGININIT</tt> structure contains the
+    initialization data that
+    PM123 passes to the plugin.
+    <blockquote>
+      <pre>typedef struct {<br>  int           x, y, cx, cy; /* Location where the plugin should create its window */<br>  HWND          hwnd;         /* PM123's window handle */<br>  PPLUGIN_PROCS procs;        /* Pointers to functions which plugins can utilize */<br>  char          *param;       /* Parameters passed to the plugin */<br>  HAB           hab;          /* PM123's anchor block handle */<br>} VISPLUGININIT;</pre>
+    </blockquote>
+    <p>
+      On return from the initialization function, the function should return
+      the plugin's window handle. The plugin shouldn't not rely that <var><tt>initdata</tt></var>
+      structure is pointing to the right location all the time, instead it
+      should
+      make its own copy of the structure.
+    </p>
+    <p>The plugin parameter <tt>param</tt> in the <tt>VISPLUGININIT</tt>
+      structure
+      optionally contains parameters from the skin's .SKN file.
+    </p>
+    <p>If the plugin creates a window, here's a window procedure you
+      should
+      base yours on:
+    </p>
+    <blockquote>
+      <pre>MRESULT EXPENTRY PlugWinProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)<br>{<br>  switch (msg)<br>  {<br>    case DM_DRAGOVER:<br>    case DM_DROP:<br>    case 0x041f:<br>    case 0x041e:<br>    case WM_CONTEXTMENU:<br>    case WM_BUTTON2MOTIONSTART:<br>    case WM_BUTTON1MOTIONSTART:<br>      WinSendMsg(plug.hwnd, msg, mp1, mp2);<br>      break;<br><br>    /* your stuff */<br><br>    default:<br>      return WinDefWindowProc(hwnd, msg, mp1, mp2);<br>  }<br>}</pre>
+    </blockquote>
+    If you want to create a window inside PM123's window, use <tt>WinCreateWindow()</tt>
+    in
+    <tt>vis_init()</tt>:
+    <blockquote>
+      <pre>WinRegisterClass(hab,<br>                 "ExamplePlugin",<br>                 PlugWinProc,<br>                 CS_SIZEREDRAW, 0);<br><br>hwndClient = WinCreateWindow(initdata-&gt;hwnd,<br>                             "ExamplePlugin",<br>                             "PM123 Example Visual Plugin",<br>                             WS_VISIBLE,<br>                             initdata-&gt;x,  initdata-&gt;y,<br>                             initdata-&gt;cx, initdata-&gt;cy,<br>                             initdata-&gt;hwnd,<br>                             HWND_TOP,<br>                             initdata-&gt;id,<br>                             NULL, NULL);<br>return hwndClient;</pre>
+    </blockquote>
+    Visual plugins should deinitialize and destroy their windows and free
+    allocated
+    memory when receiving a
+    <blockquote>
+      <pre>int DLLENTRY <b>plugin_deinit</b>();</pre>
+    </blockquote>
+  </body>
 </html>

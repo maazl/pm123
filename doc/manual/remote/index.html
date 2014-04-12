@@ -1,204 +1,202 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html level="3">
-<head>
-  <title>Remote Command Reference</title>
-  <link rel="stylesheet" href="../../common/infstyle.css"
- type="text/css">
-</head>
-<body>
-<h2>PM123's Remote Command Reference</h2>
-<p>PM123 currently understands the following
-commands through the <a href="../remote.html">remote interface</a>.
-The commands are grouped into the categories: <a href="general.html">general</a>,
-<a href="playback.html">playback
-control</a>, <a href="playlist.html">playlists</a>, <a
- href="playlistmodify.html">playlist manipulation</a>, <a
- href="gui.html">user
-interface</a>, <a href="meta.html">meta data</a>, <a
- href="config.html">configuration</a> and <a href="plugin.html">plug-ins</a>.</p>
-<p>All commands return an <em>empty line at the end</em>.
-This is different from PM123 up to version 1.40. However, unless you
-send no more than one command per pipe instance it makes no difference.</p>
-<p>Commands that start with a <em><tt><var>plug-in name</var>:</tt></em>
-are
-plug-in specific commands and do only work if the specified plug-in is
-loaded.
-</p>
-<p><strong>Note that the commands must have an asterisk (<tt>*</tt>) as
-prefix if the are sent through the pipe.</strong> This is a tribute to
-compatibility with older PM123 versions.<strong>
-</strong></p>
-<h3>Alphabetical list of all commands</h3>
-<ul>
-  <li><a href="playlistmodify.html#add"><tt>add</tt> ...</a>
-- add item to playlist</li>
-  <li><a href="config.html#autouse"><tt>autouse</tt></a>
-- auto use playlist on add</li>
-  <li><a href="general.html#cd"><tt>cd</tt></a>
-- set current base URL or directory </li>
-  <li><a href="playlistmodify.html#clear"><tt>clear</tt></a>
-- clear playlist</li>
-  <li><a href="playback.html#current"><tt>current</tt></a>
-- query current song or playlist</li>
-  <li><a href="config.html#option"><tt>default</tt> ...</a> -
-reset an option to its default value.</li>
-  <li><a href="playlistmodify.html#dir"><tt>dir</tt> ...</a>
-- add directory to playlist</li>
-  <li><a href="config.html#float"><tt>float</tt></a>
-- float window on top</li>
-  <li><a href="playback.html#enqueue"><tt>enqueue</tt> ...</a>
-- enqueue file(s)/URL(s)</li>
-  <li><a href="gui.html#font"><tt>font</tt></a>
-- select font</li>
-  <li><a href="playback.html#forward"><tt>forward</tt></a>
-- forward scan</li>
-  <li><a href="general.html#getmessages"><tt>getmessages</tt></a>
-- return descriptive (error) messages</li>
-  <li><a href="gui.html#hide"><tt>hide</tt> ...</a>
-- hide player or dialog window</li>
-  <li><a href="meta.html#info_format"><tt>info format</tt></a>
-- query file and format information</li>
-  <li><a href="meta.html#info_invalidate"><tt>info invalidate</tt></a>
-- invalidate all meta information on the specified object</li>
-  <li><a href="meta.html#info_meta"><tt>info meta</tt></a>
-- query meta information</li>
-  <li><a href="meta.html#info_playlist"><tt>info playlist</tt></a>
-- query information about a (nested) playlist</li>
-  <li><a href="meta.html#info_refresh"><tt>info refresh</tt></a>
-- refresh all meta information on the specified object</li>
-  <li><a href="playback.html#invoke"><tt>invoke</tt> ...</a> - load
-file/URL and start playing if configured</li>
-  <li><a href="gui.html#isvisible"><tt>isvisible</tt> ...</a> - query
-whether a dialog window is visible</li>
-  <li><a href="playback.html#jump"><tt>jump</tt> ...</a>
-- jump to location</li>
-  <li><a href="playback.html#load"><tt>load</tt> ...</a>
-- load file(s)/URL(s)</li>
-  <li><a href="playback.html#next"><tt>next</tt></a>
-- skip next</li>
-  <li><a href="config.html#option"><tt>option</tt> ...</a>
-- set/query configuration options</li>
-  <li><a href="playback.html#pause"><tt>pause</tt></a>
-- pause</li>
-  <li><a href="playlistmodify.html#pl_add"><tt>pl add</tt> ...</a>
-- add item to playlist</li>
-  <li><a href="playlist.html#pl_callstack"><tt>pl callstack</tt></a>
-- query the call stack of the current item in a nested playlist tree</li>
-  <li><a href="playlist.html#pl_current"><tt>pl current</tt></a>
-- query current playlist</li>
-  <li><a href="playlist.html#pl_depth"><tt>pl depth</tt></a>
-- query the call stack depth of the current item within the selected
-playlist</li>
-  <li><a href="playlist.html#pl_enter"><tt>pl enter</tt></a>
-- enter a nested playlist</li>
-  <li><a href="playlist.html#pl_enqueue"><tt>pl enqueue</tt></a>
-- enqueue the current playlist item</li>
-  <li><a href="playlist.html#pl_index"><tt>pl index</tt></a>
-- query current playlist item index</li>
-  <li><a href="meta.html#pl_info_format"><tt>pl info format</tt></a>
-- query format information about the current playlist item</li>
-  <li><a href="meta.html#pl_info_item"><tt>pl info item</tt></a>
-- query item information about the current playlist item</li>
-  <li><a href="meta.html#pl_info_meta"><tt>pl info meta</tt></a>
-- query meta information about the current playlist item</li>
-  <li><a href="meta.html#pl_info_playlist"><tt>pl info playlist</tt></a>
-- query recursive playlist information about the current playlist item</li>
-  <li><a href="playlist.html#pl_item"><tt>pl item</tt></a> - query the
-current playlist item</li>
-  <li><a href="playlist.html#pl_itemindex"><tt>pl itemindex</tt></a> -
-return the index of the selected song in a nested
-playlist</li>
-  <li><a href="playlist.html#pl_leave"><tt>pl leave</tt></a>
-- leave a (nested) playlist</li>
-  <li><a href="playlist.html#pl_location"><tt>pl location</tt></a>
-- query current location within a nested playlist</li>
-  <li><a href="playlist.html#pl_navigate"><tt>pl navigate</tt> ...</a>
-- navigate to item</li>
-  <li><a href="playlist.html#pl_navto"><tt>pl navto</tt></a>
-- navigate to current playlist item</li>
-  <li><a href="playlist.html#pl_next"><tt>pl next</tt></a>
-- next song in nested playlist tree</li>
-  <li><a href="playlist.html#pl_nextitem"><tt>pl nextitem</tt></a>
-- next item in a playlist</li>
-  <li><a href="playlist.html#pl_parent"><tt>pl parent</tt></a>
-- query lowermost playlist in the current call stack</li>
-  <li><a href="playlist.html#pl_prev"><tt>pl prev</tt></a>
-- previous song in nested playlist tree</li>
-  <li><a href="playlist.html#pl_previtem"><tt>pl previtem</tt></a>
-- previous item in a playlist</li>
-  <li><a href="playlistmodify.html#pl_remove"><tt>pl remove</tt></a>
-- remove item from playlist</li>
-  <li><a href="playlist.html#pl_reset"><tt>pl reset</tt></a>
-- reset playlist iterator</li>
-  <li><a href="playlistmodify.html#pl_save"><tt>pl save</tt></a>
-- save playlist</li>
-  <li><a href="playlistmodify.html#pl_setitem"><tt>pl setitem</tt></a>
--
-modify the current playlist item</li>
-  <li><a href="playlistmodify.html#pl_sort"><tt>pl sort</tt></a> - sort
-playlist </li>
-  <li><a href="playback.html#play"><tt>play</tt></a>
-- play item</li>
-  <li><a href="playlist.html#playlist"><tt>playlist</tt></a>
-- select playlist</li>
-  <li><a href="config.html#playonload"><tt>playonload</tt></a>
-- start playing on load</li>
-  <li><a href="plugin.html#plugin_list"><tt>plugin list</tt> ...</a>
-- query or set the list of loaded plug-ins</li>
-  <li><a href="plugin.html#plugin_load"><tt>plugin load</tt> ...</a>
-- load a plug-in into the player</li>
-  <li><a href="plugin.html#plugin_params"><tt>plugin params</tt> ...</a>
-- query or set plug-in parameters</li>
-  <li><a href="plugin.html#plugin_unload"><tt>plugin unload</tt> ...</a>
-- unload a plug-in</li>
-  <li><a href="playback.html#prev"><tt>prev</tt>, <tt>previous</tt></a>
-- skip previous</li>
-  <li><a href="playback.html#query"><tt>query</tt></a> - query
-playback mode (like playing, auto repeat and so on)</li>
-  <li><a href="gui.html#quit"><tt>quit</tt></a>
-- quit player</li>
-  <li><a href="playlistmodify.html#rdir"><tt>rdir</tt> ...</a>
-- recursive add directory to playlist</li>
-  <li><a href="playlistmodify.html#remove"><tt>remove</tt></a>
-- remove item from playlist</li>
-  <li><a href="playback.html#repeat"><tt>repeat</tt></a>
-- autorepeat mode</li>
-  <li><a href="general.html#reset"><tt>reset</tt></a> - reset the pipe
-interface to its initial state </li>
-  <li><a href="playback.html#rewind"><tt>rewind</tt></a>
-- reverse scan</li>
-  <li><a href="playlistmodify.html#save"><tt>save</tt></a>
-- save playlist</li>
-  <li><a href="playback.html#savestream"><tt>savestream</tt></a>
-- save stream as file</li>
-  <li><a href="gui.html#size"><tt>size</tt></a>
-- set player size</li>
-  <li><a href="gui.html#show"><tt>show</tt> ...</a>
-- open dialog window</li>
-  <li><a href="playback.html#shuffle"><tt>shuffle</tt></a>
-- enable shuffle</li>
-  <li><a href="gui.html#skin"><tt>skin</tt></a>
-- load skin</li>
-  <li><a href="playback.html#status"><tt>status</tt></a>
-- get info string</li>
-  <li><a href="playback.html#stop"><tt>stop</tt></a>
-- stop playback</li>
-  <li><a href="playback.html#time"><tt>time</tt></a> - current playing
-time</li>
-  <li><a href="playlist.html#use"><tt>use</tt></a>
-- use playlist</li>
-  <li><a href="config.html#version"><tt>version</tt></a> -
-query PM123 version </li>
-  <li><a href="playback.html#volume"><tt>volume</tt></a>
-- volume control</li>
-  <li><a href="metawrite.html#write_meta_rst"><tt>write meta
-rst</tt></a>
-- modify meta information</li>
-  <li><a href="metawrite.html#write_meta_set"><tt>write meta
-set</tt></a>
-- modify meta information</li>
-  <li><a href="metawrite.html#write_meta_to"><tt>write meta to</tt></a>
-- modify meta information</li>
-</ul>
-</body>
+  <head>
+    <meta content="text/html; charset=windows-1252" http-equiv="content-type">
+    <title>Remote Command Reference</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>PM123's Remote Command Reference</h2>
+    <p>PM123 currently understands the following
+      commands through the <a href="../remote.html">remote interface</a>.
+      The commands are grouped into the categories: <a href="general.html">general</a>,
+      <a href="playback.html">playback
+        control</a>, <a href="playlist.html">playlists</a>, <a href="playlistmodify.html">playlist
+        manipulation</a>, <a href="gui.html">user
+        interface</a>, <a href="meta.html">meta data</a>, <a href="config.html">configuration</a>
+      and <a href="plugin.html">plugins</a>.</p>
+    <p>All commands return an <em>empty line at the end</em>.
+      This is different from PM123 up to version 1.40. However, unless you
+      send no more than one command per pipe instance it makes no difference.</p>
+    <p>Commands that start with a <em><tt><var>plugin-name</var>:</tt></em>
+      are
+      plug-in specific commands and do only work if the specified plug-in is
+      loaded. See the documentation of the desired plugin for details.</p>
+    <p><strong>Note that the commands must have an asterisk (<tt>*</tt>) as
+        prefix if the are sent through the pipe.</strong> This is a tribute to
+      compatibility with older PM123 versions.<strong>
+      </strong></p>
+    <h3>Alphabetical list of all commands</h3>
+    <ul>
+      <li><a href="playlistmodify.html#add"><tt>add</tt> ...</a>
+        - add item to playlist</li>
+      <li><a href="config.html#autouse"><tt>autouse</tt></a>
+        - auto use playlist on add</li>
+      <li><a href="general.html#cd"><tt>cd</tt></a>
+        - set current base URL or directory </li>
+      <li><a href="playlistmodify.html#clear"><tt>clear</tt></a>
+        - clear playlist</li>
+      <li><a href="playback.html#current"><tt>current</tt></a>
+        - query current song or playlist</li>
+      <li><a href="config.html#option"><tt>default</tt> ...</a> -
+        reset an option to its default value.</li>
+      <li><a href="playlistmodify.html#dir"><tt>dir</tt> ...</a>
+        - add directory to playlist</li>
+      <li><a href="config.html#float"><tt>float</tt></a>
+        - float window on top</li>
+      <li><a href="playback.html#enqueue"><tt>enqueue</tt> ...</a>
+        - enqueue file(s)/URL(s)</li>
+      <li><a href="gui.html#font"><tt>font</tt></a>
+        - select font</li>
+      <li><a href="playback.html#forward"><tt>forward</tt></a>
+        - forward scan</li>
+      <li><a href="general.html#getmessages"><tt>getmessages</tt></a>
+        - return descriptive (error) messages</li>
+      <li><a href="gui.html#hide"><tt>hide</tt> ...</a>
+        - hide player or dialog window</li>
+      <li><a href="meta.html#info_format"><tt>info format</tt></a>
+        - query file and format information</li>
+      <li><a href="meta.html#info_invalidate"><tt>info invalidate</tt></a>
+        - invalidate all meta information on the specified object</li>
+      <li><a href="meta.html#info_meta"><tt>info meta</tt></a>
+        - query meta information</li>
+      <li><a href="meta.html#info_playlist"><tt>info playlist</tt></a>
+        - query information about a (nested) playlist</li>
+      <li><a href="meta.html#info_refresh"><tt>info refresh</tt></a>
+        - refresh all meta information on the specified object</li>
+      <li><a href="playback.html#invoke"><tt>invoke</tt> ...</a> - load
+        file/URL and start playing if configured</li>
+      <li><a href="gui.html#isvisible"><tt>isvisible</tt> ...</a> - query
+        whether a dialog window is visible</li>
+      <li><a href="playback.html#jump"><tt>jump</tt> ...</a>
+        - jump to location</li>
+      <li><a href="playback.html#load"><tt>load</tt> ...</a>
+        - load file(s)/URL(s)</li>
+      <li><a href="playback.html#next"><tt>next</tt></a>
+        - skip next</li>
+      <li><a href="config.html#option"><tt>option</tt> ...</a>
+        - set/query configuration options</li>
+      <li><a href="playback.html#pause"><tt>pause</tt></a>
+        - pause</li>
+      <li><a href="playlistmodify.html#pl_add"><tt>pl add</tt> ...</a>
+        - add item to playlist</li>
+      <li><a href="playlist.html#pl_callstack"><tt>pl callstack</tt></a>
+        - query the call stack of the current item in a nested playlist tree</li>
+      <li><a href="playlist.html#pl_current"><tt>pl current</tt></a>
+        - query current playlist</li>
+      <li><a href="playlist.html#pl_depth"><tt>pl depth</tt></a>
+        - query the call stack depth of the current item within the selected
+        playlist</li>
+      <li><a href="playlist.html#pl_enter"><tt>pl enter</tt></a>
+        - enter a nested playlist</li>
+      <li><a href="playlist.html#pl_enqueue"><tt>pl enqueue</tt></a>
+        - enqueue the current playlist item</li>
+      <li><a href="playlist.html#pl_index"><tt>pl index</tt></a>
+        - query current playlist item index</li>
+      <li><a href="meta.html#pl_info_format"><tt>pl info format</tt></a>
+        - query format information about the current playlist item</li>
+      <li><a href="meta.html#pl_info_item"><tt>pl info item</tt></a>
+        - query item information about the current playlist item</li>
+      <li><a href="meta.html#pl_info_meta"><tt>pl info meta</tt></a>
+        - query meta information about the current playlist item</li>
+      <li><a href="meta.html#pl_info_playlist"><tt>pl info playlist</tt></a>
+        - query recursive playlist information about the current playlist item</li>
+      <li><a href="playlist.html#pl_item"><tt>pl item</tt></a> - query the
+        current playlist item</li>
+      <li><a href="playlist.html#pl_itemindex"><tt>pl itemindex</tt></a> -
+        return the index of the selected song in a nested
+        playlist</li>
+      <li><a href="playlist.html#pl_leave"><tt>pl leave</tt></a>
+        - leave a (nested) playlist</li>
+      <li><a href="playlist.html#pl_location"><tt>pl location</tt></a>
+        - query current location within a nested playlist</li>
+      <li><a href="playlist.html#pl_navigate"><tt>pl navigate</tt> ...</a>
+        - navigate to item</li>
+      <li><a href="playlist.html#pl_navto"><tt>pl navto</tt></a>
+        - navigate to current playlist item</li>
+      <li><a href="playlist.html#pl_next"><tt>pl next</tt></a>
+        - next song in nested playlist tree</li>
+      <li><a href="playlist.html#pl_nextitem"><tt>pl nextitem</tt></a>
+        - next item in a playlist</li>
+      <li><a href="playlist.html#pl_parent"><tt>pl parent</tt></a>
+        - query lowermost playlist in the current call stack</li>
+      <li><a href="playlist.html#pl_prev"><tt>pl prev</tt></a>
+        - previous song in nested playlist tree</li>
+      <li><a href="playlist.html#pl_previtem"><tt>pl previtem</tt></a>
+        - previous item in a playlist</li>
+      <li><a href="playlistmodify.html#pl_remove"><tt>pl remove</tt></a>
+        - remove item from playlist</li>
+      <li><a href="playlist.html#pl_reset"><tt>pl reset</tt></a>
+        - reset playlist iterator</li>
+      <li><a href="playlistmodify.html#pl_save"><tt>pl save</tt></a>
+        - save playlist</li>
+      <li><a href="playlistmodify.html#pl_setitem"><tt>pl setitem</tt></a>
+        -
+        modify the current playlist item</li>
+      <li><a href="playlistmodify.html#pl_sort"><tt>pl sort</tt></a> - sort
+        playlist </li>
+      <li><a href="playback.html#play"><tt>play</tt></a>
+        - play item</li>
+      <li><a href="playlist.html#playlist"><tt>playlist</tt></a>
+        - select playlist</li>
+      <li><a href="config.html#playonload"><tt>playonload</tt></a>
+        - start playing on load</li>
+      <li><a href="plugin.html#plugin_list"><tt>plugin list</tt> ...</a>
+        - query or set the list of loaded plug-ins</li>
+      <li><a href="plugin.html#plugin_load"><tt>plugin load</tt> ...</a>
+        - load a plug-in into the player</li>
+      <li><a href="plugin.html#plugin_params"><tt>plugin params</tt> ...</a>
+        - query or set plug-in parameters</li>
+      <li><a href="plugin.html#plugin_unload"><tt>plugin unload</tt> ...</a>
+        - unload a plug-in</li>
+      <li><a href="playback.html#prev"><tt>prev</tt>, <tt>previous</tt></a>
+        - skip previous</li>
+      <li><a href="playback.html#query"><tt>query</tt></a> - query
+        playback mode (like playing, auto repeat and so on)</li>
+      <li><a href="gui.html#quit"><tt>quit</tt></a>
+        - quit player</li>
+      <li><a href="playlistmodify.html#rdir"><tt>rdir</tt> ...</a>
+        - recursive add directory to playlist</li>
+      <li><a href="playlistmodify.html#remove"><tt>remove</tt></a>
+        - remove item from playlist</li>
+      <li><a href="playback.html#repeat"><tt>repeat</tt></a>
+        - autorepeat mode</li>
+      <li><a href="general.html#reset"><tt>reset</tt></a> - reset the pipe
+        interface to its initial state </li>
+      <li><a href="playback.html#rewind"><tt>rewind</tt></a>
+        - reverse scan</li>
+      <li><a href="playlistmodify.html#save"><tt>save</tt></a>
+        - save playlist</li>
+      <li><a href="playback.html#savestream"><tt>savestream</tt></a>
+        - save stream as file</li>
+      <li><a href="gui.html#size"><tt>size</tt></a>
+        - set player size</li>
+      <li><a href="gui.html#show"><tt>show</tt> ...</a>
+        - open dialog window</li>
+      <li><a href="playback.html#shuffle"><tt>shuffle</tt></a>
+        - enable shuffle</li>
+      <li><a href="gui.html#skin"><tt>skin</tt></a>
+        - load skin</li>
+      <li><a href="playback.html#status"><tt>status</tt></a>
+        - get info string</li>
+      <li><a href="playback.html#stop"><tt>stop</tt></a>
+        - stop playback</li>
+      <li><a href="playback.html#time"><tt>time</tt></a> - current playing
+        time</li>
+      <li><a href="playlist.html#use"><tt>use</tt></a>
+        - use playlist</li>
+      <li><a href="config.html#version"><tt>version</tt></a> -
+        query PM123 version </li>
+      <li><a href="playback.html#volume"><tt>volume</tt></a>
+        - volume control</li>
+      <li><a href="metawrite.html#write_meta_rst"><tt>write meta
+            rst</tt></a>
+        - modify meta information</li>
+      <li><a href="metawrite.html#write_meta_set"><tt>write meta
+            set</tt></a>
+        - modify meta information</li>
+      <li><a href="metawrite.html#write_meta_to"><tt>write meta to</tt></a>
+        - modify meta information</li>
+    </ul>
+  </body>
 </html>

@@ -1,282 +1,257 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
-<head>
-  <title>PM123 Plug-in Developer's Guide</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>Developing PM123 Plug-ins</h2>
-<p>PM123 supports four kinds of plug-ins: visual, decoder,
-output and filter. Plug-ins are Dynamic Linked
-Libraries
-(DLLs) which PM123 loads on start up.</p>
-<p><a href="visual_plug.html">Visual plug-ins</a> are used to peek at
-the data
-currently being heard (or not) by the user through the output plug-in
-and visually produce data from it back to the user.
-</p>
-<p><a href="decoder_plug.html">Decoder plug-ins</a>
-are used to decode different types of files, tracks or streams the user
-can play.</p>
-<p><a href="output_plug.html">Output plug-ins</a> is the final
-destination of the decoded data.
-It can be rerouted to a sound card, to the hard disk or anywhere else
-appropriate. The data is in standard PCM format.</p>
-<p><a href="filter_plug.html">Filter plug-ins</a> are
-chained between the decoder and the output plug-in to modify the PCM
-data before getting to the output plug-in.</p>
-<p>See also <a href="datatype.html">common plug-in data types</a>.</p>
-<h3>Common interface</h3>
-<p><tt>plugin.h</tt> contains the necessary structures
-for all PM123 plug-ins.
-All exported and callback functions must use the calling convention <code>_cdecl</code>.</p>
-<ul>
-  <li><a href="#plugin_query"><tt>plugin_query</tt></a> - query the
-plug-ins capabilities</li>
-  <li><a href="#plugin_init"><tt>plugin_init</tt></a> [optional] -
-initialize the plug-in</li>
-  <li><a href="#plugin_configure"><tt>plugin_configure</tt></a>
-[optional] - invoke the configuration dialog</li>
-  <li><a href="#plugin_command"><tt>plugin_command</tt></a> [optional]
-- execute plug-in specific remote command</li>
-  <li><a href="#plugin_deinit"><tt>plugin_deinit</tt></a> [optional] -
-prepare the plug-in for unload </li>
-</ul>
-<p>Before you include any file from the PDK you should define the macro
-<tt>PLUGIN_INTERFACE_LEVEL</tt> to the appropriate value matching the <a
- href="#interface_level">interface compatibility</a> of your plugin.
-Example:</p>
-<blockquote>
-  <pre>#define PLUGIN_INTERFACE_LEVEL 3<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;</pre>
-</blockquote>
-<h4>Initialization</h4>
-<p><a name="plugin_query"></a>A plug-in must have a function that
-identifies it as a
-plug-in:
-</p>
-<blockquote>
-  <pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);</pre>
-</blockquote>
-<tt>plugin_query</tt> is called before any other function
-and exactly once by PM123. The plug-in will then have to fill the
-variables in the <i>param</i> structure, for example:
-<blockquote>
-  <pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plug-in */<br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br>param-&gt;interface = PLUGIN_INTERFACE_LEVEL;<br>/* This is the required <a
- href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
-</blockquote>
-<p><a name="plugin_init"></a>A second initialization function, <tt>plugin_init</tt>,
-is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.
-The function is called only from the application's main thread. It
-should not block for longer nor do I/O operations to keep the GUI
-responsive.
-</p>
-<blockquote>
-  <pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
-</blockquote>
-<p>The export of this function is optional but level 2 and up plug-ins
-most
-likely will require it. It provides some
-global entry points of PM123. They might
-be used to handle asynchronous events or requests. The structure and
-the functions must
-not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a>
-returned.</p>
-<blockquote>
-  <pre><a name="message_display"></a>/** message function */<br>void DLLENTRY (*<b>message_display</b>)(MESSAGE_TYPE <var>type</var>, const char* <var>msg</var>);<br><br>/** retrieve configuration setting */<br>int DLLENTRY (<b>*profile_query</b>)(const char* <var>key</var>, void* <var>data</var>, int <var>maxlength</var>);<br>/** store configuration setting */<br>int DLLENTRY (*<b>profile_write</b>)(const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var>);<br><br>/** execute remote command<br> * See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)(const char* <var>cmd</var>);<br><br>/** Invalidate object properties<br> * @param what A bit-vector of INFOTYTE<br> * @return Bits of <var>what</var> that caused an invalidation. */<br>int DLLENTRYP(<b>obj_invalidate</b>)(const char* <var>url</var>, int <var>what</var>);<br>/** Check whether a decoder claims to support this kind of URL and type.<br> * @param url URL of the object to check<br> * @param type .type extended attribute or mime type respectively.<br> * Multiple types may be tab separated.<br> * @return != 0 -&gt; yes<br> * @remarks The function does not actually cause any I/O.<br> * It is not reliable during plug-in initialization. */<br>int DLLENTRYP(<b>obj_supported</b>)(const char* <var>url</var>, const char* <var>type</var>);</pre>
-  <pre>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * xstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>xstring_alloc</b>)(xstring* dst, unsigned int len);<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>xstring_free</b>)(volatile xstring* dst);<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>xstring_length</b>)(const xstring* src);<br>/* Compare two xstrings for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>xstring_equal</b>)(const xstring* src1, const xstring* src2);<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_assign</b>)(volatile xstring* dst, const char* cstr);<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>xstring_copy</b>)(volatile xstring* dst, const xstring* src);<br>/* Strongly thread safe version of xstring_copy. */<br>void DLLENTRY (*<b>xstring_copy_safe</b>)(volatile xstring* dst, volatile const xstring* src);<br>/* Append to xstring. The source may also be from a xstring.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>xstring_append</b>)(xstring* dst, const char* cstr); <br>/* printf into a xstring. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_sprintf</b>)(volatile xstring* dst, const char* fmt, ...);<br>void DLLENTRY (*<b>xstring_vsprintf</b>)(volatile xstring* dst, const char* fmt, va_list va);</pre>
-</blockquote>
-<p>The <b><tt>exec_command</tt></b>
-function causes
-PM123 to execute a remote command as if it were sent to the remote pipe
-interface. It returns the reply string. The returned storage is valid
-until the next call to <tt>exec_command</tt> or until <tt>plugin_deinit</tt>.
-&nbsp;<em>Calls to <tt>exec_command</tt> must be
-serialized</em>.<br>
-The remote state information
-like the currently selected playlist is private to the plug-in and does
-not interfere with commands sent to the remote pipe or from another
-plug-in.</p>
-<p><b><tt>query_profile</tt></b> and <b><tt>write_profile</tt></b>
-are similar to the profile OS/2 API functions <tt>PrfQueryProfileData</tt>
-and <tt>PrfWriteProfileData</tt>.
-But they read and write to a section dedicated to your plug-in the
-current PM123.INI file which may not be the one in the application
-folder. Using this functions is recommended over creating an individual
-profile.<br>
-<tt>query_profile</tt> returns the length of the requested
-Parameter or -1 on error. Independent of the returned length at most <var><tt>maxlen</tt></var>
-characters are stored in <var><tt>buffer</tt></var>.
-If you pass <tt>NULL</tt> as <var><tt>key</tt></var>,
-a list of <tt>'\0'</tt> delimited keys is
-returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt>
-on success and <tt>FALSE</tt> on error.</p>
-<p>The <a href="xstring.html"><b><tt>xstring_</tt>*</b> API
-functions</a>
-are used to manipulate dynamic strings of type <a href="xstring.html"><b><tt>xstring</tt></b></a>.</p>
-<h4>Configuration</h4>
-<p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable
-= TRUE</tt>
-in <tt>plugin_query</tt>,
-a configuration dialog
-should appear when PM123 calls
-</p>
-<blockquote>
-  <pre>HWND DLLENTRY <b>plugin_configure</b>(HWND <var>owner</var>, HMODULE <var>module</var>);</pre>
-</blockquote>
-<p>where <i>owner</i> is the notebook or player
-window so that you can "lock" your
-window on it if you want and where <i>module</i> can be
-used to load a resource from your DLL. The functions is called only
-from the application's main thread. It should not block for longer nor
-do I/O operations to keep the GUI responsive.</p>
-<p>The function should return a window handle if and only if the
-configuration dialog in non-modal, i.e. it is still open when <tt>plugin_configure</tt>
-returns. PM123 might then call <tt>plugin_configure</tt> again with <tt><var>owner</var>
-= NULLHANDLE</tt> to close the dialog. If the configuration dialog is
-modal you need not to care about that. <tt>NULLHANDLE</tt> should
-always be returned.</p>
-<p>Note that the return value is new to <a href="#interface_level">interface
-level</a> 3. PM123 uses this value to keep track of open configuration
-windows. Older PM123 versions ignore the return value.</p>
-<p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt>
-is
-optional. If the symbol is exported, the
-plug-in can receive remote commands.</p>
-<blockquote>
-  <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
- href="xstring.html">xstring</a>* <var>result</var>);</pre>
-</blockquote>
-<p>The <var><tt>command</tt></var> parameter receives the command
-passed to the remote interface without the asterisk and plug-in name
-prefix. The handling is plug-in specific. <var><tt>result</tt></var>
-should be assigned with the result of the command if any. Note that
-these commands must not be used to control the primary function of a
-plug-in like to stop decoding a file. It is mainly intended for remote
-configuration.
-</p>
-<h4>Unload</h4>
-<p><a name="plugin_deinit"></a>Plug-ins should deinitialize and destroy
-their windows and
-free allocated
-memory when receiving a</p>
-<blockquote>
-  <pre>int DLLENTRY <b>plugin_deinit</b>(int <var>unload</var>);</pre>
-</blockquote>
-<p>It can also be used to save settings in your INI file for
-other sort of plug-ins.</p>
-<h3><a name="interface_level"></a>Interface
-levels</h3>
-<p>The interface level is used to ensure compatibility of
-plug-ins over different versions of PM123. The field defaults to 0
-representing the oldest implementation. Larger values reflect changes
-to the plug-in interface. The interface level reflects changes to any
-of the plugin interfaces, so different levels do not necessarily mean
-different interfaces of <em>one</em> plug-in interface. A
-change in the interface may be only a modified semantic of a function
-call or it may be a complete change of the interface with entirely
-other function names or whatever. See the individual PDK documentation
-of the desired plug-in type to get further information for each plug-in
-type.<br>
-A new plug-in is not necessarily required to use the most recent
-interface level.</p>
-<ul>
-  <li>PM123 will refuse to load plug-ins with a higher interface
-level than the one PM123 was compiled with.</li>
-  <li>PM123 will handle older plug-ins in a compatibility mode as
-far as reasonable.</li>
-</ul>
-<p>Overview:
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Level</th>
-      <th>PM123 version</th>
-      <th>Visual</th>
-      <th>Decoder</th>
-      <th>Output</th>
-      <th>Filter</th>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>n/a <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
-      <td><em>no longer supported!</em></td>
-      <td>supported</td>
-      <td>supported, deprecated</td>
-      <td>supported, deprecated</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>&#8805; 1.32 <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
-      <td><em>no longer supported!</em></td>
-      <td>supported,<br>
-same as level 0</td>
-      <td>supported but deprecated,<br>
-same as level 0</td>
-      <td>supported, deprecated,<br>
-same as level 0</td>
-    </tr>
-    <tr>
-      <td>2</td>
-      <td>= 1.40 <font size="-1"><sup><a href="#note2">2</a></sup></font></td>
-      <td><em>no longer supported!</em><br>
-same as level 1</td>
-      <td><em>no longer supported!</em></td>
-      <td><em>no longer supported!</em></td>
-      <td><em>no longer supported!</em></td>
-    </tr>
-    <tr>
-      <td valign="top">3</td>
-      <td valign="top">= 1.41</td>
-      <td valign="top">recent</td>
-      <td valign="top">recent</td>
-      <td valign="top">recent</td>
-      <td valign="top">recent</td>
-    </tr>
-  </tbody>
-</table>
-</p>
-<ol>
-  <li><a name="note1"></a>PM123 before version 1.40
-does not check for the compatibility of plug-ins. When a wrong plug-in
-is used, the application will most likely crash.</li>
-  <li><a name="note2"></a>The plug-in interface of PM123 1.41 never got
-really stable and therefore is discontinued.</li>
-</ol>
-<p>For example a filter plug-in will be loaded depending on it's
-interface level by a PM123 instance with interface level 3 (compile
-time constant) in the following way:
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Interface level<br>
-of the plug-in</th>
-      <th>Action taken</th>
-    </tr>
-    <tr>
-      <td valign="top">3</td>
-      <td valign="top">Loaded native.</td>
-    </tr>
-    <tr>
-      <td>2</td>
-      <td><em>Error</em>, because level 2 is discontinued.</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>Loaded via a proxy in compatibility mode.</td>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>Loaded via a proxy in compatibility mode.<br>
-Level 0 is identical to level 1 with respect to the filter plug-in
-interface.</td>
-    </tr>
-    <tr>
-      <td>&gt;3</td>
-      <td><em>Error</em>, because the interface is potentially
-incompatible and not supported by this PM123 core. </td>
-    </tr>
-  </tbody>
-</table>
-</p>
-</body>
+  <head>
+    <meta content="text/html; charset=windows-1252" http-equiv="content-type">
+    <title>PM123 Plugin Developer's Guide</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>Developing PM123 Plugins</h2>
+    <p>PM123 supports four kinds of plugins: visual, decoder, output and filter.
+      Plugins are Dynamic Linked Libraries (DLLs) which PM123 loads on start up.</p>
+    <p><a href="visual_plug.html">Visual plugins</a> are used to peek at the
+      data currently being heard (or not) by the user through the output plugin
+      and visually produce data from it back to the user. </p>
+    <p><a href="decoder_plug.html">Decoder plugins</a> are used to decode
+      different types of files, tracks or streams the user can play.</p>
+    <p><a href="output_plug.html">Output plugins</a> is the final destination of
+      the decoded data. It can be rerouted to a sound card, to the hard disk or
+      anywhere else appropriate. The data is in standard PCM format.</p>
+    <p><a href="filter_plug.html">Filter plugins</a> are chained between the
+      decoder and the output plugin to modify the PCM data before getting to the
+      output plugin.</p>
+    <p>See also <a href="datatype.html">common plugin data types</a>.</p>
+    <h3>Common interface</h3>
+    <p><tt>plugin.h</tt> contains the necessary structures for all PM123
+      plugins. All exported and callback functions must use the calling
+      convention <code>_cdecl</code>.</p>
+    <ul>
+      <li><a href="#plugin_query"><tt>plugin_query</tt></a> - query the plugins
+        capabilities</li>
+      <li><a href="#plugin_init"><tt>plugin_init</tt></a> [optional] -
+        initialize the plugin</li>
+      <li><a href="#plugin_configure"><tt>plugin_configure</tt></a> [optional] -
+        invoke the configuration dialog</li>
+      <li><a href="#plugin_command"><tt>plugin_command</tt></a> [optional] -
+        execute plugin specific remote command</li>
+      <li><a href="#plugin_deinit"><tt>plugin_deinit</tt></a> [optional] -
+        prepare the plugin for unload </li>
+    </ul>
+    <p>Before you include any file from the PDK you should define the macro <tt>PLUGIN_INTERFACE_LEVEL</tt>
+      to the appropriate value matching the <a href="#interface_level">interface
+        compatibility</a> of your plugin. Example:</p>
+    <blockquote>
+      <pre>#define PLUGIN_INTERFACE_LEVEL 3<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;</pre>
+    </blockquote>
+    <h4>Initialization</h4>
+    <p><a name="plugin_query"></a>A plugin must have a function that identifies
+      it as a plugin: </p>
+    <blockquote>
+      <pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);</pre>
+    </blockquote>
+    <tt>plugin_query</tt> is called before any other function and exactly once
+    by PM123. The plugin will then have to fill the variables in the <i>param</i>
+    structure, for example:
+    <blockquote>
+      <pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plugin as visual plugin. Types can be ORred to<br>include multiple plugin types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plugin */<br>param-&gt;desc = "Example plugin";<br>/* A short description of the plugin */<br>param-&gt;configurable = TRUE;<br>/* Toggles plugin configurability via PM123 Properties dialog */<br>param-&gt;interface = PLUGIN_INTERFACE_LEVEL;<br>/* This is the required <a
+href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plugins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
+    </blockquote>
+    <p><a name="plugin_init"></a>A second initialization function, <tt>plugin_init</tt>,
+      is called by the plugin manager once per plugin after <tt>plugin_query</tt>.
+      The function is called only from the application's main thread. It should
+      not block for longer nor do I/O operations to keep the GUI responsive. </p>
+    <blockquote>
+      <pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
+    </blockquote>
+    <p>The export of this function is optional but level 2 and up plugins most
+      likely will require it. It provides some global entry points of PM123.
+      They might be used to handle asynchronous events or requests. The
+      structure and the functions must not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a>
+      returned.</p>
+    <blockquote>
+      <pre><a name="message_display"></a>/** message function */<br>void DLLENTRY (*<b>message_display</b>)(MESSAGE_TYPE <var>type</var>, const char* <var>msg</var>);<br><br>/** retrieve configuration setting */<br>int DLLENTRY (<b>*profile_query</b>)(const char* <var>key</var>, void* <var>data</var>, int <var>maxlength</var>);<br>/** store configuration setting */<br>int DLLENTRY (*<b>profile_write</b>)(const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var>);<br><br>/** execute remote command<br> * See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)(const char* <var>cmd</var>);<br><br>/** Invalidate object properties<br> * @param what A bit-vector of INFOTYTE<br> * @return Bits of <var>what</var> that caused an invalidation. */<br>int DLLENTRYP(<b>obj_invalidate</b>)(const char* <var>url</var>, int <var>what</var>);<br>/** Check whether a decoder claims to support this kind of URL and type.<br> * @param url URL of the object to check<br> * @param type .type extended attribute or mime type respectively.<br> * Multiple types may be tab separated.<br> * @return != 0 -&gt; yes<br> * @remarks The function does not actually cause any I/O.<br> * It is not reliable during plugin initialization. */<br>int DLLENTRYP(<b>obj_supported</b>)(const char* <var>url</var>, const char* <var>type</var>);</pre>
+      <pre>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * xstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>xstring_alloc</b>)(xstring* dst, unsigned int len);<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>xstring_free</b>)(volatile xstring* dst);<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>xstring_length</b>)(const xstring* src);<br>/* Compare two xstrings for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>xstring_equal</b>)(const xstring* src1, const xstring* src2);<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_assign</b>)(volatile xstring* dst, const char* cstr);<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>xstring_copy</b>)(volatile xstring* dst, const xstring* src);<br>/* Strongly thread safe version of xstring_copy. */<br>void DLLENTRY (*<b>xstring_copy_safe</b>)(volatile xstring* dst, volatile const xstring* src);<br>/* Append to xstring. The source may also be from a xstring.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>xstring_append</b>)(xstring* dst, const char* cstr); <br>/* printf into a xstring. Any previous content is discarded first. */<br>void DLLENTRY (*<b>xstring_sprintf</b>)(volatile xstring* dst, const char* fmt, ...);<br>void DLLENTRY (*<b>xstring_vsprintf</b>)(volatile xstring* dst, const char* fmt, va_list va);</pre>
+    </blockquote>
+    <p>The <b><tt>exec_command</tt></b> function causes PM123 to execute a
+      remote command as if it were sent to the remote pipe interface. It returns
+      the reply string. The returned storage is valid until the next call to <tt>exec_command</tt>
+      or until <tt>plugin_deinit</tt>. &nbsp;<em>Calls to <tt>exec_command</tt>
+        must be serialized</em>.<br>
+      The remote state information like the currently selected playlist is
+      private to the plugin and does not interfere with commands sent to the
+      remote pipe or from another plugin.</p>
+    <p><b><tt>query_profile</tt></b> and <b><tt>write_profile</tt></b> are
+      similar to the profile OS/2 API functions <tt>PrfQueryProfileData</tt>
+      and <tt>PrfWriteProfileData</tt>. But they read and write to a section
+      dedicated to your plugin the current PM123.INI file which may not be the
+      one in the application folder. Using this functions is recommended over
+      creating an individual profile.<br>
+      <tt>query_profile</tt> returns the length of the requested Parameter or -1
+      on error. Independent of the returned length at most <var><tt>maxlen</tt></var>
+      characters are stored in <var><tt>buffer</tt></var>. If you pass <tt>NULL</tt>
+      as <var><tt>key</tt></var>, a list of <tt>'\0'</tt> delimited keys is
+      returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt> on success
+      and <tt>FALSE</tt> on error.</p>
+    <p>The <a href="xstring.html"><b><tt>xstring_</tt>*</b> API functions</a>
+      are used to manipulate dynamic strings of type <a href="xstring.html"><b><tt>xstring</tt></b></a>.</p>
+    <h4>Configuration</h4>
+    <p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable =
+        TRUE</tt> in <tt>plugin_query</tt>, a configuration dialog should
+      appear when PM123 calls </p>
+    <blockquote>
+      <pre>HWND DLLENTRY <b>plugin_configure</b>(HWND <var>owner</var>, HMODULE <var>module</var>);</pre>
+    </blockquote>
+    <p>where <i>owner</i> is the notebook or player window so that you can
+      "lock" your window on it if you want and where <i>module</i> can be used
+      to load a resource from your DLL. The functions is called only from the
+      application's main thread. It should not block for longer nor do I/O
+      operations to keep the GUI responsive.</p>
+    <p>The function should return a window handle if and only if the
+      configuration dialog in non-modal, i.e. it is still open when <tt>plugin_configure</tt>
+      returns. PM123 might then call <tt>plugin_configure</tt> again with <tt><var>owner</var>
+        = NULLHANDLE</tt> to close the dialog. If the configuration dialog is
+      modal you need not to care about that. <tt>NULLHANDLE</tt> should always
+      be returned.</p>
+    <p>Note that the return value is new to <a href="#interface_level">interface
+        level</a> 3. PM123 uses this value to keep track of open configuration
+      windows. Older PM123 versions ignore the return value.</p>
+    <p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt> is
+      optional. If the symbol is exported, the plugin can receive remote
+      commands. Note that these commands must not be used to control the primary
+      function of a plugin like to stop decoding a file. It is mainly intended
+      for remote configuration. </p>
+    <blockquote>
+      <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
+href="xstring.html">xstring</a>* <var>result, </var><a href="file:///home/mueller/MM2/D/Dev/GCC_TRUNC/doc/pdk/xstring.html">xstring</a>* <var>messages</var>);</pre>
+    </blockquote>
+    <p>The <var><tt>command</tt></var> parameter receives the command passed to
+      the remote interface without the asterisk and plugin name prefix. The
+      handling is plugin specific. <var><tt>result</tt></var> should be
+      assigned with the result of the command. Any valid command should return a
+      value. An empty result should indicate an error. In case of an error at
+      least one appropriate message should be returned in <tt>*<var>messages</var></tt>.
+      Each message must fit in a single line terminated with <tt>'\n'</tt> and
+      it must start with a severity indicator: <tt>"E "</tt> for errors and <tt>"W
+        "</tt> for warnings.</p>
+    <h4>Unload</h4>
+    <p><a name="plugin_deinit"></a>Plugins should deinitialize and destroy their
+      windows and free allocated memory when receiving a</p>
+    <blockquote>
+      <pre>int DLLENTRY <b>plugin_deinit</b>(int <var>unload</var>);</pre>
+    </blockquote>
+    <p>It can also be used to save settings in your INI file for other sort of
+      plugins.</p>
+    <h3><a name="interface_level"></a>Interface levels</h3>
+    <p>The interface level is used to ensure compatibility of plugins over
+      different versions of PM123. The field defaults to 0 representing the
+      oldest implementation. Larger values reflect changes to the plugin
+      interface. The interface level reflects changes to any of the plugin
+      interfaces, so different levels do not necessarily mean different
+      interfaces of <em>one</em> plugin interface. A change in the interface
+      may be only a modified semantic of a function call or it may be a complete
+      change of the interface with entirely other function names or whatever.
+      See the individual PDK documentation of the desired plugin type to get
+      further information for each plugin type.<br>
+      A new plugin is not necessarily required to use the most recent interface
+      level.</p>
+    <ul>
+      <li>PM123 will refuse to load plugins with a higher interface level than
+        the one PM123 was compiled with.</li>
+      <li>PM123 will handle older plugins in a compatibility mode as far as
+        reasonable.</li>
+    </ul>
+    <p>Overview:
+      <table border="1" cellpadding="3" cellspacing="0">
+        <tbody>
+          <tr>
+            <th>Level</th>
+            <th>PM123 version</th>
+            <th>Visual</th>
+            <th>Decoder</th>
+            <th>Output</th>
+            <th>Filter</th>
+          </tr>
+          <tr>
+            <td>0</td>
+            <td>n/a <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
+            <td><em>no longer supported!</em></td>
+            <td>supported</td>
+            <td>supported, deprecated</td>
+            <td>supported, deprecated</td>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td>&#8805; 1.32 <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
+            <td><em>no longer supported!</em></td>
+            <td>supported,<br>
+              same as level 0</td>
+            <td>supported but deprecated,<br>
+              same as level 0</td>
+            <td>supported, deprecated,<br>
+              same as level 0</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>= 1.40 <font size="-1"><sup><a href="#note2">2</a></sup></font></td>
+            <td><em>no longer supported!</em><br>
+              same as level 1</td>
+            <td><em>no longer supported!</em></td>
+            <td><em>no longer supported!</em></td>
+            <td><em>no longer supported!</em></td>
+          </tr>
+          <tr>
+            <td valign="top">3</td>
+            <td valign="top">= 1.41</td>
+            <td valign="top">recent</td>
+            <td valign="top">recent</td>
+            <td valign="top">recent</td>
+            <td valign="top">recent</td>
+          </tr>
+        </tbody>
+      </table>
+    </p>
+    <ol>
+      <li><a name="note1"></a>PM123 before version 1.40 does not check for the
+        compatibility of plugins. When a wrong plugin is used, the application
+        will most likely crash.</li>
+      <li><a name="note2"></a>The plugin interface of PM123 1.41 never got
+        really stable and therefore is discontinued.</li>
+    </ol>
+    <p>For example a filter plugin will be loaded depending on it's interface
+      level by a PM123 instance with interface level 3 (compile time constant)
+      in the following way:
+      <table border="1" cellpadding="3" cellspacing="0">
+        <tbody>
+          <tr>
+            <th>Interface level<br>
+              of the plugin</th>
+            <th>Action taken</th>
+          </tr>
+          <tr>
+            <td valign="top">3</td>
+            <td valign="top">Loaded native.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><em>Error</em>, because level 2 is discontinued.</td>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td>Loaded via a proxy in compatibility mode.</td>
+          </tr>
+          <tr>
+            <td>0</td>
+            <td>Loaded via a proxy in compatibility mode.<br>
+              Level 0 is identical to level 1 with respect to the filter plugin
+              interface.</td>
+          </tr>
+          <tr>
+            <td>&gt;3</td>
+            <td><em>Error</em>, because the interface is potentially
+              incompatible and not supported by this PM123 core. </td>
+          </tr>
+        </tbody>
+      </table>
+    </p>
+  </body>
 </html>

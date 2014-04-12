@@ -1,95 +1,96 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
-<head>
-  <title>Filter Plug-ins</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>PM123 Filter Plug-ins</h2>
-<p>
-Filter plug-ins must implement and export the functions defined in
-filter_plug.h. The interface has changed with plug-in level 2.
-Although they look very similar they are completely different.</p>
-<h3>Interface level 3 (current)</h3>
-<pre>     ULONG DLLENTRY <b>filter_init</b>(void** <var>f</var>, FILTER_PARAMS2* <var>params</var>)</pre>
-<ul>
-  <li><var><tt>f</tt></var> - Allocate any chunk of memory necessary
-for the filter's
-function.
-This pointer will be passed to the any other function call into the
-filter plug-in.</li>
-  <li>Make a copy of all fields in the <code>FILTER_PARAMS2</code>
-structure that you need later or copy the entire structure.</li>
-  <li>Replace the entry points in the <code>FILTER_PARAMS2</code>
-structure that you want to virtualize. Keep in mind that implementing a
-no-op will at least require to replace the first parameter <code>a</code>
-to each function by <code>params-&gt;f</code>. If yo do not change a
-individual function pointer the plug-in manager will do this job for
-you.</li>
-  <li><i>return value</i> - <tt>0</tt> means the filter was
-initialized successfully.
-Any other value indicates an error and <tt>filter_uninit</tt> will not
-be called
-in this case.</li>
-</ul>
-<p>A level 3 filter plug-in may completely virtualize the output of
-data. It may change the sampling rate, it may change the number of
-bytes per samples or even the time axis. See the <a
- href="output_plug.html">output plug-in interface description</a> for
-detailed information on the different functions.</p>
-<pre>     void DLLENTRY <b>filter_update</b>(void* <var>f</var>, const FILTER_PARAMS2* <var>params</var>)</pre>
-<p>This function is called to update the procedure entry points and the
-callback pointers that you received at the <code>filter_init</code>
-call. This will be used to load and/or unload filters at runtime by
-future versions of PM123. Be sure that the replacement of the entry
-points
-is an <em>atomic</em> operation. </p>
-<pre>     BOOL DLLENTRY <b>filter_uninit</b>(void* <var>f</var>)</pre>
-<p>Uninitialize the plug-in, free any storage related to <var>f</var>
-and return TRUE unless you are in real big trouble. </p>
-<h3>Interface level 1 (supported by proxy)</h3>
-<pre>     ULONG DLLENTRY <b>filter_init  </b>(void** <var>f</var>, FILTER_PARAMS* <var>params</var>)<br>     BOOL  DLLENTRY <b>filter_uninit</b>(void*  <var>f</var>)</pre>
-<ul>
-  <li><var><tt>f</tt></var> - Allocate any chunk of memory necessary
-for the filter's
-function. This pointer will be passed to the other filter_play_samples.
-At the very least, you need to allocate memory to keep the in memory
-the location of <tt>output_play_samples</tt> and it's parameter <var><tt>f</tt></var>.
-  </li>
-  <li><i>return value</i> - 0 means the filter was initialized
-successfully. </li>
-</ul>
-<p>The <tt>filter_init</tt> function is called when filter plug-in is
-about to be used.
-Multiple filter plug-ins are chained, so the pointers to
-<tt>output_play_samples</tt> and it's parameter <var><tt>f</tt></var>,
-might belong to another
-filter plug-in and not necessarily to the active output plug-in.
-</p>
-<pre>     int DLLENTRY <b>filter_play_samples</b>(void* <var>f</var>, FORMAT_INFO* <var>format</var>, char* <var>buf</var>,<br>                                      int <var>len</var>, int <var>posmarker</var>)</pre>
-<ul>
-  <li><var><tt>format</tt></var> - format of <var><tt>buf</tt></var>. </li>
-  <li><var><tt>buf</tt></var> - data to play. </li>
-  <li><var><tt>len</tt></var> - length of <var><tt>buf</tt></var> in
-bytes. </li>
-  <li><var><tt>posmarker</tt></var> - position marker to return with <tt>output_playing_pos</tt>.
-  </li>
-  <li><i>return value</i> - the number of bytes from <var><tt>len</tt></var>
-processed. ie.: <tt>0</tt> <tt>==</tt>
-error. </li>
-</ul>
-<p>
-This function is called by the decoder or a previous in chain filter
-plug-in
-to filter samples. Note that this function's prototype is identical to
-<tt>output_play_samples</tt>. This makes it possible to chain filter
-plug-ins.
-</p>
-<p>Once you have modified the data in satisfactory way, call the
-<tt>output_play_samples</tt> function with it's parameter <var><tt>f</tt></var>
-received from
-the
-init function, and use it with the modified samples of your filter
-plug-in.</p>
-</body>
+  <head>
+    <meta content="text/html; charset=windows-1252" http-equiv="content-type">
+    <title>Filter Plugins</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>PM123 Filter Plugins</h2>
+    <p>
+      Filter plugins must implement and export the functions defined in
+      filter_plug.h. The interface has changed with plugin level 2.
+      Although they look very similar they are completely different.</p>
+    <h3>Interface level 3 (current)</h3>
+    <pre>     ULONG DLLENTRY <b>filter_init</b>(void** <var>f</var>, FILTER_PARAMS2* <var>params</var>)</pre>
+    <ul>
+      <li><var><tt>f</tt></var> - Allocate any chunk of memory necessary
+        for the filter's
+        function.
+        This pointer will be passed to the any other function call into the
+        filter plugin.</li>
+      <li>Make a copy of all fields in the <code>FILTER_PARAMS2</code>
+        structure that you need later or copy the entire structure.</li>
+      <li>Replace the entry points in the <code>FILTER_PARAMS2</code>
+        structure that you want to virtualize. Keep in mind that implementing a
+        no-op will at least require to replace the first parameter <code>a</code>
+        to each function by <code>params-&gt;f</code>. If yo do not change a
+        individual function pointer the plugin manager will do this job for
+        you.</li>
+      <li><i>return value</i> - <tt>0</tt> means the filter was
+        initialized successfully.
+        Any other value indicates an error and <tt>filter_uninit</tt> will not
+        be called
+        in this case.</li>
+    </ul>
+    <p>A level 3 filter plugin may completely virtualize the output of
+      data. It may change the sampling rate, it may change the number of
+      bytes per samples or even the time axis. See the <a href="output_plug.html">output
+        plugin interface description</a> for
+      detailed information on the different functions.</p>
+    <pre>     void DLLENTRY <b>filter_update</b>(void* <var>f</var>, const FILTER_PARAMS2* <var>params</var>)</pre>
+    <p>This function is called to update the procedure entry points and the
+      callback pointers that you received at the <code>filter_init</code>
+      call. This will be used to load and/or unload filters at runtime by
+      future versions of PM123. Be sure that the replacement of the entry
+      points
+      is an <em>atomic</em> operation. </p>
+    <pre>     BOOL DLLENTRY <b>filter_uninit</b>(void* <var>f</var>)</pre>
+    <p>Uninitialize the plugin, free any storage related to <var>f</var>
+      and return TRUE unless you are in real big trouble. </p>
+    <h3>Interface level 1 (supported by proxy)</h3>
+    <pre>     ULONG DLLENTRY <b>filter_init  </b>(void** <var>f</var>, FILTER_PARAMS* <var>params</var>)<br>     BOOL  DLLENTRY <b>filter_uninit</b>(void*  <var>f</var>)</pre>
+    <ul>
+      <li><var><tt>f</tt></var> - Allocate any chunk of memory necessary
+        for the filter's
+        function. This pointer will be passed to the other filter_play_samples.
+        At the very least, you need to allocate memory to keep the in memory
+        the location of <tt>output_play_samples</tt> and it's parameter <var><tt>f</tt></var>.
+      </li>
+      <li><i>return value</i> - 0 means the filter was initialized
+        successfully. </li>
+    </ul>
+    <p>The <tt>filter_init</tt> function is called when filter plugin is
+      about to be used.
+      Multiple filter plugins are chained, so the pointers to
+      <tt>output_play_samples</tt> and it's parameter <var><tt>f</tt></var>,
+      might belong to another
+      filter plugin and not necessarily to the active output plugin.
+    </p>
+    <pre>     int DLLENTRY <b>filter_play_samples</b>(void* <var>f</var>, FORMAT_INFO* <var>format</var>, char* <var>buf</var>,<br>                                      int <var>len</var>, int <var>posmarker</var>)</pre>
+    <ul>
+      <li><var><tt>format</tt></var> - format of <var><tt>buf</tt></var>. </li>
+      <li><var><tt>buf</tt></var> - data to play. </li>
+      <li><var><tt>len</tt></var> - length of <var><tt>buf</tt></var> in
+        bytes. </li>
+      <li><var><tt>posmarker</tt></var> - position marker to return with <tt>output_playing_pos</tt>.
+      </li>
+      <li><i>return value</i> - the number of bytes from <var><tt>len</tt></var>
+        processed. ie.: <tt>0</tt> <tt>==</tt>
+        error. </li>
+    </ul>
+    <p>
+      This function is called by the decoder or a previous in chain filter
+      plugin
+      to filter samples. Note that this function's prototype is identical to
+      <tt>output_play_samples</tt>. This makes it possible to chain filter
+      plugins.
+    </p>
+    <p>Once you have modified the data in satisfactory way, call the
+      <tt>output_play_samples</tt> function with it's parameter <var><tt>f</tt></var>
+      received from
+      the
+      init function, and use it with the modified samples of your filter
+      plugin.</p>
+  </body>
 </html>

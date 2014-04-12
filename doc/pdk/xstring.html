@@ -1,311 +1,299 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head>
-  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>Dealing with dynamic strings in PM123 Plug-ins</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>Dealing with dynamic strings (<tt>xstring</tt>)
-in PM123 Plug-ins</h2>
-<h3>Overview</h3>
-<p>A <tt>xstring</tt> is a dynamically allocated
-string of unlimited length. Different instances of <tt>xstring</tt>s
-may share the same storage for the string data. <tt>xstring</tt>s
-can be <tt>NULL</tt>.</p>
-<p>The <tt>xstring</tt> API reference is accessible
-through the&nbsp;<tt>PLUGIN_CONTEXT</tt> parameter of
-the <a href="index.html#plugin_init"><tt>plugin_init</tt></a>
-call.</p>
-<p><em> In case you have C++ you will automatically have a <a
- href="#cpp">more
-convenient
-implementation</a>.</em> You should prefer the C++ syntax where
-available, because its implementation provides better performance. <strong>Note
-that you must link against the <tt>utils/cpputil_plugin</tt> library
-for this API to work properly within plug-ins.</strong> The <tt>utils/cpputil</tt>
-library may cause undefined behavior in plug-in code!<strong><em></em></strong>
-</p>
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Function</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_create">xstring_create</a></tt></td>
-      <td>Create a new instance of a <tt>xstring</tt> from a C string.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_free">xstring_free</a></tt></td>
-      <td>Release a <tt>xstring</tt> and set it to <tt>NULL</tt>.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_length">xstring_length</a></tt></td>
-      <td>Return the length of a <tt>xstring</tt>.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_equal">xstring_equal</a></tt></td>
-      <td>Test two strings for equality.</td>
-    </tr>
-    <tr>
-      <td><a href="xstring_api.html#xstring_compare"><tt>xstring_compare</tt></a></td>
-      <td>Compare two <tt>xstring</tt>s.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_copy">xstring_copy</a></tt></td>
-      <td>Assign a <tt>xstring</tt> with another instance.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_copy_safe">xstring_copy_safe</a></tt></td>
-      <td>Same as <tt>xstring_copy</tt> but access to the source
-string is atomic.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_assign">xstring_assign</a></tt></td>
-      <td>Assign a <tt>xstring</tt> with the value of a C string.</td>
-    </tr>
-    <tr>
-      <td><a href="xstring_api.html#xstring_cmpassign"><tt>xstring_cmpassign</tt></a></td>
-      <td>Assign a <tt>xstring</tt> with a new string only if they are
-different.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_append">xstring_append</a></tt></td>
-      <td>Append the value of a C string to a <tt>xstring</tt>.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt></td>
-      <td>Allocate new storage for a <tt>xstring</tt> instance.</td>
-    </tr>
-    <tr>
-      <td><tt><a href="xstring_api.html#xstring_sprintf">xstring_sprintf</a><br>
-      <a href="xstring_api.html#xstring_vsprintf">xstring_vsprintf</a></tt></td>
-      <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>xstring</tt>.</td>
-    </tr>
-  </tbody>
-</table>
-<h3>Guidelines</h3>
-<p>There are some <b>guidelines</b> you should follow when dealing
-with <tt>xstring</tt>s:</p>
-<ul>
-  <li>
-    <p><strong>All new <tt>xstring</tt>
-structures MUST be initialized to <tt>NULL</tt> or <tt>xstring_NULL</tt>
-or with <tt>xstring_create</tt>.</strong></p>
-  </li>
-  <li>
-    <p><strong>Free all <tt>xstring</tt>
-instances when they go out of scope</strong> with <a
- href="xstring_api.html#xstring_free"><tt>xstring_free</tt></a>.</p>
-  </li>
-  <li>
-    <p><em>Do not manipulate <tt>xstring</tt>s
-other than by the <a href="xstring_api.html">xstring API
-functions</a>.</em><br>
-You must neither modify the string (therefore it is <tt>const</tt>)
-nor you should modify the <tt>xstring</tt> structure
-directly.</p>
-  </li>
-  <li>
-    <p><em>You should not copy <tt>xstring</tt>s
-binary.</em> Use <a href="xstring_api.html#xstring_copy"><tt>xstring_copy</tt></a>
-instead.<br>
-The difference is, when you use <tt>xstring_copy</tt>
-both instances must be freed while when you make a binary copy exactly
-one
-of them must be freed. But who keeps track of that which one to free?
-Furthermore all
-xstring API functions will implicitly free the old content when
-assigning a new value to a <tt>xstring</tt>. This will not
-take care of whether you made a binary copy before.</p>
-  </li>
-  <li>
-    <p>You cannot modify the content existing <tt>xstring</tt>s
-without allocating new storage.</p>
-  </li>
-  <li>
-    <p><em>You must not access volatile <tt>xstring</tt> instances
-directly.</em></p>
-  </li>
-  <li>
-    <p>To achieve <i>strong thread safety</i> always assign local
-instances of <tt>xstring</tt> with <a
- href="xstring_api.html#xstring_copy_safe"><tt>xstring_copy_safe</tt></a>
-to
-access the content of volatile strings.</p>
-  </li>
-  <li>
-    <p>Only exchanging the binary content of two non-volatile <tt>xstring</tt>
-structures is safe without calling a xstring API function.</p>
-  </li>
-</ul>
-<p>Furthermore there are <b>guarantees</b>:</p>
-<ul>
-  <li>
-    <p><em>Reading the embedded C style string pointer</em>
-of the <tt>xstring</tt> structure and the content which it
-points to <em>is always safe</em> as long as the instance is not
-modify meanwhile. This implies that you cannot do this with
-volatile instances.</p>
-  </li>
-  <li>
-    <p>The string content where a <tt>xstring</tt>
-points to is <em>always <tt>\0</tt> terminated</em>.</p>
-  </li>
-  <li>
-    <p>If two <tt>xstring</tt> instances are binary the same
-then the C strings are equal too, but not the other way around, because
-    <tt>xstring</tt>s may contain binary zeros.</p>
-  </li>
-  <li>
-    <p>All xstring API functions except for&nbsp;<a
- href="xstring_api.html#xstring_allocate"><tt>xstring_allocate</tt></a>,
-    <a href="xstring_api.html#xstring_equal"><tt>xstring_equal</tt></a>,
-    <a href="xstring_api.html#xstring_cmpassign"><tt>xstring_cmpassign</tt></a>
-and <a href="xstring_api.html#xstring_append"><tt>xstring_append</tt></a>
-are <em>thread-safe</em>.
-The <tt>volatile</tt> qualifier will show you atomic access.</p>
-  </li>
-  <li>
-    <p>The xstring API is <em>lock-free</em> and wait-free.</p>
-  </li>
-  <li>
-    <p>If the xstring API fails to allocate sufficient memory,
-the application will terminate.</p>
-  </li>
-  <li>
-    <p>The API is optimized in a way that empty strings (<tt>""</tt>)
-do not use dynamic storage.</p>
-  </li>
-</ul>
-<h3><a name="cpp"></a>Using C++</h3>
-<p>If you are compiling with a C++ compiler the type <tt>xstring</tt>
-is automatically replaced by a binary compatible class that provides
-overloaded operators for the most common operations and ensures all of
-the guidelines. The <tt>xstring</tt> class
-implicitly ensures all of the above guidelines. For this to work a
-<em>global variable <tt>PLUGIN_CONTEXT Ctx;</tt></em> must exist and
-initialized by the argument <tt>ctx</tt> of <tt><a
- href="index.html#plugin_init">plugin_init</a></tt>.</p>
-<p>There is one restriction with the C++ API of <tt>xstring</tt>: <strong>You
-must not assign anything to a <tt>xstring</tt> instance in a static
-initializer</strong>, more precisely before the <tt>plugin_init</tt>
-call. Only calling the default constructor is valid within this context.</p>
-<p>The <tt>xstring</tt> objects are binary compatible in C and C++. So
-<tt>xstring</tt> instances may be shared between C and C++ code.</p>
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Task</th>
-      <th valign="top">Code example</th>
-      <th valign="top">Remarks</th>
-    </tr>
-    <tr>
-      <td valign="top">Create a <tt>xstring</tt> with initial value <tt>NULL</tt>.
-      </td>
-      <td valign="top">
-      <pre>xstring str;</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Create a new instance of a <tt>xstring</tt> from a C string.</td>
-      <td valign="top">
-      <pre>xstring str("bla");</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Release a <tt>xstring</tt> and set it to <tt>NULL</tt>.</td>
-      <td valign="top">
-      <pre>str.reset();</pre>
-      </td>
-      <td valign="top">This is implicitly done by the destructor. </td>
-    </tr>
-    <tr>
-      <td>Return the length of a <tt>xstring</tt>.</td>
-      <td valign="top">
-      <pre>str.size();</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Test two strings for equality.</td>
-      <td valign="top">
-      <pre>str1 == str2</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Compare two <tt>xstring</tt>s.</td>
-      <td valign="top">
-      <pre>str1.compareTo(str2)</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Assign a <tt>xstring</tt> with another instance.</td>
-      <td valign="top">
-      <pre>str1 = str2;</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Assign a <tt>xstring</tt> from a shared instance.</td>
-      <td valign="top">
-      <pre>volatile xstring shared;<br>str1 = shared;</pre>
-      </td>
-      <td valign="top">This assignment provides strong thread safety. </td>
-    </tr>
-    <tr>
-      <td>Assign a <tt>xstring</tt> with the value of a C string.</td>
-      <td valign="top">
-      <pre>str1 = "text";</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Assign a <tt>xstring</tt> with a new string only if they are
-different.</td>
-      <td valign="top">
-      <pre>bool changed = <br>  str1.cmpassign(str2); </pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Append the value of a C string to a <tt>xstring</tt>.</td>
-      <td valign="top">
-      <pre>str1 += "append this";</pre>
-      </td>
-      <td> <br>
-      </td>
-    </tr>
-    <tr>
-      <td>Allocate new storage for a <tt>xstring</tt> instance.</td>
-      <td valign="top">
-      <pre>char* cp = str1.allocate(7);</pre>
-      </td>
-      <td valign="top">See <tt><a
- href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt>. </td>
-    </tr>
-    <tr>
-      <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>xstring</tt>.</td>
-      <td valign="top">
-      <pre>str1.sprintf("%i", 5);<br>xstring().sprintf("%i", 5)      </pre>
-      </td>
-      <td valign="top">The latter form creates a temporary, e.g. as
-function argument. </td>
-    </tr>
-  </tbody>
-</table>
-</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>Dealing with dynamic strings in PM123 Plugins</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>Dealing with dynamic strings (<tt>xstring</tt>) in PM123 Plugins</h2>
+    <h3>Overview</h3>
+    <p>A <tt>xstring</tt> is a dynamically allocated string of unlimited
+      length. Different instances of <tt>xstring</tt>s may share the same
+      storage for the string data. <tt>xstring</tt>s can be <tt>NULL</tt>.</p>
+    <p>The <tt>xstring</tt> API reference is accessible through the&nbsp;<tt>PLUGIN_CONTEXT</tt>
+      parameter of the <a href="index.html#plugin_init"><tt>plugin_init</tt></a>
+      call.</p>
+    <p><em> In case you have C++ you will automatically have a <a href="#cpp">more
+          convenient implementation</a>.</em> You should prefer the C++ syntax
+      where available, because its implementation provides better performance. <strong>Note
+that
+        you must link against the <tt>utils/cpputil_plugin</tt> library for
+        this API to work properly within plugins.</strong> The <tt>utils/cpputil</tt>
+      library may cause undefined behavior in plugin code!<strong><em></em></strong>
+    </p>
+    <table border="1" cellpadding="3" cellspacing="0">
+      <tbody>
+        <tr>
+          <th>Function</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_create">xstring_create</a></tt></td>
+          <td>Create a new instance of a <tt>xstring</tt> from a C string.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_free">xstring_free</a></tt></td>
+          <td>Release a <tt>xstring</tt> and set it to <tt>NULL</tt>.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_length">xstring_length</a></tt></td>
+          <td>Return the length of a <tt>xstring</tt>.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_equal">xstring_equal</a></tt></td>
+          <td>Test two strings for equality.</td>
+        </tr>
+        <tr>
+          <td><a href="xstring_api.html#xstring_compare"><tt>xstring_compare</tt></a></td>
+          <td>Compare two <tt>xstring</tt>s.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_copy">xstring_copy</a></tt></td>
+          <td>Assign a <tt>xstring</tt> with another instance.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_copy_safe">xstring_copy_safe</a></tt></td>
+          <td>Same as <tt>xstring_copy</tt> but access to the source string is
+            atomic.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_assign">xstring_assign</a></tt></td>
+          <td>Assign a <tt>xstring</tt> with the value of a C string.</td>
+        </tr>
+        <tr>
+          <td><a href="xstring_api.html#xstring_cmpassign"><tt>xstring_cmpassign</tt></a></td>
+          <td>Assign a <tt>xstring</tt> with a new string only if they are
+            different.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_append">xstring_append</a></tt></td>
+          <td>Append the value of a C string to a <tt>xstring</tt>.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt></td>
+          <td>Allocate new storage for a <tt>xstring</tt> instance.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_sprintf">xstring_sprintf</a><br>
+              <a href="xstring_api.html#xstring_vsprintf">xstring_vsprintf</a></tt></td>
+          <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>xstring</tt>.</td>
+        </tr>
+        <tr>
+          <td><tt><a href="xstring_api.html#xstring_deduplicate">xstring_deduplicate</a></tt></td>
+          <td>Deduplicate value of <tt>xstring</tt> instance in memory.</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Guidelines</h3>
+    <p>There are some <b>guidelines</b> you should follow when dealing with <tt>xstring</tt>s:</p>
+    <ul>
+      <li>
+        <p><strong>All new <tt>xstring</tt> structures MUST be initialized to <tt>NULL</tt>
+            or <tt>xstring_NULL</tt> or with <tt>xstring_create</tt>.</strong></p>
+      </li>
+      <li>
+        <p><strong>Free all <tt>xstring</tt> instances when they go out of
+            scope</strong> with <a href="xstring_api.html#xstring_free"><tt>xstring_free</tt></a>.</p>
+      </li>
+      <li>
+        <p><em>Do not manipulate <tt>xstring</tt>s other than by the <a href="xstring_api.html">xstring
+              API functions</a>.</em><br>
+          You must neither modify the string (therefore it is <tt>const</tt>)
+          nor you should modify the <tt>xstring</tt> structure directly.</p>
+      </li>
+      <li>
+        <p><em>You should not copy <tt>xstring</tt>s binary.</em> Use <a href="xstring_api.html#xstring_copy"><tt>xstring_copy</tt></a>
+          instead.<br>
+          The difference is, when you use <tt>xstring_copy</tt> both instances
+          must be freed while when you make a binary copy exactly one of them
+          must be freed. But who keeps track of that which one to free?
+          Furthermore all xstring API functions will implicitly free the old
+          content when assigning a new value to a <tt>xstring</tt>. This will
+          not take care of whether you made a binary copy before.</p>
+      </li>
+      <li>
+        <p>You cannot modify the content existing <tt>xstring</tt>s without
+          allocating new storage.</p>
+      </li>
+      <li>
+        <p><em>You must not access volatile <tt>xstring</tt> instances
+            directly.</em></p>
+      </li>
+      <li>
+        <p>To achieve <i>strong thread safety</i> always assign local instances
+          of <tt>xstring</tt> with <a href="xstring_api.html#xstring_copy_safe"><tt>xstring_copy_safe</tt></a>
+          to access the content of volatile strings.</p>
+      </li>
+      <li>
+        <p>Only exchanging the binary content of two non-volatile <tt>xstring</tt>
+          structures is safe without calling a xstring API function.</p>
+      </li>
+    </ul>
+    <p>Furthermore there are <b>guarantees</b>:</p>
+    <ul>
+      <li>
+        <p><em>Reading the embedded C style string pointer</em> of the <tt>xstring</tt>
+          structure and the content which it points to <em>is always safe</em>
+          as long as the instance is not modify meanwhile. This implies that you
+          cannot do this with volatile instances.</p>
+      </li>
+      <li>
+        <p>The string content where a <tt>xstring</tt> points to is <em>always
+            <tt>\0</tt> terminated</em>.</p>
+      </li>
+      <li>
+        <p>If two <tt>xstring</tt> instances are binary the same then the C
+          strings are equal too, but not the other way around, because <tt>xstring</tt>s
+          may contain binary zeros.</p>
+      </li>
+      <li>
+        <p>All xstring API functions except for&nbsp;<a href="xstring_api.html#xstring_allocate"><tt>xstring_allocate</tt></a>,
+          <a href="xstring_api.html#xstring_equal"><tt>xstring_equal</tt></a>, <a
+            href="xstring_api.html#xstring_cmpassign"><tt>xstring_cmpassign</tt></a>
+          and <a href="xstring_api.html#xstring_append"><tt>xstring_append</tt></a>
+          are <em>thread-safe</em>. The <tt>volatile</tt> qualifier will show
+          you atomic access.</p>
+      </li>
+      <li>
+        <p>The xstring API is <em>lock-free</em> and wait-free.</p>
+      </li>
+      <li>
+        <p>If the xstring API fails to allocate sufficient memory, the
+          application will terminate.</p>
+      </li>
+      <li>
+        <p>The API is optimized in a way that empty strings (<tt>""</tt>) do not
+          use dynamic storage.</p>
+      </li>
+    </ul>
+    <h3><a name="cpp"></a>Using C++</h3>
+    <p>If you are compiling with a C++ compiler the type <tt>xstring</tt> is
+      automatically replaced by a binary compatible class that provides
+      overloaded operators for the most common operations and ensures all of the
+      guidelines. The <tt>xstring</tt> class implicitly ensures all of the
+      above guidelines. For this to work a <em>global variable <tt>PLUGIN_CONTEXT
+          Ctx;</tt></em> must exist and initialized by the argument <tt>ctx</tt>
+      of <tt><a href="index.html#plugin_init">plugin_init</a></tt>.</p>
+    <p>There is one restriction with the C++ API of <tt>xstring</tt>: <strong>You
+must
+        not assign anything to a <tt>xstring</tt> instance in a static
+        initializer</strong>, more precisely before the <tt>plugin_init</tt>
+      call. Only calling the default constructor is valid within this context.</p>
+    <p>The <tt>xstring</tt> objects are binary compatible in C and C++. So <tt>xstring</tt>
+      instances may be shared between C and C++ code.</p>
+    <table border="1" cellpadding="3" cellspacing="0">
+      <tbody>
+        <tr>
+          <th>Task</th>
+          <th valign="top">Code example</th>
+          <th valign="top">Remarks</th>
+        </tr>
+        <tr>
+          <td valign="top">Create a <tt>xstring</tt> with initial value <tt>NULL</tt>.
+          </td>
+          <td valign="top">
+            <pre>xstring str;</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Create a new instance of a <tt>xstring</tt> from a C string.</td>
+          <td valign="top">
+            <pre>xstring str("bla");</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Release a <tt>xstring</tt> and set it to <tt>NULL</tt>.</td>
+          <td valign="top">
+            <pre>str.reset();</pre>
+          </td>
+          <td valign="top">This is implicitly done by the destructor. </td>
+        </tr>
+        <tr>
+          <td>Return the length of a <tt>xstring</tt>.</td>
+          <td valign="top">
+            <pre>str.size();</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Test two strings for equality.</td>
+          <td valign="top">
+            <pre>str1 == str2</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Compare two <tt>xstring</tt>s.</td>
+          <td valign="top">
+            <pre>str1.compareTo(str2)</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Assign a <tt>xstring</tt> with another instance.</td>
+          <td valign="top">
+            <pre>str1 = str2;</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Assign a <tt>xstring</tt> from a shared instance.</td>
+          <td valign="top">
+            <pre>volatile xstring shared;<br>str1 = shared;</pre>
+          </td>
+          <td valign="top">This assignment provides strong thread safety. </td>
+        </tr>
+        <tr>
+          <td>Assign a <tt>xstring</tt> with the value of a C string.</td>
+          <td valign="top">
+            <pre>str1 = "text";</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Assign a <tt>xstring</tt> with a new string only if they are
+            different.</td>
+          <td valign="top">
+            <pre>bool changed = <br>  str1.cmpassign(str2); </pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Append the value of a C string to a <tt>xstring</tt>.</td>
+          <td valign="top">
+            <pre>str1 += "append this";</pre>
+          </td>
+          <td> <br>
+          </td>
+        </tr>
+        <tr>
+          <td>Allocate new storage for a <tt>xstring</tt> instance.</td>
+          <td valign="top">
+            <pre>char* cp = str1.allocate(7);</pre>
+          </td>
+          <td valign="top">See <tt><a href="xstring_api.html#xstring_allocate">xstring_allocate</a></tt>.
+          </td>
+        </tr>
+        <tr>
+          <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>xstring</tt>.</td>
+          <td valign="top">
+            <pre>str1.sprintf("%i", 5);<br>xstring().sprintf("%i", 5)      </pre>
+          </td>
+          <td valign="top">The latter form creates a temporary, e.g. as function
+            argument. </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
 </html>
