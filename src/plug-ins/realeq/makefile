@@ -9,7 +9,7 @@ TARGET   = realeq.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = realeq$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
+LIBS     = $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 DEF      = realeq$(LDEF_SUFFX)
 RESOURCE = realeq$(RES)
 
@@ -21,5 +21,5 @@ realeq.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
 clean: $(MDUMMY)
 	-@del realeq$(LBI) realeq.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-realeq.c:	..\..\utils\utilfct.h ..\..\fft123\api\fftw3.h ..\..\include\format.h ..\..\include\filter_plug.h ..\..\include\plugin.h realeq.h ..\..\utils\debuglog.h
+realeq.cpp:	..\..\utils\utilfct.h ..\..\fft123\api\fftw3.h ..\..\include\format.h ..\..\include\filter_plug.h ..\..\include\plugin.h realeq.h ..\..\utils\debuglog.h
 realeq.rc:	realeq.h

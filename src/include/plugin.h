@@ -189,6 +189,8 @@ typedef struct
   /** printf into a xstring. Any previous content is discarded first. */
   void     DLLENTRYP(sprintf)  (volatile xstring* dst,  const char* fmt, ...);
   void     DLLENTRYP(vsprintf) (volatile xstring* dst,  const char* fmt, va_list va);
+  /** Deduplicate xstring value im memory. */
+  void     DLLENTRYP(deduplicate)(volatile xstring* dst);
 } XSTRING_API;
 
 typedef struct

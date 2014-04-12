@@ -9,3 +9,4 @@ EXPORT filter_update       .3
 EXPORT plugin_query        .10
 EXPORT plugin_init         .11
 EXPORT plugin_configure    .12
+EXPORT plugin_command      .13

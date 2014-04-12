@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1006" level="3" sublinks="*" lang="en">
+  <head>
+    <meta content="text/html; charset=iso-8859-1" http-equiv="content-type">
+    <title>RealEQ remote commands</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>RealEQ remote commands</h2>
+    <p>You can control RealEQ through <a href="../remote/index.html">PM123's
+        remote interface</a> too. <strong>All commands need the prefix <span style="font-family: monospace;">realeq:</span></strong>.</p>
+    <p>All changes are immediately applied to the sound processing engine.<br>
+      Nevertheless it may take up to a few seconds for the changes to take
+      effect, because there are already processed samples in the buffer of the
+      output plugin.</p>
+    <p>All commands return an empty string if and only if an error occurred. Use
+      <span style="font-family: monospace;">getmessages</span> to get a
+      descriptive error text.</p>
+    <h3>Examples</h3>
+    <dl>
+      <dt><span style="font-family: monospace;">realeq:gain 1 32 +6</span></dt>
+      <dd>Sets the gain of the right channel at 32 Hz to + 6 dB.</dd>
+      <dt><span style="font-family: monospace;">realeq:option enabled 1</span></dt>
+      <dd>Enables the equalizer.</dd>
+      <dt><span style="font-family: monospace;">realeq:load D:\test\My RealEQ
+          settings.req</span></dt>
+      <dd>Loads the RealEQ settings from the file <span style="font-family: monospace;">D:\test\My
+          RealEQ settings.req</span>. Note the blanks in the file name are
+        allowed.</dd>
+    </dl>
+    <h3><span style="font-family: monospace;">gain <var>channel frequency </var></span>[<span
+        style="font-family: monospace;"><var>value</var></span>]</h3>
+    <p>Get and/or set gain value at a certain frequency.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>channel</var></span> must
+        be either <span style="font-family: monospace;">0</span> (left) or <span
+          style="font-family: monospace;">1</span> (right).</li>
+      <li><span style="font-family: monospace;"><var>frequency</var></span> is
+        one of 0, 16, 20, 25, 32, 40, 63, 80, 100, 130, 160, 200, 250, 320, 400,
+        630, 800, 1000, 1300, 1600, 2000, 2500, 3200, 4000, 6300, 8000, 10000,
+        13000, 16000, 20000 [Hz]. The frequency 0 gets/sets the master gain.</li>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the gain is changed to the given value in dB. <span
+          style="font-family: monospace;"><var>value</var></span> must not
+        exceed ±12 [dB].</li>
+      <li>In any way the <span style="font-style: italic;">old</span> gain
+        value at the given channel &amp; frequency is returned unless an error
+        occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">delay <var>channel frequency </var></span>[<span
+        style="font-family: monospace;"><var>value</var></span>]</h3>
+    <p>Get and/or set group delay value at a certain frequency.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>channel</var></span> must
+        be either <span style="font-family: monospace;">0</span> (left) or <span
+          style="font-family: monospace;">1</span> (right).</li>
+      <li><span style="font-family: monospace;"><var>frequency</var></span> is
+        one of 0, 16, 20, 25, 32, 40, 63, 80, 100, 130, 160, 200, 250, 320, 400,
+        630, 800, 1000, 1300, 1600, 2000, 2500, 3200, 4000, 6300, 8000, 10000,
+        13000, 16000, 20000 [Hz]. The frequency 0 gets/sets the master delay.</li>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the group delay is changed to the given value in ms.
+        <span style="font-family: monospace;"><var>value</var></span> must not
+        exceed ±12 [ms].</li>
+      <li>In any way the <span style="font-style: italic;">old</span> group
+        delay at the given channel &amp; frequency is returned unless an error
+        occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">mute <var>channel frequency </var></span>[<span
+        style="font-family: monospace;"><var>value</var></span>]</h3>
+    <p>Get and/or set mute flag of a certain frequency.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>channel</var></span> must
+        be either <span style="font-family: monospace;">0</span> (left) or <span
+          style="font-family: monospace;">1</span> (right).</li>
+      <li><span style="font-family: monospace;"><var>frequency</var></span> is
+        one of 0, 16, 20, 25, 32, 40, 63, 80, 100, 130, 160, 200, 250, 320, 400,
+        630, 800, 1000, 1300, 1600, 2000, 2500, 3200, 4000, 6300, 8000, 10000,
+        13000, 16000, 20000 [Hz]. The frequency 0 gets/sets the master mute.</li>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the mute value is changed. <span style="font-family: monospace;"><var>value</var></span>
+        must be either 0 (no mute) or 1 (mute).</li>
+      <li>In any way the <span style="font-style: italic;">old</span> mute
+        value at the given channel &amp; frequency is returned unless an error
+        occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">zero</span><br>
+    </h3>
+    <p>
+    </p>
+    <h3></h3>
+    <p>Set all sliders to zero.</p>
+    <h3><span style="font-family: monospace;">option enabled </span>[<var><span
+          style="font-family: monospace;">value</span></var>]</h3>
+    <p>Get and/or set whether the equalizer is enabled.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the equalizer enabled state is changed. <span style="font-family: monospace;"><var>value</var></span>
+        must be either 0 (equalizer disabled) or 1 (equalizer enabled).</li>
+      <li>The <span style="font-style: italic;">old</span> state is returned
+        unless an error occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">option lock </span>[<var><span style="font-family: monospace;">value</span></var>]</h3>
+    <p>Get and/or set whether the left/right channels are locked.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the equalizer lock state is changed. <span style="font-family: monospace;"><var>value</var></span>
+        must be either 0 (not locked) or 1 (L/R locked).</li>
+      <li>The <span style="font-style: italic;">old</span> state is returned
+        unless an error occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">option FIRorder </span>[<var><span
+          style="font-family: monospace;">value</span></var>]</h3>
+    <p>Get and/or set the filter order (length of the filter kernel).</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the length of the FIR filter kernel is changed. <span
+          style="font-family: monospace;"><var>value</var></span> must be an
+        integer in the range (256, 16384) and less than the FFT size.</li>
+      <li>The <span style="font-style: italic;">old</span> filter order is
+        returned unless an error occurred.</li>
+    </ul>
+    <p>
+    </p>
+    <h3><span style="font-family: monospace;">option FFTsize </span>[<var><span
+          style="font-family: monospace;">value</span></var>]</h3>
+    <p>Get and/or set the size of the FFT (<span style="text-decoration: underline;">F</span>ast
+      <span style="text-decoration: underline;">F</span>ourier <span style="text-decoration: underline;">T</span>ransform)
+      processing.</p>
+    <ul>
+      <li><span style="font-family: monospace;"><var>value</var></span> is
+        optional. If given the length of the FFT is changed. <span style="font-family: monospace;"><var>value</var></span>
+        must be an integer in the range (512, 32768) and larger than the filter
+        order.</li>
+      <li>The <span style="font-style: italic;">old</span> FFT size is returned
+        unless an error occurred.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">load <var>filename</var></span></h3>
+    <p>Load all settings from a <span style="font-family: monospace;">.req</span>
+      file.</p>
+    <ul>
+      <li>The command returns <span style="font-family: monospace;">OK</span>
+        in case of success.</li>
+    </ul>
+    <h3><span style="font-family: monospace;">save <var>filename</var></span></h3>
+    <p>Save all settings to a <span style="font-family: monospace;">.req</span>
+      file.</p>
+    <ul>
+      <li>The command returns <span style="font-family: monospace;">OK</span>
+        in case of success.</li>
+    </ul>
+  </body>
+</html>

@@ -255,13 +255,25 @@ void CommandProcessor::Exec()
       Request[len] = 0;
       int_ptr<Module> plugin(ParsePlugin(Request));
       if (!plugin)
+      { Messages.appendf("E Plugin %.20s not found.\n", Request);
         return; // Plug-in not found.
+      }
       Request += len+1;
       Request += strspn(Request, " \t"); // skip leading blanks
       // Call plug-in function
       xstring result;
-      plugin->Command(Request, result);
-      Reply.append(result);
+      xstring messages;
+      if (!plugin->Command(Request, result, messages))
+      { Messages.appendf("E Plugin %.20s does not support remote commands.\n", Request-len-1);
+        return;
+      }
+      if (result)
+        Reply.append(result);
+      if (messages && messages.length())
+      { Messages.append(messages);
+        if (messages[messages.length()-1] != '\n')
+          Messages.append('\n');
+      }
     } else
     { // Search command handler ...
       const CmdEntry* cep = mapsearcha(CmdList, Request);

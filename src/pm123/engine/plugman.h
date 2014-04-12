@@ -122,7 +122,7 @@ class Module
   /// Entry point of the configure dialog (if any).
   HWND DLLENTRYP(plugin_configure)(HWND owner, HMODULE module);
   /// Entry point of the configure dialog (if any).
-  void DLLENTRYP(plugin_command)(const char* command, xstring* result);
+  void DLLENTRYP(plugin_command)(const char* command, xstring* result, xstring* messages);
 
  protected:
   /// Create a Module object from the module file name.
@@ -148,8 +148,8 @@ class Module
   bool    IsConfig() const                   { return ConfigWindow != NULLHANDLE; }
   /// Handle plug-in specific command if the plug-in exports plugin_command.
   /// Otherwise the function is a no-op, result is unchanged.
-  void    Command(const char* command, xstring& result) const
-                                             { if (plugin_command) (*plugin_command)(command, &result); }
+  bool    Command(const char* command, xstring& result, xstring& messages) const
+                                             { if (!plugin_command) return false; (*plugin_command)(command, &result, &messages); return true; }
 
   /// Helper function to provide message callback for plug-in API.
   PROXYFUNCDEF void DLLENTRY PluginDisplayMessage(MESSAGE_TYPE type, const char* msg);

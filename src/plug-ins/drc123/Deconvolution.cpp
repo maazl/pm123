@@ -77,10 +77,20 @@ Deconvolution::Deconvolution(FILTER_PARAMS2& params)
 : Filter(params)
 , LocalParamSet(ParamSet)
 , NeedInit(true)
+, NeedFIR(true)
+, NeedKernel(true)
 , LastEnabled(false)
+, CurPlanSize(0)
+, CurPlanSize21(0)
+, CurFIROrder(0)
+, CurFIROrder2(0)
+, PosMarker(0)
 , InboxLevel(0)
+, Latency(0)
 , Discard(false)
+, TempPos(0)
 , Inbox(NULL)
+, ChannelSave(NULL)
 , ForwardPlan(NULL)
 , BackwardPlan(NULL)
 { Format.samplerate = 0;
@@ -456,12 +466,14 @@ bool Deconvolution::Setup()
   for (args.Channel = 0; args.Channel < 2; args.Channel++)
   { // get target response
     d2f.LoadFFT(args.Channel ? Generate::RGain : Generate::LGain, FreqDomain);
-    FreqDomain[0] = 0.; // no DC
+    FreqDomain[0] = 0.F; // no DC
+    for (i = 0; i <= CurPlanSize/2; ++i)
+      FreqDomain[i] = abs(FreqDomain[i]);
 
     // transform into the time domain
     fftwf_execute(BackwardPlan);
     #if defined(DEBUG_LOG) && DEBUG_LOG > 1
-    for (i = 0; i <= CurPlansize/2; ++i)
+    for (i = 0; i <= CurPlanSize/2; ++i)
       DEBUGLOG2(("TK: %i, %g\n", i, TimeDomain[i]));
     #endif
 
@@ -491,7 +503,7 @@ bool Deconvolution::Setup()
         DEBUGLOG2(("K: %i, %g, %g\n", i, sp1[-1], sp2[0]));
       }
       // padding
-      memset(sp1, 0, (sp2-sp1) * sizeof *TimeDomain.begin());
+      memset(sp1, 0, (sp2-sp1) * sizeof *sp1);
     }
 
     // prepare for FFT convolution

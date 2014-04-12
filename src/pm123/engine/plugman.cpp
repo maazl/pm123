@@ -133,6 +133,10 @@ static void DLLENTRY xstring_sprintf(volatile xstring* dst, const char* fmt, ...
   va_end(va);
 }
 
+static void DLLENTRY xstring_deduplicate(volatile xstring* dst)
+{ xstring::deduplicator().deduplicate(*dst);
+}
+
 
 ModuleException::ModuleException(const char* fmt, ...)
 { va_list va;
@@ -210,7 +214,8 @@ const XSTRING_API ModuleImp::XstringApi =
   &xstring_append,
   &xstring_allocate,
   &xstring_sprintf,
-  &xstring_vsprintf
+  &xstring_vsprintf,
+  &xstring_deduplicate
 };
 
 ModuleImp::HookListType ModuleImp::HookList;

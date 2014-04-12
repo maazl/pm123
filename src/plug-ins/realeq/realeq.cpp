@@ -31,6 +31,8 @@
 /* EQ hard coded to 32 1/3 octave bands, kinda combersome to change realtime
    if we want band widths that are a "good" fraction of an octave */
 
+#define PLUGIN_INTERFACE_LEVEL 3
+
 #define  INCL_PM
 #define  INCL_DOS
 #include <os2.h>
@@ -43,8 +45,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define PLUGIN_INTERFACE_LEVEL 3
-
+#include <cpp/container/stringmap.h>
+#include <complex.h>
 #include <utilfct.h>
 #include <fftw3.h>
 #include <format.h>
@@ -61,6 +63,7 @@
 #define MAX_FIR  16384
 #define MIN_FIR    256
 #define NUM_BANDS   32
+#define TOLERANCE 1.03F
 
 // Equalizer filter frequencies
 static const float Frequencies[NUM_BANDS] =
@@ -98,23 +101,22 @@ static const float Frequencies[NUM_BANDS] =
   19952.62315
 };
 
-static const PLUGIN_CONTEXT* context;
+PLUGIN_CONTEXT Ctx;
 
 #define load_prf_value(var) \
-  context->plugin_api->profile_query(#var, &var, sizeof var)
+  Ctx.plugin_api->profile_query(#var, &var, sizeof var)
 
 #define save_prf_value(var) \
-  context->plugin_api->profile_write(#var, &var, sizeof var)
+  Ctx.plugin_api->profile_write(#var, &var, sizeof var)
 
-static BOOL eqneedinit;
-static BOOL eqneedFIR;
-static BOOL eqneedEQ;
+static BOOL eqneedinit; ///< FFT size changed, implies eqneedFIR
+static BOOL eqneedFIR;  ///< FIR order changed, implied eqneedEQ
+static BOOL eqneedEQ;   ///< Filter kernel changed
 static HWND hdialog     = NULLHANDLE;
-static BOOL plugininit  = FALSE; // plug-in is initialized (only once)
 
-static float bandgain[2][NUM_BANDS+1];  // gain in dB, first entry ist master gain
-static float groupdelay[2][NUM_BANDS+1];// gruop delay in 1ms, first entry ist master delay
-static BOOL  mute[2][NUM_BANDS+1];      // mute flags (TRUE = mute), first entry is master mute
+static float bandgain[2][NUM_BANDS+1];  ///< gain in dB, first entry is master gain
+static float groupdelay[2][NUM_BANDS+1];///< group delay in 1ms, first entry is master delay
+static BOOL  mute[2][NUM_BANDS+1];      ///> mute flags (TRUE = mute), first entry is master mute
 
 // for FFT convolution...
 static struct
@@ -135,8 +137,8 @@ static struct
 } FFT;
 
 // settings
-static int  newFIRorder; // this is for the GUI only
-static int  newPlansize; // this is for the GUI only
+static int  FIRorder; // this is for the GUI only
+static int  Plansize; // this is for the GUI only
 static BOOL eqenabled = FALSE;
 static BOOL locklr    = FALSE;
 static char lasteq[CCHMAXPATH];
@@ -168,7 +170,7 @@ typedef struct FILTER_STRUCT {
    ULONG  DLLENTRYP(output_command)       (struct FILTER_STRUCT* a, ULONG msg, const OUTPUT_PARAMS2* info);
    int    DLLENTRYP(output_request_buffer)(struct FILTER_STRUCT* a, const FORMAT_INFO2* format, float** buf);
    void   DLLENTRYP(output_commit_buffer) (struct FILTER_STRUCT* a, int len, PM123_TIME pos);
-   void*  a;
+   struct FILTER_STRUCT*  a;
 
    FORMAT_INFO2 format;
 
@@ -188,12 +190,12 @@ static void save_ini(void)
 {
   DEBUGLOG(("realeq:save_ini\n"));
 
-  save_prf_value ( newFIRorder );
-  save_prf_value ( newPlansize );
+  save_prf_value ( FIRorder );
+  save_prf_value ( Plansize );
   save_prf_value ( eqenabled );
   save_prf_value ( locklr );
   save_prf_value ( eqstate );
-  context->plugin_api->profile_write( "lasteq", lasteq, strlen(lasteq) );
+  Ctx.plugin_api->profile_write( "lasteq", lasteq, strlen(lasteq) );
   save_prf_value ( bandgain );
   save_prf_value ( groupdelay );
   save_prf_value ( mute );
@@ -211,13 +213,13 @@ static void load_ini(void)
 
   eqenabled   = FALSE;
   memset(lasteq, 0, sizeof lasteq);
-  newPlansize = 8192;
-  newFIRorder = 4096;
+  Plansize = 8192;
+  FIRorder = 4096;
   locklr      = FALSE;
   eqstate     = EQ_private;
 
-  load_prf_value( newFIRorder );
-  load_prf_value( newPlansize );
+  load_prf_value( FIRorder );
+  load_prf_value( Plansize );
   load_prf_value( eqenabled );
   load_prf_value( locklr );
   load_prf_value( eqstate );
@@ -227,14 +229,14 @@ static void load_ini(void)
   load_prf_value( mute );
 
   // avoid crash when INI-Content is bad
-  if (newPlansize < 16)
-    newPlansize = 16;
-   else if (newPlansize > MAX_COEF)
-    newPlansize = MAX_COEF;
-  if (newPlansize <= newFIRorder)
-    newFIRorder = newPlansize >> 1;
-  if (newFIRorder > MAX_FIR)
-    newFIRorder = MAX_FIR;
+  if (Plansize < 16)
+    Plansize = 16;
+  else if (Plansize > MAX_COEF)
+    Plansize = MAX_COEF;
+  if (Plansize <= FIRorder)
+    FIRorder = Plansize >> 1;
+  if (FIRorder > MAX_FIR)
+    FIRorder = MAX_FIR;
 
   eqneedinit  = TRUE;
   DEBUGLOG(("realeq:load_ini - completed\n"));
@@ -247,7 +249,7 @@ static double TodB(double gain)
     return -12.;
    else if (gain >= 3.981071706)
     return 12.;*/
-   else
+  else
     return 20.*log10(gain);
 }
 
@@ -255,7 +257,7 @@ INLINE double ToGain(double dB)
 { return exp(dB/20.*M_LN10);
 }
 
-static BOOL load_eq_file(char* filename)
+static const char* load_eq_file(const char* filename)
 {
   FILE* file;
   int   i = 0;
@@ -263,11 +265,11 @@ static BOOL load_eq_file(char* filename)
   DEBUGLOG(("realeq:load_eq_file(%s)\n", filename));
 
   if (filename == NULL || *filename == 0)
-    return FALSE;
+    return "";
   file = fopen( filename, "r" );
   if( file == NULL ) {
     DEBUGLOG(("realeq:load_eq_file: failed, error %i\n", errno));
-    return FALSE;
+    return strerror(errno);
   }
 
   // once we get here, we clear the fields
@@ -307,21 +309,42 @@ static BOOL load_eq_file(char* filename)
     }
   }
   fclose( file );
+  strlcpy( lasteq, filename, sizeof lasteq );
+  eqneedEQ = TRUE;
+  eqstate = EQ_file;
   DEBUGLOG(("realeq:load_eq_file: OK\n"));
-  return TRUE;
+  return NULL;
 }
 
-static void init_request(void)
+static const char* save_eq_file(const char* filename)
 {
-  DEBUGLOG(("realeq:init_request\n"));
-  if (!plugininit) // first time?
-  { load_ini();
-    if ( eqstate == EQ_file ) {
-      load_eq_file( lasteq );
-    }
-    plugininit = TRUE;
+  FILE* file = fopen( filename, "w" );
+  if( file == NULL ) {
+    DEBUGLOG(("realeq:save_eq: failed: %i\n", errno));
+    return strerror(errno);
   }
+  int e, i;
+  fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
+  fprintf( file, "# Band gains\n" );
+  for( e = 0; e < 2; ++e )
+    for( i = 1; i <= NUM_BANDS; i++ )
+      fprintf( file, "%g %g\n", ToGain(bandgain[e][i]), groupdelay[e][i]/1000. );
+  fprintf(file, "# Mutes\n" );
+  for( e = 0; e < 2; ++e )
+    for( i = 1; i <= NUM_BANDS; i++ )
+      fprintf(file, "%lu\n", mute[e][i]);
+  fprintf( file, "# Preamplifier\n" );
+  fprintf( file, "%g %g\n%g %g\n", ToGain(bandgain[0][0]), groupdelay[0][0]/1000., ToGain(bandgain[1][0]), groupdelay[1][0]/1000. );
+  fprintf( file, "# Master Mute\n" );
+  fprintf( file, "%lu\n%lu\n", mute[0][0], mute[1][0] );
+  fprintf( file, "# End of equalizer\n" );
+  fclose ( file );
+  strlcpy( lasteq, filename, sizeof lasteq );
+  eqstate = EQ_file;
+  DEBUGLOG(("realeq:save_eq: OK\n"));
+  return NULL;
 }
+
 
 static void trash_buffers(REALEQ_STRUCT* f)
 { DEBUGLOG(("realeq::trash_buffers(%p) - %d %d\n", f, f->inboxlevel, f->latency));
@@ -371,11 +394,12 @@ static BOOL fil_setup(REALEQ_STRUCT* f)
   }
 
   // copy global parameters for thread safety and round up to next power of 2
-  frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
+  frexp(Plansize-1, &i); // floor(log2(plansize-1))+1
   FFT.plansize = 2 << i; // 2**(i+1)
   // reduce size at low sampling rates
   frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
-  FFT.plansize >>= 4-min(4,i); // / 2**(4-i)
+  if (i<4)
+    FFT.plansize >>= 4-i; // / 2**(4-i)
   DEBUGLOG(("I: %d\n", FFT.plansize));
 
   // allocate buffers
@@ -403,13 +427,13 @@ static BOOL fil_setup(REALEQ_STRUCT* f)
   // STEP 2: setup FIR order
 
   // copy global parameters for thread safety
-  FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
+  FFT.FIRorder = (FIRorder+15) & -16; /* multiple of 16 */
   FFT.FIRorder <<= 1; // * 2
   frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
   FFT.FIRorder >>= 4-min(4,i); // / 2**(4-i)
 
   if( FFT.FIRorder < 2 || FFT.FIRorder >= FFT.plansize)
-  { (*context->plugin_api->message_display)(MSG_ERROR, "very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+  { (*Ctx.plugin_api->message_display)(MSG_ERROR, "very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
@@ -472,8 +496,7 @@ static BOOL fil_setup(REALEQ_STRUCT* f)
     // compose frequency spectrum
     { EQcoef* cop = coef;
       double phase = 0;
-      FFT.freq_domain[0][0] = 0.; // no DC
-      FFT.freq_domain[0][1] = 0.;
+      FFT.freq_domain[0] = 0.F; // no DC
       for (i = 1; i <= FFT.plansize/2; ++i) // do not start at f=0 to avoid log(0)
       { const float f = i * fftspecres; // current frequency
         double pos;
@@ -487,8 +510,7 @@ static BOOL fil_setup(REALEQ_STRUCT* f)
         pos = .5 - .5*cos(M_PI * pos);
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
         // convert to cartesian coordinates
-        FFT.freq_domain[i][0] = val * cos(phase);
-        FFT.freq_domain[i][1] = val * sin(phase);
+        FFT.freq_domain[i] = std::polar(val, phase);
         DEBUGLOG2(("F: %i, %f, %f -> %f = %f dB, %f = %f ms@ %f\n",
           i, f, pos, val, TodB(val), phase*180./M_PI, cop[0].de + pos * (cop[1].de - cop[0].de), exp(cop[0].lf)));
     } }
@@ -535,24 +557,19 @@ static BOOL fil_setup(REALEQ_STRUCT* f)
  */
 static void do_fft_convolute(fftwf_complex* sp, fftwf_complex* kp)
 { int l;
-  float tmp;
   fftwf_complex* dp = FFT.freq_domain;
   DEBUGLOG(("realeq:do_fft_convolute(%p, %p) - %p\n", sp, kp, dp));
   // Convolution in the frequency domain is simply a series of complex products.
   for (l = (FFT.plansize/2+1) >> 3; l; --l)
   { DO_8(p,
-      tmp = sp[p][0] * kp[p][0] - sp[p][1] * kp[p][1];
-      dp[p][1] = sp[p][1] * kp[p][0] + sp[p][0] * kp[p][1];
-      dp[p][0] = tmp;
+      dp[p] = sp[p] * kp[p];
     );
     sp += 8;
     kp += 8;
     dp += 8;
   }
   for (l = (FFT.plansize/2+1) & 7; l; --l)
-  { tmp = sp[0][0] * kp[0][0] - sp[0][1] * kp[0][1];
-    dp[0][1] = sp[0][1] * kp[0][0] + sp[0][0] * kp[0][1];
-    dp[0][0] = tmp;
+  { dp[0] = sp[0] * kp[0];
     ++sp;
     ++kp;
     ++dp;
@@ -905,8 +922,12 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, const OUTPUT_P
   if (info->Info->tech->channels == 1 && eqenabled)
   { new_info = *info;
     ib = *new_info.Info;
-    ti = *ib.tech;
+    ti.samplerate = ib.tech->samplerate;
     ti.channels = 2;
+    ti.attributes = ib.tech->attributes;
+    ti.info = ib.tech->info;
+    ti.format = ib.tech->format;
+    ti.decoder = ib.tech->decoder;
     ib.tech = &ti;
     new_info.Info = &ib;
     info = &new_info;
@@ -925,8 +946,27 @@ static ULONG DLLENTRY filter_command(REALEQ_STRUCT* f, ULONG msg, const OUTPUT_P
   return rc;
 }
 
-/********** Entry point: Initialize
-*/
+/********** Entry point: Initialize */
+
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
+{ param->type         = PLUGIN_FILTER;
+  param->author       = "Samuel Audet, Marcel Mueller";
+  param->desc         = PLUGIN;
+  param->configurable = TRUE;
+  param->interface    = PLUGIN_INTERFACE_LEVEL;
+  return 0;
+}
+
+/* init plug-in */
+int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
+{ Ctx = *ctx;
+  load_ini();
+  if ( eqstate == EQ_file ) {
+    load_eq_file( lasteq );
+  }
+  return 0;
+}
+
 ULONG DLLENTRY filter_init(REALEQ_STRUCT** F, FILTER_PARAMS2* params)
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc(sizeof(REALEQ_STRUCT));
@@ -934,7 +974,6 @@ ULONG DLLENTRY filter_init(REALEQ_STRUCT** F, FILTER_PARAMS2* params)
 
   *F = f;
 
-  init_request();
   eqneedinit = TRUE;
 
   f->output_command        = params->output_command;
@@ -978,8 +1017,6 @@ BOOL DLLENTRY filter_uninit(REALEQ_STRUCT* f)
 static BOOL save_eq(HWND hwnd)
 {
   FILEDLG filedialog;
-  FILE*   file;
-  int     i, e;
   DEBUGLOG(("realeq:save_eq\n"));
 
   memset( &filedialog, 0, sizeof(FILEDLG));
@@ -997,34 +1034,11 @@ static BOOL save_eq(HWND hwnd)
 
   if( filedialog.lReturn == DID_OK )
   {
-    eqstate = EQ_file;
-    file = fopen( filedialog.szFullFile, "w" );
-    if( file == NULL ) {
-      DEBUGLOG(("realeq:save_eq: failed\n"));
-      return FALSE;
-    }
-    strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
-    eqstate = EQ_file;
-
-    fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
-    fprintf( file, "# Band gains\n" );
-    for( e = 0; e < 2; ++e )
-      for( i = 1; i <= NUM_BANDS; i++ )
-        fprintf( file, "%g %g\n", ToGain(bandgain[e][i]), groupdelay[e][i]/1000. );
-    fprintf(file, "# Mutes\n" );
-    for( e = 0; e < 2; ++e )
-      for( i = 1; i <= NUM_BANDS; i++ )
-        fprintf(file, "%lu\n", mute[e][i]);
-    fprintf( file, "# Preamplifier\n" );
-    fprintf( file, "%g %g\n%g %g\n", ToGain(bandgain[0][0]), groupdelay[0][0]/1000., ToGain(bandgain[1][0]), groupdelay[1][0]/1000. );
-    fprintf( file, "# Master Mute\n" );
-    fprintf( file, "%lu\n%lu\n", mute[0][0], mute[1][0] );
-    fprintf( file, "# End of equalizer\n" );
-    fclose ( file );
-    DEBUGLOG(("realeq:save_eq: OK\n"));
-    return TRUE;
+    const char* error = save_eq_file(filedialog.szFullFile);
+    if (!error)
+      return TRUE;
+    WinMessageBox(HWND_DESKTOP, hwnd, error, "Failed to save file", 0, MB_OK|MB_ERROR|MB_MOVEABLE);
   }
-
   return FALSE;
 }
 
@@ -1053,31 +1067,15 @@ static BOOL load_eq(HWND hwnd)
   WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK )
-  {
-    if ( load_eq_file( filedialog.szFullFile ) ) {
-      strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
-      eqstate = EQ_file;
+  { const char* error = load_eq_file( filedialog.szFullFile );
+    if ( !error ) {
       return TRUE;
     } else {
+      WinMessageBox(HWND_DESKTOP, hwnd, error, "Failed to load file", 0, MB_OK|MB_ERROR|MB_MOVEABLE);
       return FALSE;
     }
   }
   return FALSE;
-}
-
-int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
-{ param->type         = PLUGIN_FILTER;
-  param->author       = "Samuel Audet, Marcel Mueller";
-  param->desc         = PLUGIN;
-  param->configurable = TRUE;
-  param->interface    = PLUGIN_INTERFACE_LEVEL;
-  return 0;
-}
-
-/* init plug-in */
-int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx)
-{ context = ctx;
-  return 0;
 }
 
 /* set slider of channel, band to value
@@ -1128,12 +1126,9 @@ static void load_dialog(HWND hwnd)
       WinSendDlgItemMsg( hwnd, ID_MUTEALLL + (ID_MUTEALLR-ID_MUTEALLL)*e + i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
 
       // sliders
-      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
-                         MPFROMSHORT( range - 1 ), 0 );
-      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
-                         MPFROMSHORT( range >> 1 ), 0 );
-      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
-                         MPFROMSHORT( 0 ), 0 );
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT, MPFROMSHORT( range - 1 ), 0 );
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT, MPFROMSHORT( range >> 1 ), 0 );
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT, MPFROMSHORT( 0 ), 0 );
 
       DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, (*dp)[e][i]));
       set_slider( hwnd, e, i-1, (*dp)[e][i] );
@@ -1152,11 +1147,11 @@ static void load_dialog(HWND hwnd)
   hwnd_ctrl = WinWindowFromID( hwnd, ID_FIRORDER );
   WinSendMsg( hwnd_ctrl, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendMsg( hwnd_ctrl, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( MIN_FIR ));
-  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 );
+  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 );
   hwnd_ctrl = WinWindowFromID( hwnd, ID_PLANSIZE );
   WinSendMsg( hwnd_ctrl, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendMsg( hwnd_ctrl, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( MIN_COEF ));
-  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
+  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( Plansize ), 0 );
 }
 
 static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -1175,6 +1170,7 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
       WinSetDlgItemText( hwnd, ID_UTXTR, "+12dB");
       WinSetDlgItemText( hwnd, ID_CTXTR, "0dB");
       WinSetDlgItemText( hwnd, ID_BTXTR, "-12dB");
+    case WM_USER:
       nottheuser = TRUE;
       load_dialog( hwnd );
       nottheuser = FALSE;
@@ -1201,7 +1197,6 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
           nottheuser = TRUE;
           load_dialog( hwnd );
           nottheuser = FALSE;
-          eqneedEQ = TRUE;
           break;
 
         case EQ_ZERO:
@@ -1247,28 +1242,32 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
           {
             case SPBN_CHANGE:
               WinSendDlgItemMsg( hwnd, id, SPBM_QUERYVALUE, MPFROMP( &temp ), 0 );
-              if (temp > MAX_FIR || temp >= newPlansize)
-                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 ); // restore
+              if (temp > MAX_FIR || temp >= Plansize)
+                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 ); // restore
                else
-              { newFIRorder = temp;
+              { FIRorder = temp;
                 eqneedFIR = TRUE; // no init required when only the FIRorder changes
               }
               break;
 
             case SPBN_UPARROW:
-              frexp(newFIRorder, &i); // floor(log2(FIRorder-1))+1
+              frexp(FIRorder, &i); // floor(log2(FIRorder-1))+1
               i = 1 << (i-1);
               i >>= 2;
-              temp = (newFIRorder & ~(MIN_FIR-1)) + max(MIN_FIR, i);
-              if (temp < newPlansize)
+              if (i > MAX_FIR)
+                i = MAX_FIR;
+              temp = (FIRorder & ~(MIN_FIR-1)) + i;
+              if (temp < Plansize)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( temp ), 0 );
               break;
 
             case SPBN_DOWNARROW:
-              frexp(newFIRorder-1, &i); // floor(log2(FIRorder-1))+1
+              frexp(FIRorder-1, &i); // floor(log2(FIRorder-1))+1
               i = 1 << (i-1);
               i >>= 2;
-              temp = (newFIRorder & ~(MIN_FIR-1)) - max(MIN_FIR, i);
+              if (i > MAX_FIR)
+                i = MAX_FIR;
+              temp = (FIRorder & ~(MIN_FIR-1)) - i;
               if (temp >= 16)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( temp ), 0 );
               break;
@@ -1280,26 +1279,26 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
           {
             case SPBN_CHANGE:
               WinSendDlgItemMsg( hwnd, id, SPBM_QUERYVALUE, MPFROMP(&temp), 0 );
-              if (temp > MAX_COEF || temp <= newFIRorder)
-                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(newPlansize), 0 ); // restore
+              if (temp > MAX_COEF || temp <= FIRorder)
+                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(Plansize), 0 ); // restore
                else
-              { newPlansize = temp;
+              { Plansize = temp;
                 eqneedinit = TRUE;
               }
               break;
 
             case SPBN_UPARROW:
-              temp = newPlansize << 1;
+              temp = Plansize << 1;
               if (temp > MAX_COEF)
                 temp = MAX_COEF;
               WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(temp), 0 );
               break;
 
             case SPBN_DOWNARROW:
-              temp = newPlansize >> 1;
-              if (temp <= newFIRorder)
+              temp = Plansize >> 1;
+              if (temp <= FIRorder)
               { int i;
-                frexp(newFIRorder, &i);
+                frexp(FIRorder, &i);
                 temp = 1 << i; // round up to next power of two
               }
               WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(temp), 0 );
@@ -1455,8 +1454,6 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
 
 HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
-  init_request();
-
   if (!hwnd)
   {
     if (hdialog)
@@ -1477,3 +1474,263 @@ HWND DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
   return hdialog;
 }
 
+
+enum CmdResult
+{ CMD_OK,
+  CMD_Error,
+  CMD_Syntax,
+  CMD_Refresh
+};
+typedef CmdResult (*CmdWorker)(const char*,xstring&,xstring&);
+typedef strmap<8,CmdWorker> CmdEntry;
+
+static int FreqComparer(const float& key, const float& elem)
+{ if (key < elem / TOLERANCE)
+    return -1;
+  if (key > elem * TOLERANCE)
+    return 1;
+  return 0;
+}
+
+static bool GetBand(const float freq, unsigned& band)
+{
+  if (freq == 0)
+  { band = 0;
+    return true;
+  }
+  if (!binary_search(freq, band, Frequencies, NUM_BANDS, &FreqComparer))
+    return false;
+  ++band;
+  return true;
+}
+
+static CmdResult CmdGain(const char* args, xstring& result, xstring& messages)
+{ size_t len = 0;
+  unsigned channel;
+  float freq;
+  float value = NAN;
+  if ( sscanf(args, "%u%f%n%f%n", &channel, &freq, &len, &value, &len) <= 0
+    || strlen(args) != len )
+    return CMD_Syntax;
+  if (channel > 1)
+  { messages = "E Channel out of range";
+    return CMD_Error;
+  }
+  unsigned band;
+  if (!GetBand(freq, band))
+  { messages = "E Frequency out of range";
+    return CMD_Error;
+  }
+  // Return last value
+  result.sprintf("%.1f", bandgain[channel][band]);
+  if (isnan(value))
+    return CMD_OK;
+  // set new value
+  if (value < -12 || value > 12)
+  { messages = "E Value out of range";
+    return CMD_Error;
+  }
+  bandgain[channel][band] = value;
+  eqstate = EQ_private;
+  eqneedEQ = TRUE;
+  return CMD_Refresh;
+}
+
+static CmdResult CmdDelay(const char* args, xstring& result, xstring& messages)
+{ size_t len = 0;
+  unsigned channel;
+  float freq;
+  float value = NAN;
+  if ( sscanf(args, "%u%f%n%f%n", &channel, &freq, &len, &value, &len) <= 0
+    || strlen(args) != len )
+    return CMD_Syntax;
+  if (channel > 1)
+  { messages = "E Channel out of range";
+    return CMD_Error;
+  }
+  unsigned band;
+  if (!GetBand(freq, band))
+  { messages = "E Frequency out of range";
+    return CMD_Error;
+  }
+  // Return last value
+  result.sprintf("%.1f", groupdelay[channel][band]);
+  if (isnan(value))
+    return CMD_OK;
+  // set new value
+  if (value < -12 || value > 12)
+  { messages = "E Value out of range";
+    return CMD_Error;
+  }
+  groupdelay[channel][band] = value;
+  eqstate = EQ_private;
+  eqneedEQ = TRUE;
+  return CMD_Refresh;
+}
+
+static CmdResult CmdMute(const char* args, xstring& result, xstring& messages)
+{ size_t len = 0;
+  unsigned channel;
+  float freq;
+  int value = -1;
+  if ( sscanf(args, "%u%f%n%u%n", &channel, &freq, &len, &value, &len) <= 0
+    || strlen(args) != len )
+    return CMD_Syntax;
+  if (channel > 1)
+  { messages = "E Channel out of range";
+    return CMD_Error;
+  }
+  unsigned band;
+  if (!GetBand(freq, band))
+  { messages = "E Frequency out of range";
+    return CMD_Error;
+  }
+  // Return last value
+  result.sprintf("%u", mute[channel][band]);
+  if (value < 0)
+    return CMD_OK;
+  // set new value
+  if (value & ~1)
+  { messages = "E Boolean value out of range";
+    return CMD_Error;
+  }
+  mute[channel][band] = value;
+  eqstate = EQ_private;
+  eqneedEQ = TRUE;
+  return CMD_Refresh;
+}
+
+static CmdResult CmdZero(const char* args, xstring& result, xstring& messages)
+{
+  memset(bandgain,   0, sizeof bandgain);
+  memset(groupdelay, 0, sizeof groupdelay);
+  memset(mute,       0, sizeof mute);
+  eqstate = EQ_private;
+  eqneedEQ = TRUE;
+  return CMD_Refresh;
+}
+
+static CmdResult CmdLoad(const char* args, xstring& result, xstring& messages)
+{
+  const char* error = load_eq_file(args);
+  if (error)
+  { messages.sprintf("E Failed to load file %.260s: %s", args, error);
+    return CMD_Error;
+  }
+  return CMD_OK;
+}
+
+static CmdResult CmdSave(const char* args, xstring& result, xstring& messages)
+{
+  const char* error = save_eq_file(args);
+  if (error)
+  { messages.sprintf("E Failed to save file %s: %s", args, error);
+    return CMD_Error;
+  }
+  return CMD_Refresh;
+}
+
+static CmdResult CmdOption(const char* args, xstring& result, xstring& messages)
+{
+  size_t len = 0;
+  unsigned u;
+  if (strabbrevicmp(args, "enabled") == 0)
+  { args += 7;
+    result.sprintf("%u", eqenabled);
+    if (!*args)
+      return CMD_OK;
+    else if (sscanf(args, "%u%n", &u, &len) && len == strlen(args))
+    { if (u & ~1)
+      { messages = "E Boolean value out of range";
+        return CMD_Error;
+      }
+      eqenabled = u;
+      return CMD_Refresh;
+    }
+  } else if (strabbrevicmp(args, "lock") == 0)
+  { args += 4;
+    result.sprintf("%u", locklr);
+    if (!*args)
+      return CMD_OK;
+    else if (sscanf(args, "%u%n", &u, &len) && len == strlen(args))
+    { if (u & ~1)
+      { messages = "E Boolean value out of range";
+        return CMD_Error;
+      }
+      locklr = u;
+      return CMD_Refresh;
+    }
+  } else if (strabbrevicmp(args, "FIRorder") == 0)
+  { args += 8;
+    result.sprintf("%u", FIRorder);
+    if (!*args)
+      return CMD_OK;
+    else if (sscanf(args, "%u%n", &u, &len) && len == strlen(args))
+    { if (u >= Plansize || u < MIN_FIR || u > MAX_FIR)
+      { messages = "E value out of range";
+        return CMD_Error;
+      }
+      FIRorder = u;
+      eqneedFIR = true;
+      return CMD_Refresh;
+    }
+  } else if (strabbrevicmp(args, "FFTsize") == 0)
+  { args += 7;
+    result.sprintf("%u", Plansize);
+    if (!*args)
+      return CMD_OK;
+    else if (sscanf(args, "%u%n", &u, &len) && len == strlen(args))
+    { if (u <= FIRorder || u < MIN_COEF || u > MAX_COEF)
+      { messages = "E value out of range";
+        return CMD_Error;
+      } else if (u & (u-1))
+      { messages = "E value a power of 2";
+        return CMD_Error;
+      }
+      Plansize = u;
+      eqneedinit = true;
+      return CMD_Refresh;
+    }
+  }
+  messages = "E invalid option";
+  return CMD_Error;
+}
+
+static const CmdEntry commands[] =
+{ { "delay",  &CmdDelay }
+, { "gain",   &CmdGain }
+, { "load",   &CmdLoad }
+, { "mute",   &CmdMute }
+, { "option", &CmdOption }
+, { "save",   &CmdSave }
+, { "zero",   &CmdZero }
+};
+
+void DLLENTRY plugin_command(const char* command, xstring* result, xstring* messages)
+{
+  const CmdEntry* wk = mapsearcha(commands, command);
+  if (wk)
+  { command += strlen(wk->Str);
+    if (!isalpha(*command))
+    { command += strspn(command, "\t ");
+      switch ((*wk->Val)(command, *result, *messages))
+      {case CMD_Syntax:
+        *messages = "E Syntax error";
+       case CMD_Error:
+        *result = NULL;
+        break;
+       case CMD_Refresh:
+        { HWND hd = hdialog;
+          if (hd)
+            WinPostMsg(hd, WM_USER, 0,0);
+        }
+       case CMD_OK:
+        if (!result)
+          *result = "OK";
+        break;
+      }
+      return;
+    }
+  }
+  *messages = "E Invalid command";
+}
