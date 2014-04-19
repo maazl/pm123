@@ -110,6 +110,10 @@ class vector_base
   /// @brief Return the number of elements in the container.
   /// @details This is not equal to the storage capacity.
   size_t            size() const                   { return Size; }
+  /// @brief Return current capacity of the vector.
+  /// @details The capacity is larger or same than size. You can store up to capacity elements
+  /// in the vector without reallocation.
+  size_t            capacity() const               { return Capacity; }
   /// @brief Adjust the size to a given value.
   /// @details If the array is increased NULL values are appended.
   void              set_size(size_t size);

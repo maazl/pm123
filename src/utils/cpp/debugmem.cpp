@@ -27,6 +27,9 @@
  */
 
 
+//#undef DEBUG_LOG
+//#define DEBUG_LOG 2
+
 #include <stdlib.h>
 #include <memory.h>
 #include <debuglog.h>
