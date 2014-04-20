@@ -32,11 +32,12 @@
 #include <config.h>
 #include <stdlib.h>
 #include <cpp/cpputil.h>
+#include <cpp/interlockedptr.h>
 #include <cpp/mutex.h>
 
 #include <debuglog.h>
 
-/* Scoped pointer class, non-copyable */
+/** Scoped pointer class, non-copyable */
 template <class T>
 class sco_ptr
 {private:
@@ -51,16 +52,19 @@ class sco_ptr
   // Destructor, frees the stored object.
   ~sco_ptr();
   // Basic operators
-  T* get() const                        { return Ptr; }
+  T* get() const volatile               { return Ptr; }
   operator unspecified*() const         { return (unspecified*)Ptr; }
   T& operator*()  const                 { ASSERT(Ptr); return *Ptr; }
   T* operator->() const                 { ASSERT(Ptr); return Ptr; }
   sco_ptr<T>& operator=(T* ptr);
+  volatile sco_ptr<T>& operator=(T* ptr) volatile;
   // Swap two pointers
   void swap(sco_ptr<T>& r);
+  void swap(sco_ptr<T>& r) volatile;
   // Take object with ownership from the sco_ptr
-  T* detach()                                { return xchg(Ptr, (T*)NULL); }
-  // Comparsion
+  T* detach()                           { return xchg(Ptr, (T*)NULL); }
+  T* detach() volatile                  { return InterlockedXch(&Ptr, (T*)NULL); }
+  // Comparison
   friend bool operator==(const sco_ptr<T>& l, const sco_ptr<T>& r) { return l.Ptr == r.Ptr; }
   friend bool operator==(const sco_ptr<T>& sco, const T* ptr) { return sco.Ptr == ptr; }
   friend bool operator==(const T* ptr, const sco_ptr<T>& sco) { return sco.Ptr == ptr; }
@@ -84,10 +88,20 @@ inline sco_ptr<T>& sco_ptr<T>::operator=(T* ptr)
   Ptr = ptr;
   return *this;
 }
+template <class T>
+inline volatile sco_ptr<T>& sco_ptr<T>::operator=(T* ptr) volatile
+{ DEBUGLOG2(("sco_ptr(%p)::operator=(%p) v: %p\n", this, ptr, Ptr));
+  delete InterlockedXch(&Ptr, ptr);
+  return *this;
+}
 
 template <class T>
 inline void sco_ptr<T>::swap(sco_ptr<T>& r)
 { ::swap(Ptr, r.Ptr);
+}
+template <class T>
+inline void sco_ptr<T>::swap(sco_ptr<T>& r) volatile
+{ r.Ptr = InterlockedXch(&Ptr, r.Ptr);
 }
 
 #define INT_PTR_STOLEN_BITS 2U
