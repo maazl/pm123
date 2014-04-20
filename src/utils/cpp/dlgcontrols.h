@@ -45,6 +45,7 @@ struct ControlBase
   bool        operator!() const                     { return Hwnd == NULLHANDLE; }
   USHORT      ID() const                            { return WinQueryWindowUShort(Hwnd, QWS_ID); }
   void        Enabled(bool enable)                  { PMRASSERT(WinEnableWindow(Hwnd, enable)); }
+  void        Visible(bool visible)                 { PMRASSERT(WinShowWindow(Hwnd, visible)); }
   ULONG       Style() const                         { return WinQueryWindowULong(Hwnd, QWL_STYLE); }
   void        Text(const char* text)                { PMRASSERT(WinSetWindowText(Hwnd, text)); }
   xstring     Text() const                          { return WinQueryWindowXText(Hwnd); }
