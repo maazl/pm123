@@ -45,43 +45,42 @@ void OpenLoop::OpenLoopFile::Reset()
 }
 
 bool OpenLoop::OpenLoopFile::ParseHeaderField(const char* string)
-{ const char* value;
-  if (!!(value = TryParam(string, "FFTSize")))
-    FFTSize = atoi(value);
-  else if (!!(value = TryParam(string, "DiscardSamp")))
-    DiscardSamp = atoi(value);
-  else if (!!(value = TryParam(string, "RefFreq")))
-    sscanf(value, "%lf,%lf", &RefFMin, &RefFMax);
-  else if (!!(value = TryParam(string, "RefExponent")))
-    RefExponent = atof(value);
-  else if (!!(value = TryParam(string, "RefSkipEven")))
-    RefSkipEven = !!atoi(value);
-  else if (!!(value = TryParam(string, "RefSkipRand")))
-    RefSkipRand = !!atoi(value);
-  else if (!!(value = TryParam(string, "RefMode")))
-    RefMode = (Mode)atoi(value);
-  else if (!!(value = TryParam(string, "RefVolume")))
-    RefVolume = atof(value);
-  else if (!!(value = TryParam(string, "RefFreqFactor")))
-    RefFreqFactor = atof(value);
-  else if (!!(value = TryParam(string, "RefEnergyDist")))
-    RefEnergyDist = !!atoi(value);
-  else if (!!(value = TryParam(string, "AnaSwap")))
-    AnaSwap = !!atoi(value);
-  else if (!!(value = TryParam(string, "LineNotch")))
-    sscanf(value, "%u,%lf", &LineNotchHarmonics, &LineNotchFreq);
-  else if (!!(value = TryParam(string, "DispGain")))
-    sscanf(value, "%lf,%lf", &GainLow, &GainHigh);
-  else if (!!(value = TryParam(string, "DispDelay")))
-    sscanf(value, "%lf,%lf", &DelayLow, &DelayHigh);
-  else if (!!(value = TryParam(string, "DispVU")))
-    sscanf(value, "%lf,%lf,%lf", &VULow, &VUYellow, &VURed);
-  else if (!!(value = TryParam(string, "AverageDelay")))
-    sscanf(value, "%lf,%lf", &AverageDelay[0], &AverageDelay[1]);
-  else if (!!(value = TryParam(string, "PhaseUnwrap")))
-    sscanf(value, "%u,%u", &PhaseUnwrapCount[0], &PhaseUnwrapCount[1]);
-  else if (!!(value = TryParam(string, "IndetPhase")))
-    sscanf(value, "%u,%u", &IndeterminatePhase[0], &IndeterminatePhase[1]);
+{ if (TryParam(string, "FFTSize"))
+    FFTSize = atoi(string);
+  else if (TryParam(string, "DiscardSamp"))
+    DiscardSamp = atoi(string);
+  else if (TryParam(string, "RefFreq"))
+    sscanf(string, "%lf,%lf", &RefFMin, &RefFMax);
+  else if (TryParam(string, "RefExponent"))
+    RefExponent = atof(string);
+  else if (TryParam(string, "RefSkipEven"))
+    RefSkipEven = !!atoi(string);
+  else if (TryParam(string, "RefSkipRand"))
+    RefSkipRand = !!atoi(string);
+  else if (TryParam(string, "RefMode"))
+    RefMode = (Mode)atoi(string);
+  else if (TryParam(string, "RefVolume"))
+    RefVolume = atof(string);
+  else if (TryParam(string, "RefFreqFactor"))
+    RefFreqFactor = atof(string);
+  else if (TryParam(string, "RefEnergyDist"))
+    RefEnergyDist = !!atoi(string);
+  else if (TryParam(string, "AnaSwap"))
+    AnaSwap = !!atoi(string);
+  else if (TryParam(string, "LineNotch"))
+    sscanf(string, "%u,%lf", &LineNotchHarmonics, &LineNotchFreq);
+  else if (TryParam(string, "DispGain"))
+    sscanf(string, "%lf,%lf", &GainLow, &GainHigh);
+  else if (TryParam(string, "DispDelay"))
+    sscanf(string, "%lf,%lf", &DelayLow, &DelayHigh);
+  else if (TryParam(string, "DispVU"))
+    sscanf(string, "%lf,%lf,%lf", &VULow, &VUYellow, &VURed);
+  else if (TryParam(string, "AverageDelay"))
+    sscanf(string, "%lf,%lf", &AverageDelay[0], &AverageDelay[1]);
+  else if (TryParam(string, "PhaseUnwrap"))
+    sscanf(string, "%u,%u", &PhaseUnwrapCount[0], &PhaseUnwrapCount[1]);
+  else if (TryParam(string, "IndetPhase"))
+    sscanf(string, "%u,%u", &IndeterminatePhase[0], &IndeterminatePhase[1]);
   else
     return DataFile::ParseHeaderField(string);
   return true;

@@ -57,20 +57,20 @@ void Frontend::GeneratePage::ResponseGainIterator::ReadNext(double f)
 }
 
 Frontend::GeneratePage::ResponseDelayIterator::ResponseDelayIterator(unsigned col, unsigned collow)
-: DelayAverageIterator(col)
+: DelayIterator(col)
 , InterpolateLow(collow)
 , InterpolateHigh(collow+1)
 {}
 
 bool Frontend::GeneratePage::ResponseDelayIterator::Reset(const DataFile& data)
-{ bool ret = DelayAverageIterator::Reset(data);
+{ bool ret = DelayIterator::Reset(data);
   InterpolateLow.Reset(data);
   InterpolateHigh.Reset(data);
   return ret;
 }
 
 void Frontend::GeneratePage::ResponseDelayIterator::ReadNext(double f)
-{ DelayAverageIterator::ReadNext(f);
+{ DelayIterator::ReadNext(f);
   InterpolateLow.ReadNext(f);
   InterpolateHigh.ReadNext(f);
   MinValue = InterpolateLow.GetValue();
@@ -259,7 +259,7 @@ void Frontend::GeneratePage::UpdateDescr()
   while ((selected = lb.NextSelection(selected)) != LIT_NONE)
   { xstring file(Filter::WorkDir);
     file = file + lb.ItemText(selected);
-    DataFile data;
+    DataFile data(Measure::ColCount);
     if (data.Load(file))
     { ++index;
       if (data.Description.length())
@@ -412,8 +412,8 @@ Frontend::GenerateExtPage::GenerateExtPage(Frontend& parent)
 MRESULT Frontend::GenerateExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch (msg)
-  {case WM_INITDLG:
-    break;
+  {/*case WM_INITDLG:
+    break;*/
 
    case WM_CONTROL:
     switch (SHORT1FROMMP(mp1))
@@ -450,17 +450,15 @@ void Frontend::GenerateExtPage::LoadControlValues(const Generate::Parameters& da
   SetValue(GetCtrl(EF_FREQ_HIGH), data.FreqHigh);
   SetValue(GetCtrl(EF_FREQ_BIN), data.FreqBin);
   SetValue(GetCtrl(EF_FREQ_FACTOR), data.FreqFactor * 100.);
-  CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState((data.Filter & Generate::FLT_Subsonic) != 0);
-  CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState((data.Filter & Generate::FLT_Supersonic) != 0);
   SetValue(GetCtrl(EF_NORM_LOW), data.NormFreqLow);
   SetValue(GetCtrl(EF_NORM_HIGH), data.NormFreqHigh);
   RadioButton(+GetCtrl(RB_ENERGY+data.NormMode)).CheckState(true);
 
   SetValue(GetCtrl(EF_LIMITGAIN), 20*log10(data.LimitGain));
-  SetValue(GetCtrl(EF_LIMITGAINRATE), data.LimitGainRate);
+  SetValue(GetCtrl(EF_GAINSMOOTH), data.GainSmoothing);
   CheckBox(+GetCtrl(CB_INVERTGAIN)).CheckState(data.InvertHighGain);
   SetValue(GetCtrl(EF_LIMITDELAY), data.LimitDelay);
-  SetValue(GetCtrl(EF_LIMITDELAYRATE), data.LimitDelayRate);
+  SetValue(GetCtrl(EF_DELAYSMOOTH), data.DelaySmoothing);
 
   SetValue(GetCtrl(EF_GAIN_LOW), data.GainLow);
   SetValue(GetCtrl(EF_GAIN_HIGH), data.GainHigh);
@@ -480,19 +478,16 @@ void Frontend::GenerateExtPage::StoreControlValues(Generate::Parameters& data)
   GetValue(GetCtrl(EF_FREQ_BIN), data.FreqBin);
   if (GetValue(GetCtrl(EF_FREQ_FACTOR), tmp))
     data.FreqFactor = tmp / 100.;
-  data.Filter
-    = !!CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState() * Generate::FLT_Subsonic
-    | !!CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState() * Generate::FLT_Supersonic;
   GetValue(GetCtrl(EF_NORM_LOW), data.NormFreqLow);
   GetValue(GetCtrl(EF_NORM_HIGH), data.NormFreqHigh);
   data.NormMode = (Generate::NormalizeMode)(RadioButton(+GetCtrl(RB_ENERGY)).CheckID() - RB_ENERGY);
 
   if (GetValue(GetCtrl(EF_LIMITGAIN), tmp))
     data.LimitGain = pow(10, tmp/20);
-  GetValue(GetCtrl(EF_LIMITGAINRATE), data.LimitGainRate);
+  GetValue(GetCtrl(EF_GAINSMOOTH), data.GainSmoothing);
   data.InvertHighGain = !!CheckBox(+GetCtrl(CB_INVERTGAIN)).CheckState();
   GetValue(GetCtrl(EF_LIMITDELAY), data.LimitDelay);
-  GetValue(GetCtrl(EF_LIMITDELAYRATE), data.LimitDelayRate);
+  GetValue(GetCtrl(EF_DELAYSMOOTH), data.DelaySmoothing);
 
   GetValue(GetCtrl(EF_GAIN_LOW), data.GainLow);
   GetValue(GetCtrl(EF_GAIN_HIGH), data.GainHigh);

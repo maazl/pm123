@@ -63,6 +63,7 @@ class Calibrate : public OpenLoop
   , L2RDelay
   , LIntermod
   , RIntermod
+  , ColCount
   };
   class CalibrationFile
   : public OpenLoopFile
@@ -72,7 +73,7 @@ class Calibrate : public OpenLoop
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 CalibrationFile();
-    void        reset()                         { DataFile::reset(13); }
+    void        reset()                         { DataFile::reset(ColCount); }
   };
 
  public:

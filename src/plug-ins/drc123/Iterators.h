@@ -172,6 +172,13 @@ class AverageIterator : public AggregateIterator
   virtual void         ReadNext(double x);
 };
 
+class DelayIterator : public AverageIterator
+{protected:
+  virtual void         Aggregate(double from, double to);
+ public:
+                       DelayIterator(unsigned col) : AverageIterator(col) {}
+};
+
 class DelayAverageIterator : public AverageIterator
 { double               LastFX;
  public:

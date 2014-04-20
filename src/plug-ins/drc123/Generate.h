@@ -36,11 +36,6 @@
 
 class Generate
 {public:
-  enum FilterMode
-  { FLT_None
-  , FLT_Subsonic
-  , FLT_Supersonic
-  };
   enum NormalizeMode
   { NM_Energy
   , NM_Logarithm
@@ -58,15 +53,14 @@ class Generate
     NormalizeMode NormMode;           ///< Mode used for normalization
     double      LimitGain;            ///< Maximum gain of target result [factor]
     double      LimitDelay;           ///< Maximum delay of target result [seconds]
-    double      LimitGainRate;        ///< Maximum d(gain)/d(f) [factor/frequency]
-    double      LimitDelayRate;       ///< Maximum d(delay)/d(f) [seconds/frequency]
+    double      GainSmoothing;        ///< Smooth gain values with an 2nd order IIR low pass
+    double      DelaySmoothing;       ///< Smooth delay values with an 2nd order IIR low pass
     bool        InvertHighGain;       ///< Reduce gain values over LimitGain
-    FilterMode  Filter;               ///< Filter frequencies outside the frequency range.
     // GUI injection
     double      GainLow, GainHigh;    ///< Display range for gain response
     double      DelayLow, DelayHigh;  ///< Display range for delay
     void        swap(Parameters& r);
-                Parameters()                    {}
+                Parameters()          {}
    protected:
     /// Copy everything but the content of the measurements.
                 Parameters(const Parameters& r);
@@ -86,6 +80,7 @@ class Generate
   , RGainHigh
   , RDelayLow
   , RDelayHigh
+  , ColCount
   };
   class TargetFile
   : public DataFile
@@ -95,7 +90,7 @@ class Generate
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 TargetFile();
-    void        reset()                         { DataFile::reset(13); }
+    void        reset()                         { DataFile::reset(ColCount); }
     void        swap(TargetFile& r);
     virtual bool Load(const char* filename, bool nodata = false);
   };
@@ -128,9 +123,7 @@ class Generate
  private:
   double        ApplyGainLimit(double gain);
   double        ApplyDelayLimit(double delay);
-  void          ApplyRateLimit(unsigned col, double rate);
+  void          ApplySmoothing(unsigned col, double width);
 };
-
-FLAGSATTRIBUTE(Generate::FilterMode);
 
 #endif // GENERATE_H

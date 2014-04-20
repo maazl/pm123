@@ -89,6 +89,7 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case RB_NOISE:
      case RB_SWEEP:
      case CB_DIFFOUT:
+     case CB_VERIFYMODE:
      case CB_REFIN:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
       {modi:
@@ -134,6 +135,7 @@ void Frontend::MeasurePage::LoadControlValues(const Measure::MeasureFile& data)
   CheckBox diffout(+GetCtrl(CB_DIFFOUT));
   diffout.CheckState(data.DiffOut);
   diffout.Enabled(data.Chan != Measure::CH_Both);
+  CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState(data.VerifyMode);
 
   CheckBox(+GetCtrl(CB_REFIN)).CheckState(data.RefIn);
 
@@ -155,6 +157,7 @@ void Frontend::MeasurePage::StoreControlValues(Measure::MeasureFile& data)
   data.Mode = (Measure::MeasureMode)(RadioButton(+GetCtrl(RB_NOISE)).CheckID() - RB_NOISE);
   data.Chan = (Measure::Channels)(RadioButton(+GetCtrl(RB_STEREO)).CheckID() - RB_STEREO);
   data.DiffOut = (bool)CheckBox(+GetCtrl(CB_DIFFOUT)).CheckState();
+  data.VerifyMode = (bool)CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState();
 
   data.RefIn = (bool)CheckBox(+GetCtrl(CB_REFIN)).CheckState();
 
@@ -174,6 +177,7 @@ void Frontend::MeasurePage::SetRunning(bool running)
   RadioButton(+GetCtrl(RB_WHITE_N)).EnableAll(!running);
   RadioButton(+GetCtrl(RB_STEREO)).EnableAll(!running);
   ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_STEREO)).CheckState());
+  ControlBase(+GetCtrl(CB_VERIFYMODE)).Enabled(!running);
 
   ControlBase(+GetCtrl(CB_CAL_FILE)).Enabled(!running);
   ControlBase(+GetCtrl(CB_MIC_FILE)).Enabled(!running);
@@ -233,7 +237,7 @@ xstring Frontend::MeasurePage::UpdateFile(ComboBox lb, ControlBase desc)
     xstring workdir(Filter::WorkDir);
     rel2abs(workdir, lb.ItemText(sel), path, sizeof path);
     file = path;
-    DataFile cal;
+    DataFile cal(Calibrate::ColCount);
     if (!cal.Load(path, true))
     { desc.Text(strerror(errno));
     } else
@@ -266,30 +270,16 @@ xstring Frontend::MeasurePage::DoSaveFile()
   return data->FileName;
 }
 
-void Frontend::MeasureExtPage::LoadControlValues(const Measure::MeasureFile& data)
-{
-  CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState(data.VerifyMode);
-
-  ExtPage::LoadControlValues(data);
-}
-
 void Frontend::MeasureExtPage::LoadControlValues()
 { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-  LoadControlValues(*data);
+  ExtPage::LoadControlValues(*data);
 }
 
 void Frontend::MeasureExtPage::LoadDefaultValues()
-{ LoadControlValues(Measure::DefData);
-}
-
-void Frontend::MeasureExtPage::StoreControlValues(Measure::MeasureFile& data)
-{
-  data.VerifyMode = (bool)CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState();
-
-  ExtPage::StoreControlValues(data);
+{ ExtPage::LoadControlValues(Measure::DefData);
 }
 
 void Frontend::MeasureExtPage::StoreControlValues()
 { SyncAccess<Measure::MeasureFile> data(Measure::GetData());
-  StoreControlValues(*data);
+  ExtPage::StoreControlValues(*data);
 }

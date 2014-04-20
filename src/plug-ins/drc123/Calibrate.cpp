@@ -32,7 +32,7 @@
 
 
 Calibrate::CalibrationFile::CalibrationFile()
-: OpenLoopFile(13)
+: OpenLoopFile(ColCount)
 { // Set Default Parameters
   FFTSize = 65536;
   DiscardSamp = 65536;
@@ -65,17 +65,15 @@ Calibrate::CalibrationFile::CalibrationFile()
 }
 
 bool Calibrate::CalibrationFile::ParseHeaderField(const char* string)
-{ const char* value;
-  if (!!(value = TryParam(string, "Mode")))
-    Mode = (MeasureMode)atoi(value);
+{ if (TryParam(string, "Mode"))
+    Mode = (MeasureMode)atoi(string);
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
 }
 
 bool Calibrate::CalibrationFile::WriteHeaderFields(FILE* f)
-{
-  fprintf(f, "##Mode=%u\n", Mode);
+{ fprintf(f, "##Mode=%u\n", Mode);
   return OpenLoopFile::WriteHeaderFields(f);
 }
 

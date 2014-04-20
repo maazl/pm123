@@ -13,7 +13,7 @@ OBJECTS  = DataFile$(CO) Iterators$(CO) FFT2Data$(CO)
 OBJECTS  = $(OBJECTS) Filter$(CO) Deconvolution$(CO) OpenLoop$(CO) Calibrate$(CO) Measure$(CO) Generate$(CO)
 OBJECTS  = $(OBJECTS) ResponseGraph$(CO) VUMeter$(CO) drc123$(CO)
 OBJECTS  = $(OBJECTS) Frontend$(CO) Frontend.OpenLoop$(CO) Frontend.Calibrate$(CO) Frontend.Measure$(CO) Frontend.Generate$(CO) Frontend.Deconvolution$(CO)
-LIBS     = $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
+LIBS     = $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 DEF      = drc123$(LDEF_SUFFX)
 RESOURCE = drc123$(RES)
 

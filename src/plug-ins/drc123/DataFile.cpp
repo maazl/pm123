@@ -36,10 +36,16 @@
 #include <debuglog.h>
 
 
-DataRow::DataRow(size_t size)
-: sco_arr<float>(size)
-{ // Set all numbers to quiet NaN.
-  memset(begin(), 0xff, size * sizeof *begin());
+#if defined(__IBMCPP__) && defined(__DEBUG_ALLOC__)
+void* DataRow::operator new(size_t s, const char*, size_t, size_t l)
+#else
+void* DataRow::operator new(size_t s, size_t l)
+#endif
+{ DataRow* that = (DataRow*)new char[s + l * sizeof(float)];
+  // Dirty early construction
+  that->Size = l;
+  memset(that + 1, 0xff, l * sizeof(float));
+  return that;
 }
 
 int DataRow::FrequencyComparer(const float& f, const DataRow& row)
@@ -62,30 +68,37 @@ bool DataRow::HasValues() const
   return false;
 }
 
-const char* DataFile::TryParam(const char* line, const char* name)
+
+bool DataFile::TryParam(const char*& line, const char* name)
 { size_t len = strlen(name);
-  if (strnicmp(line, name, len) == 0 && line[len] == '=')
-    return line + len + 1;
-  return NULL;
+  if (strnicmp(line, name, len) != 0 || line[len] != '=')
+    return false;
+  line += len + 1;
+  return true;
 }
 
 bool DataFile::ParseHeaderField(const char* string)
-{ return true;
+{ size_t lines;
+  if ( TryParam(string, "Lines")
+    && sscanf(string, "%u", &lines)
+    && lines > capacity() )
+    reserve(lines);
+  return true;
 }
 
 bool DataFile::WriteHeaderFields(FILE* f)
-{ return true;
+{ return fprintf(f, "##Lines=%u\n", size()) > 0;
 }
 
 DataFile::DataFile(unsigned cols)
 : FileName(xstring::empty)
 , Description(xstring::empty)
-, MaxColumns(cols)
+, Columns(cols)
 {}
 DataFile::DataFile(const DataFile& r)
 : FileName(r.FileName)
 , Description(r.Description)
-, MaxColumns(r.MaxColumns)
+, Columns(r.Columns)
 {}
 
 DataFile::~DataFile()
@@ -95,12 +108,7 @@ void DataFile::reset(unsigned cols)
 { DEBUGLOG(("DataFile(%p{%s})::reset(%u)\n", this, FileName.cdata(), cols));
   base::clear();
   Description = xstring::empty;
-  MaxColumns = cols;
-}
-
-void DataFile::columns(unsigned cols)
-{ ASSERT(!size());
-  MaxColumns = cols;
+  Columns = cols;
 }
 
 void DataFile::swap(DataFile& r)
@@ -108,11 +116,20 @@ void DataFile::swap(DataFile& r)
   base::swap(r);
   FileName.swap(r.FileName);
   Description.swap(r.Description);
-  ::swap(MaxColumns, r.MaxColumns);
+  ::swap(Columns, r.Columns);
+}
+
+DataRow*& DataFile::append()
+{ // optimization: set reasonable start capacity
+  // but only on demand
+  if (!capacity())
+    reserve(65536);
+  return sorted_vector_own<DataRow,float,&DataRow::FrequencyComparer>::append();
 }
 
 bool DataFile::Load(const char* filename, bool nodata)
 { DEBUGLOG(("DataFile(%p{%s})::Load(%s, %u)\n", this, FileName.cdata(), filename, nodata));
+  ASSERT(Columns);
   clear();
   if (filename == NULL)
   { if (!FileName.length())
@@ -127,7 +144,7 @@ bool DataFile::Load(const char* filename, bool nodata)
   xstringbuilder descr;
   char line[2048];
   bool isheader = true;
-  float values[100];
+  sco_ptr<DataRow> row;
   while (fgets(line, sizeof line, f))
   { switch (*line)
     {case '#':
@@ -153,24 +170,23 @@ bool DataFile::Load(const char* filename, bool nodata)
         if (nodata)
           goto nodata;
 
-        float* dp = values;
+        if (!row)
+          row = new (Columns)DataRow;
+        float* dp = row->begin();
+        float* ep = row->end();
         const char* cp = line;
         int n = -1;
         while (sscanf(cp, "%f%n", dp, &n) > 0)
-        { ++dp;
-          cp += n;
+        { cp += n;
+          if (++dp == ep)
+            break;
         }
         if (cp[strspn(cp, " \t\r\n")])
           goto error;
         // add row
-        if (dp != values) // ignore empty lines
-        { DataRow* newrow = new DataRow(dp - values);
-          memcpy(newrow->get(), values, newrow->size() * sizeof(*values));
-          append() = newrow;
-          // adjust MaxColumns
-          if (MaxColumns < newrow->size())
-            MaxColumns = newrow->size();
-        }
+        if (dp != row->begin()) // ignore empty lines
+          append() = row.detach();
+        break;
       }
      case '\r':
      case '\n':
@@ -187,7 +203,7 @@ bool DataFile::Load(const char* filename, bool nodata)
 
 bool DataFile::Save(const char* filename)
 { DEBUGLOG(("DataFile(%p{%s, %u,%u})::Save(%s)\n", this,
-    Description.cdata(), size(), MaxColumns, filename));
+    Description.cdata(), size(), Columns, filename));
 
   if (filename == NULL)
     filename = FileName;
@@ -234,7 +250,7 @@ bool DataFile::Save(const char* filename)
 }
 
 bool DataFile::HasColumn(unsigned col) const
-{ if (col >= MaxColumns)
+{ if (col >= Columns)
     return false;
   foreach (DataRow,*const*, rp, *this)
     if (!isnan((**rp)[col]))

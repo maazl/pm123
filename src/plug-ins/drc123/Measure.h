@@ -68,6 +68,7 @@ class Measure : public OpenLoop
   , LDelay
   , RGain
   , RDelay
+  , ColCount
   };
   /// @brief File with measurement data.
   class MeasureFile
@@ -78,7 +79,7 @@ class Measure : public OpenLoop
     virtual bool WriteHeaderFields(FILE* f);
    public:
                 MeasureFile();
-    void        reset()                         { OpenLoopFile::reset(5); }
+    void        reset()                         { OpenLoopFile::reset(ColCount); }
   };
 
  public:

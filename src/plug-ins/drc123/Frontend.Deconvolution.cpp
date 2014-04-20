@@ -48,11 +48,21 @@
 #include <debuglog.h>
 
 
-Frontend::DeconvolutionViewMode Frontend::DeconvolutionView = DVM_Target;
+const Frontend::DeconvolutionViewParams Frontend::DeconvolutionViewDefault =
+{ DVM_Target
+,   18,22000
+,  -30,  +20
+,  -.2,  +.2
+,  -.7,  +.7, false
+,   -5,   +5
+};
+
+Frontend::DeconvolutionViewParams Frontend::DeconvolutionView = DeconvolutionViewDefault;
 
 
 Frontend::DeconvolutionPage::DeconvolutionPage(Frontend& parent)
 : MyPageBase(parent, DLG_DECONV)
+, Kernel(Generate::ColCount)
 , IterLGain(Generate::LGain)
 , IterRGain(Generate::RGain)
 , IterLDelay(Generate::LDelay)
@@ -83,7 +93,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   {case WM_INITDLG:
     ComboBox(+GetCtrl(CB_FIRORDER)).InsertItems(FIROrders, countof(FIROrders));
     // Load initial values
-    RadioButton(+GetCtrl(RB_VIEWTARGET + DeconvolutionView)).CheckState(true);
+    RadioButton(+GetCtrl(RB_VIEWTARGET + DeconvolutionView.ViewMode)).CheckState(true);
     PostCommand(PB_UNDO);
     PostMsg(UM_SETUPGRAPH, 0,0);
     break;
@@ -97,7 +107,10 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case DLG_DECONV:
       if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED && ((PAGESELECTNOTIFY*)PVOIDFROMMP(mp2))->ulPageIdNew == GetPageID())
+      { SetAxes();
+        Result.Invalidate();
         PostCommand(PB_RELOAD);
+      }
       break;
      case LB_KERNEL:
       if (SHORT2FROMMP(mp1) == LN_SELECT)
@@ -119,15 +132,17 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case RB_WIN_NONE:
      case RB_WIN_DIMMED_HAMMING:
      case RB_WIN_HAMMING:
-       if (SHORT2FROMMP(mp1) == BN_CLICKED)
-         SetModified(true);
-       break;
+     case CB_SUBSONIC:
+     case CB_SUPERSONIC:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+        SetModified(true);
+      break;
      case RB_VIEWTARGET:
      case RB_VIEWGAIN:
      case RB_VIEWDELAY:
      case RB_VIEWTIME:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
-      { DeconvolutionView = (DeconvolutionViewMode)(SHORT1FROMMP(mp1) - RB_VIEWTARGET);
+      { DeconvolutionView.ViewMode = (DeconvolutionViewMode)(SHORT1FROMMP(mp1) - RB_VIEWTARGET);
         EnsureMsg(UM_SETUPGRAPH);
       }
       break;
@@ -157,6 +172,8 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
         RadioButton(+GetCtrl(RB_WIN_NONE + Params.WindowFunction)).CheckState(true);
+        CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState((Params.Filter & Deconvolution::FLT_Subsonic) != 0);
+        CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState((Params.Filter & Deconvolution::FLT_Supersonic) != 0);
         int selected; // default
         switch (Params.FIROrder)
         {case 16384:
@@ -179,6 +196,9 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case PB_APPLY:
       { // Update configuration from GUI
         Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
+        Params.Filter
+          = !!CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState() * Deconvolution::FLT_Subsonic
+          | !!CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState() * Deconvolution::FLT_Supersonic;
         switch (ComboBox(+GetCtrl(CB_FIRORDER)).NextSelection())
         {case 0: // 16384
           Params.FIROrder = 16384;
@@ -224,10 +244,12 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_SETUPGRAPH:
     SetupGraph();
+    Result.Invalidate();
     return 0;
 
    case UM_UPDATEGRAPH:
     UpdateGraph();
+    Result.Invalidate();
     return 0;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
@@ -296,16 +318,15 @@ void Frontend::DeconvolutionPage::UpdateKernel()
 
 void Frontend::DeconvolutionPage::SetupGraph()
 { Result.Graphs.clear();
-  switch (DeconvolutionView)
+  SetAxes();
+  switch (DeconvolutionView.ViewMode)
   {default: // DVM_TARGET
-    Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, -.2,.2);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", Kernel, IterRGain, ResponseGraph::GF_Average, CLR_RED);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Average, CLR_GREEN);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Y2|ResponseGraph::GF_Average, CLR_PINK);
     break;
    case DVM_GainResult:
-    Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -30,+20, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_Average, CLR_RED);
@@ -314,7 +335,6 @@ void Frontend::DeconvolutionPage::SetupGraph()
     Deconvolution::ForceKernelChange();
     break;
    case DVM_DelayResult:
-    Result.SetAxes(ResponseGraph::AF_LogX, 20,20000, -.2,.2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_Average, CLR_BLUE);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_Average, CLR_RED);
@@ -323,42 +343,71 @@ void Frontend::DeconvolutionPage::SetupGraph()
     Deconvolution::ForceKernelChange();
     break;
    case DVM_TimeResult:
-    Result.SetAxes(ResponseGraph::AF_None, -1,+1, -2,2, NAN,NAN);
     RawKernelData = CurrentRawKernelData = new SharedDataFile(TDC_count);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("left", *CurrentRawKernelData, IterLKernel, ResponseGraph::GF_Bounds, CLR_BLUE);
     Result.Graphs.append() = new ResponseGraph::GraphInfo("right", *CurrentRawKernelData, IterRKernel, ResponseGraph::GF_Bounds, CLR_RED);
     Deconvolution::ForceKernelChange();
     break;
   }
-  Result.Invalidate();
+}
+
+void Frontend::DeconvolutionPage::SetAxes()
+{ switch (DeconvolutionView.ViewMode)
+  {default: // DVM_TARGET
+    Result.SetAxes( ResponseGraph::AF_LogX,
+      DeconvolutionView.FreqLow,  DeconvolutionView.FreqHigh,
+      DeconvolutionView.GainLow,  DeconvolutionView.GainHigh,
+      DeconvolutionView.DelayLow, DeconvolutionView.DelayHigh );
+    break;
+   case DVM_GainResult:
+    Result.SetAxes( ResponseGraph::AF_LogX,
+      DeconvolutionView.FreqLow, DeconvolutionView.FreqHigh,
+      DeconvolutionView.GainLow, DeconvolutionView.GainHigh,
+      NAN, NAN );
+    break;
+   case DVM_DelayResult:
+    Result.SetAxes( ResponseGraph::AF_LogX,
+      DeconvolutionView.FreqLow,  DeconvolutionView.FreqHigh,
+      DeconvolutionView.DelayLow, DeconvolutionView.DelayHigh,
+      NAN, NAN );
+    break;
+   case DVM_TimeResult:
+    if (DeconvolutionView.TimeAuto && CurrentRawKernelData && CurrentRawKernelData->size())
+      Result.SetAxes(ResponseGraph::AF_None,
+        (*(*CurrentRawKernelData)[0])[0], (*(*CurrentRawKernelData)[CurrentRawKernelData->size()-1])[0],
+        DeconvolutionView.KernelLow, DeconvolutionView.KernelHigh,
+        NAN, NAN );
+    else
+      Result.SetAxes(ResponseGraph::AF_None,
+        DeconvolutionView.TimeLow,   DeconvolutionView.TimeHigh,
+        DeconvolutionView.KernelLow, DeconvolutionView.KernelHigh,
+        NAN, NAN );
+    break;
+  }
 }
 
 void Frontend::DeconvolutionPage::UpdateGraph()
-{ switch (DeconvolutionView)
+{ switch (DeconvolutionView.ViewMode)
   {default:
     return;
    case DVM_GainResult:
-    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
     Result.Graphs[0]->Data =
     Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
    case DVM_DelayResult:
-    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
     Result.Graphs[0]->Data =
     Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
    case DVM_TimeResult:
-    Result.Graphs.clear();
     CurrentRawKernelData = RawKernelData;
-    if (CurrentRawKernelData->size())
-      Result.SetAxes(ResponseGraph::AF_None, (*(*CurrentRawKernelData)[0])[0],(*(*CurrentRawKernelData)[CurrentRawKernelData->size()-1])[0], -2,2, NAN,NAN);
+    if (DeconvolutionView.TimeAuto)
+      SetAxes();
     Result.Graphs[0]->Data =
     Result.Graphs[1]->Data = *CurrentRawKernelData;
     break;
   }
-  Result.Invalidate();
 }
 
 void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChangeEventArgs& args)
@@ -367,7 +416,7 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
     return;
 
   bool needsetup = false;
-  switch (DeconvolutionView)
+  switch (DeconvolutionView.ViewMode)
   {default:
     return;
 
@@ -419,4 +468,80 @@ void Frontend::DeconvolutionPage::KernelChange(const Deconvolution::KernelChange
     break;
   }
   EnsureMsg(needsetup ? UM_UPDATEGRAPH : UM_INVALIDATEGRAPH);
+}
+
+
+MRESULT Frontend::DeconvolutionExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{
+  switch (msg)
+  {/*case WM_INITDLG:
+    break;*/
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case DLG_DECONV_X:
+      if (SHORT2FROMMP(mp1) == BKN_PAGESELECTED)
+      { const PAGESELECTNOTIFY& notify = *(PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+        if (notify.ulPageIdCur == GetPageID())
+          StoreControlValues();
+        if (notify.ulPageIdNew == GetPageID())
+          LoadControlValues();
+      }
+      break;
+     case CB_TIME_AUTO:
+      if (SHORT2FROMMP(mp1) == BN_CLICKED)
+      { bool en = !CheckBox(+GetCtrl(CB_TIME_AUTO)).CheckState();
+        ControlBase(+GetCtrl(EF_TIME_LOW)).Enabled(en);
+        ControlBase(+GetCtrl(EF_TIME_HIGH)).Enabled(en);
+      }
+    }
+    return 0;
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case PB_UNDO:
+      LoadControlValues();
+      break;
+     case PB_DEFAULT:
+      LoadDefaultValues();
+      break;
+    }
+    return 0;
+  }
+
+  return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+void Frontend::DeconvolutionExtPage::LoadControlValues(const DeconvolutionViewParams& params)
+{
+  SetValue(+GetCtrl(EF_FREQ_LOW),   params.FreqLow);
+  SetValue(+GetCtrl(EF_FREQ_HIGH),  params.FreqHigh);
+  SetValue(+GetCtrl(EF_GAIN_LOW),   params.GainLow);
+  SetValue(+GetCtrl(EF_GAIN_HIGH),  params.GainHigh);
+  SetValue(+GetCtrl(EF_DELAY_LOW),  params.DelayLow);
+  SetValue(+GetCtrl(EF_DELAY_HIGH), params.DelayHigh);
+  ControlBase low (+GetCtrl(EF_TIME_LOW));
+  ControlBase high(+GetCtrl(EF_TIME_HIGH));
+  SetValue(low.Hwnd,                params.TimeLow);
+  SetValue(high.Hwnd,               params.TimeHigh);
+  CheckBox(+GetCtrl(CB_TIME_AUTO)).CheckState(params.TimeAuto);
+  low. Enabled(!params.TimeAuto);
+  high.Enabled(!params.TimeAuto);
+  SetValue(+GetCtrl(EF_KERNEL_LOW), params.KernelLow);
+  SetValue(+GetCtrl(EF_KERNEL_HIGH),params.KernelHigh);
+}
+
+void Frontend::DeconvolutionExtPage::StoreControlValues(DeconvolutionViewParams& params)
+{
+  GetValue(+GetCtrl(EF_FREQ_LOW),   params.FreqLow);
+  GetValue(+GetCtrl(EF_FREQ_HIGH),  params.FreqHigh);
+  GetValue(+GetCtrl(EF_GAIN_LOW),   params.GainLow);
+  GetValue(+GetCtrl(EF_GAIN_HIGH),  params.GainHigh);
+  GetValue(+GetCtrl(EF_DELAY_LOW),  params.DelayLow);
+  GetValue(+GetCtrl(EF_DELAY_HIGH), params.DelayHigh);
+  GetValue(+GetCtrl(EF_TIME_LOW),   params.TimeLow);
+  GetValue(+GetCtrl(EF_TIME_HIGH),  params.TimeHigh);
+  params.TimeAuto = !!CheckBox(+GetCtrl(CB_TIME_AUTO)).CheckState();
+  GetValue(+GetCtrl(EF_KERNEL_LOW), params.KernelLow);
+  GetValue(+GetCtrl(EF_KERNEL_HIGH),params.KernelHigh);
 }

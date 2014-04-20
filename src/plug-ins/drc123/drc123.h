@@ -33,6 +33,7 @@
 #define DLG_FRONTEND    110
 #define DLG_CONFIG      120
 #define DLG_DECONV      130
+#define DLG_DECONV_X    131
 #define DLG_GENERATE    140
 #define DLG_GENERATE_X  141
 #define DLG_MEASURE     150
@@ -85,23 +86,28 @@
 #define RB_WIN_NONE     1165
 #define RB_WIN_DIMMED_HAMMING 1166
 #define RB_WIN_HAMMING  1167
+#define CB_SUBSONIC     1170
+#define CB_SUPERSONIC   1171
+
+#define EF_TIME_LOW     1180
+#define EF_TIME_HIGH    1181
+#define CB_TIME_AUTO    1182
+#define EF_KERNEL_LOW   1185
+#define EF_KERNEL_HIGH  1186
 
 // Generate
 #define GB_RESULT       1205
 #define GB_RESULT2      1206
 
 #define EF_LIMITGAIN    1250
-#define EF_LIMITGAINRATE 1251
+#define EF_GAINSMOOTH   1251
 #define CB_INVERTGAIN   1252
 #define EF_LIMITDELAY   1260
-#define EF_LIMITDELAYRATE 1261
-#define CB_CLIPINVERT   1265
+#define EF_DELAYSMOOTH  1261
 #define EF_NORM_LOW     1270
 #define EF_NORM_HIGH    1271
 #define RB_ENERGY       1275
 #define RB_LOGARITHM    1276
-#define CB_SUBSONIC     1280
-#define CB_SUPERSONIC   1281
 
 // Open loop
 #define BX_LEFT         1300
@@ -137,12 +143,12 @@
 #define RB_PINK_N       1381
 #define CB_SKIPEVEN     1385
 #define CB_SKIPRAND     1386
-#define CB_VERIFYMODE   1387
 
 // Measure
 #define RB_NOISE        1400
 #define RB_SWEEP        1401
 #define CB_DIFFOUT      1415
+#define CB_VERIFYMODE   1416
 #define CB_REFIN        1420
 
 #define CB_CAL_FILE     1430

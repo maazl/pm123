@@ -64,6 +64,15 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   , DVM_DelayResult     ///< Show group delay of the target response an the last filter kernel used by DRC123.
   , DVM_TimeResult      ///< Show time domain data of the last used filter kernel.
   };
+  struct DeconvolutionViewParams
+  { DeconvolutionViewMode ViewMode;///< Currently active graph view in the deconvolution page.
+    double FreqLow,  FreqHigh;    ///< Display range for frequency
+    double GainLow,  GainHigh;    ///< Display range for gain response
+    double DelayLow, DelayHigh;   ///< Display range for delay
+    double TimeLow,  TimeHigh;    ///< X Display range for filter kernel
+    bool   TimeAuto;              ///< Determine time axis for filter kernel automatically.
+    double KernelLow,KernelHigh;  ///< Y Display range for filter kernel
+  };
   /// View mode of the graphs in the generate page.
   enum GenerateViewMode
   { GVM_Result          ///< View resulting target response only.
@@ -77,16 +86,18 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
    public:
     DBGainIterator(unsigned col) : AverageIterator(col) {}
   };
-  class PhaseDelayIterator : public DelayAverageIterator
+  class PhaseDelayIterator : public DelayIterator
   {protected:
     virtual double      ScaleResult(double) const;
    public:
-    PhaseDelayIterator(unsigned col) : DelayAverageIterator(col) {}
+    PhaseDelayIterator(unsigned col) : DelayIterator(col) {}
   };
 
  public:
-  /// Currently active graph view in the deconvolution page.
-  static DeconvolutionViewMode DeconvolutionView;
+  static const DeconvolutionViewParams DeconvolutionViewDefault;
+  /// Current view parameters for deconvolution
+  static DeconvolutionViewParams DeconvolutionView;
+
   /// Currently active graph view in the generate page.
   static GenerateViewMode GenerateView;
 
@@ -136,8 +147,8 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     ResponseGraph Result;
     DBGainIterator IterLGain;
     DBGainIterator IterRGain;
-    DelayAverageIterator IterLDelay;
-    DelayAverageIterator IterRDelay;
+    DelayIterator IterLDelay;
+    DelayIterator IterRDelay;
     AverageIterator IterLKernel;
     AverageIterator IterRKernel;
 
@@ -151,7 +162,7 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     , FDC_count
     };
     enum TimeDomainColumn
-    { TDC_Frequency
+    { TDC_Time
     , TDC_LKernel
     , TDC_RKernel
     , TDC_count
@@ -168,8 +179,26 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     void          UpdateDir();
     void          UpdateKernel();
     void          SetupGraph();
+    void          SetAxes();
     void          UpdateGraph();
     void          KernelChange(const Deconvolution::KernelChangeEventArgs& args);
+  };
+
+  class DeconvolutionExtPage : public PageBase
+  {public:
+    DeconvolutionExtPage(Frontend& parent)
+    : PageBase(parent, DLG_DECONV_X, parent.ResModule, DF_AutoResize)
+    { MinorTitle = "Extended palyback options";
+    }
+    //virtual ~DeconvolutionExtPage();
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+   private:
+    void          LoadControlValues(const DeconvolutionViewParams& params);
+    void          LoadControlValues()   { LoadControlValues(DeconvolutionView); }
+    void          LoadDefaultValues()   { LoadControlValues(DeconvolutionViewDefault); }
+    void          StoreControlValues(DeconvolutionViewParams& params);
+    void          StoreControlValues()  { StoreControlValues(DeconvolutionView); }
   };
 
   /// @brief Abstract base page for dialog pages that are based on a single \c DataFile.
@@ -247,9 +276,9 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
       virtual bool Reset(const DataFile& data);
       virtual void ReadNext(double f);
     };
-    class ResponseDelayIterator : public DelayAverageIterator
-    { DelayAverageIterator InterpolateLow;
-      DelayAverageIterator InterpolateHigh;
+    class ResponseDelayIterator : public DelayIterator
+    { DelayIterator InterpolateLow;
+      DelayIterator InterpolateHigh;
      public:
       ResponseDelayIterator(unsigned col, unsigned collow);
       virtual bool Reset(const DataFile& data);
@@ -264,8 +293,8 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     ResponseDelayIterator IterRDelay;
     DBGainIterator IterMesLGain;
     DBGainIterator IterMesRGain;
-    DelayAverageIterator IterMesLDelay;
-    DelayAverageIterator IterMesRDelay;
+    DelayIterator IterMesLDelay;
+    DelayIterator IterMesRDelay;
     /// Backup copy of measurement data for graphs.
     vector_own<DataFile> MeasurementData;
    public:
@@ -366,8 +395,8 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     ResponseGraph Response;
     DBGainIterator IterLGain;
     DBGainIterator IterRGain;
-    DelayAverageIterator IterLDelay;
-    DelayAverageIterator IterRDelay;
+    DelayIterator IterLDelay;
+    DelayIterator IterRDelay;
    public:
     MeasurePage(Frontend& parent);
     virtual ~MeasurePage();
@@ -395,10 +424,8 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     virtual ~MeasureExtPage() {}
    protected:
     //virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-    void          LoadControlValues(const Measure::MeasureFile& data);
     virtual void  LoadControlValues();
     virtual void  LoadDefaultValues();
-    void          StoreControlValues(Measure::MeasureFile& data);
     virtual void  StoreControlValues();
   };
 

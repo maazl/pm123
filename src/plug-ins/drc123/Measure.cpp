@@ -33,7 +33,7 @@
 
 
 Measure::MeasureFile::MeasureFile()
-: OpenLoopFile(5)
+: OpenLoopFile(ColCount)
 { // Set Default Parameters
   FFTSize = 1<<19;
   DiscardSamp = 1<<19;
@@ -70,34 +70,35 @@ Measure::MeasureFile::MeasureFile()
 }
 
 bool Measure::MeasureFile::ParseHeaderField(const char* string)
-{ const char* value;
-  if (!!(value = TryParam(string, "Mode")))
-    Mode = (MeasureMode)atoi(value);
-  else if (!!(value = TryParam(string, "Channels")))
-    Chan = (Channels)atoi(value);
-  else if (!!(value = TryParam(string, "DiffOut")))
-    DiffOut = (bool)atoi(value);
-  else if (!!(value = TryParam(string, "DiffIn")))
-    RefIn = (bool)atoi(value);
-  else if (!!(value = TryParam(string, "CalibrationFile")))
-    CalFile = value;
-  else if (!!(value = TryParam(string, "MicrophoneFile")))
-    MicFile = value;
+{ if (TryParam(string, "Mode"))
+    Mode = (MeasureMode)atoi(string);
+  else if (TryParam(string, "Channels"))
+    Chan = (Channels)atoi(string);
+  else if (TryParam(string, "DiffOut"))
+    DiffOut = (bool)atoi(string);
+  else if (TryParam(string, "VerifyMode"))
+    VerifyMode = (bool)atoi(string);
+  else if (TryParam(string, "DiffIn"))
+    RefIn = (bool)atoi(string);
+  else if (TryParam(string, "CalibrationFile"))
+    CalFile = string;
+  else if (TryParam(string, "MicrophoneFile"))
+    MicFile = string;
   else
     return OpenLoopFile::ParseHeaderField(string);
   return true;
 }
 
 bool Measure::MeasureFile::WriteHeaderFields(FILE* f)
-{
-  fprintf( f,
+{ fprintf( f,
     "##Mode=%u\n"
     "##Channels=%u\n"
     "##DiffOut=%u\n"
+    "##VerifyMode=%u\n"
     "##DiffIn=%u\n"
     "##CalibrationFile=%s\n"
     "##MicrophoneFile=%s\n"
-    , Mode, Chan, DiffOut, RefIn, CalFile.cdata(), MicFile.cdata() );
+    , Mode, Chan, DiffOut, VerifyMode, RefIn, CalFile.cdata(), MicFile.cdata() );
   return OpenLoopFile::WriteHeaderFields(f);
 }
 
@@ -166,7 +167,7 @@ void Measure::Inverse2x2(fftwf_complex& m11, fftwf_complex& m12, fftwf_complex& 
 }
 
 void Measure::InitAnalyzer()
-{ DataFile cal;
+{ DataFile cal(Calibrate::ColCount);
   Data2FFT d2f(cal, Params.FFTSize, (double)Format.samplerate / Params.FFTSize);
   // Prepare calibration data
   if (MesParams.CalFile.length())

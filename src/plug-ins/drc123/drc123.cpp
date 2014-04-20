@@ -54,14 +54,19 @@ PLUGIN_CONTEXT Ctx;
 
 
 inline static void do_load_prf_value(const char* name, bool& target)
-{ (*Ctx.plugin_api->profile_query)(name, &target, 1);
+{ char c;
+  if ((*Ctx.plugin_api->profile_query)(name, &c, 1) > 0)
+    target = !!(c & 1);
 }
 /*static void do_load_prf_value(const char* name, double& target)
 { char buffer[32];
   int len = (*Ctx.plugin_api->profile_query)(name, &buffer, sizeof buffer - 1);
   if (len >= 0 && len < 32)
   { buffer[len] = 0;
-    target = atof(buffer);
+    int len2;
+    double val;
+    if (sscanf(buffer, "%lf%n", &val, &len2) && len2 == len)
+      target = val;
   }
 }*/
 static void do_load_prf_value(const char* name, xstring& target)
@@ -108,7 +113,7 @@ inline static void do_save_prf_value(const char* name, bool value)
 }
 /*static void do_save_prf_value(const char* name, double value)
 { char buffer[32];
-  (*Ctx.plugin_api->profile_write)(name, buffer, sprintf(buffer, "%f", value));
+  (*Ctx.plugin_api->profile_write)(name, buffer, sprintf(buffer, "%lg", value));
 }*/
 inline static void do_save_prf_value(const char* name, xstring value)
 { (*Ctx.plugin_api->profile_write)(name, value.cdata(), value.length());
@@ -138,15 +143,29 @@ static void load_config()
   do_load_prf_value("filter.WorkDir",  Filter::WorkDir);
   do_load_prf_value("openloop.RecURI", OpenLoop::RecURI);
 
-  { do_load_prf_value("deconvolution.ViewMode", Frontend::DeconvolutionView);
-    Deconvolution::Parameters deconvolution;
+  { Deconvolution::Parameters deconvolution;
     Deconvolution::GetDefaultParameters(deconvolution);
     load_prf_value(deconvolution.TargetFile);
     load_prf_value(deconvolution.WindowFunction);
+    load_prf_value(deconvolution.Filter);
     load_prf_value(deconvolution.Enabled);
     load_prf_value(deconvolution.FIROrder);
     load_prf_value(deconvolution.PlanSize);
     Deconvolution::SetParameters(deconvolution);
+  }
+  { Frontend::DeconvolutionViewParams& deconvolution = Frontend::DeconvolutionView;
+    load_prf_value(deconvolution.ViewMode);
+    load_prf_value(deconvolution.FreqLow);
+    load_prf_value(deconvolution.FreqHigh);
+    load_prf_value(deconvolution.GainLow);
+    load_prf_value(deconvolution.GainHigh);
+    load_prf_value(deconvolution.DelayLow);
+    load_prf_value(deconvolution.DelayHigh);
+    load_prf_value(deconvolution.TimeLow);
+    load_prf_value(deconvolution.TimeHigh);
+    load_prf_value(deconvolution.TimeAuto);
+    load_prf_value(deconvolution.KernelLow);
+    load_prf_value(deconvolution.KernelHigh);
   }
   { do_load_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
@@ -162,11 +181,10 @@ static void load_config()
     load_prf_value(generate.NormFreqHigh);
     load_prf_value(generate.NormMode);
     load_prf_value(generate.LimitGain);
-    load_prf_value(generate.LimitGainRate);
+    load_prf_value(generate.GainSmoothing);
     load_prf_value(generate.LimitDelay);
-    load_prf_value(generate.LimitDelayRate);
+    load_prf_value(generate.DelaySmoothing);
     load_prf_value(generate.InvertHighGain);
-    load_prf_value(generate.Filter);
     load_prf_value(generate.GainLow);
     load_prf_value(generate.GainHigh);
     load_prf_value(generate.DelayLow);
@@ -241,14 +259,28 @@ void save_config()
   do_save_prf_value("filter.WorkDir",  xstring(Filter::WorkDir));
   do_save_prf_value("openloop.RecURI", xstring(OpenLoop::RecURI));
 
-  { do_save_prf_value("deconvolution.ViewMode", Frontend::DeconvolutionView);
-    Deconvolution::Parameters deconvolution;
+  { Deconvolution::Parameters deconvolution;
     Deconvolution::GetParameters(deconvolution);
     save_prf_value(deconvolution.TargetFile);
     save_prf_value(deconvolution.WindowFunction);
+    save_prf_value(deconvolution.Filter);
     save_prf_value(deconvolution.Enabled);
     save_prf_value(deconvolution.FIROrder);
     save_prf_value(deconvolution.PlanSize);
+  }
+  { const Frontend::DeconvolutionViewParams& deconvolution = Frontend::DeconvolutionView;
+    save_prf_value(deconvolution.ViewMode);
+    save_prf_value(deconvolution.FreqLow);
+    save_prf_value(deconvolution.FreqHigh);
+    save_prf_value(deconvolution.GainLow);
+    save_prf_value(deconvolution.GainHigh);
+    save_prf_value(deconvolution.DelayLow);
+    save_prf_value(deconvolution.DelayHigh);
+    save_prf_value(deconvolution.TimeLow);
+    save_prf_value(deconvolution.TimeHigh);
+    save_prf_value(deconvolution.TimeAuto);
+    save_prf_value(deconvolution.KernelLow);
+    save_prf_value(deconvolution.KernelHigh);
   }
   { do_save_prf_value("generate.ViewMode", Frontend::GenerateView);
     SyncAccess<Generate::TargetFile> pdata(Generate::GetData());
@@ -264,11 +296,10 @@ void save_config()
     save_prf_value(generate.NormFreqHigh);
     save_prf_value(generate.NormMode);
     save_prf_value(generate.LimitGain);
-    save_prf_value(generate.LimitGainRate);
+    save_prf_value(generate.GainSmoothing);
     save_prf_value(generate.LimitDelay);
-    save_prf_value(generate.LimitDelayRate);
+    save_prf_value(generate.DelaySmoothing);
     save_prf_value(generate.InvertHighGain);
-    save_prf_value(generate.Filter);
     save_prf_value(generate.GainLow);
     save_prf_value(generate.GainHigh);
     save_prf_value(generate.DelayLow);

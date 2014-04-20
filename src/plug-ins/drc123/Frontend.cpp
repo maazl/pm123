@@ -102,6 +102,7 @@ Frontend::Frontend(HWND owner, HMODULE module)
   Pages.append() = new GeneratePage(*this);
   Pages.append() = new GenerateExtPage(*this);
   Pages.append() = new DeconvolutionPage(*this);
+  Pages.append() = new DeconvolutionExtPage(*this);
   StartDialog(owner, NB_FRONTEND);
 }
 

@@ -43,6 +43,7 @@ Deconvolution::ParameterSet::ParameterSet()
   PlanSize = 32736;
   TargetFile = xstring::empty;
   WindowFunction = WFN_NONE;
+  Filter = FLT_Subsonic|FLT_Supersonic;
 }
 
 Deconvolution::ParameterSet::ParameterSet(const Parameters& r)
@@ -467,9 +468,32 @@ bool Deconvolution::Setup()
   { // get target response
     d2f.LoadFFT(args.Channel ? Generate::RGain : Generate::LGain, FreqDomain);
     FreqDomain[0] = 0.F; // no DC
-    for (i = 0; i <= CurPlanSize/2; ++i)
-      FreqDomain[i] = abs(FreqDomain[i]);
 
+    // Apply subsonic & supersonic
+    if ((args.Params->Filter & FLT_Subsonic) && d2f.Source.size())
+    { // Find low Frequency bound
+      int lowbin = (int)floor((*d2f.Source[0])[0] / d2f.FInc);
+      if (lowbin < CurPlanSize21)
+      { fftwf_complex* fp = FreqDomain.begin() + lowbin;
+        // use reasonable slew rate (3 dB/bin)
+        const double gainrate = 1 - .3 * args.Params->FIROrder / CurPlanSize;
+        double value = 1;
+        while (--fp != FreqDomain.begin())
+          *fp *= value *= gainrate;
+      }
+    }
+    if ((args.Params->Filter & FLT_Supersonic) && d2f.Source.size())
+    { // Find high Frequency bound
+      int highbin = (int)ceil((*d2f.Source[d2f.Source.size()-1])[0] / d2f.FInc);
+      if (highbin < CurPlanSize21)
+      { fftwf_complex* fp = FreqDomain.begin() + highbin;
+        // use reasonable slew rate (.5dB/bin)
+        const double gainrate = 1 - .056 * args.Params->FIROrder / CurPlanSize;
+        double value = 1;
+        while (fp++ != FreqDomain.end())
+          *fp *= value *= gainrate;
+      }
+    }
     // transform into the time domain
     fftwf_execute(BackwardPlan);
     #if defined(DEBUG_LOG) && DEBUG_LOG > 1
@@ -540,7 +564,8 @@ int Deconvolution::InRequestBuffer(const FORMAT_INFO2* format, float** buf)
       else if (LocalParamSet->FIROrder != params->FIROrder)
         NeedFIR = true;
       else if ( LocalParamSet->TargetFile != params->TargetFile
-        || LocalParamSet->WindowFunction != params->WindowFunction )
+        || LocalParamSet->WindowFunction != params->WindowFunction
+        || LocalParamSet->Filter != params->Filter )
         NeedKernel = true;
       // Update parameters
       LocalParamSet = params;

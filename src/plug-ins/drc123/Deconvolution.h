@@ -45,12 +45,18 @@ class Deconvolution : public Filter
     WFN_DIMMEDHAMMING,
     WFN_HAMMING
   };
+  enum FilterMode
+  { FLT_None
+  , FLT_Subsonic
+  , FLT_Supersonic
+  };
   struct Parameters
   { bool        Enabled;        ///< Flag whether the Filter is enabled by the user.
     int         FIROrder;       ///< Filter kernel length
     int         PlanSize;       ///< Last FFT plan size used for setup
     xstring     TargetFile;
     WFN         WindowFunction; ///< Currently selected window function
+    FilterMode  Filter;         ///< Filter frequencies outside the target frequency range.
   };
 
   struct KernelChangeEventArgs
@@ -167,5 +173,7 @@ class Deconvolution : public Filter
   static event_pub<const KernelChangeEventArgs>& GetKernelChange() { return KernelChange; }
   static void   ForceKernelChange()                     { KernelUpdateRequest = true; }
 };
+
+FLAGSATTRIBUTE(Deconvolution::FilterMode);
 
 #endif // DECONVOLUTION_H

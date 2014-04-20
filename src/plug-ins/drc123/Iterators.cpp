@@ -137,6 +137,24 @@ void AverageIterator::ReadNext(double key)
 }
 
 
+void DelayIterator::Aggregate(double from, double to)
+{
+  Point p = Right;
+  if (!p)
+  { p = Left;
+    if (!p)
+    { Value = NAN;
+      return;
+    }
+  }
+  if (p.Y < MinValue)
+    MinValue = p.Y;
+  if (p.Y > MaxValue)
+    MaxValue = p.Y;
+  Value += p.Y * (to - from);
+}
+
+
 bool DelayAverageIterator::Reset(const DataFile& data)
 { LastFX = 0;
   return AverageIterator::Reset(data);
@@ -198,7 +216,7 @@ DataRow& StoreIterator::RowAtKey(float key)
       ++Current;
   }
   // insert new row at Current
-  DataRow& row = *(Target.insert(Current++) = new DataRow(Target.columns()));
+  DataRow& row = *(Target.insert(Current++) = new (Target.columns())DataRow);
   row[0] = key;
   return row;
 }

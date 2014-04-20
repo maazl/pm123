@@ -52,8 +52,8 @@ Generate::Parameters::Parameters(const Parameters& r)
   NormMode = r.NormMode;
   LimitGain = r.LimitGain;
   LimitDelay = r.LimitDelay;
-  LimitGainRate = r.LimitGainRate;
-  LimitDelayRate = r.LimitDelayRate;
+  GainSmoothing = r.GainSmoothing;
+  DelaySmoothing = r.DelaySmoothing;
   InvertHighGain = r.InvertHighGain;
   GainLow  = r.GainLow;
   GainHigh = r.GainHigh;
@@ -77,10 +77,9 @@ void Generate::Parameters::swap(Parameters& r)
   ::swap(NormMode, r.NormMode);
   ::swap(LimitGain, r.LimitGain);
   ::swap(LimitDelay, r.LimitDelay);
-  ::swap(LimitGainRate, r.LimitGainRate);
-  ::swap(LimitDelayRate, r.LimitDelayRate);
+  ::swap(GainSmoothing, r.GainSmoothing);
+  ::swap(DelaySmoothing, r.DelaySmoothing);
   ::swap(InvertHighGain, r.InvertHighGain);
-  ::swap(Filter, r.Filter);
   ::swap(GainLow,  r.GainLow);
   ::swap(GainHigh, r.GainHigh);
   ::swap(DelayLow, r.DelayLow);
@@ -89,20 +88,19 @@ void Generate::Parameters::swap(Parameters& r)
 
 
 Generate::TargetFile::TargetFile()
-: DataFile(13)
+: DataFile(ColCount)
 { FreqLow  = 20.;
   FreqHigh = 20000.;
-  FreqBin  = .25;
-  FreqFactor = .005;
+  FreqBin  = .2;
+  FreqFactor = .01;
   NormFreqLow = 50.;
   NormFreqHigh = 500.;
   NormMode = NM_Energy;
-  LimitGain = pow(10, 12./20); // +15 dB
+  LimitGain = pow(10, 15./20); // +15 dB
   LimitDelay = .2;
-  LimitGainRate = .2;
-  LimitDelayRate = .05;
+  GainSmoothing = .2;
+  DelaySmoothing = .2;
   InvertHighGain = true;
-  Filter = FLT_Subsonic;
   GainLow  = -20.;
   GainHigh = +20.;
   DelayLow = -.2;
@@ -116,29 +114,26 @@ void Generate::TargetFile::swap(TargetFile& r)
 }
 
 bool Generate::TargetFile::ParseHeaderField(const char* string)
-{ const char* value;
-  if (!!(value = TryParam(string, "Measurement")))
+{ if (TryParam(string, "Measurement"))
   { Measure::MeasureFile* file = new Measure::MeasureFile();
-    file->FileName = value;
+    file->FileName = string;
     Measurements.get(file->FileName) = file;
-  } else if (!!(value = TryParam(string, "Freq")))
-    sscanf(value, "%lf,%lf", &FreqLow, &FreqHigh);
-  else if (!!(value = TryParam(string, "FreqBin")))
-    sscanf(value, "%lf,%lf", &FreqBin, &FreqFactor);
-  else if (!!(value = TryParam(string, "NormFreq")))
-      sscanf(value, "%lf,%lf", &NormFreqLow, &NormFreqHigh);
-  else if (!!(value = TryParam(string, "LimitGain")))
-    sscanf(value, "%lf,%lf", &LimitGain, &LimitGainRate);
-  else if (!!(value = TryParam(string, "LimitDelay")))
-    sscanf(value, "%lf,%lf", &LimitDelay, &LimitDelayRate);
-  else if (!!(value = TryParam(string, "InvertHighGain")))
-    InvertHighGain = !!atoi(value);
-  else if (!!(value = TryParam(string, "FilterMode")))
-    Filter = (FilterMode)atoi(value);
-  else if (!!(value = TryParam(string, "DispGain")))
-    sscanf(value, "%lf,%lf", &GainLow, &GainHigh);
-  else if (!!(value = TryParam(string, "DispDelay")))
-    sscanf(value, "%lf,%lf", &DelayLow, &DelayHigh);
+  } else if (TryParam(string, "Freq"))
+    sscanf(string, "%lf,%lf", &FreqLow, &FreqHigh);
+  else if (TryParam(string, "FreqBin"))
+    sscanf(string, "%lf,%lf", &FreqBin, &FreqFactor);
+  else if (TryParam(string, "NormFreq"))
+    sscanf(string, "%lf,%lf", &NormFreqLow, &NormFreqHigh);
+  else if (TryParam(string, "LimitGain"))
+    sscanf(string, "%lf,%lf", &LimitGain, &GainSmoothing);
+  else if (TryParam(string, "LimitDelay"))
+    sscanf(string, "%lf,%lf", &LimitDelay, &DelaySmoothing);
+  else if (TryParam(string, "InvertHighGain"))
+    InvertHighGain = !!atoi(string);
+  else if (TryParam(string, "DispGain"))
+    sscanf(string, "%lf,%lf", &GainLow, &GainHigh);
+  else if (TryParam(string, "DispDelay"))
+    sscanf(string, "%lf,%lf", &DelayLow, &DelayHigh);
   else
     return DataFile::ParseHeaderField(string);
   return true;
@@ -154,11 +149,10 @@ bool Generate::TargetFile::WriteHeaderFields(FILE* f)
     "##LimitGain=%f,%f\n"
     "##LimitDelay=%f,%f\n"
     "##InvertHighGain=%u\n"
-    "##FilterMode=%u\n"
     "##DispGain=%f,%f\n"
     "##DispDelay=%f,%f\n"
     , FreqLow, FreqHigh, FreqBin, FreqFactor, NormFreqLow, NormFreqHigh
-    , LimitGain, LimitGainRate, LimitDelay, LimitDelayRate, InvertHighGain, Filter
+    , LimitGain, GainSmoothing, LimitDelay, DelaySmoothing, InvertHighGain
     , GainLow, GainHigh, DelayLow, DelayHigh );
   return DataFile::WriteHeaderFields(f);
 }
@@ -288,8 +282,8 @@ void SumCollector::operator+=(double value)
 struct Interpolator
 { AverageIterator LGain;
   AverageIterator RGain;
-  DelayAverageIterator LDelay;
-  DelayAverageIterator RDelay;
+  DelayIterator LDelay;
+  DelayIterator RDelay;
   bool Valid;
   Interpolator(const Measure::MeasureFile& data);
   void FetchNext(double f);
@@ -329,7 +323,7 @@ void Generate::Run()
   const double scale = 1. / LocalData.Measurements.size();
   while (f <= LocalData.FreqHigh)
   {
-    DataRow& row = *(LocalData.append() = new DataRow(LocalData.columns()));
+    DataRow& row = *(LocalData.append() = new (LocalData.columns())DataRow);
     row[Frequency] = f;
     SumCollector lgain;
     SumCollector rgain;
@@ -360,12 +354,37 @@ void Generate::Run()
     f += LocalData.FreqBin + f * LocalData.FreqFactor;
   }
 
-  // TODO: limit slew rate
+  // limit slew rate
+  ApplySmoothing(LGain, LocalData.GainSmoothing);
+  ApplySmoothing(RGain, LocalData.GainSmoothing);
+  ApplySmoothing(LDelay, LocalData.DelaySmoothing);
+  ApplySmoothing(RDelay, LocalData.DelaySmoothing);
 }
 
-void Generate::ApplyRateLimit(unsigned col, double rate)
+void Generate::ApplySmoothing(unsigned col, double width)
 {
-  sco_arr<float> differential(LocalData.size());
+  // Calc filter coefficients
+  width = -1 / width * LocalData.FreqBin;
+  if (width >= 0)
+    return;
+  const double b1 = exp(width);
+  const double a0 = 1. - b1;
+
+  // Apply IIR filter forward
+  double acc = 0;
+  foreach (DataRow,*const*, rpp, LocalData)
+  { float& val = (**rpp)[col];
+    val = acc = a0 * val + b1 * acc;
+  }
+  // Apply IIR filter backward
+  acc = 0;
+  DataRow*const* rpp = LocalData.end();
+  while (rpp != LocalData.begin())
+  { float& val = (**--rpp)[col];
+    val = acc = a0 * val + b1 * acc;
+  }
+
+  /*sco_arr<float> differential(LocalData.size());
   sco_arr<signed char> except(LocalData.size());
   memset(except.begin(), 0, LocalData.size() * sizeof *except.get());
   float* dp = differential.begin();
@@ -391,16 +410,17 @@ void Generate::ApplyRateLimit(unsigned col, double rate)
   { double over = fabs(*dp) - rate;
     if (over > 0)
       ;
-  }
+  }*/
 }
 
 double Generate::ApplyGainLimit(double gain)
 { if (gain > LocalData.LimitGain)
   { if (LocalData.InvertHighGain)
-      gain = LocalData.LimitGain - gain;
+      gain = LocalData.LimitGain * LocalData.LimitGain / gain;
     else
       gain = LocalData.LimitGain;
-  } else if (gain < 1E-6) // avoid unreasonable values
+  }
+  if (gain < 1E-6) // avoid unreasonable values
     gain = 1E-6;
   return gain;
 }
