@@ -49,7 +49,7 @@ const char* pa_get_library_version(void);
 
 /** The current protocol version. Version 8 relates to Polypaudio
  * 0.8/PulseAudio 0.9. */
-#define PA_PROTOCOL_VERSION 19
+#define PA_PROTOCOL_VERSION 22
 
 /** The major version of PA. \since 0.9.15 */
 #define PA_MAJOR 0
