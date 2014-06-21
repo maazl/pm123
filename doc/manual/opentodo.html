@@ -1,11 +1,11 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1">
-  <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
-  <title>PM123 Known Problems &amp; ToDo list</title>
-  <meta name="author" content="Marcel Müller">
-  <style type="text/css">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+    <title>PM123 Known Problems &amp; ToDo list</title>
+    <meta name="author" content="Marcel Müller">
+    <style type="text/css">
 .open {
   background-color: #ffcccc;
 }
@@ -23,7 +23,7 @@
 }
 
   </style>
-  <script language="javascript" type="text/javascript">
+    <script language="javascript" type="text/javascript">
 <!--
 x=7;
 function setVisibility(classname,visible) {
@@ -37,177 +37,167 @@ function setVisibility(classname,visible) {
 }
 //-->
   </script>
-</head>
-<body
- onload="document.getElementById('cb_fixed').checked=false; setVisibility('fixed', false);">
-<h2>PM123's Known Problems &amp; Todo list</h2>
-Show: <input name="show" value="open"
- onclick="setVisibility(this.value, this.checked)" checked="true"
- type="checkbox">open
-<input name="show" value="work"
- onclick="setVisibility(this.value, this.checked)" checked="true"
- type="checkbox">in work
-<input name="show" value="test"
- onclick="setVisibility(this.value, this.checked)" checked="true"
- type="checkbox">testing
-<input name="show" value="cancel"
- onclick="setVisibility(this.value, this.checked)" checked="true"
- type="checkbox">won't fix
-<input id="cb_fixed" name="show" value="fixed"
- onclick="setVisibility(this.value, this.checked)" checked="true"
- type="checkbox">fixed
-<table border="1" cellpadding="3" cellspacing="0">
-  <tbody id="content">
-    <tr align="left" bgcolor="#cccccc">
-      <th width="140">Attributes</th>
-      <th width="25%">Topic</th>
-      <th>Details</th>
-    </tr>
-    <tr class="work">
-      <td>3 minor todo,<br>
-in work </td>
-      <td>Handling of start and stop positions in nested playlists</td>
-      <td>There are several complications when start/stop
-iterators of nested playlists have conflicting settings.</td>
-    </tr>
-    <tr class="open">
-      <td>12 minor bug,<br>
-open</td>
-      <td>Glitches of the slider when seeking or starting at a
-certain location.</td>
-      <td>When playback starts at a non-zero starting point the
-slider jumps to zero for the time of the initialization.<br>
-The problem at start is fixed, but when seeking the slider may still
-jump, because there will be played some samples that do not belong to
-the new location. Buffers already passed to the audio device can't be
-undone.</td>
-    </tr>
-    <tr class="test">
-      <td><em>13 medium todo,<br>
-untested</em></td>
-      <td>M3U8 support</td>
-      <td>PM123 1.32 also support Unicode playlist files. This
-has to be ported.</td>
-    </tr>
-    <tr class="work">
-      <td>14 minor todo,<br>
-in work </td>
-      <td>Feature: continue playing when loading an enclosing
-playlist.</td>
-      <td>If the currently playing item is part of the actually
-loaded playlist, playing should not be aborted. This is a configuration
-option.</td>
-    </tr>
-    <tr class="cancel">
-      <td>17 minor todo,<br>
-won't fix </td>
-      <td>Write ID3 tags and Vorbis comments always in place to
-preserve additional file properties.</td>
-      <td>Currently PM123 creates a copy of the file and then
-replaces the original file by this copy.
-This is reliable but it discards any information that OS/2 cannot see
-like access rights on a remote host
-or hard links to the file. There should be an in-place option to work
-around this.</td>
-    </tr>
-    <tr class="open">
-      <td>20 minor todo,<br>
-open</td>
-      <td>ogg123: support padding of vorbis comments</td>
-      <td>Newer
-libvorbis can change vorbis comments in place. ogg123 should use this
-to avoid unnecessary file replacements. This may supersede #17.</td>
-    </tr>
-    <tr class="open">
-      <td>22 minor bug,<br>
-open</td>
-      <td>Time display is sometimes jumpy and not monotonous.</td>
-      <td>The function output_playing_pos of os2audio.dll does
-not always hit the nail on the head. Reason unknown.</td>
-    </tr>
-    <tr class="cancel">
-      <td valign="top">26 minor todo,<br>
-won't fix </td>
-      <td valign="top">Implement buffering for write access in xio.dll.
-      </td>
-      <td valign="top">xio.dll currently disables the buffer if an
-object is opened for write access. </td>
-    </tr>
-    <tr class="open">
-      <td valign="top">30 minor todo,<br>
-open </td>
-      <td valign="top">PULSE123: checkbox&nbsp; <i>'keep context alive'</i>
-does not work. </td>
-      <td> Not yet implemented.</td>
-    </tr>
-    <tr class="open">
-      <td valign="top"><em>31 medium bug,<br>
-open</em></td>
-      <td valign="top">Holding the mouse over <i>'browse content' </i>while
-this sub menu is disabled because the information is not yet ready
-causes PM123 to crash.</td>
-      <td valign="top">Although the sub menu is disabled the content
-could be opened by the XWP setting to open sub menus automatically. But
-there is no content so far.</td>
-    </tr>
-    <tr class="cancel">
-      <td valign="top">33 minor bug,<br>
-won't fix </td>
-      <td valign="top">Memory of recursive playlists is never freed. </td>
-      <td valign="top">PM123 uses reference counted memory management.
-This is well known to cause problems on cyclic references. In practice
-recursive playlists are unusual. </td>
-    </tr>
-    <tr class="open">
-      <td valign="top">35 minor bug,<br>
-reopened</td>
-      <td valign="top">When loading a playlist without active playback,
-the total playing time is sometimes not displayed in the main window.</td>
-      <td valign="top">The aggregate information required for the
-calculation seems to vanish shortly after it appeared. Reason unknown. </td>
-    </tr>
-    <tr class="open">
-      <td valign="top">36 minor todo,<br>
-open</td>
-      <td valign="top">When a large playlist or a http stream is
-currently loading and the user requests another object while the first
-request has not yet completed, PM123 waits until the first object is
-available until it proceeds the second request.</td>
-      <td valign="top">There should be an option to cancel incomplete
-requests to the controller.<br>
-The core engine does not support cancels. The controller needs to
-schedule the requests asynchronously to meet this requirement.</td>
-    </tr>
-    <tr class="open">
-      <td valign="top">37 minor todo,<br>
-open</td>
-      <td valign="top">Player does not preserve enclosing playlist on
-exit.</td>
-      <td valign="top">When a playlist item is currently selected the
-player will refer to the song behind that item rather than the playlist
-entry. This will fail if the item is a song slice or a binary file
-referred by a cue sheet. Everything is fine if the entire cue sheet is
-selected to play.</td>
-    </tr>
-    <tr class="open">
-      <td valign="top"><em>40 medium todo,<br>
-open</em></td>
-      <td valign="top">Nested slices are not processed correctly when
-calculating aggregate information.</td>
-      <td valign="top">Slices are not implemented in <tt>SongIterator::CaclcOffsetCacheEntry</tt>.</td>
-    </tr>
-    <tr class="open">
-      <td valign="top"><em>41 medium bug,<br>
-open</em></td>
-      <td valign="top">Error message "Error reading stream (Code 18)"
-at the end of a song (mpg123 only).<br>
-      </td>
-      <td valign="top">Sometimes PM123 shows an error message at the
-end of a song. The playback itself is correct and also continue with
-the next song in playlist mode.</td>
-    </tr>
-  </tbody>
-</table>
-</body>
+  </head>
+  <body onload="document.getElementById('cb_fixed').checked=false; setVisibility('fixed', false);">
+    <h2>PM123's Known Problems &amp; Todo list</h2>
+    Show: <input name="show" value="open" onclick="setVisibility(this.value, this.checked)"
+      checked="true" type="checkbox">open <input name="show" value="work" onclick="setVisibility(this.value, this.checked)"
+      checked="true" type="checkbox">in work <input name="show" value="test" onclick="setVisibility(this.value, this.checked)"
+      checked="true" type="checkbox">testing <input name="show" value="cancel"
+      onclick="setVisibility(this.value, this.checked)" checked="true" type="checkbox">won't
+    fix <input id="cb_fixed" name="show" value="fixed" onclick="setVisibility(this.value, this.checked)"
+      type="checkbox">fixed
+    <table border="1" cellpadding="3" cellspacing="0">
+      <tbody id="content">
+        <tr align="left" bgcolor="#cccccc">
+          <th width="140">Attributes</th>
+          <th width="25%">Topic</th>
+          <th>Details</th>
+        </tr>
+        <tr class="work">
+          <td>3 minor todo,<br>
+            in work </td>
+          <td>Handling of start and stop positions in nested playlists</td>
+          <td>There are several complications when start/stop iterators of
+            nested playlists have conflicting settings.</td>
+        </tr>
+        <tr class="open">
+          <td>12 minor bug,<br>
+            open</td>
+          <td>Glitches of the slider when seeking or starting at a certain
+            location.</td>
+          <td>When playback starts at a non-zero starting point the slider jumps
+            to zero for the time of the initialization.<br>
+            The problem at start is fixed, but when seeking the slider may still
+            jump, because there will be played some samples that do not belong
+            to the new location. Buffers already passed to the audio device
+            can't be undone.</td>
+        </tr>
+        <tr class="test">
+          <td><em>13 medium todo,<br>
+              untested</em></td>
+          <td>M3U8 support</td>
+          <td>PM123 1.32 also support Unicode playlist files. This has to be
+            ported.</td>
+        </tr>
+        <tr class="work">
+          <td>14 minor todo,<br>
+            in work </td>
+          <td>Feature: continue playing when loading an enclosing playlist.</td>
+          <td>If the currently playing item is part of the actually loaded
+            playlist, playing should not be aborted. This is a configuration
+            option.</td>
+        </tr>
+        <tr class="cancel">
+          <td>17 minor todo,<br>
+            won't fix </td>
+          <td>Write ID3 tags and Vorbis comments always in place to preserve
+            additional file properties.</td>
+          <td>Currently PM123 creates a copy of the file and then replaces the
+            original file by this copy. This is reliable but it discards any
+            information that OS/2 cannot see like access rights on a remote host
+            or hard links to the file. There should be an in-place option to
+            work around this.</td>
+        </tr>
+        <tr class="open">
+          <td>20 minor todo,<br>
+            open</td>
+          <td>ogg123: support padding of vorbis comments</td>
+          <td>Newer libvorbis can change vorbis comments in place. ogg123 should
+            use this to avoid unnecessary file replacements. This may supersede
+            #17.</td>
+        </tr>
+        <tr class="open">
+          <td>22 minor bug,<br>
+            open</td>
+          <td>Time display is sometimes jumpy and not monotonous.</td>
+          <td>The function output_playing_pos of os2audio.dll does not always
+            hit the nail on the head. Reason unknown.</td>
+        </tr>
+        <tr class="cancel">
+          <td valign="top">26 minor todo,<br>
+            won't fix </td>
+          <td valign="top">Implement buffering for write access in xio.dll. </td>
+          <td valign="top">xio.dll currently disables the buffer if an object is
+            opened for write access. </td>
+        </tr>
+        <tr class="open">
+          <td valign="top">30 minor todo,<br>
+            open </td>
+          <td valign="top">PULSE123: checkbox&nbsp; <i>'keep context alive'</i>
+            does not work. </td>
+          <td> Not yet implemented.</td>
+        </tr>
+        <tr class="open">
+          <td valign="top"><em>31 medium bug,<br>
+              open</em></td>
+          <td valign="top">Holding the mouse over <i>'browse content' </i>while
+this
+            sub menu is disabled because the information is not yet ready causes
+            PM123 to crash.</td>
+          <td valign="top">Although the sub menu is disabled the content could
+            be opened by the XWP setting to open sub menus automatically. But
+            there is no content so far.</td>
+        </tr>
+        <tr class="cancel">
+          <td valign="top">33 minor bug,<br>
+            won't fix </td>
+          <td valign="top">Memory of recursive playlists is never freed. </td>
+          <td valign="top">PM123 uses reference counted memory management. This
+            is well known to cause problems on cyclic references. In practice
+            recursive playlists are unusual. </td>
+        </tr>
+        <tr class="open">
+          <td valign="top">35 minor bug,<br>
+            reopened</td>
+          <td valign="top">When loading a playlist without active playback, the
+            total playing time is sometimes not displayed in the main window.</td>
+          <td valign="top">The aggregate information required for the
+            calculation seems to vanish shortly after it appeared. Reason
+            unknown. </td>
+        </tr>
+        <tr class="cancel">
+          <td valign="top">36 minor todo,<br>
+            won't fix</td>
+          <td valign="top">When a large playlist or a http stream is currently
+            loading and the user requests another object while the first request
+            has not yet completed, PM123 waits until the first object is
+            available until it proceeds the second request.</td>
+          <td valign="top">There should be an option to cancel incomplete
+            requests to the controller.<br>
+            The core engine does not support cancels. The controller needs to
+            schedule the requests asynchronously to meet this requirement. This
+            requires a major rework.</td>
+        </tr>
+        <tr class="open">
+          <td valign="top">37 minor todo,<br>
+            open</td>
+          <td valign="top">Player does not preserve enclosing playlist on exit.</td>
+          <td valign="top">When a playlist item is currently selected the player
+            will refer to the song behind that item rather than the playlist
+            entry. This will fail if the item is a song slice or a binary file
+            referred by a cue sheet. Everything is fine if the entire cue sheet
+            is selected to play.</td>
+        </tr>
+        <tr class="open">
+          <td valign="top"><em>40 medium todo,<br>
+              open</em></td>
+          <td valign="top">Nested slices are not processed correctly when
+            calculating aggregate information.</td>
+          <td valign="top">Slices are not implemented in <tt>SongIterator::CaclcOffsetCacheEntry</tt>.</td>
+        </tr>
+        <tr class="open">
+          <td valign="top"><em>41 medium bug,<br>
+              open</em></td>
+          <td valign="top">Error message "Error reading stream (Code 18)" at the
+            end of a song (mpg123 only).<br>
+          </td>
+          <td valign="top">Sometimes PM123 shows an error message at the end of
+            a song. The playback itself is correct and also continue with the
+            next song in playlist mode.</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
 </html>
 

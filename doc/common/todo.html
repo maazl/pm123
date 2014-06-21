@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
+<html lang="en">
   <head>
     <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
     <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
@@ -41,15 +41,12 @@ function setVisibility(classname,visible) {
   <body onload="document.getElementById('cb_fixed').checked=false; setVisibility('fixed', false);">
     <h2>PM123's Known Problems &amp; Todo list</h2>
     Show: <input name="show" value="open" onclick="setVisibility(this.value, this.checked)"
-      checked="true" type="checkbox">open
-    <input name="show" value="work" onclick="setVisibility(this.value, this.checked)"
-      checked="true" type="checkbox">in work
-    <input name="show" value="test" onclick="setVisibility(this.value, this.checked)"
-      checked="true" type="checkbox">testing
-    <input name="show" value="cancel" onclick="setVisibility(this.value, this.checked)"
-      checked="true" type="checkbox">won't fix
-    <input id="cb_fixed" name="show" value="fixed" onclick="setVisibility(this.value, this.checked)"
-      checked="true" type="checkbox">fixed
+      checked="true" type="checkbox">open <input name="show" value="work" onclick="setVisibility(this.value, this.checked)"
+      checked="true" type="checkbox">in work <input name="show" value="test" onclick="setVisibility(this.value, this.checked)"
+      checked="true" type="checkbox">testing <input name="show" value="cancel"
+      onclick="setVisibility(this.value, this.checked)" checked="true" type="checkbox">won't
+    fix <input id="cb_fixed" name="show" value="fixed" onclick="setVisibility(this.value, this.checked)"
+      type="checkbox">fixed
     <table border="1" cellpadding="3" cellspacing="0">
       <tbody id="content">
         <tr align="left" bgcolor="#cccccc">
@@ -61,16 +58,16 @@ function setVisibility(classname,visible) {
           <td><strong>1 major todo,<br>
               fixed (1.41a)</strong></td>
           <td>Shuffle not working</td>
-          <td>There are some open issues how this should work with
-            respect to nested playlists and the previous/next buttons when the
-            playlist is modified.</td>
+          <td>There are some open issues how this should work with respect to
+            nested playlists and the previous/next buttons when the playlist is
+            modified.</td>
         </tr>
         <tr class="fixed">
           <td><em>2 medium&nbsp;bug,<br>
               gone</em></td>
           <td>PM123 sometimes crashes when starting playback</td>
-          <td>Sometimes the decoder thread runs into a access
-            violation at start of playback.<br>
+          <td>Sometimes the decoder thread runs into a access violation at start
+            of playback.<br>
             Reason unknown. Perhaps some threading issue.<br>
             Seems to have gone.</td>
         </tr>
@@ -78,208 +75,186 @@ function setVisibility(classname,visible) {
           <td>3 minor todo,<br>
             in work </td>
           <td>Handling of start and stop positions in nested playlists</td>
-          <td>There are several complications when start/stop
-            iterators of nested playlists have conflicting settings.</td>
+          <td>There are several complications when start/stop iterators of
+            nested playlists have conflicting settings.</td>
         </tr>
         <tr class="fixed">
           <td><em>4 medium&nbsp;bug,<br>
               fixed</em></td>
           <td>Messages about non-existing files at first start up</td>
-          <td>When starting the first error messages about
-            non-existing show up. This messages should be suppressed.</td>
+          <td>When starting the first error messages about non-existing show up.
+            This messages should be suppressed.</td>
         </tr>
         <tr class="fixed">
           <td><em>5 medium bug,<br>
               fixed (1.41a)</em></td>
           <td>Decoder starts at wrong priority</td>
-          <td>In playlist mode when the data for the next song is
-            prefetched the new decoder thread does not inherit the priority from
-            the old thread. This may cause the playback to have drop outs.<br>
+          <td>In playlist mode when the data for the next song is prefetched the
+            new decoder thread does not inherit the priority from the old
+            thread. This may cause the playback to have drop outs.<br>
             Mainly fixed: the priority is fixed as soon as possible.</td>
         </tr>
         <tr class="fixed">
           <td><em>6 medium bug,<br>
               fixed (1.41a) </em></td>
-          <td>Deadlocks with recursive
-            playlists</td>
-          <td>With recursive playlist structures PM123 sometimes
-            deadlocks because the list semaphore are not requested top down. In
-            fact there is no top and no bottom in this case.</td>
+          <td>Deadlocks with recursive playlists</td>
+          <td>With recursive playlist structures PM123 sometimes deadlocks
+            because the list semaphore are not requested top down. In fact there
+            is no top and no bottom in this case.</td>
         </tr>
         <tr class="fixed">
           <td><em>7 medium todo,<br>
               fixed (1.41a)</em></td>
           <td>Invalid HTTP URLs take minutes</td>
-          <td>When an URL target is not available or invalid, it may
-            take several minutes for PM123 to notify this. If you have many of
-            such
+          <td>When an URL target is not available or invalid, it may take
+            several minutes for PM123 to notify this. If you have many of such
             links e.g. in the bookmarks PM123 may be not responsive for a
             considerable amount of time.<br>
             This is a design problem, because any decoder plugin might try to
-            open
-            the URL without success, every time waiting for a timeout.</td>
+            open the URL without success, every time waiting for a timeout.</td>
         </tr>
         <tr class="fixed">
           <td><strong>8 major bug,<br>
               fixed (1.40a4)</strong></td>
           <td>EAs lost when editing meta information</td>
-          <td>The 'Edit file info' feature of mpg123 and oggplay
-            destroys any EA information.</td>
+          <td>The 'Edit file info' feature of mpg123 and oggplay destroys any EA
+            information.</td>
         </tr>
         <tr class="fixed">
           <td>9 minor todo,<br>
             fixed (1.41a)</td>
           <td>Code page handling of ID3 V1.x and ID3 V2.x tags</td>
-          <td>If the input and output code page is different the ID3
-            tags are not turn around stable. This causes special characters to
-            be
+          <td>If the input and output code page is different the ID3 tags are
+            not turn around stable. This causes special characters to be
             destroyed when saving the tag.</td>
         </tr>
         <tr class="fixed">
           <td><em>10 medium todo,<br>
               fixed (1.41a)</em></td>
-          <td>PM lock-up when slider is used while a worker thread
-            gets information on a playlist.</td>
-          <td>Thread 1 acquires playlist mutex when slider is used.
-            Can cause SIQ locks. Maybe the Worker should not lock the entire
-            playlist while calculation of tech infos.</td>
+          <td>PM lock-up when slider is used while a worker thread gets
+            information on a playlist.</td>
+          <td>Thread 1 acquires playlist mutex when slider is used. Can cause
+            SIQ locks. Maybe the Worker should not lock the entire playlist
+            while calculation of tech infos.</td>
         </tr>
         <tr class="fixed">
           <td><em>11 medium bug,<br>
               fixed (1.41a)</em></td>
-          <td>NavigateTo does not work if we see a slice of the
-            current root.</td>
-          <td>If the currently visible windows root is below the
-            currently loaded root, navigate to starts at the loaded root rather
-            than the window's root. This consequently fails.</td>
+          <td>NavigateTo does not work if we see a slice of the current root.</td>
+          <td>If the currently visible windows root is below the currently
+            loaded root, navigate to starts at the loaded root rather than the
+            window's root. This consequently fails.</td>
         </tr>
         <tr class="open">
           <td>12 minor bug,<br>
             open</td>
-          <td>Glitches of the slider when seeking or starting at a
-            certain location.</td>
-          <td>When playback starts at a non-zero starting point the
-            slider jumps to zero for the time of the initialization.<br>
+          <td>Glitches of the slider when seeking or starting at a certain
+            location.</td>
+          <td>When playback starts at a non-zero starting point the slider jumps
+            to zero for the time of the initialization.<br>
             The problem at start is fixed, but when seeking the slider may still
             jump, because there will be played some samples that do not belong
-            to
-            the new location. Buffers already passed to the audio device can't
-            be
-            undone.</td>
+            to the new location. Buffers already passed to the audio device
+            can't be undone.</td>
         </tr>
         <tr class="test">
           <td><em>13 medium todo,<br>
               untested</em></td>
           <td>M3U8 support</td>
-          <td>PM123 1.32 also support Unicode playlist files. This
-            has to be ported.</td>
+          <td>PM123 1.32 also support Unicode playlist files. This has to be
+            ported.</td>
         </tr>
         <tr class="work">
           <td>14 minor todo,<br>
             in work </td>
-          <td>Feature: continue playing when loading an enclosing
-            playlist.</td>
-          <td>If the currently playing item is part of the actually
-            loaded playlist, playing should not be aborted. This is a
-            configuration
+          <td>Feature: continue playing when loading an enclosing playlist.</td>
+          <td>If the currently playing item is part of the actually loaded
+            playlist, playing should not be aborted. This is a configuration
             option.</td>
         </tr>
         <tr class="fixed">
           <td>15 minor todo,<br>
             fixed (1.41a) </td>
           <td>playlist with alternate items for HTTP streams</td>
-          <td>For live streams&nbsp;it is quite common to provide
-            a playlist with a set of alternative streaming servers instead of a
-            single server. While PM123 is able to handle this kind of files and
-            play the first valid stream, it has unwanted effects when adding
-            these
+          <td>For live streams&nbsp;it is quite common to provide a playlist
+            with a set of alternative streaming servers instead of a single
+            server. While PM123 is able to handle this kind of files and play
+            the first valid stream, it has unwanted effects when adding these
             playlists to another playlist, because all of the contained items
-            are
-            equivalent.</td>
+            are equivalent.</td>
         </tr>
         <tr class="fixed">
           <td><strong>16 major bug,<br>
               fixed (1.41a)</strong></td>
           <td>Some meta information lost</td>
-          <td>When saving Ogg vorbis comments all tags that PM123
-            does not know are deleted silently.</td>
+          <td>When saving Ogg vorbis comments all tags that PM123 does not know
+            are deleted silently.</td>
         </tr>
         <tr class="cancel">
           <td>17 minor todo,<br>
             won't fix </td>
-          <td>Write ID3 tags and Vorbis comments always in place to
-            preserve additional file properties.</td>
-          <td>Currently PM123 creates a copy of the file and then
-            replaces the original file by this copy.
-            This is reliable but it discards any information that OS/2 cannot
-            see
-            like access rights on a remote host
+          <td>Write ID3 tags and Vorbis comments always in place to preserve
+            additional file properties.</td>
+          <td>Currently PM123 creates a copy of the file and then replaces the
+            original file by this copy. This is reliable but it discards any
+            information that OS/2 cannot see like access rights on a remote host
             or hard links to the file. There should be an in-place option to
-            work
-            around this.</td>
+            work around this.</td>
         </tr>
         <tr class="fixed">
           <td><em>18 medium todo,<br>
               fixed </em><em>(1.41a)</em></td>
-          <td>The command line interface and the remote interface
-            needs to be reworked and tested.</td>
-          <td>The many changes to PM123 are not fully reflected to
-            the remote interface so far.</td>
+          <td>The command line interface and the remote interface needs to be
+            reworked and tested.</td>
+          <td>The many changes to PM123 are not fully reflected to the remote
+            interface so far.</td>
         </tr>
         <tr class="fixed">
           <td>19 minor todo,<br>
             done (1.41a)</td>
           <td>Save the size of the info dialog window</td>
-          <td>Depending
-            on the system settings a different size of the info dialog window is
-            required. In fact the user has to choose the appropriate size, but
-            it
-            is annoying to do this again and again.</td>
+          <td>Depending on the system settings a different size of the info
+            dialog window is required. In fact the user has to choose the
+            appropriate size, but it is annoying to do this again and again.</td>
         </tr>
         <tr class="open">
           <td>20 minor todo,<br>
             open</td>
           <td>ogg123: support padding of vorbis comments</td>
-          <td>Newer
-            libvorbis can change vorbis comments in place. ogg123 should use
-            this
-            to avoid unnecessary file replacements. This may supersede #17.</td>
+          <td>Newer libvorbis can change vorbis comments in place. ogg123 should
+            use this to avoid unnecessary file replacements. This may supersede
+            #17.</td>
         </tr>
         <tr class="fixed">
           <td><em>21 medium bug,<br>
               gone</em></td>
           <td>Dropping a folder to PM123 program object does not work.</td>
-          <td>When invoking PM123 with a folder as command line
-            argument
-            no trailing slash is added automatically. Consequently the playback
-            fails
-            with 'no matching decoder'.</td>
+          <td>When invoking PM123 with a folder as command line argument no
+            trailing slash is added automatically. Consequently the playback
+            fails with 'no matching decoder'.</td>
         </tr>
         <tr class="open">
           <td>22 minor bug,<br>
             open</td>
           <td>Time display is sometimes jumpy and not monotonous.</td>
-          <td>The function output_playing_pos of os2audio.dll does
-            not always hit the nail on the head. Reason unknown.</td>
+          <td>The function output_playing_pos of os2audio.dll does not always
+            hit the nail on the head. Reason unknown.</td>
         </tr>
         <tr class="fixed">
           <td><em>23 medium bug,<br>
               fixed </em><em>(1.41a)</em></td>
           <td>Pipe interface not working</td>
-          <td>Open tagedit ... does not work. The command line with *
-            splits the commands into separate ones.</td>
+          <td>Open tagedit ... does not work. The command line with * splits the
+            commands into separate ones.</td>
         </tr>
         <tr class="fixed">
           <td><em>24 medium todo,<br>
               done (1.41a)</em></td>
           <td>Restrict meta data length in scroller.</td>
-          <td>Meta
-            data strings can be quite long. This can cause the scroller to take
-            a
-            reasonable amount of time to return to the start. An option to
-            restrict
-            the length of the meta data for the scroller display would be
-            helpful.</td>
+          <td>Meta data strings can be quite long. This can cause the scroller
+            to take a reasonable amount of time to return to the start. An
+            option to restrict the length of the meta data for the scroller
+            display would be helpful.</td>
         </tr>
         <tr class="fixed">
           <td><em>25 medium bug,<br>
@@ -293,29 +268,28 @@ function setVisibility(classname,visible) {
           <td valign="top">26 minor todo,<br>
             won't fix </td>
           <td valign="top">Implement buffering for write access in xio.dll. </td>
-          <td valign="top">xio.dll currently disables the buffer if an
-            object is opened for write access. </td>
+          <td valign="top">xio.dll currently disables the buffer if an object is
+            opened for write access. </td>
         </tr>
         <tr class="fixed">
           <td valign="top"><em>27 medium bug,<br>
               fixed (1.41a)</em> </td>
           <td valign="top">Playback has drop outs with heavy system load. </td>
-          <td valign="top">The priority handling seems to be somehow
-            broken. </td>
+          <td valign="top">The priority handling seems to be somehow broken. </td>
         </tr>
         <tr class="fixed">
           <td valign="top"><em>28 medium bug,<br>
               fixed</em> </td>
           <td valign="top">RealEQ sadly fails on mono files. </td>
-          <td valign="top">The RealEQ output is highly distorted if the
-            playback stream has only one channel. </td>
+          <td valign="top">The RealEQ output is highly distorted if the playback
+            stream has only one channel. </td>
         </tr>
         <tr class="fixed">
           <td valign="top"><em>29 medium bug,<br>
               fixed </em><em>(1.41a)</em></td>
           <td valign="top">Drag &amp; drop looses playlist item properties.</td>
-          <td valign="top">Drag &amp; drop currently only passes the URL of
-            the dragged item. Properties like slices and alias names are lost.</td>
+          <td valign="top">Drag &amp; drop currently only passes the URL of the
+            dragged item. Properties like slices and alias names are lost.</td>
         </tr>
         <tr class="open">
           <td valign="top">30 minor todo,<br>
@@ -329,11 +303,10 @@ function setVisibility(classname,visible) {
               open</em></td>
           <td valign="top">Holding the mouse over <i>'browse content' </i>while
 this
-            sub menu is disabled because the information is not yet ready
-            causes PM123 to crash.</td>
-          <td valign="top">Although the sub menu is disabled the content
-            could be opened by the XWP setting to open sub menus automatically.
-            But
+            sub menu is disabled because the information is not yet ready causes
+            PM123 to crash.</td>
+          <td valign="top">Although the sub menu is disabled the content could
+            be opened by the XWP setting to open sub menus automatically. But
             there is no content so far.</td>
         </tr>
         <tr class="fixed">
@@ -341,90 +314,82 @@ this
               fixed</em> </td>
           <td valign="top">Remaining playlist time counts down with double
             speed. </td>
-          <td valign="top">When playing the last song of a playlist, the
-            total remaining time counts down 2 seconds per second. In other
-            situation the field stays blank. Furthermore the last song is
-            missing
-            if not in playback mode. </td>
+          <td valign="top">When playing the last song of a playlist, the total
+            remaining time counts down 2 seconds per second. In other situation
+            the field stays blank. Furthermore the last song is missing if not
+            in playback mode. </td>
         </tr>
         <tr class="cancel">
           <td valign="top">33 minor bug,<br>
             won't fix </td>
           <td valign="top">Memory of recursive playlists is never freed. </td>
-          <td valign="top">PM123 uses reference counted memory management.
-            This is well known to cause problems on cyclic references. In
-            practice
+          <td valign="top">PM123 uses reference counted memory management. This
+            is well known to cause problems on cyclic references. In practice
             recursive playlists are unusual. </td>
         </tr>
         <tr class="fixed">
           <td valign="top"><strong>33 major bug,<br>
               fixed</strong></td>
-          <td valign="top">When loading a playlist the player does not
-            start playback, even if <i>'start playing on file load'</i> is
-            activated.</td>
+          <td valign="top">When loading a playlist the player does not start
+            playback, even if <i>'start playing on file load'</i> is activated.</td>
           <td valign="top">Reason unknown.</td>
         </tr>
         <tr class="fixed">
           <td valign="top"><em>34 medium bug,<br>
               fixed</em></td>
-          <td valign="top">When loading large playlists, the sub items are
-            not loaded in parallel by different worker threads.</td>
+          <td valign="top">When loading large playlists, the sub items are not
+            loaded in parallel by different worker threads.</td>
           <td valign="top">This causes significant delays on http streams.<br>
             Most likely the TrySync option overshot the mark.</td>
         </tr>
         <tr class="open">
           <td valign="top">35 minor bug,<br>
             reopened</td>
-          <td valign="top">When loading a playlist without active playback,
-            the total playing time is sometimes not displayed in the main
-            window.</td>
+          <td valign="top">When loading a playlist without active playback, the
+            total playing time is sometimes not displayed in the main window.</td>
           <td valign="top">The aggregate information required for the
             calculation seems to vanish shortly after it appeared. Reason
             unknown. </td>
         </tr>
-        <tr class="open">
+        <tr class="cancel">
           <td valign="top">36 minor todo,<br>
-            open</td>
-          <td valign="top">When a large playlist or a http stream is
-            currently loading and the user requests another object while the
-            first
-            request has not yet completed, PM123 waits until the first object is
+            won't fix</td>
+          <td valign="top">When a large playlist or a http stream is currently
+            loading and the user requests another object while the first request
+            has not yet completed, PM123 waits until the first object is
             available until it proceeds the second request.</td>
           <td valign="top">There should be an option to cancel incomplete
             requests to the controller.<br>
             The core engine does not support cancels. The controller needs to
-            schedule the requests asynchronously to meet this requirement.</td>
+            schedule the requests asynchronously to meet this requirement. This
+            requires a major rework.</td>
         </tr>
         <tr class="open">
           <td valign="top">37 minor todo,<br>
             open</td>
-          <td valign="top">Player does not preserve enclosing playlist on
-            exit.</td>
-          <td valign="top">When a playlist item is currently selected the
-            player will refer to the song behind that item rather than the
-            playlist
+          <td valign="top">Player does not preserve enclosing playlist on exit.</td>
+          <td valign="top">When a playlist item is currently selected the player
+            will refer to the song behind that item rather than the playlist
             entry. This will fail if the item is a song slice or a binary file
             referred by a cue sheet. Everything is fine if the entire cue sheet
-            is
-            selected to play.</td>
+            is selected to play.</td>
         </tr>
         <tr class="fixed">
           <td valign="top"><em>38 medium bug,<br>
               fixed (1.42a)</em></td>
-          <td valign="top">Total remaining time and remaining playlist
-            items in shuffle mode wrong.</td>
+          <td valign="top">Total remaining time and remaining playlist items in
+            shuffle mode wrong.</td>
           <td valign="top">The displayed differences do not care about the
             shuffle sequence.</td>
         </tr>
         <tr class="fixed">
           <td valign="top"><strong>39 major bug,<br>
               fixed (1.42a)</strong></td>
-          <td valign="top">Append to default playlist discards the
-            currently playing item.</td>
-          <td valign="top">When a song is playing the append option
-            immediately navigates to the new song rather than to continue
-            playback
-            of the current song.</td>
+          <td valign="top">Append to default playlist discards the currently
+            playing item.</td>
+          <td valign="top">When a song is playing the append option immediately
+            navigates to the new song rather than to continue playback of the
+            current song.</td>
         </tr>
         <tr class="open">
           <td valign="top"><em>40 medium todo,<br>
@@ -436,12 +401,19 @@ this
         <tr class="open">
           <td valign="top"><em>41 medium bug,<br>
               open</em></td>
-          <td valign="top">Error message "Error reading stream (Code 18)"
-            at the end of a song (mpg123 only).<br>
+          <td valign="top">Error message "Error reading stream (Code 18)" at the
+            end of a song (mpg123 only).<br>
           </td>
-          <td valign="top">Sometimes PM123 shows an error message at the
-            end of a song. The playback itself is correct and also continue with
-            the next song in playlist mode.</td>
+          <td valign="top">Sometimes PM123 shows an error message at the end of
+            a song. The playback itself is correct and also continue with the
+            next song in playlist mode.</td>
+        </tr>
+        <tr class="fixed">
+          <td><em>42 medium bug,<br>
+              fixed</em></td>
+          <td>When playing a cue sheet the time display is wrong (stays) at
+            zero.</td>
+          <td>There seems to be a problem with the offset calculation.</td>
         </tr>
       </tbody>
     </table>
