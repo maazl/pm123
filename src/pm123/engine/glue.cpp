@@ -269,7 +269,7 @@ ULONG GlueImp::DecCommand(DECMSGTYPE msg)
 
 /* invoke decoder to play an URL */
 ULONG Glue::DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
-{ DEBUGLOG(("Glue::DecPlay(&%p{%s}, %f, %f,%f)\n", &song, song.DebugName().cdata(), offset, start, stop));
+{ DEBUGLOG(("Glue::DecPlay(&%p{%s}, %g, %g,%g)\n", &song, song.DebugName().cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
   // Uninit current DecPlug if any
   DecClose();
@@ -517,7 +517,7 @@ GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf)
 
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
 GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
-{ DEBUGLOG(("GlueImp::GlueCommitBuffer(%p, %i, %f) - %u\n", a, len, posmarker, GlueImp::Initialized));
+{ DEBUGLOG(("GlueImp::GlueCommitBuffer(%p, %i, %g) - %u\n", a, len, posmarker, GlueImp::Initialized));
   if (!GlueImp::Initialized)
     return;
   bool send_playstop = false;

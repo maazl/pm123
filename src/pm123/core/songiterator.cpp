@@ -582,8 +582,11 @@ InfoFlags SongIterator::AddFrontAggregate(AggregateInfo& ai, InfoFlags what, Job
     { CalcOffsetCacheEntry(job, i, what);
       ai.Add(OffsetCache[i]->Front, what);
     }
-    if ((what & IF_Drpl) && GetPosition() > 0)
-      ai.Drpl.totallength += GetPosition();
+    if (what & IF_Drpl)
+    { PM123_TIME time = GetTime();
+      if (time > 0)
+        ai.Drpl.totallength += time;
+    }
   }
   return whatnotok;
 }
@@ -610,8 +613,11 @@ InfoFlags SongIterator::AddBackAggregate(AggregateInfo& ai, InfoFlags what, Job&
       const volatile AggregateInfo& lai = job.RequestAggregateInfo(*cur, exclude, what2);
       whatnotok |= what2;
       ai.Add(lai, what);
-      if (GetPosition() > 0 && (what & IF_Drpl))
-        ai.Drpl.totallength -= GetPosition();
+      if (what & IF_Drpl)
+      { PM123_TIME time = GetTime();
+        if (time > 0)
+          ai.Drpl.totallength -= time;
+      }
     }
   }
   return whatnotok;

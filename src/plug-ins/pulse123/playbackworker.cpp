@@ -68,7 +68,7 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
       l = (m + 1) % countof(BufferQueue);
     }
   }
-  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: no match %u -> %Lu -> %u\n", l, BufferQueue[l].WriteIndex, BufferQueue[l].Data));
+  DEBUGLOG(("PlaybackWorker::BackupBuffer::FindByWriteIndex: inexact match %u -> %Lu -> %u\n", l, BufferQueue[l].WriteIndex, BufferQueue[l].Data));
   return l;
 }
 
@@ -97,7 +97,7 @@ size_t PlaybackWorker::BackupBuffer::FindByWriteIndex(uint64_t wi) const
 }*/
 
 void PlaybackWorker::BackupBuffer::StoreData(uint64_t wi, PM123_TIME pos, int channels, int rate, const float* data, size_t count)
-{ DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData(%Lu, %f, %i, %i, %p, %u) - [%u,%u[\n",
+{ DEBUGLOG(("PlaybackWorker::BackupBuffer::StoreData(%Lu, %g, %i, %i, %p, %u) - [%u,%u[\n",
     wi, pos, channels, rate, data, count, BufferLow, BufferHigh));
   Mutex::Lock lock(Mtx);
   if (wi <= MaxWriteIndex)

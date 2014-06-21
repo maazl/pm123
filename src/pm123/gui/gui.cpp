@@ -1594,7 +1594,7 @@ bool GUIImp::ShowHidePlaylist(PlaylistBase* plp, DialogAction action)
 
 
 void GUIImp::RefreshTimers(HPS hps, int rem_song, PM123_TIME rem_time)
-{ DEBUGLOG(("GUI::RefreshTimers(%p, %i, %f) - %i\n", hps, rem_song, rem_time, Cfg::Get().mode));
+{ DEBUGLOG(("GUIImp::RefreshTimers(%p, %i, %g) - %i\n", hps, rem_song, rem_time, Cfg::Get().mode));
 
   APlayable* root = CurrentIter->GetRoot();
   if (!root)
