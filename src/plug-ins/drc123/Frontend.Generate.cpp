@@ -37,8 +37,8 @@
 
 Frontend::GeneratePage::ResponseGainIterator::ResponseGainIterator(unsigned col, unsigned collow)
 : DBGainIterator(col)
-, InterpolateLow(collow)
-, InterpolateHigh(collow+1)
+, InterpolateLow(collow, false)
+, InterpolateHigh(collow+1, false)
 {}
 
 bool Frontend::GeneratePage::ResponseGainIterator::Reset(const DataFile& data)
@@ -58,8 +58,8 @@ void Frontend::GeneratePage::ResponseGainIterator::ReadNext(double f)
 
 Frontend::GeneratePage::ResponseDelayIterator::ResponseDelayIterator(unsigned col, unsigned collow)
 : DelayIterator(col)
-, InterpolateLow(collow)
-, InterpolateHigh(collow+1)
+, InterpolateLow(collow, false)
+, InterpolateHigh(collow+1, false)
 {}
 
 bool Frontend::GeneratePage::ResponseDelayIterator::Reset(const DataFile& data)
@@ -89,8 +89,9 @@ Frontend::GeneratePage::GeneratePage(Frontend& parent)
 , IterRDelay(Generate::RDelay, Generate::RDelayLow)
 , IterMesLGain(Measure::LGain)
 , IterMesRGain(Measure::RGain)
-, IterMesLDelay(Measure::LDelay)
-, IterMesRDelay(Measure::RDelay)
+, IterMesLDelay(Measure::LDelay, false)
+, IterMesRDelay(Measure::RDelay, false)
+, GenerateDeleg(*this, &GeneratePage::GenerateCompleted)
 { MajorTitle = "~Generate";
   MinorTitle = "Generate deconvolution filter";
 }
@@ -106,9 +107,12 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     Result1.Attach(GetCtrl(CC_RESULT));
     Result2.Attach(GetCtrl(CC_RESULT2));
     PostMsg(UM_UPDATEGRAPH, 0,0);
+    Generate::GetCompleted() += GenerateDeleg;
+    SetRunning(Generate::Running());
     break;
 
    case WM_DESTROY:
+    GenerateDeleg.detach();
     Result1.Detach();
     Result2.Detach();
     break;
@@ -117,7 +121,8 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case PB_START:
       StoreControlValues();
-      Run();
+      if (Generate::Start())
+        SetRunning(true);
     }
     break;
 
@@ -148,6 +153,11 @@ MRESULT Frontend::GeneratePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_UPDATEGRAPH:
     SetupGraph();
+    return 0;
+
+   case UM_COMPLETED:
+    GetResults();
+    SetRunning(false);
     return 0;
   }
   return FilePage::DlgProc(msg, mp1, mp2);
@@ -260,7 +270,7 @@ void Frontend::GeneratePage::UpdateDescr()
   { xstring file(Filter::WorkDir);
     file = file + lb.ItemText(selected);
     DataFile data(Measure::ColCount);
-    if (data.Load(file))
+    if (data.Load(file, true))
     { ++index;
       if (data.Description.length())
       { if (sb.length() && sb[sb.length()-1] != '\n')
@@ -341,12 +351,17 @@ void Frontend::GeneratePage::SetupGraph()
 }
 
 static const LONG ColorMap[] =
-{ CLR_BLUE
-, CLR_RED
-, CLR_GREEN
-, CLR_PINK
-, CLR_CYAN
-, CLR_YELLOW
+{ RGB_BLUE
+, RGB_RED
+, RGB_GREEN
+, RGB_PINK
+, RGB_CYAN
+, RGB_YELLOW
+, 0xFF8000 // orange
+, 0x008000 // dark green
+, 0x800080 // dark magenta
+, 0x008080 // dark cyan
+, 0x808000 // dark yellow
 };
 
 void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, AggregateIterator& iter)
@@ -362,41 +377,45 @@ void Frontend::GeneratePage::AddMeasureGraphs(ResponseGraph& result, AggregateIt
       memcpy(cp + 3, caption.cdata() + caption.length() - 20, 20);
     }
     // data
-    result.Graphs.append() = new ResponseGraph::GraphInfo(caption, data, iter, ResponseGraph::GF_Average, ColorMap[i]);
+    result.Graphs.append() = new ResponseGraph::GraphInfo(caption, data, iter, ResponseGraph::GF_Average|ResponseGraph::GF_RGB, ColorMap[i]);
   }
 }
 
-void Frontend::GeneratePage::Run()
-{ // prepare generator
-  sco_ptr<Generate> generator;
-  { SyncAccess<Generate::TargetFile> data(Generate::GetData());
-    generator = new Generate(*data);
-  }
-  // run
-  try
-  { generator->Run();
-  } catch (const char* error)
-  { (*Ctx.plugin_api->message_display)(MSG_ERROR, error);
+void Frontend::GeneratePage::SetRunning(bool running)
+{ ControlBase(+GetCtrl(PB_START)).Enabled(!running);
+  ControlBase(+GetCtrl(ST_RUNNING)).Visible(running);
+}
+
+void Frontend::GeneratePage::GenerateCompleted(Generate& generator)
+{ if (generator.ErrorText)
+  { (*Ctx.plugin_api->message_display)(MSG_ERROR, generator.ErrorText);
     return;
-  }
-  // transfer data component of the measurements to MeasurementData
-  MeasurementData.clear();
-  foreach (Measure::MeasureFile,*const*, mp, generator->LocalData.Measurements)
-  { DataFile* data = new DataFile(**mp);
-    MeasurementData.append() = data;
-    data->swap(**mp);
-    // invert data
-    foreach (DataRow,*const*, rp, *data)
-    { DataRow& row = **rp;
-      row[Measure::LGain] = 1 / row[Measure::LGain];
-      row[Measure::RGain] = 1 / row[Measure::RGain];
-      row[Measure::LDelay] = -row[Measure::LDelay];
-      row[Measure::RDelay] = -row[Measure::RDelay];
-    }
   }
   // replace result
   { SyncAccess<Generate::TargetFile> data(Generate::GetData());
-    data->swap(generator->LocalData);
+    data->swap(generator.LocalData);
+  }
+
+  EnsureMsg(UM_COMPLETED);
+}
+
+void Frontend::GeneratePage::GetResults()
+{ // transfer data component of the measurements to MeasurementData
+  MeasurementData.clear();
+  { SyncAccess<Generate::TargetFile> data(Generate::GetData());
+    foreach (Measure::MeasureFile,*const*, mp, data->Measurements)
+    { DataFile* md = new DataFile(**mp);
+      MeasurementData.append() = md;
+      md->swap(**mp);
+      // invert data
+      foreach (DataRow,*const*, rp, *md)
+      { DataRow& row = **rp;
+        row[Measure::LGain] = 1 / row[Measure::LGain];
+        row[Measure::RGain] = 1 / row[Measure::RGain];
+        row[Measure::LDelay] = -row[Measure::LDelay];
+        row[Measure::RDelay] = -row[Measure::RDelay];
+      }
+    }
   }
   // and update graphs
   SetModified();

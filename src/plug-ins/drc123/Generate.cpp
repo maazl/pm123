@@ -191,12 +191,15 @@ double Generate::AverageCollector::Finish(double maxkey)
 }
 
 
-Generate::TargetFile Generate::Data;
-const Generate::TargetFile Generate::DefData;
+volatile sco_ptr<Generate>  Generate::Instance;
+event<Generate>             Generate::Completed;
+Generate::TargetFile        Generate::Data;
+const Generate::TargetFile  Generate::DefData;
 
 
 Generate::Generate(const TargetFile& params)
 : LocalData(params)
+, ErrorText(NULL)
 {}
 
 void Generate::Prepare()
@@ -371,15 +374,18 @@ void Generate::ApplySmoothing(unsigned col, double width)
   const double a0 = 1. - b1;
 
   // Apply IIR filter forward
-  double acc = 0;
-  foreach (DataRow,*const*, rpp, LocalData)
-  { float& val = (**rpp)[col];
+  DataRow*const* rpp = LocalData.begin();
+  DataRow*const* rpe = LocalData.end();
+  double acc = (**rpp)[col]; // Use first value as accumulator start to avoid glitches at the begin.
+  while (rpp != rpe)
+  { float& val = (**rpp++)[col];
     val = acc = a0 * val + b1 * acc;
   }
   // Apply IIR filter backward
-  acc = 0;
-  DataRow*const* rpp = LocalData.end();
-  while (rpp != LocalData.begin())
+  rpp = rpe;
+  rpe = LocalData.begin();
+  acc = (*rpp[-1])[col]; // Use first value as accumulator start to avoid glitches at the begin.
+  while (rpp != rpe)
   { float& val = (**--rpp)[col];
     val = acc = a0 * val + b1 * acc;
   }
@@ -431,4 +437,28 @@ double Generate::ApplyDelayLimit(double delay)
   else if (delay < -LocalData.LimitDelay)
     delay = -LocalData.LimitDelay;
   return delay;
+}
+
+PROXYFUNCIMP(void TFNENTRY, Generate)ThreadStub(void* arg)
+{ // lower priority
+  DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, 2, 0);
+  try
+  { ((Generate*)arg)->Run();
+  } catch (const char* error)
+  { ((Generate*)arg)->ErrorText = error;
+  }
+  // notify about completion
+  Completed(*(Generate*)arg);
+  delete Instance.detach();
+}
+
+bool Generate::Start()
+{ if (Running())
+    return false;
+  { SyncAccess<Generate::TargetFile> data(Generate::GetData());
+    Instance = new Generate(*data);
+  }
+  // run
+  _beginthread(PROXYFUNCREF(Generate)ThreadStub, 0, 65536, Instance.get());
+  return true;
 }

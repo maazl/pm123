@@ -53,7 +53,7 @@ const Frontend::DeconvolutionViewParams Frontend::DeconvolutionViewDefault =
 ,   18,22000
 ,  -30,  +20
 ,  -.2,  +.2
-,  -.7,  +.7, false
+,  -.5,  +.5, false
 ,   -5,   +5
 };
 
@@ -65,10 +65,10 @@ Frontend::DeconvolutionPage::DeconvolutionPage(Frontend& parent)
 , Kernel(Generate::ColCount)
 , IterLGain(Generate::LGain)
 , IterRGain(Generate::RGain)
-, IterLDelay(Generate::LDelay)
-, IterRDelay(Generate::RDelay)
-, IterLKernel(TDC_LKernel)
-, IterRKernel(TDC_RKernel)
+, IterLDelay(Generate::LDelay, false)
+, IterRDelay(Generate::RDelay, false)
+, IterLKernel(TDC_LKernel, false)
+, IterRKernel(TDC_RKernel, false)
 , KernelChangeDeleg(Deconvolution::GetKernelChange(), *this, &DeconvolutionPage::KernelChange)
 { DEBUGLOG(("Frontend::DeconvolutionPage(%p)::DeconvolutionPage(&%p)) - %p\n", this, &parent, &Params.TargetFile));
   MajorTitle = "~Playback";
@@ -328,18 +328,18 @@ void Frontend::DeconvolutionPage::SetupGraph()
     break;
    case DVM_GainResult:
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_Average, CLR_RED);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_GREEN);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("< R gain", Kernel, IterRGain, ResponseGraph::GF_Average, CLR_PINK);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L result", *CurrentRawKernelData, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R result", *CurrentRawKernelData, IterRGain, ResponseGraph::GF_Average, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L target", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_GREEN);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R target", Kernel, IterRGain, ResponseGraph::GF_Average, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_DelayResult:
     RawKernelData = CurrentRawKernelData = new SharedDataFile(FDC_count);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_Average, CLR_BLUE);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_Average, CLR_RED);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("L delay >", Kernel, IterLDelay, ResponseGraph::GF_Average, CLR_GREEN);
-    Result.Graphs.append() = new ResponseGraph::GraphInfo("R delay >", Kernel, IterRDelay, ResponseGraph::GF_Average, CLR_PINK);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L result", *CurrentRawKernelData, IterLDelay, ResponseGraph::GF_Average, CLR_BLUE);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R result", *CurrentRawKernelData, IterRDelay, ResponseGraph::GF_Average, CLR_RED);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("L target", Kernel, IterLDelay, ResponseGraph::GF_Average, CLR_GREEN);
+    Result.Graphs.append() = new ResponseGraph::GraphInfo("R target", Kernel, IterRDelay, ResponseGraph::GF_Average, CLR_PINK);
     Deconvolution::ForceKernelChange();
     break;
    case DVM_TimeResult:

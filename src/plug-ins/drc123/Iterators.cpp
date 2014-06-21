@@ -67,17 +67,17 @@ void InterpolationIterator::ReadNext(double key)
   while (Right)
   { if (key < Right.X)
     { // !extrapolate before the start?
-      if (!Left)
-        Value = Right.Y;
-      else // interpolate
+      if (Left)
         Value = (Left.Y * (Right.X-key) + Right.Y * (key-Left.X)) / (Right.X-Left.X);
+      else if (Extrapolate)
+        Value = Right.Y;
       return;
     }
     FetchNext();
   }
   // !extrapolate behind the end
   if (Left)
-    Value = Left.Y;
+    Value = Extrapolate ? Left.Y : NAN;
 }
 
 bool AggregateIterator::Reset(const DataFile& data)
@@ -110,13 +110,16 @@ void AverageIterator::Aggregate(double from, double to)
   double avg;
   if (!Right)
   { // beyond the end
-    if (!Left)
-    { Value = NAN;
+    if (!Left || !Extrapolate)
+    {err:
+      Value = NAN;
       return;
     }
     avg = Left.Y;
   } else if (!Left)
   { // before start
+    if (!Extrapolate)
+      goto err;
     avg = Right.Y;
   } else
   { // intermediate
@@ -141,8 +144,7 @@ void DelayIterator::Aggregate(double from, double to)
 {
   Point p = Right;
   if (!p)
-  { p = Left;
-    if (!p)
+  { if (!Extrapolate || !(p = Left))
     { Value = NAN;
       return;
     }

@@ -84,13 +84,13 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
   {protected:
     virtual double      ScaleResult(double) const;
    public:
-    DBGainIterator(unsigned col) : AverageIterator(col) {}
+    DBGainIterator(unsigned col) : AverageIterator(col, false) {}
   };
   class PhaseDelayIterator : public DelayIterator
   {protected:
     virtual double      ScaleResult(double) const;
    public:
-    PhaseDelayIterator(unsigned col) : DelayIterator(col) {}
+    PhaseDelayIterator(unsigned col) : DelayIterator(col, false) {}
   };
 
  public:
@@ -266,6 +266,7 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     { UM_UPDATEDIR   = WM_USER + 300
     , UM_UPDATEDESCR
     , UM_UPDATEGRAPH
+    , UM_COMPLETED
     };
 
     class ResponseGainIterator : public DBGainIterator
@@ -297,6 +298,7 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     DelayIterator IterMesRDelay;
     /// Backup copy of measurement data for graphs.
     vector_own<DataFile> MeasurementData;
+    class_delegate<GeneratePage,Generate> GenerateDeleg;
    public:
     GeneratePage(Frontend& parent);
     virtual ~GeneratePage();
@@ -315,7 +317,9 @@ class Frontend : public ManagedDialog<NotebookDialogBase>
     void          SetGraphAxes(const Generate::TargetFile& data);
     void          SetupGraph();
     void          AddMeasureGraphs(ResponseGraph& result, AggregateIterator& iter);
-    void          Run();
+    void          SetRunning(bool running);
+    void          GenerateCompleted(Generate& generator);
+    void          GetResults();
   };
 
   class GenerateExtPage : public PageBase

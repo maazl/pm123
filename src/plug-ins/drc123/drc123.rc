@@ -250,6 +250,8 @@ DLGTEMPLATE DLG_GENERATE
     MLE      "",                      ML_DESCR,    122,  8, 256, 22, MLS_WORDWRAP|MLS_VSCROLL
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
+    LTEXT    "Running...",            ST_RUNNING,    4  36,  52, 12, DT_BOTTOM
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     DEFPUSHBUTTON "~Generate",        PB_START,      4, 20,  52, 12, WS_GROUP
     PUSHBUTTON "~Help",               PB_HELP,      60, 20,  52, 12, BS_HELP
     PUSHBUTTON "~Load...",            PB_LOAD,       4,  4,  52, 12
@@ -367,9 +369,9 @@ DLGTEMPLATE DLG_MEASURE
     SPINBUTTON                        SB_VOLUME,    50,162,  38, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
       CTLDATA CD_SPBCDATA(3, 0,100)
-    AUTOCHECKBOX "Differential ~output",CB_DIFFOUT, 10,146,  80, 12, WS_GROUP
-      PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
-    AUTOCHECKBOX "Verification ~mode",CB_VERIFYMODE,10,134,  80, 12, WS_GROUP
+    /*AUTOCHECKBOX "Differential ~output",CB_DIFFOUT, 10,146,  80, 12, WS_GROUP
+      PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)*/
+    AUTOCHECKBOX "Verification ~mode",CB_VERIFYMODE,10,146,  80, 12, WS_GROUP
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
 
     GROUPBOX " Sound Input ",         GB_GENERIC,    4, 52,  92, 62

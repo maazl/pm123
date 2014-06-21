@@ -487,8 +487,8 @@ bool Deconvolution::Setup()
       int highbin = (int)ceil((*d2f.Source[d2f.Source.size()-1])[0] / d2f.FInc);
       if (highbin < CurPlanSize21)
       { fftwf_complex* fp = FreqDomain.begin() + highbin;
-        // use reasonable slew rate (.5dB/bin)
-        const double gainrate = 1 - .056 * args.Params->FIROrder / CurPlanSize;
+        // use reasonable slew rate (.1dB/bin)
+        const double gainrate = 1 - .0114 * args.Params->FIROrder / CurPlanSize;
         double value = 1;
         while (fp++ != FreqDomain.end())
           *fp *= value *= gainrate;

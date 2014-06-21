@@ -32,6 +32,7 @@
 #include "DataFile.h"
 #include "Measure.h"
 #include <cpp/mutex.h>
+#include <cpp/smartptr.h>
 #include <cpp/container/sorted_vector.h>
 
 class Generate
@@ -108,18 +109,26 @@ class Generate
   };
 
  private:
+  static volatile sco_ptr<Generate> Instance;
+  static event<Generate> Completed;
   static TargetFile Data;
  public:
   static const TargetFile DefData;
  public:
   TargetFile    LocalData;
+  const char*   ErrorText;
 
- public:
+ private:
   Generate(const TargetFile& params);
- public:
-  static SyncRef<TargetFile> GetData()          { return Data; }
   void          Prepare();
   void          Run();
+  PROXYFUNCDEF void TFNENTRY ThreadStub(void* arg);
+ public:
+  static SyncRef<TargetFile> GetData()          { return Data; }
+  static bool   Start();
+  static bool   Running()                       { return Instance.get() != NULL; }
+  static event_pub<Generate>& GetCompleted()    { return Completed; }
+
  private:
   double        ApplyGainLimit(double gain);
   double        ApplyDelayLimit(double delay);

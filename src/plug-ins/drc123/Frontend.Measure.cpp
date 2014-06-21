@@ -41,8 +41,8 @@ Frontend::MeasurePage::MeasurePage(Frontend& parent)
 : OpenLoopPage(parent, DLG_MEASURE, Measure::VTable)
 , IterLGain(Measure::LGain)
 , IterRGain(Measure::RGain)
-, IterLDelay(Measure::LDelay)
-, IterRDelay(Measure::RDelay)
+, IterLDelay(Measure::LDelay, false)
+, IterRDelay(Measure::RDelay, false)
 { MajorTitle = "~Measure";
   MinorTitle = "Measure speaker response";
 
@@ -73,7 +73,7 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == CBN_ENTER)
         PostMsg(UM_UPDATEFILE, mp2, MPFROMSHORT(SHORT1FROMMP(mp1) + 1));
       return 0;
-     case RB_STEREO:
+     /*case RB_STEREO:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
       { ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(false);
         goto modi;
@@ -85,16 +85,14 @@ MRESULT Frontend::MeasurePage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(true);
         goto modi;
       }
-      return 0;
+      return 0;*/
      case RB_NOISE:
      case RB_SWEEP:
-     case CB_DIFFOUT:
+     //case CB_DIFFOUT:
      case CB_VERIFYMODE:
      case CB_REFIN:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
-      {modi:
         SetModified();
-      }
       return 0;
     }
     break;
@@ -132,9 +130,9 @@ void Frontend::MeasurePage::LoadControlValues(const Measure::MeasureFile& data)
 {
   RadioButton(+GetCtrl(RB_NOISE + data.Mode)).CheckState(true);
   RadioButton(+GetCtrl(RB_STEREO + data.Chan)).CheckState(true);
-  CheckBox diffout(+GetCtrl(CB_DIFFOUT));
+  /*CheckBox diffout(+GetCtrl(CB_DIFFOUT));
   diffout.CheckState(data.DiffOut);
-  diffout.Enabled(data.Chan != Measure::CH_Both);
+  diffout.Enabled(data.Chan != Measure::CH_Both);*/
   CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState(data.VerifyMode);
 
   CheckBox(+GetCtrl(CB_REFIN)).CheckState(data.RefIn);
@@ -156,7 +154,7 @@ void Frontend::MeasurePage::StoreControlValues(Measure::MeasureFile& data)
 {
   data.Mode = (Measure::MeasureMode)(RadioButton(+GetCtrl(RB_NOISE)).CheckID() - RB_NOISE);
   data.Chan = (Measure::Channels)(RadioButton(+GetCtrl(RB_STEREO)).CheckID() - RB_STEREO);
-  data.DiffOut = (bool)CheckBox(+GetCtrl(CB_DIFFOUT)).CheckState();
+  //data.DiffOut = (bool)CheckBox(+GetCtrl(CB_DIFFOUT)).CheckState();
   data.VerifyMode = (bool)CheckBox(+GetCtrl(CB_VERIFYMODE)).CheckState();
 
   data.RefIn = (bool)CheckBox(+GetCtrl(CB_REFIN)).CheckState();
@@ -176,7 +174,7 @@ void Frontend::MeasurePage::SetRunning(bool running)
   RadioButton(+GetCtrl(RB_NOISE)).EnableAll(!running);
   RadioButton(+GetCtrl(RB_WHITE_N)).EnableAll(!running);
   RadioButton(+GetCtrl(RB_STEREO)).EnableAll(!running);
-  ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_STEREO)).CheckState());
+  //ControlBase(+GetCtrl(CB_DIFFOUT)).Enabled(!running && !RadioButton(+GetCtrl(RB_STEREO)).CheckState());
   ControlBase(+GetCtrl(CB_VERIFYMODE)).Enabled(!running);
 
   ControlBase(+GetCtrl(CB_CAL_FILE)).Enabled(!running);

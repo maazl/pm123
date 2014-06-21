@@ -399,7 +399,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
   param->type         = PLUGIN_FILTER;
   param->author       = "Marcel Mueller";
-  param->desc         = "Digital Room Correction Version 1.0";
+  param->desc         = "Digital Room Correction Version 1.0a";
   param->configurable = TRUE;
   param->interface    = PLUGIN_INTERFACE_LEVEL;
   return 0;

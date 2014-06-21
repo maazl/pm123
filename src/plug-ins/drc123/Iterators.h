@@ -83,16 +83,13 @@ class ReadIterator
 /// from O(n log(n)) into O(n).
 class FileIterator : public ReadIterator
 {protected:
-  /// Column to interpolate.
-  const unsigned       Column;
-  /// End of data.
-  const DataRow*const* End;
-  /// Current data pointer.
-  const DataRow*const* Current;
+  const unsigned       Column;          ///< Column to interpolate.
+  const DataRow*const* End;             ///< End of data.
+  const DataRow*const* Current;         ///< Current data pointer.
  protected:
   /// Setup iteration for a column.
   /// @param col Column in the data source.
-  FileIterator(unsigned col)                        : Column(col), End(NULL), Current(NULL) {}
+  FileIterator(unsigned col) : Column(col), End(NULL), Current(NULL) {}
   /// Move Right to Left and fetch the next point into Left.
   virtual void         FetchNext();
  public:
@@ -107,10 +104,12 @@ class FileIterator : public ReadIterator
 /// @remarks The iterator uses the forward only restriction to turn the interpolation operation
 /// from O(n log(n)) into O(n).
 class InterpolationIterator : public FileIterator
-{public:
+{protected:
+  bool                 Extrapolate;     ///< Use extrapolation
+ public:
   /// Create interpolating function over a column of data.
   /// @param col Column in the data source.
-  InterpolationIterator(unsigned col) : FileIterator(col) {}
+  InterpolationIterator(unsigned col, bool extrapolate = true) : FileIterator(col), Extrapolate(extrapolate) {}
   /// Fetch the next linear interpolation value at \a key.
   /// @param key Retrieve the interpolating function value at \a key.
   /// If key is outside the domain of the data source constant extrapolation is used,
@@ -127,8 +126,7 @@ class AggregateIterator : public FileIterator
 {protected:
   double               MinValue;
   double               MaxValue;
-  /// Key passed to \c ReadNext the last time.
-  double               LastX;
+  double               LastX;           ///< Key passed to \c ReadNext the last time.
  protected:
   /// @brief Aggregate result - to be implemented by subclass.
   /// @param from Key from where to aggregate
@@ -166,9 +164,11 @@ class AggregateIterator : public FileIterator
 
 class AverageIterator : public AggregateIterator
 {protected:
+  bool                 Extrapolate;     ///< Use extrapolation
+ protected:
   virtual void         Aggregate(double from, double to);
  public:
-                       AverageIterator(unsigned col) : AggregateIterator(col) {}
+                       AverageIterator(unsigned col, bool extrapolate = true) : AggregateIterator(col), Extrapolate(extrapolate) {}
   virtual void         ReadNext(double x);
 };
 
@@ -176,13 +176,13 @@ class DelayIterator : public AverageIterator
 {protected:
   virtual void         Aggregate(double from, double to);
  public:
-                       DelayIterator(unsigned col) : AverageIterator(col) {}
+                       DelayIterator(unsigned col, bool extrapolate = true) : AverageIterator(col, extrapolate) {}
 };
 
 class DelayAverageIterator : public AverageIterator
 { double               LastFX;
  public:
-                       DelayAverageIterator(unsigned col) : AverageIterator(col), LastFX(0.) {}
+                       DelayAverageIterator(unsigned col, bool extrapolate = true) : AverageIterator(col, extrapolate), LastFX(0.) {}
   virtual bool         Reset(const DataFile& data);
   virtual void         FetchNext();
 };

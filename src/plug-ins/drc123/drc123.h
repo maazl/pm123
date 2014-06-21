@@ -96,6 +96,7 @@
 #define EF_KERNEL_HIGH  1186
 
 // Generate
+#define ST_RUNNING      1201
 #define GB_RESULT       1205
 #define GB_RESULT2      1206
 
