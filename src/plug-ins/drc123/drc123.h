@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp� <rosmo@sektori.com>
+ * Copyright 2013-2014 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,6 +65,7 @@
 #define CB_FFTSIZE      1031
 #define EF_FREQ_BIN     1040
 #define EF_FREQ_FACTOR  1041
+#define CB_NOPHASE      1050
 
 #define RB_VIEWTARGET   1050
 #define RB_VIEWGAIN     1051
@@ -83,9 +83,7 @@
 // Deconvolution
 #define CB_ENABLE       1160
 #define LB_KERNEL       1162
-#define RB_WIN_NONE     1165
-#define RB_WIN_DIMMED_HAMMING 1166
-#define RB_WIN_HAMMING  1167
+#define CB_WIN_HAMMING  1165
 #define CB_SUBSONIC     1170
 #define CB_SUPERSONIC   1171
 

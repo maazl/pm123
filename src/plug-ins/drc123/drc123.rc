@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *           Taneli Lepp� <rosmo@sektori.com>
+ * Copyright 2013-2014 Marcel Müller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -116,13 +115,13 @@ DLGTEMPLATE DLG_DECONV
 
     GROUPBOX " Select ~view ",        GB_GENERIC,  296,186,  88, 70, DT_MNEMONIC
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,1,3,4, 0,1,1,4)
-    AUTORADIOBUTTON "Selected target",RB_VIEWTARGET,304,234, 72, 12
+    AUTORADIOBUTTON "Selected target",RB_VIEWTARGET,304,236, 72, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
-    AUTORADIOBUTTON "Frequency result",RB_VIEWGAIN,304,222,  72, 12
+    AUTORADIOBUTTON "Frequency result",RB_VIEWGAIN,304,224,  72, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
-    AUTORADIOBUTTON "Group delay result",RB_VIEWDELAY,304,210,72,12
+    AUTORADIOBUTTON "Group delay result",RB_VIEWDELAY,304,212,72,12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
-    AUTORADIOBUTTON "Time domain result",RB_VIEWTIME,304,198,72, 12
+    AUTORADIOBUTTON "Time domain result",RB_VIEWTIME,304,200,72, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,1,1,1, 0,1,0,1)
 
     GROUPBOX " Filter options ",      GB_GENERIC,    4, 52, 108,132
@@ -131,17 +130,13 @@ DLGTEMPLATE DLG_DECONV
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
     COMBOBOX "",                      CB_FIRORDER,  10,104,  62, 60, CBS_DROPDOWNLIST
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    LTEXT "~Window function",         ST_GENERIC,   10,142,  96, 12, DT_BOTTOM|DT_MNEMONIC
+    AUTOCHECKBOX "Apply ~Hamming window",CB_WIN_HAMMING,10,142,96,12, WS_GROUP
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    AUTORADIOBUTTON "none (smooth target)",RB_WIN_NONE,10,128,96,12
+    LTEXT    "F~ilter frequencies",   ST_GENERIC,   10,128,  96, 12, DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    AUTORADIOBUTTON "Hamming window", RB_WIN_HAMMING,10,116, 96, 12
+    AUTOCHECKBOX "subsonic"           CB_SUBSONIC,  10,114,  96, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    LTEXT    "F~ilter frequencies",   ST_GENERIC,   10,104,  96, 12, DT_BOTTOM|DT_MNEMONIC
-      PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    AUTOCHECKBOX "subsonic"           CB_SUBSONIC,  10, 90,  96, 12
-      PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
-    AUTOCHECKBOX "supersonic"         CB_SUPERSONIC,10, 78,  96, 12
+    AUTOCHECKBOX "supersonic"         CB_SUPERSONIC,10,102,  96, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,4)
 
     GROUPBOX " Current filter ",      GB_GENERIC,  116,  2, 268,182
@@ -260,27 +255,29 @@ DLGTEMPLATE DLG_GENERATE
 }
 
 DLGTEMPLATE DLG_GENERATE_X
-{ DIALOG "Extended filter generation options",
+{ DIALOG "Filter generation options",
                                       DLG_GENERATE_X,0,  0, 388,244, NOT FS_DLGBORDER | NOT WS_SAVEBITS, FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    GROUPBOX " General settings ",    GB_GENERIC,    4,158, 380, 40
+    GROUPBOX " General settings ",    GB_GENERIC,    4,158, 380, 52
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT    "~Frequency range",      ST_GENERIC,   10,176, 102, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_FREQ_LOW, 118,178,  48,  8, ES_MARGIN
+    LTEXT    "~Frequency range",      ST_GENERIC,   10,188, 102, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_FREQ_LOW, 118,190,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    CTEXT    "-",                     ST_GENERIC,  172,176,   4, 12, DT_VCENTER|NOT WS_GROUP
-    ENTRYFIELD "",                    EF_FREQ_HIGH,182,178,  48,  8, ES_MARGIN
+    CTEXT    "-",                     ST_GENERIC,  172,188,   4, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_FREQ_HIGH,182,190,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236,176,  16, 12, DT_VCENTER|NOT WS_GROUP
-    LTEXT    "Frequency ~bin size",   ST_GENERIC,   10,164, 102, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_FREQ_BIN, 118,166,  48,  8, ES_MARGIN
+    LTEXT    "Hz",                    ST_GENERIC,  236,188,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Frequency ~bin size",   ST_GENERIC,   10,176, 102, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD "",                    EF_FREQ_BIN, 118,178,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  172,164,  16, 12, DT_VCENTER|NOT WS_GROUP
-    RTEXT    "+ factor",              ST_GENERIC,  188,164,  44, 12, DT_VCENTER|NOT WS_GROUP
-    ENTRYFIELD "",                    EF_FREQ_FACTOR,238,166,48,  8, ES_MARGIN
+    LTEXT    "Hz",                    ST_GENERIC,  172,176,  16, 12, DT_VCENTER|NOT WS_GROUP
+    RTEXT    "+ factor",              ST_GENERIC,  188,176,  44, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_FREQ_FACTOR,238,178,48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "%",                     ST_GENERIC,  292,164,  16, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "%",                     ST_GENERIC,  292,176,  16, 12, DT_VCENTER|NOT WS_GROUP
+    AUTOCHECKBOX "Do not process ~phase response",
+                                      CB_NOPHASE ,  12,164, 164, 12, WS_GROUP
 
     GROUPBOX " Normalization settings ",GB_GENERIC,  4,116, 380, 40
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -305,8 +302,7 @@ DLGTEMPLATE DLG_GENERATE_X
     ENTRYFIELD "",                    EF_GAINSMOOTH,238,94,48, 8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     LTEXT    "Hz",                    ST_GENERIC,  292, 92,  16, 12, DT_VCENTER|NOT WS_GROUP
-    LTEXT    "Gain ~clipping mode"    ST_GENERIC,   10, 80, 102, 12, DT_VCENTER|DT_MNEMONIC
-    AUTOCHECKBOX "invert high gain values",
+    AUTOCHECKBOX "~invert high gain values",
                                       CB_INVERTGAIN,116,80, 116, 12
     LTEXT    "Limit Dela~y",          ST_GENERIC,   10, 68, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_LIMITDELAY,118,70,  48,  8, ES_MARGIN

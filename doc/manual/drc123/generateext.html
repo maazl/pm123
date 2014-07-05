@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>DRC123: Filter generation options</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+    <meta content="Marcel Müller" name="author">
+  </head>
+  <body>
+    <h2>Filter generation options </h2>
+    <p><img src="images/generateext.png"></p>
+    <h3>General settings</h3>
+    <dl>
+      <dt><b>Frequency range</b></dt>
+      <dd>This is the range of frequencies where a flat room response is
+        intended. <em>Do not extend the range far beyond the capabilities of
+          your speakers.</em> Especially speakers with vented enclosures dislike
+        lower frequencies and may be destroyed this way.<br>
+        This also controls the X axis of the <a href="graphs.html">graphs</a>.</dd>
+      <dt><b>Frequency bin size</b></dt>
+      <dd>The resulting filter kernel is an interpolating function rather than
+        exact values. The next frequency is calculated by adding a constant and
+        a relative factor to the current frequency.<br>
+        There is normally no need to change this option.</dd>
+      <dt><b>Do not process phase response</b></dt>
+      <dd>This is mainly a work around for insufficiently accurate measurements.
+        If you turn on this option then the resulting filter will not compensate
+        for the group delay but only for the frequency response. This results in
+        a symmetric, linear phase filter. Note that this is a significant
+        cutback. You will not get the crisp results than from a full
+        compensation.</dd>
+    </dl>
+    <h3>Normalization settings</h3>
+    <p>DRC123 must normalize the different measurements to a common level before
+      combining them. This is done by calculating an average gain and an average
+      group delay.</p>
+    <dl>
+      <dt><b>Frequency range</b></dt>
+      <dd>Range of frequencies that contribute to the normalization.<br>
+        There is normally no need to change this option.</dd>
+      <dt><b>Normalization mode</b></dt>
+      <dd>When normalizing the gain you can chose between quadratic (energy) and
+        logarithmic (dB) mode.<br>
+        Normalization by <b>energy</b> results in the same amount of energy
+        transferred if white noise is passed through the filter. In this mode +3
+        dB and -3 dB do not cancel since the first causes twice as much energy
+        while the second causes only half of the energy, in average you are
+        still at 125%. This mode lowers the gain if the response is changing a
+        lot. It usually prevents the audio DAC from overdriving.<br>
+        Normalization by <b>dB</b> causes the total loudness to be kept
+        approximately. While this sounds useful there are serious drawbacks.
+        First of all some frequencies have to be amplified by a significant
+        amount. If your samples have been normalized to 0 dB FSR (full
+        conduction) it is likely that your sound device overdrive with the
+        corrected response. Taking back the master volume will not prevent from
+        that on most sound hardware. Secondly an audible resonance usually
+        sounds much worse than a frequency notch. So in general normalization by
+        energy should be preferred unless you have professional studio
+        equipment.</dd>
+    </dl>
+    <h3>Limiter</h3>
+    <p>To get reasonable results extreme corrections have to be avoided. First
+      of all to prevent damage from your speakers but also to avoid audible
+      artifacts.</p>
+    <dl>
+      <dt><b>Limit gain</b></dt>
+      <dd>Maximum positive gain factor for the correction. If your room response
+        falls below this amount no further compensation takes place. <em>Do not
+          chose unreasonable high limits</em> to protect your speakers.<br>
+        Additionally the gain change rate is smoothed by an IIR filter.</dd>
+      <dt><b>Invert high gain values</b></dt>
+      <dd>This option cause DRC123 to <i>decrease</i> the gain of frequencies
+        that need an amplification beyond the gain limit instead of simply
+        clipping to the maximum value.<br>
+        The idea is that a speaker should be protected from frequencies that it
+        cannot reproduce anyway rather that putting more and more energy into it
+        which might cause damage.</dd>
+      <dt><b>Limit delay
+        </b></dt>
+      <dd>Minimum and maximum delay that is compensated by DRC123. This is
+        mainly to restrict the required length of the resulting filter kernel.<br>
+        Additionally the change rate of the group delay is restricted by an IIR
+        filter. Fast changes in the group delay are likely to produce audible
+        artifacts.
+      </dd>
+    </dl>
+    <h3>Display settings</h3>
+    <dl>
+      <dt><b>Gain range</b></dt>
+      <dd>Range of the Y axis of the frequency response graphs.</dd>
+      <dt><b>Group delay range</b></dt>
+      <dd>Range of the Y axis of the group delay graphs.</dd>
+    </dl>
+  </body>
+</html>

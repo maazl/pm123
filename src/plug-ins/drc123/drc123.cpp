@@ -177,6 +177,7 @@ static void load_config()
     load_prf_value(generate.FreqHigh);
     load_prf_value(generate.FreqBin);
     load_prf_value(generate.FreqFactor);
+    load_prf_value(generate.NoPhase);
     load_prf_value(generate.NormFreqLow);
     load_prf_value(generate.NormFreqHigh);
     load_prf_value(generate.NormMode);
@@ -292,6 +293,7 @@ void save_config()
     save_prf_value(generate.FreqHigh);
     save_prf_value(generate.FreqBin);
     save_prf_value(generate.FreqFactor);
+    save_prf_value(generate.NoPhase);
     save_prf_value(generate.NormFreqLow);
     save_prf_value(generate.NormFreqHigh);
     save_prf_value(generate.NormMode);

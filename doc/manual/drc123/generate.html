@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>DRC123: Generate Filter Kernel</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+    <meta content="Marcel Müller" name="author">
+  </head>
+  <body>
+    <h2>Generate filter kernel</h2>
+    <p><img src="images/generate.png"></p>
+    <h3>Select measurements</h3>
+    <p>Select at least one measurement as template for the filter kernel. It is
+      a good advise to use <em>multiple measurements</em> taken at different
+      locations. You can select from all measurement files in the <a href="configuration.htmlavoid%20resonances%20and%20">working
+        directory</a>.</p>
+    <p>If you want to optimize the result for a certain listening position in
+      the room then select multiple measurements that are taken close to this
+      position.</p>
+    <p>If you prefer to get a compromise that does not sound ugly when you move
+      around in the room then take measurements from entirely different
+      locations. DRC123 will take back the level at resonant frequencies in
+      doubt to avoid resonances. If a certain region is your preferred listening
+      place then select more measurements from this area.</p>
+    <h3>Generate the filter</h3>
+    <ol>
+      <li><span style="font-weight: bold;">Press the <span style="font-style: italic;">Generate</span>
+          button</span> and wait for the operation to complete. This usually
+        takes only a few seconds.<br>
+        You will see the result in the embedded <a href="graphs.htmlGenerate%20the%20filter">graphs</a>.
+        Note that the filter is the <em>inverse response</em>, i.e. high gain
+        values are low gain in your room response and vice versa.</li>
+      <li>Enter a <span style="font-weight: bold;">file name</span>. Because of
+        the asynchronous processing you can do this while the calculation of
+        step 1 is still running.</li>
+      <li>Enter a <span style="font-weight: bold;">descriptive text</span>.
+        This will help you to select the right filter in playback mode.</li>
+      <li><span style="font-weight: bold;">Save</span> the result.</li>
+    </ol>
+    <p>If you are experienced or you just want to play around with the settings
+      also have a look at the <a href="generateext.html">filter generation
+        options</a>.</p>
+    <h3>View result</h3>
+    <p>There are three view modes. The default is to <span style="font-weight: bold;">show
+        only the result</span>. The boundary bars show the minimum and the
+      maximum of the contributing measurements.</p>
+    <p>The other two modes show either the <span style="font-weight: bold;">gain
+        response</span> of the <span style="font-weight: bold;">group delay</span>
+      of all contributing measurements (at most 11). This can be used to compare
+      measurements. Note that you always need to generate the filter when you
+      have selected other measurements.</p>
+  </body>
+</html>

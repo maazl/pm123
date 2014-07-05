@@ -1,116 +1,116 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1101" level="2" lang="en">
-<head>
-  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>DRC123: Soundcard calibration</title>
-  <link rel="stylesheet" href="../../common/infstyle.css"
- type="text/css">
-  <meta content="Marcel Müller" name="author">
-</head>
-<body>
-<h2>Sound card calibration
-</h2>
-<p><img alt="" src="images/calibrate.png" height="712" width="780"><strong></strong></p>
-<h3>Steps to calibrate your sound device</h3>
-<ol>
-  <li>Be sure to have <a href="configure.html">configured DRC123</a>.</li>
-  <li>Disable all other filter plug-ins, especially equalizers.</li>
-</ol>
-<h4>Method 1 - fast</h4>
-<ol>
-  <li><b><img alt="" src="images/cal-stereo.png" align="right"
- height="106" hspace="5" width="157">Connect line in</b> of your sound
-card <b>to
-line out</b>.</li>
-  <li>Select mode <b><i>Stereo loopback</i></b> (default).</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li>Adjust the <b>volume</b> to get a reasonable recording level.
-Note that volume changes discard the result. </li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li>Enter a <b>description</b> to identify your sound device
-(optional).</li>
-  <li>Enter a <b>file name</b> - without extension.</li>
-  <li>Press <i><b>Save</b></i> button to save the result.</li>
-</ol>
-<p>It is not required that the response is approximately at 0 dB as
-long as the result is smooth.</p>
-<h4>Method 2 - slower, more accurate</h4>
-<ol>
-  <li><img src="images/cal-left.png" alt="" align="right" height="106"
- hspace="5" width="157"><b>Connect left line in</b> of your sound card <b>to
-left line out and right line in to ground.</b></li>
-  <li>Select mode <b><i>Left channel only</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li>Adjust the <b>volume</b> to get a reasonable recording level.
-Note that volume changes discard the result.</li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li><b><img alt="" src="images/cal-right.png" align="right"
- height="106" hspace="5" width="156">Connect right line in</b> of your
-sound card <b>to
-right line out and left line in to ground.</b> </li>
-  <li>Select mode <b><i>Right channel only</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li>Do not change the volume after step 4. otherwise the results will
-no longer match.<br>
-  </li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li><b><img src="images/cal-left2both.png" alt="" align="right"
- height="106" hspace="5" width="157">Connect left and right line in</b>
-of your
-sound card <b>to
-left line out.</b> </li>
-  <li>Select mode <b><i>Left to both channels</i></b>.</li>
-  <li>Press <b><i>Run</i></b> button.</li>
-  <li><b>Wait</b> until the results are reasonable smooth.</li>
-  <li>Press <b><i>Abort/Stop</i></b> button.</li>
-  <li>Enter a <b>description</b> to identify your sound device
-(optional).</li>
-  <li>Enter a <b>file name</b> - without extension.</li>
-  <li>Press <i><b>Save</b></i> button to save the result.</li>
-</ol>
-<h3>Troubleshooting</h3>
-<h4><img alt="" src="images/cal-overdrive.png" align="left" height="212"
- hspace="5" vspace="5" width="315"><img alt=""
- src="images/cal-overdrive2.png" align="left" height="212" hspace="5"
- vspace="5" width="315"><b><a name="distortion"></a>Input
-overdrive</b></h4>
-<p>If you do not get
-reasonable results in step 5, especially if the
-green and pink graph in the frequency response are noisy and graphs on
-the right show high and irregular values, then it is likely that
-you overdrive your line input.</p>
-<p>Reduce the volume and repeat from step 5.</p>
-<h4><img alt="" src="images/cal-eq.png" style="clear: both;"
- align="left" height="208" hspace="5" vspace="5" width="316"><b>Equalizer
-enabled</b></h4>
-<p>If the frequency response is irregular but well reproducible (does
-not
-change with longer measurements) then most likely you have REALEQ or
-some other equalizer plug-in still enabled.</p>
-<p>Disable all equalizers and other sound enhancement plug-ins except
-for DCR123 unless you want DRC123 to compensate for the
-effect of them. ;-)</p>
-<h4><b><img alt="" src="images/cal-async.png" align="left" height="213"
- hspace="5" vspace="5" width="316"><img alt=""
- src="images/cal-async2.png" align="left" height="213" hspace="5"
- vspace="5" width="316"><a name="nomasterclock"></a>Different
-Sound device</b></h4>
-<p>If the response decreases at higher frequencies with measurement
-time then you used another sound card for playback and recording. This
-causes the the frequencies of the test signal to be slightly shifted
-because of tolerances of the crystal oscillators of the sound devices.</p>
-<p> DRC123 is not designed to work with frequency shifts because this
-would significantly decrease the accuracy of the results. DRC123 relies
-on several symmetries of the setup to get high precision results from
-cheap, uncalibrated hardware. The exact frequency is one of them. So it
-is essential to <em>use the same device for recording and
-playback</em>. This also implies that <em>USB measurement microphones
-are
-unusable</em> (i.e. Behringer ECM 8000) because they cannot support a
-synchronous playback
-channel.</p>
-</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>DRC123: Soundcard calibration</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+    <meta content="Marcel Müller" name="author">
+  </head>
+  <body>
+    <h2>Sound card calibration
+    </h2>
+    <p><img alt="" src="images/calibrate.png" height="712" width="780"><strong></strong></p>
+    <h3>Steps to calibrate your sound device</h3>
+    <ol>
+      <li>Be sure to have <a href="configure.html">configured DRC123</a>.</li>
+      <li>Disable all other filter plug-ins, especially equalizers.</li>
+      <li>If you are an expert you might also have a look at the <a href="calibrationext.html">extended
+          calibration options page</a>.</li>
+    </ol>
+    <h4>Method 1 - fast</h4>
+    <ol>
+      <li><b><img alt="" src="images/cal-stereo.png" align="right" height="106"
+            hspace="5" width="157">Connect line in</b> of your sound
+        card <b>to
+          line out</b>.</li>
+      <li>Select mode <b><i>Stereo loopback</i></b> (default).</li>
+      <li>Press <b><i>Run</i></b> button.</li>
+      <li>Adjust the <b>volume</b> to get a reasonable recording level.
+        Note that volume changes discard the result. </li>
+      <li><b>Wait</b> until the results are reasonable smooth.</li>
+      <li>Press <b><i>Abort/Stop</i></b> button.</li>
+      <li>Enter a <b>description</b> to identify your sound device
+        (optional).</li>
+      <li>Enter a <b>file name</b> - without extension.</li>
+      <li>Press <i><b>Save</b></i> button to save the result.</li>
+    </ol>
+    <p>It is not required that the response is approximately at 0 dB as
+      long as the result is smooth.</p>
+    <h4>Method 2 - slower, more accurate</h4>
+    <ol>
+      <li><img src="images/cal-left.png" alt="" align="right" height="106" hspace="5"
+          width="157"><b>Connect left line in</b> of your sound card <b>to
+          left line out and right line in to ground.</b></li>
+      <li>Select mode <b><i>Left channel only</i></b>.</li>
+      <li>Press <b><i>Run</i></b> button.</li>
+      <li>Adjust the <b>volume</b> to get a reasonable recording level.
+        Note that volume changes discard the result.</li>
+      <li><b>Wait</b> until the results are reasonable smooth.</li>
+      <li>Press <b><i>Abort/Stop</i></b> button.</li>
+      <li><b><img alt="" src="images/cal-right.png" align="right" height="106" hspace="5"
+            width="156">Connect right line in</b> of your
+        sound card <b>to
+          right line out and left line in to ground.</b> </li>
+      <li>Select mode <b><i>Right channel only</i></b>.</li>
+      <li>Press <b><i>Run</i></b> button.</li>
+      <li>Do not change the volume after step 4. otherwise the results will
+        no longer match.<br>
+      </li>
+      <li><b>Wait</b> until the results are reasonable smooth.</li>
+      <li>Press <b><i>Abort/Stop</i></b> button.</li>
+      <li><b><img src="images/cal-left2both.png" alt="" align="right" height="106"
+            hspace="5" width="157">Connect left and right line in</b>
+        of your
+        sound card <b>to
+          left line out.</b> </li>
+      <li>Select mode <b><i>Left to both channels</i></b>.</li>
+      <li>Press <b><i>Run</i></b> button.</li>
+      <li><b>Wait</b> until the results are reasonable smooth.</li>
+      <li>Press <b><i>Abort/Stop</i></b> button.</li>
+      <li>Enter a <b>description</b> to identify your sound device
+        (optional).</li>
+      <li>Enter a <b>file name</b> - without extension.</li>
+      <li>Press <i><b>Save</b></i> button to save the result.</li>
+    </ol>
+    <h3>Troubleshooting</h3>
+    <h4><img alt="" src="images/cal-overdrive.png" align="left" height="212" hspace="5"
+        vspace="5" width="315"><img alt="" src="images/cal-overdrive2.png" align="left"
+        height="212" hspace="5" vspace="5" width="315"><b><a name="distortion"></a>Input
+        overdrive</b></h4>
+    <p>If you do not get
+      reasonable results in step 5, especially if the
+      green and pink graph in the frequency response are noisy and graphs on
+      the right show high and irregular values, then it is likely that
+      you overdrive your line input.</p>
+    <p>Reduce the volume and repeat from step 5.</p>
+    <h4><img alt="" src="images/cal-eq.png" style="clear: both;" align="left" height="208"
+        hspace="5" vspace="5" width="316"><b>Equalizer
+        enabled</b></h4>
+    <p>If the frequency response is irregular but well reproducible (does
+      not
+      change with longer measurements) then most likely you have REALEQ or
+      some other equalizer plug-in still enabled.</p>
+    <p>Disable all equalizers and other sound enhancement plug-ins except
+      for DCR123 unless you want DRC123 to compensate for the
+      effect of them. ;-)</p>
+    <h4><b><img alt="" src="images/cal-async.png" align="left" height="213" hspace="5"
+          vspace="5" width="316"><img alt="" src="images/cal-async2.png" align="left"
+          height="213" hspace="5" vspace="5" width="316"><a name="nomasterclock"></a>Different
+Sound
+        device</b></h4>
+    <p>If the response decreases at higher frequencies with measurement
+      time then you used another sound card for playback and recording. This
+      causes the the frequencies of the test signal to be slightly shifted
+      because of tolerances of the crystal oscillators of the sound devices.</p>
+    <p> DRC123 is not designed to work with frequency shifts because this
+      would significantly decrease the accuracy of the results. DRC123 relies
+      on several symmetries of the setup to get high precision results from
+      cheap, uncalibrated hardware. The exact frequency is one of them. So it
+      is essential to <em>use the same device for recording and
+        playback</em>. This also implies that <em>USB measurement microphones
+        are
+        unusable</em> (i.e. Behringer ECM 8000) because they cannot support a
+      synchronous playback
+      channel.</p>
+  </body>
 </html>

@@ -50,6 +50,7 @@ class Generate
     double      FreqLow, FreqHigh;    ///< Display range for frequency
     double      FreqBin;              ///< Width of a frequency bin
     double      FreqFactor;           ///< Factor between neighbor frequencies.
+    bool        NoPhase;              ///< Do not process phase response.
     double      NormFreqLow, NormFreqHigh;///< Normalization frequency range.
     NormalizeMode NormMode;           ///< Mode used for normalization
     double      LimitGain;            ///< Maximum gain of target result [factor]

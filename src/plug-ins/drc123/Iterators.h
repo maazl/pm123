@@ -98,6 +98,8 @@ class FileIterator : public ReadIterator
   /// @return true if the column contains at least one non NAN value.
   /// @pre The rows in the data source must be strictly ordered by the key in the first column.
   virtual bool         Reset(const DataFile& data);
+  /// Check whether this iterator is valid.
+  bool                 IsValid() const             { return End != NULL; }
 };
 
 /// @brief Input iterator over a linear interpolating function of a column of a \c DataFile instance.

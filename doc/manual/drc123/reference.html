@@ -1,109 +1,108 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1110" level="3" lang="en">
-<head>
-  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>DRC123: Reference signals</title>
-  <link rel="stylesheet" href="../../common/infstyle.css"
- type="text/css">
-  <meta content="Marcel Müller" name="author">
-</head>
-<body>
-<h2>Reference signals for DRC123 measurements
-</h2>
-<p>DRC123 uses a special kind of reference signal to get optimal
-results. The reference has the following properties:</p>
-<ul>
-  <li>The signal has approximately the energy distribution of <em>pink
-noise</em>, but</li>
-  <li>the <em>spectrum is <a href="#discrete">discrete</a></em> to
-get a better signal to
-noise ratio.</li>
-  <li>The reference contains only energy in the <em>frequency interval
-[20 Hz, 20 kHz]</em>.</li>
-  <li>All frequencies are odd multiples of some base frequency to
-reduce <a href="#distortion">intermodulation noise</a>.</li>
-  <li>In stereo mode the left and right channel use distinct
-frequencies.</li>
-  <li>In differential mode the output is inverted on channel 2. Special
-hardware can use this to eliminate common mode noise. </li>
-</ul>
-<h3>How does it work?
-</h3>
-<p>The reference generator uses <em>Inverse Fourier Transform</em> to
-synthesize
-the output. The Fourier Coefficients are calculated as follows:
-</p>
-<blockquote>
-  <table border="0" cellpadding="0" cellspacing="0">
-    <tbody>
-      <tr>
-        <td colspan="1" rowspan="2" valign="middle"><var>magnitude<small><sub>i</sub></small></var>
-=</td>
-        <td colspan="1" rowspan="2" valign="middle"><font size="+3">{</font></td>
-        <td> <br>
-        </td>
-        <td valign="middle">&nbsp;0,</td>
-        <td> <br>
-        </td>
-        <td valign="middle">if <var>f</var> &#8713; [20, 20000] &#8744; <var>i</var>
-is even</td>
-      </tr>
-      <tr>
-        <td>&nbsp;</td>
-        <td valign="middle"><var>&nbsp;f</var><small><sup>-1</sup></small>,
-        </td>
-        <td>&nbsp;</td>
-        <td valign="middle">if <var>f</var> &#8712; [20, 20000] &#8743; <var>i</var>
-is odd</td>
-      </tr>
-    </tbody>
-  </table>
-  <p><var>phase<small><sub>i</sub></small></var> = random()</p>
-</blockquote>
-<p>In stereo mode additionally every second nonzero magnitude is set to
-zero alternating for the left and the right channel. So in fact the two
-channels are measured at slightly different frequencies.</p>
-<p>The result from the Inverse Fourier Transform is <em>normalized</em>
-and then played in an infinite loop until the measurement is stopped.</p>
-<h3><a name="discrete"></a>Random noise with discrete spectrum?</h3>
-<p><i>How can a random noise have a discrete spectrum? And why is this
-that important?</i></p>
-<p>Well, the amount of entropy in the reference signal is limited,
-because the reference is played in a loop. Every repetitive signal has
-a discrete spectrum, that only contains frequencies that are multiples
-of the repetition rate. For the measurement this is important, because
-not only one cycle of the signal is recorded. In fact every <var>N</var>-th
-sample of the recording is added before any further processing, with <var>N</var>
-= FFT length = length until the reference repeats itself (about 2
-seconds). This causes any frequency of the recording that does not fit
-in the reference loop length to be canceled sooner or later. The
-addition of samples with the same period than the reference length
-effectively performs a comb filter.</p>
-<p>For this to work it is essential, that the phase of the reference
-playback and the recording is synchronized exactly. In fact the
-coherence length must exceed the entire measurement. Because of
-tolerances and phase noise there is only one option to satisfy this
-condition: <strong>playback and recording must be done by the same
-physical sound device</strong>, controlled by the same crystal
-oscillator respectively.</p>
-<h3><a name="distortion"></a>What about nonlinearities?</h3>
-<p><i>Most transfer systems have more or less nonlinearity. Does this
-impact the measurement?</i></p>
-<p>Yes and no. Nonlinearities basically introduce harmonics and
-intermodulation. In the second order (H2) this causes new frequencies
-to appear that are sums and differences of two other frequencies.<br>
-The reference contains only frequencies that are <i>odd</i> multiples
-of some base frequency (the repetition rate). Whatever you do, if you
-add or subtract two of them you will always get an <i>even</i>
-multiple. This frequencies are unused and do not impact the measurement.</p>
-<p>However, nonlinearities may also produce intermodulation terms of <i>three</i>
-frequencies in the signal (i.e. H3). These artifacts will collide with
-other measurement data. But have a look at the logarithmic scale. If
-you add some noise at -30 dB or less you will not even notice a change.
-So in conclusion, the 3rd order distortions will only give any notable
-impact if their intensity is in the order of the dynamic range of your
-transfer function to measure. This is unlikely for room responses,
-since -30 dB is almost silence and you cannot compensate for a loss of
-this amount anyway.</p>
-</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+    <title>DRC123: Reference signals</title>
+    <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
+    <meta content="Marcel Müller" name="author">
+  </head>
+  <body>
+    <h2>Reference signals for DRC123 measurements
+    </h2>
+    <p>DRC123 uses a special kind of reference signal to get optimal
+      results. The reference has the following properties:</p>
+    <ul>
+      <li>The signal has approximately the energy distribution of <em>white
+          noise</em>, but</li>
+      <li>the <em>spectrum is <a href="#discrete">discrete</a></em> to
+        get a better signal to
+        noise ratio.</li>
+      <li>The reference contains only energy in the <em>frequency interval
+          [20 Hz, 20 kHz]</em>.</li>
+      <li>Optionally all frequencies are odd multiples of some base frequency to
+        reduce <a href="#distortion">intermodulation noise</a>.</li>
+      <li>In stereo mode the left and right channel use distinct
+        frequencies.</li>
+      <li>In differential output mode channel 2 is inverted. Special
+        hardware can use this to eliminate common mode noise. </li>
+    </ul>
+    <h3>How does it work?
+    </h3>
+    <p>The reference generator uses <em>Inverse Fourier Transform</em> to
+      synthesize
+      the output. The Fourier Coefficients are calculated as follows:
+    </p>
+    <blockquote>
+      <table border="0" cellpadding="0" cellspacing="0">
+        <tbody>
+          <tr>
+            <td colspan="1" rowspan="2" valign="middle"><var>magnitude<small><sub>i</sub></small></var>
+              =</td>
+            <td colspan="1" rowspan="2" valign="middle"><font size="+3">{</font></td>
+            <td> <br>
+            </td>
+            <td valign="middle">&nbsp;0,</td>
+            <td> <br>
+            </td>
+            <td valign="middle">if <var>f</var> &#8713; [20, 20000] &#8744; <var>i</var>
+              is even and option is enabled</td>
+          </tr>
+          <tr>
+            <td>&nbsp;</td>
+            <td valign="middle"><var>&nbsp;f</var><sup>-0.2</sup>, </td>
+            <td>&nbsp;</td>
+            <td valign="middle">if <var>f</var> &#8712; [20, 20000] &#8743; <var>i</var>
+              is odd or option is disabled</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><var>phase<small><sub>i</sub></small></var> = random()</p>
+    </blockquote>
+    <p>In stereo mode additionally every second nonzero magnitude is set to
+      zero alternating for the left and the right channel. So in fact the two
+      channels are measured at slightly different frequencies.</p>
+    <p>The result from the Inverse Fourier Transform is <em>normalized</em>
+      and then played in an infinite loop until the measurement is stopped.</p>
+    <h3><a name="discrete"></a>Random noise with discrete spectrum?</h3>
+    <p><i>How can a random noise have a discrete spectrum? And why is it
+        that important?</i></p>
+    <p>Well, the amount of entropy in the reference signal is limited,
+      because the reference is played in a loop. Every repetitive signal has
+      a discrete spectrum, that only contains frequencies that are multiples
+      of the repetition rate. For the measurement this is important, because
+      not only one cycle of the signal is recorded. In fact every <var>N</var>-th
+sample
+      of the recording is added before any further processing, with <var>N</var>
+      = FFT length = length until the reference repeats itself (about 2
+      seconds). This causes any frequency of the recording that does not fit
+      in the reference loop length to be canceled sooner or later. The
+      addition of samples with the same period than the reference length
+      effectively performs a comb filter.</p>
+    <p>For this to work it is essential, that the phase of the reference
+      playback and the recording is synchronized exactly. In fact the
+      coherence length must exceed the entire measurement. Because of
+      tolerances and phase noise there is only one option to satisfy this
+      condition: <strong>playback and recording must be done by the same
+        physical sound device</strong>, controlled by the same crystal
+      oscillator respectively.</p>
+    <h3><a name="distortion"></a>What about nonlinearities?</h3>
+    <p><i>Most transfer systems have more or less nonlinearity. Does this
+        impact the measurement?</i></p>
+    <p>Yes and no. Nonlinearities basically introduce harmonics and
+      intermodulation. In the second order (H2) this causes new frequencies
+      to appear that are sums and differences of two other frequencies.<br>
+      If the reference contains only frequencies that are <i>odd</i> multiples
+      of some base frequency (the repetition rate), whatever you do, if you
+      add or subtract two of them you will always get an <i>even</i>
+      multiple. This frequencies are unused and do not impact the measurement.</p>
+    <p>However, nonlinearities may also produce intermodulation terms of <i>three</i>
+      frequencies in the signal (i.e. H3). These artifacts will collide with
+      other measurement data. But have a look at the logarithmic scale. If
+      you add some noise at -30 dB or less you will not even notice a change.
+      So in conclusion, the 3rd order distortions will only give any notable
+      impact if their intensity is in the order of the dynamic range of your
+      transfer function to measure. This is unlikely for room responses,
+      since -30 dB is almost silence and you cannot compensate for a loss of
+      this amount anyway.</p>
+  </body>
 </html>

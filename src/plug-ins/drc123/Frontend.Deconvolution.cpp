@@ -53,8 +53,8 @@ const Frontend::DeconvolutionViewParams Frontend::DeconvolutionViewDefault =
 ,   18,22000
 ,  -30,  +20
 ,  -.2,  +.2
-,  -.5,  +.5, false
-,   -5,   +5
+, -.25, +.25, false
+,   -1,   +1
 };
 
 Frontend::DeconvolutionViewParams Frontend::DeconvolutionView = DeconvolutionViewDefault;
@@ -129,9 +129,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT2FROMMP(mp1) == CBN_ENTER)
         SetModified(true);
       break;
-     case RB_WIN_NONE:
-     case RB_WIN_DIMMED_HAMMING:
-     case RB_WIN_HAMMING:
+     case CB_WIN_HAMMING:
      case CB_SUBSONIC:
      case CB_SUPERSONIC:
       if (SHORT2FROMMP(mp1) == BN_CLICKED)
@@ -171,7 +169,7 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      load:
       { // Populate list box with filter kernels
         PostCommand(PB_RELOAD);
-        RadioButton(+GetCtrl(RB_WIN_NONE + Params.WindowFunction)).CheckState(true);
+        CheckBox(+GetCtrl(CB_WIN_HAMMING)).CheckState(Params.WindowFunction == Deconvolution::WFN_HAMMING);
         CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState((Params.Filter & Deconvolution::FLT_Subsonic) != 0);
         CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState((Params.Filter & Deconvolution::FLT_Supersonic) != 0);
         int selected; // default
@@ -195,7 +193,8 @@ MRESULT Frontend::DeconvolutionPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case PB_APPLY:
       { // Update configuration from GUI
-        Params.WindowFunction = (Deconvolution::WFN)(RadioButton(+GetCtrl(RB_WIN_NONE)).CheckID() - RB_WIN_NONE);
+        Params.WindowFunction = CheckBox(+GetCtrl(CB_WIN_HAMMING)).CheckState()
+          ? Deconvolution::WFN_HAMMING : Deconvolution::WFN_NONE;
         Params.Filter
           = !!CheckBox(+GetCtrl(CB_SUBSONIC)).CheckState() * Deconvolution::FLT_Subsonic
           | !!CheckBox(+GetCtrl(CB_SUPERSONIC)).CheckState() * Deconvolution::FLT_Supersonic;
@@ -318,7 +317,6 @@ void Frontend::DeconvolutionPage::UpdateKernel()
 
 void Frontend::DeconvolutionPage::SetupGraph()
 { Result.Graphs.clear();
-  SetAxes();
   switch (DeconvolutionView.ViewMode)
   {default: // DVM_TARGET
     Result.Graphs.append() = new ResponseGraph::GraphInfo("< L gain", Kernel, IterLGain, ResponseGraph::GF_Average, CLR_BLUE);
@@ -349,6 +347,7 @@ void Frontend::DeconvolutionPage::SetupGraph()
     Deconvolution::ForceKernelChange();
     break;
   }
+  SetAxes();
 }
 
 void Frontend::DeconvolutionPage::SetAxes()

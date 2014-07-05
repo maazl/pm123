@@ -425,7 +425,7 @@ void Frontend::GeneratePage::GetResults()
 
 Frontend::GenerateExtPage::GenerateExtPage(Frontend& parent)
 : PageBase(parent, DLG_GENERATE_X, parent.ResModule, DF_AutoResize)
-{ MinorTitle = "Extended filter generation options";
+{ MinorTitle = "Filter generation options";
 }
 
 MRESULT Frontend::GenerateExtPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -469,6 +469,7 @@ void Frontend::GenerateExtPage::LoadControlValues(const Generate::Parameters& da
   SetValue(GetCtrl(EF_FREQ_HIGH), data.FreqHigh);
   SetValue(GetCtrl(EF_FREQ_BIN), data.FreqBin);
   SetValue(GetCtrl(EF_FREQ_FACTOR), data.FreqFactor * 100.);
+  CheckBox(+GetCtrl(CB_NOPHASE)).CheckState(data.NoPhase);
   SetValue(GetCtrl(EF_NORM_LOW), data.NormFreqLow);
   SetValue(GetCtrl(EF_NORM_HIGH), data.NormFreqHigh);
   RadioButton(+GetCtrl(RB_ENERGY+data.NormMode)).CheckState(true);
@@ -497,6 +498,7 @@ void Frontend::GenerateExtPage::StoreControlValues(Generate::Parameters& data)
   GetValue(GetCtrl(EF_FREQ_BIN), data.FreqBin);
   if (GetValue(GetCtrl(EF_FREQ_FACTOR), tmp))
     data.FreqFactor = tmp / 100.;
+  data.NoPhase = !!CheckBox(+GetCtrl(CB_NOPHASE)).CheckState();
   GetValue(GetCtrl(EF_NORM_LOW), data.NormFreqLow);
   GetValue(GetCtrl(EF_NORM_HIGH), data.NormFreqHigh);
   data.NormMode = (Generate::NormalizeMode)(RadioButton(+GetCtrl(RB_ENERGY)).CheckID() - RB_ENERGY);

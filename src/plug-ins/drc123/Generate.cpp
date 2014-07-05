@@ -43,21 +43,22 @@ Generate::Parameters::Parameters(const Parameters& r)
     file->FileName = (*sp)->FileName;
     Measurements.get(file->FileName) = file;
   }
-  FreqLow  = r.FreqLow;
-  FreqHigh = r.FreqHigh;
-  FreqBin  = r.FreqBin;
-  FreqFactor = r.FreqFactor;
-  NormFreqLow = r.NormFreqLow;
+  FreqLow      = r.FreqLow;
+  FreqHigh     = r.FreqHigh;
+  FreqBin      = r.FreqBin;
+  FreqFactor   = r.FreqFactor;
+  NoPhase      = r.NoPhase;
+  NormFreqLow  = r.NormFreqLow;
   NormFreqHigh = r.NormFreqHigh;
-  NormMode = r.NormMode;
-  LimitGain = r.LimitGain;
-  LimitDelay = r.LimitDelay;
-  GainSmoothing = r.GainSmoothing;
+  NormMode     = r.NormMode;
+  LimitGain    = r.LimitGain;
+  LimitDelay   = r.LimitDelay;
+  GainSmoothing  = r.GainSmoothing;
   DelaySmoothing = r.DelaySmoothing;
   InvertHighGain = r.InvertHighGain;
-  GainLow  = r.GainLow;
-  GainHigh = r.GainHigh;
-  DelayLow = r.DelayLow;
+  GainLow   = r.GainLow;
+  GainHigh  = r.GainHigh;
+  DelayLow  = r.DelayLow;
   DelayHigh = r.DelayHigh;
 }
 
@@ -72,6 +73,7 @@ void Generate::Parameters::swap(Parameters& r)
   ::swap(FreqHigh, r.FreqHigh);
   ::swap(FreqBin,  r.FreqBin);
   ::swap(FreqFactor, r.FreqFactor);
+  ::swap(NoPhase, r.NoPhase);
   ::swap(NormFreqLow, r.NormFreqLow);
   ::swap(NormFreqHigh, r.NormFreqHigh);
   ::swap(NormMode, r.NormMode);
@@ -93,6 +95,7 @@ Generate::TargetFile::TargetFile()
   FreqHigh = 20000.;
   FreqBin  = .2;
   FreqFactor = .01;
+  NoPhase = true; // TODO: change once the phase correction bug is solved
   NormFreqLow = 50.;
   NormFreqHigh = 500.;
   NormMode = NM_Energy;
@@ -122,6 +125,8 @@ bool Generate::TargetFile::ParseHeaderField(const char* string)
     sscanf(string, "%lf,%lf", &FreqLow, &FreqHigh);
   else if (TryParam(string, "FreqBin"))
     sscanf(string, "%lf,%lf", &FreqBin, &FreqFactor);
+  else if (TryParam(string, "NoPhase"))
+    NoPhase = !!atoi(string);
   else if (TryParam(string, "NormFreq"))
     sscanf(string, "%lf,%lf", &NormFreqLow, &NormFreqHigh);
   else if (TryParam(string, "LimitGain"))
@@ -145,13 +150,14 @@ bool Generate::TargetFile::WriteHeaderFields(FILE* f)
   fprintf( f,
     "##Freq=%f,%f\n"
     "##FreqBin=%f,%f\n"
+    "##NoPhase=%u\n"
     "##NormFreq=%f,%f\n"
     "##LimitGain=%f,%f\n"
     "##LimitDelay=%f,%f\n"
     "##InvertHighGain=%u\n"
     "##DispGain=%f,%f\n"
     "##DispDelay=%f,%f\n"
-    , FreqLow, FreqHigh, FreqBin, FreqFactor, NormFreqLow, NormFreqHigh
+    , FreqLow, FreqHigh, FreqBin, FreqFactor, NoPhase, NormFreqLow, NormFreqHigh
     , LimitGain, GainSmoothing, LimitDelay, DelaySmoothing, InvertHighGain
     , GainLow, GainHigh, DelayLow, DelayHigh );
   return DataFile::WriteHeaderFields(f);
@@ -342,8 +348,11 @@ void Generate::Run()
     }
     row[LGain] = ApplyGainLimit(1 / (lgain.Sum * scale));
     row[RGain] = ApplyGainLimit(1 / (rgain.Sum * scale));
-    row[LDelay] = ApplyDelayLimit(-ldelay.Sum * scale);
-    row[RDelay] = ApplyDelayLimit(-rdelay.Sum * scale);
+    if (!LocalData.NoPhase)
+    { row[LDelay] = ApplyDelayLimit(-ldelay.Sum * scale);
+      row[RDelay] = ApplyDelayLimit(-rdelay.Sum * scale);
+    } else
+      row[LDelay] = row[RDelay] = 0;
     row[LGainLow] = 1 / lgain.High;
     row[LGainHigh] = 1 / lgain.Low;
     row[RGainLow] = 1 / rgain.High;
@@ -360,8 +369,10 @@ void Generate::Run()
   // limit slew rate
   ApplySmoothing(LGain, LocalData.GainSmoothing);
   ApplySmoothing(RGain, LocalData.GainSmoothing);
-  ApplySmoothing(LDelay, LocalData.DelaySmoothing);
-  ApplySmoothing(RDelay, LocalData.DelaySmoothing);
+  if (!LocalData.NoPhase)
+  { ApplySmoothing(LDelay, LocalData.DelaySmoothing);
+    ApplySmoothing(RDelay, LocalData.DelaySmoothing);
+  }
 }
 
 void Generate::ApplySmoothing(unsigned col, double width)
