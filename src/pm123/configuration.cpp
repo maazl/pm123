@@ -124,6 +124,7 @@ const amp_cfg Cfg::Default =
   "os2rec.dll?enabled=true\n"
   "pulse123.dll?enabled=true\n"
 , "realeq.dll?enabled=true\n"
+  "drc123.dll?enabled=true\n"
 , "os2audio.dll?enabled=true\n"
   "wavout.dll?enabled=false\n"
   "pulse123.dll?enabled=false\n"
