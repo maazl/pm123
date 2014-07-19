@@ -1980,7 +1980,11 @@ void GUIImp::DropRenderComplete(PDRAGTRANSFER pdtrans_, USHORT flags)
 
 BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
 { DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
-    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
+    (SHORT)usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
+  switch ((SHORT)usMode)
+  {case HLPM_WINDOW:
+    return GUI::ShowHelp((SHORT)idTopic);
+  }
   return FALSE;
 }
 

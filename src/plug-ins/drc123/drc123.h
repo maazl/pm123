@@ -29,16 +29,16 @@
 #ifndef DRC123_H
 #define DRC123_H
 
-#define DLG_FRONTEND    110
-#define DLG_CONFIG      120
-#define DLG_DECONV      130
-#define DLG_DECONV_X    131
-#define DLG_GENERATE    140
-#define DLG_GENERATE_X  141
-#define DLG_MEASURE     150
-#define DLG_MEASURE_X   151
-#define DLG_CALIBRATE   160
-#define DLG_CALIBRATE_X 161
+#define DLG_FRONTEND    20000
+#define DLG_CONFIG      20001
+#define DLG_DECONV      20002
+#define DLG_DECONV_X    20003
+#define DLG_GENERATE    20004
+#define DLG_GENERATE_X  20005
+#define DLG_MEASURE     20006
+#define DLG_MEASURE_X   20007
+#define DLG_CALIBRATE   20008
+#define DLG_CALIBRATE_X 20009
 
 // Generic definitions
 #define ST_GENERIC      1000

@@ -110,7 +110,7 @@ class GUI
 
  public: // Manipulating interface   
   static void      PostMessage(MESSAGE_TYPE type, xstring text);
-  // Tells the help manager to display a specific help window.
+  /// Tells the help manager to display a specific help window.
   // TODO: should move to dialog.cpp
   static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("ShowHelp(%u)\n", resid));
                                             return WinSendMsg(HHelp, HM_DISPLAY_HELP, MPFROMSHORT(resid), MPFROMSHORT(HM_RESOURCEID)) == 0; }

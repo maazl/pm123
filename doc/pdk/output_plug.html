@@ -101,7 +101,7 @@ name="output_uninit"></a>ULONG DLLENTRY <b>output_uninit</b>(struct OUTPUT_STRUC
     <p>The command should immediately pause or resume playback, depending on the
       <tt>Pause</tt> field in the control structure. If playback is paused the
       plugin should sooner or later block in <a href="#output_request_buffer"><tt>output_request_buffer</tt></a>
-      if the buffers become full.</p>
+      if the buffers become filled.</p>
     <h5><tt>OUTPUT_CLOSE</tt> - immediately stop playback and close the audio
       device</h5>
     <p>There are two cases, when <tt>OUTPUT_CLOSE</tt> can arrive.</p>
@@ -118,7 +118,7 @@ be
         this case.</li>
     </ol>
     PM123 will not call <a href="#output_uninit"><tt>output_uninit</tt></a>
-    unless the decoder thread really terminated.<br>
+    unless the decoder thread really returned.<br>
     <h5>Events</h5>
     <ol>
       <li>The output plugin <em>must</em> call the event handler <b><code>output_event</code></b>
@@ -144,7 +144,7 @@ be
     <p>The level 3 interface allocates the sample buffers by the plugin rather
       than the data source. This is known to cause less double buffering. The
       buffer size is no longer fixed. The functions <code>output_request_buffer</code>
-      and <code>output_commit_buffer</code> have to be called alternatingly.
+      and <code>output_commit_buffer</code> have to be called alternately.
       Anything else is an error. </p>
     <p>All samples are passed as 32 floating point regardless what type the
       input has been.</p>
@@ -198,7 +198,7 @@ href="datatype.html#FORMAT_INFO2">FORMAT_INFO2</a>* <var>format</var>, float** <
     <p>This functions are called by the decoder or last in chain filter plugin
       to play the stored samples. </p>
     <h4><a name="status_interface"></a>Status interface</h4>
-    <p>The status interface must be thread safe and reentrant.</p>
+    <p>The status interface must be thread safe and re-entrant.</p>
     <blockquote>
       <pre>PM123_TIME DLLENTRY <b>output_playing_pos</b>(struct OUTPUT_STRUCT* <var>a</var>)</pre>
     </blockquote>
@@ -261,7 +261,7 @@ href="datatype.html#PM123_TIME">PM123_TIME</a> offset, <a href="#OUTPUT_PLAYING_
     </ul>
     <h3><a name="level_1"></a>Interface revision level 0 and 1 (deprecated)</h3>
     <p>This interface revisions should not be used for development because the
-      impementations tends to modify the current thread's priority to boost the
+      implementations tends to modify the current thread's priority to boost the
       speed of the data source. This implies that the current thread while
       calling <code>output_play_samples</code> is the bottleneck and that it is
       always the same thread. Both is not true in general (e.g. remote data

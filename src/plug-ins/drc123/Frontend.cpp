@@ -173,6 +173,19 @@ MRESULT Frontend::ConfigurationPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
     }
     return 0;
+
+   case WM_HELP:
+    DEBUGLOG(("drc123:Frontend::ConfigurationPage::DlgProc: WM_HELP %u, %u, %u\n",
+      SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+    switch (SHORT1FROMMP(mp1))
+    {case PB_HELP:
+      { HWND hlp = WinQueryHelpInstance(GetHwnd());
+        if ( hlp != NULLHANDLE
+          && WinSendMsg(hlp, HM_DISPLAY_HELP, MPFROMSHORT(DLG_FRONTEND), MPFROMSHORT(HM_RESOURCEID)) == 0 )
+          return 0;
+      }
+    }
+    break;
   }
   return PageBase::DlgProc(msg, mp1, mp2);
 }

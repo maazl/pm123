@@ -163,30 +163,30 @@ DLGTEMPLATE DLG_DECONV_X
     ENTRYFIELD "",                    EF_FREQ_LOW, 118, 76,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 74,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236, 74,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_HIGH,182, 76,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236, 74,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "~Gain range",           ST_GENERIC,   10, 62, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_GAIN_LOW, 118, 64,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 62,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236, 62,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAIN_HIGH,182, 64,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236, 62,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Group ~delay range",    ST_GENERIC,   10, 50, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_DELAY_LOW,118, 52,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 50,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "s",                     ST_GENERIC,  236, 50,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAY_HIGH,182,52,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "s",                     ST_GENERIC,  236, 50,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "~Time domain range",    ST_GENERIC,   10, 38, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_TIME_LOW, 118, 40,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 38,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "s",                     ST_GENERIC,  236, 38,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_TIME_HIGH,182, 40,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "s",                     ST_GENERIC,  236, 38,  16, 12, DT_VCENTER|NOT WS_GROUP
     AUTOCHECKBOX "~automatic"         CB_TIME_AUTO,256, 38,  52, 12
     LTEXT    "Filter ~kernel range",  ST_GENERIC,   10, 26, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_KERNEL_LOW,118,28,  48,  8, ES_MARGIN
@@ -265,17 +265,17 @@ DLGTEMPLATE DLG_GENERATE_X
     ENTRYFIELD "",                    EF_FREQ_LOW, 118,190,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,188,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236,188,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_HIGH,182,190,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236,188,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Frequency ~bin size",   ST_GENERIC,   10,176, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "Hz",                    ST_GENERIC,  172,176,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_BIN, 118,178,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  172,176,  16, 12, DT_VCENTER|NOT WS_GROUP
     RTEXT    "+ factor",              ST_GENERIC,  188,176,  44, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "%",                     ST_GENERIC,  292,176,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_FACTOR,238,178,48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "%",                     ST_GENERIC,  292,176,  16, 12, DT_VCENTER|NOT WS_GROUP
     AUTOCHECKBOX "Do not process ~phase response",
                                       CB_NOPHASE ,  12,164, 164, 12, WS_GROUP
 
@@ -285,9 +285,9 @@ DLGTEMPLATE DLG_GENERATE_X
     ENTRYFIELD "",                    EF_NORM_LOW, 118,136,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,134,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236,134,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_NORM_HIGH,182,136,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236,134,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Normalization ~mode",   ST_GENERIC,   10,122, 102, 12, DT_VCENTER|DT_MNEMONIC
     AUTORADIOBUTTON "energy"          RB_ENERGY,   116,122,  60, 12
     AUTORADIOBUTTON "dB"              RB_LOGARITHM,180,122,  60, 12
@@ -295,23 +295,23 @@ DLGTEMPLATE DLG_GENERATE_X
     GROUPBOX " Limiter ",             GB_GENERIC,    4, 62, 380, 52
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT    "~Limit Gain",           ST_GENERIC,   10, 92, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "dB",                    ST_GENERIC,  172, 92,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_LIMITGAIN,118, 94,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  172, 92,  16, 12, DT_VCENTER|NOT WS_GROUP
     RTEXT    "smoothing",             ST_GENERIC,  188, 92,  44, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  292, 92,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAINSMOOTH,238,94,48, 8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  292, 92,  16, 12, DT_VCENTER|NOT WS_GROUP
     AUTOCHECKBOX "~invert high gain values",
                                       CB_INVERTGAIN,116,80, 116, 12
     LTEXT    "Limit Dela~y",          ST_GENERIC,   10, 68, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "s",                     ST_GENERIC,  172, 68,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_LIMITDELAY,118,70,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "s",                     ST_GENERIC,  172, 68,  16, 12, DT_VCENTER|NOT WS_GROUP
     RTEXT    "smoothing",             ST_GENERIC,  188, 68,  44, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  292, 68,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAYSMOOTH,238,70,48,8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  292, 68,  16, 12, DT_VCENTER|NOT WS_GROUP
 
     GROUPBOX " Display settings ",    GB_GENERIC,    4, 20, 380, 40
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -319,16 +319,16 @@ DLGTEMPLATE DLG_GENERATE_X
     ENTRYFIELD "",                    EF_GAIN_LOW, 118, 40,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 38,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236, 38,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAIN_HIGH,182, 40,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236, 38,  16, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Group ~delay range",    ST_GENERIC,   10, 26, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_DELAY_LOW,118, 28,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172, 26,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "s",                     ST_GENERIC,  236, 26,  16, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAY_HIGH,182,28,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "s",                     ST_GENERIC,  236, 26,  16, 12, DT_VCENTER|NOT WS_GROUP
 
     PUSHBUTTON "~Undo",               PB_UNDO,     108,  4,  52, 12
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
@@ -423,7 +423,7 @@ DLGTEMPLATE DLG_MEASURE
 
 
 DLGTEMPLATE DLG_MEASURE_X
-{ DIALOG "Extended measurement options",DLG_CALIBRATE_X,0,0,388,244, NOT FS_DLGBORDER | NOT WS_SAVEBITS, FCF_NOBYTEALIGN
+{ DIALOG "Extended measurement options",DLG_MEASURE_X,0, 0, 388,244, NOT FS_DLGBORDER | NOT WS_SAVEBITS, FCF_NOBYTEALIGN
     PRESPARAMS                MAKE_PPU_SIZE_CONSTR(352,  0,   0,  0)
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
@@ -435,16 +435,16 @@ DLGTEMPLATE DLG_MEASURE_X
     ENTRYFIELD "",                    EF_DISCARD,  118,184,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(6)
     LTEXT    "Frequency ~bin factor"  ST_GENERIC,   10,170, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "%",                     ST_GENERIC,  172,170,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD ""                     EF_FREQ_BIN, 118,172,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "%",                     ST_GENERIC,  172,170,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "~Frequency range",      ST_GENERIC,   10,158, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_FREQ_LOW, 118,160,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,158,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236,158,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_HIGH,182,160,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236,158,  20, 12, DT_VCENTER|NOT WS_GROUP
 
     GROUPBOX " Display settings ",    GB_GENERIC,    4, 86, 380, 64
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -452,29 +452,30 @@ DLGTEMPLATE DLG_MEASURE_X
     ENTRYFIELD "",                    EF_GAIN_LOW, 118,130,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,128,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236,128,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAIN_HIGH,182,130,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236,128,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Frequency response ~delay",ST_GENERIC,10,116, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_DELAY_LOW,118,118,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,116,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "s",                     ST_GENERIC,  236,116,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAY_HIGH,182,118, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     LTEXT    "record level indicator ~range",
                                       ST_GENERIC,   10,104, 102, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_VU_LOW,   118,106,  48,  8, ES_MARGIN
-      CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,104,   4, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "0  dB",                 ST_GENERIC,  184,104,  40, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_VU_LOW,   118,106,  48,  8, ES_MARGIN
+      CTLDATA CD_EFDATA(12)
     LTEXT    "record level indicator ~limits",
                                       ST_GENERIC,   10, 92, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_VU_YELLOW,118, 94,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    ",",                     ST_GENERIC,  172, 92,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236, 92,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_VU_RED,   182, 94,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236, 92,  20, 12, DT_VCENTER|NOT WS_GROUP
 
     GROUPBOX " Reference signal ",    GB_GENERIC,    4, 20, 380, 64
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -486,17 +487,17 @@ DLGTEMPLATE DLG_MEASURE_X
     AUTORADIOBUTTON "pink noise",     RB_PINK_N,   236, 62,  52, 12
     LTEXT    "Minimum factor to ~next frequency",
                                       ST_GENERIC,   10, 50, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "ppm",                   ST_GENERIC,  172, 50,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_REFFDIST, 118, 52,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "ppm",                   ST_GENERIC,  172, 50,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Line frequency ~notch", ST_GENERIC,   10, 38, 102, 12, DT_VCENTER|DT_MNEMONIC
     SPINBUTTON                        SB_NOTCHORDER,116,40,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       CTLDATA CD_SPBCDATA(2, 0,99)
     LTEXT    "harmonics",             ST_GENERIC,  152, 38,  36, 12, DT_VCENTER|NOT WS_GROUP
     RTEXT    "@",                     ST_GENERIC,  188, 38,   8, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236, 38,  20, 12, DT_VCENTER|NOT WS_GROUP
     SPINBUTTON                        SB_NOTCHFREQ,200, 40,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       CTLDATA CD_SPBCDATA(2, 1,99)
-    LTEXT    "Hz",                    ST_GENERIC,  236, 38,  20, 12, DT_VCENTER|NOT WS_GROUP
     AUTOCHECKBOX "Use only ~odd frequencies in spectrum",
                                       CB_SKIPEVEN,  12, 26, 164, 12, WS_GROUP
     AUTOCHECKBOX "~Skip some frequencies in stereo mode",
@@ -589,16 +590,16 @@ DLGTEMPLATE DLG_CALIBRATE_X
     ENTRYFIELD "",                    EF_DISCARD,  118,196,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(6)
     LTEXT    "Frequency ~bin factor"  ST_GENERIC,   10,182, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "%",                     ST_GENERIC,  172,182,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD ""                     EF_FREQ_BIN, 118,184,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "%",                     ST_GENERIC,  172,182,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "~Frequency range",      ST_GENERIC,   10,170, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_FREQ_LOW, 118,172,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,170,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236,170,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_FREQ_HIGH,182,172,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "Hz",                    ST_GENERIC,  236,170,  20, 12, DT_VCENTER|NOT WS_GROUP
 
     GROUPBOX " Display settings ",    GB_GENERIC,    4, 86, 380, 76
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -606,37 +607,37 @@ DLGTEMPLATE DLG_CALIBRATE_X
     ENTRYFIELD "",                    EF_GAIN_LOW, 118,142,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,140,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236,140,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAIN_HIGH,182,142,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236,140,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Frequency response ~delay",ST_GENERIC,10,128, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_DELAY_LOW,118,130,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,128,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "\370",                  ST_GENERIC,  236,128,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_DELAY_HIGH,182,130, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "\370",                  ST_GENERIC,  236,128,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Cross talk/~IM gain",   ST_GENERIC,   10,116, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_GAIN2_LOW,118,118,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,116,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236,116,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_GAIN2_HIGH,182,118, 48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236,116,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "record level indicator ~range",
                                       ST_GENERIC,   10,104, 102, 12, DT_VCENTER|DT_MNEMONIC
-    ENTRYFIELD "",                    EF_VU_LOW,   118,106,  48,  8, ES_MARGIN
-      CTLDATA CD_EFDATA(12)
     CTEXT    "-",                     ST_GENERIC,  172,104,   4, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "0  dB",                 ST_GENERIC,  182,104,  40, 12, DT_VCENTER|NOT WS_GROUP
+    ENTRYFIELD "",                    EF_VU_LOW,   118,106,  48,  8, ES_MARGIN
+      CTLDATA CD_EFDATA(12)
     LTEXT    "record level indicator ~limits",
                                       ST_GENERIC,   10, 92, 102, 12, DT_VCENTER|DT_MNEMONIC
     ENTRYFIELD "",                    EF_VU_YELLOW,118, 94,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
     CTEXT    ",",                     ST_GENERIC,  172, 92,   4, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "dB",                    ST_GENERIC,  236, 92,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_VU_RED,   182, 94,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "dB",                    ST_GENERIC,  236, 92,  20, 12, DT_VCENTER|NOT WS_GROUP
 
     GROUPBOX " Reference signal ",    GB_GENERIC,    4, 20, 380, 64
       PRESPARAMS              MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
@@ -648,17 +649,17 @@ DLGTEMPLATE DLG_CALIBRATE_X
     AUTORADIOBUTTON "pink noise",     RB_PINK_N,   236, 62,  52, 12
     LTEXT    "Minimum factor to ~next frequency",
                                       ST_GENERIC,   10, 50, 102, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT    "ppm",                   ST_GENERIC,  172, 50,  20, 12, DT_VCENTER|NOT WS_GROUP
     ENTRYFIELD "",                    EF_REFFDIST, 118, 52,  48,  8, ES_MARGIN
       CTLDATA CD_EFDATA(12)
-    LTEXT    "ppm",                   ST_GENERIC,  172, 50,  20, 12, DT_VCENTER|NOT WS_GROUP
     LTEXT    "Line frequency ~notch", ST_GENERIC,   10, 38, 102, 12, DT_VCENTER|DT_MNEMONIC
     SPINBUTTON                        SB_NOTCHORDER,116,40,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       CTLDATA CD_SPBCDATA(2, 0,99)
     LTEXT    "harmonics",             ST_GENERIC,  152, 38,  36, 12, DT_VCENTER|NOT WS_GROUP
     RTEXT    "@",                     ST_GENERIC,  188, 38,   8, 12, DT_VCENTER|NOT WS_GROUP
+    LTEXT    "Hz",                    ST_GENERIC,  236, 38,  20, 12, DT_VCENTER|NOT WS_GROUP
     SPINBUTTON                        SB_NOTCHFREQ,200, 40,  32, 10, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTLEFT
       CTLDATA CD_SPBCDATA(2, 1,99)
-    LTEXT    "Hz",                    ST_GENERIC,  236, 38,  20, 12, DT_VCENTER|NOT WS_GROUP
     AUTOCHECKBOX "Use only ~odd frequencies in spectrum",
                                       CB_SKIPEVEN,  12, 26, 164, 12, WS_GROUP
     AUTOCHECKBOX "~Skip some frequencies in stereo mode",

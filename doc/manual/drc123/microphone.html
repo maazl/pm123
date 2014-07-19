@@ -4,80 +4,74 @@
     <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
     <title>DRC123: Microphone</title>
     <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
-    <meta content="Marcel Müller" name="author">
+    <meta content="Marcel M&uuml;ller" name="author">
   </head>
   <body>
     <h2>Measurement Microphone for PM123</h2>
     <p>While the properties of the sound card can be compensated by a
-      calibration, the properties of the microphone and the microphone
-      amplifier can not. They directly cause wrong results and bad sound.
-    </p>
+      calibration, the properties of the microphone and the microphone amplifier
+      can not. They directly cause wrong results and bad sound. </p>
     <h3>Required properties</h3>
     <ol>
       <li><b>Linear frequency response</b><br>
         Any sound modification introduced by the microphone will be compensated
         by DRC123. But there is no such thing to compensate for in playback
-        mode. So if your microphone cannot record a certain frequency it will
-        be amplified until your microphone can recognize it - a very bad idea.</li>
+        mode. So if your microphone cannot record a certain frequency it will be
+        amplified until your microphone can recognize it - a very bad idea.</li>
       <li><b>Omnidirectional characteristics</b><br>
         Your microphones response should not depend on the direction of the
-        sound. While this sounds complicated it makes things rather cheaper
-        than mor expensive.</li>
+        sound. While this sounds complicated it makes things rather cheaper than
+        mor expensive.</li>
       <li><b>Sensitivity</b><br>
         Since your speakers are not close to the microphone it should have
         enough sensitivity to get a reasonable output.</li>
     </ol>
     <h3><a name="types"></a>Mircophone types</h3>
-    <p><em>Electret microphones</em> are the very first choice for this
-      purpose. They
-      are cheap, omnidirectional and have rather high sensitivity. </p>
+    <p><em>Electret microphones</em> are the very first choice for this purpose.
+      They are cheap, omnidirectional and have rather high sensitivity. </p>
     <dl>
       <dt><b>Analog measurement microphones</b></dt>
       <dd>Analog microphones like Bayerdynamic <em>MM-1</em> (also sold as
         t.bone) are <em>usable and sufficient</em>. However, you need a <a href="#amp">microphone
-          amplifier</a> with <em>phantom powering</em>
-        to connect it to your sound card. A small mixer is the cheapest way to
-        get them working. But be sure not to have any filtering activated. </dd>
+          amplifier</a> with <em>phantom powering</em> to connect it to your
+        sound card. A small mixer is the cheapest way to get them working. But
+        be sure not to have any filtering activated. </dd>
       <dt><b>Raw electret capsules</b></dt>
       <dd>Raw electret cartridges without any case are a <em>good choice</em>
         as well. They are small and do not modify the sound field very much.
-        this causes usually a reasonable good frequency response. You still
-        need a <a href="#amp">microphone amplifier</a>, this time with bias
-        power.<br>
-        But you should not chose any electret cartridge. Some of them are
-        really bad. But there are types that are explicitly designed for
-        measurement purposes. Panasonic <em>WM61A</em> is well known to fit
-        the needs. Similar models are also sold as Monacor <em>MCE 2500</em>.</dd>
+        This causes usually a reasonable good frequency response. You still need
+        a <a href="#amp">microphone amplifier</a>, this time with bias power.<br>
+        But you should not chose any electret cartridge. Some of them are really
+        bad. But there are types that are explicitly designed for measurement
+        purposes. Panasonic <em>WM61A</em> is well known to fit the needs.
+        Similar models are also sold as Monacor <em>MCE 2500</em>.</dd>
       <dt><b>USB measurement microphones</b></dt>
       <dd> Digital USB microphones like Behringer ECM8000 are <strong>not
-          usable</strong>.
-        The reason is that their internal ADC has small frequency tolerances.
-        DRC123 needs to suppress ambient noise to a very high degree. This is
-        achieved by using frequency windows with a width of down to 10<small><sup>-6</sup></small>
-        (1 ppm) and less. No sound device will fit this need. You need the <i>same</i>
-        sound device for recording and playback for the tolerances to cancel.
-        The result will
-        look like
-        this <a href="calibration.html#nomasterclock">example</a>.</dd>
+          usable</strong>. The reason is that their internal ADC has small
+        frequency tolerances. DRC123 needs to suppress ambient noise to a very
+        high degree. This is achieved by using frequency windows with a width of
+        down to 10<small><sup>-6</sup></small> (1 ppm) and less. No sound device
+        will fit this need. You need the <i>selfsame</i> sound device for
+        recording and playback for the tolerances to cancel. The result will
+        look like this <a href="calibration.html#nomasterclock">example</a>.</dd>
       <dt><b>USB measurement microphones with integrated line out </b></dt>
-      <dd>Unlike the stand alone USB microphones the ones with a built-in
-        sound output device <strong>perfectly fit the needs</strong>. The hack
-        is that the ADC and the DAC share the same crystal oscillator. So the
+      <dd>Unlike the stand alone USB microphones the ones with a built-in sound
+        output device <strong>perfectly fit the needs</strong>. The hack is
+        that the ADC and the DAC share the selfsame crystal oscillator. So the
         frequency tolerances cancel in the same way as they do with an ordinary
         sound card. The difficult task is to get a sound driver for OS/2. </dd>
     </dl>
-    <h3><a name="amp"></a>Microphone amplifier
-    </h3>
+    <h3><a name="amp"></a>Microphone amplifier </h3>
     <p>First of all the amplifier <em>must match your microphone type</em>.
       Especially because <a href="http://www.epanorama.net/circuits/microphone_powering.html">electret
 microphones
         need powering</a>.</p>
     <dl>
       <dt><b>Using the sound cards integrated amplifier</b></dt>
-      <dd>Some sound devices have built in microphone amplifiers. Although
-        it is obvious to use them unfortunately their <strong>quality</strong>
-        is mostly very <strong>poor</strong>. Furthermore there are different
-        and incompatible concepts for microphone powering. </dd>
+      <dd>Some sound devices have built in microphone amplifiers. Although it is
+        obvious to use them unfortunately their <strong>quality</strong> is
+        mostly <strong>very poor</strong>. Furthermore there are different and
+        incompatible concepts for microphone powering. </dd>
     </dl>
   </body>
 </html>

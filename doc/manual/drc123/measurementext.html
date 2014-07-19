@@ -1,13 +1,13 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html lang="en">
+<html resid="20007" lang="en">
   <head>
     <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
     <title>DRC123: Extended measurement options</title>
     <link rel="stylesheet" href="../../common/infstyle.css" type="text/css">
-    <meta content="Marcel Müller" name="author">
+    <meta content="Marcel M&uuml;ller" name="author">
   </head>
   <body>
-    <h2>Extended measurement options </h2>
+    <h2>Extended measurement options</h2>
     <p><img alt="" src="images/measureext.png" height="684" width="739"><strong></strong></p>
     <h3>General Parameters</h3>
     <dl>
@@ -28,8 +28,9 @@
         Recommended values are in the order of one or two cycle times.</dd>
       <dt><b>Frequency bin factor </b></dt>
       <dd>Join neighbor frequencies in the result file if they fit into an
-        interval [<var>f</var>,<var>f</var>*(1+<var>binfactor</var>)]. The gain
-        and the group delay will be averaged for all frequencies in the bin.</dd>
+        interval [<var>f</var>, <var>f</var>*(1+<var>binfactor</var>)]. The
+        gain and the group delay will be averaged for all frequencies in the
+        bin.</dd>
       <dt><b>Frequency range</b></dt>
       <dd>This is the range of frequencies that is used for the measurement.
         Outside this interval the test signal contains no energy.<br>
@@ -40,9 +41,7 @@
       <dt><b>Frequency response gain</b></dt>
       <dd>Range of the left Y axis of the frequency response graph.</dd>
       <dt><b>Frequency response delay</b></dt>
-      <dd>Range of the right Y axis of the frequency response graph.<br>
-        The units are degrees (of full cycles at the particular frequency) in
-        the calibration page and seconds in the measurement page.</dd>
+      <dd>Range of the right Y axis of the frequency response graph.</dd>
       <dt><b>Record level indicator range</b></dt>
       <dd>Set the level of the left boundary of the record level indicators.</dd>
       <dt><b>Record level indicator limits</b></dt>
@@ -55,7 +54,7 @@
       <dd>This is the weight exponent used for the relative intensity of
         different frequencies.<br>
         <var>I</var> ~ <var>f<sup><small>exponent</small></sup></var><br>
-        Reasonable values are in the range [-0.5,0]<sup><var></var></sup><var></var>.</dd>
+        Reasonable values are in the range [-0.25, 0]<sup><var></var></sup><var></var>.</dd>
       <dt><b>Minimum factor to next frequency</b></dt>
       <dd>To limit the phase noise it could be helpful to set this factor to a
         value slightly larger than 1. This causes the energy of frequencies
@@ -84,7 +83,7 @@
         function of the test signal. When this option is enabled some randomly
         chosen frequencies in the spectrum are eliminated. This breaks the
         symmetry and enables the measurement to deal with twice as large delays
-        - the same than in single channel mode.</dd>
+        - the same as in single channel mode.</dd>
     </dl>
   </body>
 </html>
