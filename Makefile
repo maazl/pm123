@@ -3,8 +3,8 @@
 #
 
 VERSION = 1.41b1
-PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
+PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\zlb123\zlb123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
