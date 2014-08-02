@@ -12,13 +12,13 @@
     <p>The operation sequence is in general:</p>
     <ol>
       <li><tt><a href="#DECODER_SETUP">DECODER_SETUP</a></tt></li>
-      <li><tt><a href="decoder_command.html#DECODER_FFWD">DECODER_FFWD</a></tt>
+      <li><tt><a href="#DECODER_FFWD">DECODER_FFWD</a></tt>
         (optional) </li>
-      <li><tt><a href="decoder_command.html#DECODER_SAVEDATA">DECODER_SAVEDATA</a></tt>
+      <li><tt><a href="#DECODER_SAVEDATA">DECODER_SAVEDATA</a></tt>
         (optional)</li>
       <li><tt><a href="#DECODER_PLAY">DECODER_PLAY</a></tt>
         <ol>
-          <li><tt><a href="DECODER_JUMPTO">DECODER_JUMPTO</a></tt>
+          <li><tt><a href="#DECODER_JUMPTO">DECODER_JUMPTO</a></tt>
             (optional)</li>
           <li><tt><a href="#DECODER_FFWD">DECODER_FFWD</a></tt> (optional) </li>
           <li><tt><a href="#DECODER_SAVEDATA">DECODER_SAVEDATA</a></tt>
@@ -66,7 +66,7 @@
       is grater than zero.
     </p>
     <h4>Parameters</h4>
-    <p>The following fields of the <tt><a href="decoder_command.html#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
+    <p>The following fields of the <tt><a href="#DECODER_PARAMS2">DECODER_PARAMS2</a></tt>
       structure are guaranteed to be valid at this call:</p>
     <ul>
       <li><tt>URL</tt></li>
@@ -125,7 +125,7 @@
     </dl>
     <p>The return value of the <tt>DECODER_STOP</tt> is currently ignored
       by PM123.</p>
-    <h2><tt><a name="DECODER_JUMPTO"></a>DECODER_JUMPTO</tt></h2>
+    <h2><tt><a name="#DECODER_JUMPTO"></a>DECODER_JUMPTO</tt></h2>
     <p>Interrupt decoding immediately and continue at a certain position of
       the source. The command should not wait for the seek operation to
       complete.</p>
