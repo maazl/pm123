@@ -700,6 +700,7 @@ void Decoder::ThreadFunc()
   NextFast -= done;
   switch (rc)
   {case MPG123_DONE:
+   case MPG123_NEED_MORE: // Incomplete streams may return this. But there is no more data so treat as EOF.
     state = ST_EOF;
     if (done)
     { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / FrameInfo.rate;
