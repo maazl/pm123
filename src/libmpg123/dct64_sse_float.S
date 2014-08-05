@@ -16,7 +16,9 @@
 	void dct64_real_sse(real *out0, real *out1, real *samples);
 */
 
-#if !defined(__APPLE__) && !defined(OS_IS_OS2)
+#ifdef OS_IS_OS2
+	.text
+#elif !defined(__APPLE__)
 	.section	.rodata
 #else
 	.data

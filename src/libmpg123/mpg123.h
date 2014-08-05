@@ -14,7 +14,7 @@
 
 /* A macro to check at compile time which set of API functions to expect.
    This should be incremented at least each time a new symbol is added to the header. */
-#define MPG123_API_VERSION 37
+#define MPG123_API_VERSION 40
 
 /* These aren't actually in use... seems to work without using libtool. */
 #ifdef BUILD_MPG123_DLL
@@ -177,7 +177,8 @@ enum mpg123_param_flags
 	,MPG123_SKIP_ID3V2 = 0x2000 /**< 10 0000 0000 0000 Do not parse ID3v2 tags, just skip them. */
 	,MPG123_IGNORE_INFOFRAME = 0x4000 /**< 100 0000 0000 0000 Do not parse the LAME/Xing info frame, treat it as normal MPEG data. */
 	,MPG123_AUTO_RESAMPLE = 0x8000 /**< 1000 0000 0000 0000 Allow automatic internal resampling of any kind (default on if supported). Especially when going lowlevel with replacing output buffer, you might want to unset this flag. Setting MPG123_DOWNSAMPLE or MPG123_FORCE_RATE will override this. */
-	,MPG123_NO_FILEINFO  = 0x10000 /**< Do not seek at file open to examine the V1.x tag and the file length. */
+	,MPG123_PICTURE = 0x10000 /**< 17th bit: Enable storage of pictures from tags (ID3v2 APIC). */
+    ,MPG123_NO_FILEINFO  = 0x20000 /**< Do not seek at file open to examine the V1.x tag and the file length. */
 };
 
 /** choices for MPG123_RVA */
@@ -383,7 +384,7 @@ enum mpg123_enc_enum
 	,MPG123_ENC_UNSIGNED_24 = MPG123_ENC_24|0x2000                   /**< 0110 0000 0000 0000 unsigned 24 bit */
 	,MPG123_ENC_FLOAT_32    = 0x200                                  /**<      0010 0000 0000 32bit float */
 	,MPG123_ENC_FLOAT_64    = 0x400                                  /**<      0100 0000 0000 64bit float */
-	,MPG123_ENC_ANY = ( MPG123_ENC_SIGNED_16  | MPG123_ENC_UNSIGNED_16 | MPG123_ENC_UNSIGNED_8 
+	,MPG123_ENC_ANY = ( MPG123_ENC_SIGNED_16  | MPG123_ENC_UNSIGNED_16 | MPG123_ENC_UNSIGNED_8
 	                  | MPG123_ENC_SIGNED_8   | MPG123_ENC_ULAW_8      | MPG123_ENC_ALAW_8
 	                  | MPG123_ENC_SIGNED_32  | MPG123_ENC_UNSIGNED_32
 	                  | MPG123_ENC_SIGNED_24  | MPG123_ENC_UNSIGNED_24
@@ -514,7 +515,7 @@ EXPORT int mpg123_decode(mpg123_handle *mh, const unsigned char *inmemory, size_
  *  \param audio This pointer is set to the internal buffer to read the decoded audio from.
  *  \param bytes number of output bytes ready in the buffer
  */
-EXPORT int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+EXPORT int mpg123_decode_frame(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes);
 
 /** Decode current MPEG frame to internal buffer.
  * Warning: This is experimental API that might change in future releases!
@@ -523,7 +524,7 @@ EXPORT int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **au
  *  \param audio this pointer is set to the internal buffer to read the decoded audio from.
  *  \param bytes number of output bytes ready in the buffer
  */
-EXPORT int mpg123_framebyframe_decode(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+EXPORT int mpg123_framebyframe_decode(mpg123_handle *mh, mpg123_off_t *num, unsigned char **audio, size_t *bytes);
 
 /** Find, read and parse the next mp3 frame
  * Warning: This is experimental API that might change in future releases!
@@ -547,7 +548,7 @@ EXPORT int mpg123_framedata(mpg123_handle *mh, unsigned long *header, unsigned c
 /** Get the input position (byte offset in stream) of the last parsed frame.
  * This can be used for external seek index building, for example.
  * It just returns the internally stored offset, regardless of validity -- you ensure that a valid frame has been parsed before! */
-EXPORT off_t mpg123_framepos(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_framepos(mpg123_handle *mh);
 
 /*@}*/
 
@@ -567,41 +568,42 @@ EXPORT off_t mpg123_framepos(mpg123_handle *mh);
  * Also, really sample-accurate seeking (meaning that you get the identical sample value after seeking compared to plain decoding up to the position) is only guaranteed when you do not mess with the position code by using MPG123_UPSPEED, MPG123_DOWNSPEED or MPG123_START_FRAME. The first two mainly should cause trouble with NtoM resampling, but in any case with these options in effect, you have to keep in mind that the sample offset is not the same as counting the samples you get from decoding since mpg123 counts the skipped samples, too (or the samples played twice only once)!
  * Short: When you care about the sample position, don't mess with those parameters;-)
  * Also, seeking is not guaranteed to work for all streams (underlying stream may not support it).
+ * And yet another caveat: If the stream is concatenated out of differing pieces (Frankenstein stream), seeking may suffer, too.
  *
  * @{
  */
 
 /** Returns the current position in samples.
  *  On the next read, you'd get that sample. */
-EXPORT off_t mpg123_tell(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tell(mpg123_handle *mh);
 
 /** Returns the frame number that the next read will give you data from. */
-EXPORT off_t mpg123_tellframe(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tellframe(mpg123_handle *mh);
 
 /** Returns the current byte offset in the input stream. */
-EXPORT off_t mpg123_tell_stream(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_tell_stream(mpg123_handle *mh);
 
 /** Seek to a desired sample offset. 
  *  Set whence to SEEK_SET, SEEK_CUR or SEEK_END.
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_seek(mpg123_handle *mh, off_t sampleoff, int whence);
+EXPORT mpg123_off_t mpg123_seek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence);
 
 /** Seek to a desired sample offset in data feeding mode. 
  *  This just prepares things to be right only if you ensure that the next chunk of input data will be from input_offset byte position.
  *  \param input_offset The position it expects to be at the 
  *                      next time data is fed to mpg123_decode().
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_feedseek(mpg123_handle *mh, off_t sampleoff, int whence, off_t *input_offset);
+EXPORT mpg123_off_t mpg123_feedseek(mpg123_handle *mh, mpg123_off_t sampleoff, int whence, mpg123_off_t *input_offset);
 
 /** Seek to a desired MPEG frame index.
  *  Set whence to SEEK_SET, SEEK_CUR or SEEK_END.
  *  \return The resulting offset >= 0 or error/message code */
-EXPORT off_t mpg123_seek_frame(mpg123_handle *mh, off_t frameoff, int whence);
+EXPORT mpg123_off_t mpg123_seek_frame(mpg123_handle *mh, mpg123_off_t frameoff, int whence);
 
 /** Return a MPEG frame offset corresponding to an offset in seconds.
  *  This assumes that the samples per frame do not change in the file/stream, which is a good assumption for any sane file/stream only.
  *  \return frame offset >= 0 or error/message code */
-EXPORT off_t mpg123_timeframe(mpg123_handle *mh, double sec);
+EXPORT mpg123_off_t mpg123_timeframe(mpg123_handle *mh, double sec);
 
 /** Give access to the frame index table that is managed for seeking.
  *  You are asked not to modify the values... Use mpg123_set_index to set the
@@ -609,7 +611,7 @@ EXPORT off_t mpg123_timeframe(mpg123_handle *mh, double sec);
  *  \param offsets pointer to the index array
  *  \param step one index byte offset advances this many MPEG frames
  *  \param fill number of recorded index offsets; size of the array */
-EXPORT int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t *fill);
+EXPORT int mpg123_index(mpg123_handle *mh, mpg123_off_t **offsets, mpg123_off_t *step, size_t *fill);
 
 /** Set the frame index table
  *  Setting offsets to NULL and fill > 0 will allocate fill entries. Setting offsets
@@ -617,7 +619,7 @@ EXPORT int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t 
  *  \param offsets pointer to the index array
  *  \param step    one index byte offset advances this many MPEG frames
  *  \param fill    number of recorded index offsets; size of the array */ 
-EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_t fill);
+EXPORT int mpg123_set_index(mpg123_handle *mh, mpg123_off_t *offsets, mpg123_off_t step, size_t fill);
 
 /** Get information about current and remaining frames/seconds.
  *  WARNING: This function is there because of special usage by standalone mpg123 and may be removed in the final version of libmpg123!
@@ -625,7 +627,7 @@ EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_
  *  served by libmpg123 but not yet played. You get the projected current frame 
  *  and seconds, as well as the remaining frames/seconds. This does _not_ care 
  *  about skipped samples due to gapless playback. */
-EXPORT int mpg123_position( mpg123_handle *mh, off_t frame_offset, off_t buffered_bytes, off_t *current_frame, off_t *frames_left, double *current_seconds, double *seconds_left);
+EXPORT int mpg123_position( mpg123_handle *mh, mpg123_off_t frame_offset, mpg123_off_t buffered_bytes, mpg123_off_t *current_frame, mpg123_off_t *frames_left, double *current_seconds, double *seconds_left);
 
 /*@}*/
 
@@ -745,12 +747,12 @@ EXPORT int mpg123_scan(mpg123_handle *mh);
 
 /** Return, if possible, the full (expected) length of current track in samples.
   * \return length >= 0 or MPG123_ERR if there is no length guess possible. */
-EXPORT off_t mpg123_length(mpg123_handle *mh);
+EXPORT mpg123_off_t mpg123_length(mpg123_handle *mh);
 
 /** Override the value for file size in bytes.
   * Useful for getting sensible track length values in feed mode or for HTTP streams.
   * \return MPG123_OK or MPG123_ERR */
-EXPORT int mpg123_set_filesize(mpg123_handle *mh, off_t size);
+EXPORT int mpg123_set_filesize(mpg123_handle *mh, mpg123_off_t size);
 
 /** Returns the time (seconds) per frame; <0 is error. */
 EXPORT double mpg123_tpf(mpg123_handle *mh);
@@ -765,9 +767,10 @@ EXPORT long mpg123_clip(mpg123_handle *mh);
 /** The key values for state information from mpg123_getstate(). */
 enum mpg123_state
 {
-	 MPG123_ACCURATE = 1 /**< Query if positons are currently accurate (integer value, 0 if false, 1 if true) */
+	 MPG123_ACCURATE = 1 /**< Query if positons are currently accurate (integer value, 0 if false, 1 if true). */
 	,MPG123_BUFFERFILL   /**< Get fill of internal (feed) input buffer as integer byte count returned as long and as double. An error is returned on integer overflow while converting to (signed) long, but the returned floating point value shold still be fine. */
-	,MPG123_FRANKENSTEIN /**< Stream consists of carelessly stitched together files (the leading one featuring gapless info).  */
+	,MPG123_FRANKENSTEIN /**< Stream consists of carelessly stitched together files. Seeking may yield unexpected results (also with MPG123_ACCURATE, it may be confused). */
+	,MPG123_FRESH_DECODER /**< Decoder structure has been updated, possibly indicating changed stream (integer value, 0 if false, 1 if true). Flag is cleared after retrieval. */
 };
 
 /** Get various current decoder/stream state information.
@@ -909,6 +912,45 @@ typedef struct
 	mpg123_string text;        /**< ... */
 } mpg123_text;
 
+/** The picture type values from ID3v2. */
+enum mpg123_id3_pic_type
+{
+	 mpg123_id3_pic_other          =  0
+	,mpg123_id3_pic_icon           =  1
+	,mpg123_id3_pic_other_icon     =  2
+	,mpg123_id3_pic_front_cover    =  3
+	,mpg123_id3_pic_back_cover     =  4
+	,mpg123_id3_pic_leaflet        =  5
+	,mpg123_id3_pic_media          =  6
+	,mpg123_id3_pic_lead           =  7
+	,mpg123_id3_pic_artist         =  8
+	,mpg123_id3_pic_conductor      =  9
+	,mpg123_id3_pic_orchestra      = 10
+	,mpg123_id3_pic_composer       = 11
+	,mpg123_id3_pic_lyricist       = 12
+	,mpg123_id3_pic_location       = 13
+	,mpg123_id3_pic_recording      = 14
+	,mpg123_id3_pic_performance    = 15
+	,mpg123_id3_pic_video          = 16
+	,mpg123_id3_pic_fish           = 17
+	,mpg123_id3_pic_illustration   = 18
+	,mpg123_id3_pic_artist_logo    = 19
+	,mpg123_id3_pic_publisher_logo = 20
+};
+
+/** Sub data structure for ID3v2, for storing picture data including comment.
+ *  This is for the ID3v2 APIC field. You should consult the ID3v2 specification
+ *  for the use of the APIC field ("frames" in ID3v2 documentation, I use "fields"
+ *  here to separate from MPEG frames). */
+typedef struct
+{
+	char type;
+	mpg123_string description;
+	mpg123_string mime_type;
+	size_t size;
+	unsigned char* data;
+} mpg123_picture;
+
 /** Data structure for storing IDV3v2 tags.
  *  This structure is not a direct binary mapping with the file contents.
  *  The ID3v2 text frames are allowed to contain multiple strings.
@@ -917,8 +959,8 @@ typedef struct
 typedef struct
 {
 #ifdef ID3V2_RAW
-	unsigned char* tagdata;
-	unsigned int   taglen;
+    unsigned char* tagdata;
+    unsigned int   taglen;
 #else
 	unsigned char version; /**< 3 or 4 for ID3v2.3 or ID3v2.4. */
 	mpg123_string *title;   /**< Title string (pointer into text_list). */
@@ -935,12 +977,14 @@ typedef struct
 	size_t          texts;        /**< Numer of text fields. */
 	mpg123_text    *extra;        /**< The array of extra (TXXX) fields. */
 	size_t          extras;       /**< Number of extra text (TXXX) fields. */
-#endif
+	mpg123_picture  *picture;     /**< Array of ID3v2 pictures fields (APIC). */
+	size_t           pictures;    /**< Number of picture (APIC) fields. */
+#endif // ID3V2_RAW
 } mpg123_id3v2;
 
 /** Data structure for ID3v1 tags (the last 128 bytes of a file).
  *  Don't take anything for granted (like string termination)!
- *  Also note the change ID3v1.1 did: comment[28] = 0; comment[19] = track_number
+ *  Also note the change ID3v1.1 did: comment[28] = 0; comment[29] = track_number
  *  It is your task to support ID3v1 only or ID3v1.1 ...*/
 typedef struct
 {
@@ -1053,7 +1097,10 @@ EXPORT int mpg123_getpar(mpg123_pars *mp, enum mpg123_parms type, long *val, dou
   * @{ */
 
 /** Replace default internal buffer with user-supplied buffer.
-  * Instead of working on it's own private buffer, mpg123 will directly use the one you provide for storing decoded audio. */
+  * Instead of working on it's own private buffer, mpg123 will directly use the one you provide for storing decoded audio.
+  * Note that the required buffer size could be bigger than expected from output
+  * encoding if libmpg123 has to convert from primary decoder output (p.ex. 32 bit
+  * storage for 24 bit output. */
 EXPORT int mpg123_replace_buffer(mpg123_handle *mh, unsigned char *data, size_t size);
 
 /** The max size of one frame's decoded output with current settings.

@@ -33,7 +33,9 @@
 #include "mangle.h"
 
 .data
-#if !defined(__APPLE__) && !defined(OS_IS_OS2)
+#ifdef OS_IS_OS2
+	.text
+#elif !defined(__APPLE__)
 .section .rodata
 #endif
 	ALIGN8

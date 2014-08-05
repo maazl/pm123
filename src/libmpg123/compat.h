@@ -4,7 +4,7 @@
 
 	The mpg123 code is determined to keep it's legacy. A legacy of old, old UNIX.
 	It is envisioned to include this compat header instead of any of the "standard" headers, to catch compatibility issues.
-	So, don't include stdlib.h or string.h ... include _compat.h.
+	So, don't include stdlib.h or string.h ... include compat.h.
 
 	copyright 2007-8 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
@@ -75,6 +75,9 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
+
+/* compat_open makes little sense without */
+#include <fcntl.h>
 
 /* To parse big numbers... */
 #ifdef HAVE_ATOLL
@@ -170,10 +173,6 @@ int win32_wide_utf8(const wchar_t * const wptr, char **mbptr, size_t * buflen);
 int win32_utf8_wide(const char *const mbptr, wchar_t **wptr, size_t *buflen);
 #endif
 
-/* That one comes from Tellie on OS/2, needed in resolver. */
-#ifdef __KLIBC__
-/* Is defined in <sys/types.h>.
-typedef int socklen_t; */
-#endif
+#include "true.h"
 
 #endif

@@ -17,6 +17,7 @@ AFLAGS     = $(AFLAGS_USR) -f aout -DUNDERSCORE
 
 GAS        = as
 GAFLAGS    =
+GAFLAGS_DBG = $(GALAGS_DBG_USR) --gstabs
 
 CC         = g++
 CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -fmessage-length=132 -DOS2 -DOS2EMX_PLAIN_CHAR
@@ -82,6 +83,7 @@ LFLAGS = $(LFLAGS) -L$(PATH_EMXPGCC)\lib\tcpipv4
 
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
+GAFLAGS = $(GAFLAGS) $(GAFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
 MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
@@ -108,7 +110,7 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
    $(AS) $(AFLAGS) $<
 
 .S.o:
-   gcc -I$(TOPDIR) -DASSEMBLER -E $< -o $<.e
+   gcc -I$(TOPDIR) $(CFLAGS) -DASSEMBLER -E $< -o $<.e
    $(GAS) $(GAFLAGS) $<.e -o $@
 
 .c.e:

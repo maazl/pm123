@@ -28,7 +28,7 @@
 
 static int default_init(mpg123_handle *fr);
 static mpg123_off_t get_fileinfo(mpg123_handle *);
-static ssize_t posix_read(int fd, void *buf, size_t count){ return _read(fd, buf, count); }
+static ssize_t posix_read(int fd, void *buf, size_t count){ return read(fd, buf, count); }
 static mpg123_off_t   posix_lseek(int fd, mpg123_off_t offset, int whence){ return lseek(fd, offset, whence); }
 static mpg123_off_t     nix_lseek(int fd, mpg123_off_t offset, int whence){ return -1; }
 
@@ -438,12 +438,15 @@ static mpg123_off_t get_fileinfo(mpg123_handle *fr)
 
 	if((len=io_seek(&fr->rdat,0,SEEK_END)) < 0)	return -1;
 
+	/* PM123 patch: slowly seekable streams like HTTP return an error on this seek command
+	 * but they succeed to return the song length with the seek above */
 	if(io_seek(&fr->rdat,-128,SEEK_END) < 0) goto notag;
 
 	if(fr->rd->fullread(fr,(unsigned char *)fr->id3buf,128) != 128)	return -1;
 
 	if(!strncmp((char*)fr->id3buf,"TAG",3))	len -= 128;
-notag:
+
+ notag:
 	io_seek(&fr->rdat,0,SEEK_SET);
 
 	if(len <= 0)	return -1;
@@ -531,7 +534,7 @@ static struct buffy* bc_alloc(struct bufferchain *bc, size_t size)
 		buf->next = NULL; /* That shall be set to a sensible value later. */
 		buf->size = 0;
 		--bc->pool_fill;
-		debug2("bc_alloc: picked %p from pool (fill now %"SIZE_P")", buf, (size_p)bc->pool_fill);
+		debug2("bc_alloc: picked %p from pool (fill now %"SIZE_P")", (void*)buf, (size_p)bc->pool_fill);
 		return buf;
 	}
 	else return buffy_new(size, bc->bufblock);
@@ -617,7 +620,7 @@ static int bc_append(struct bufferchain *bc, ssize_t size)
 	else if(bc->first == NULL) bc->first = newbuf;
 
 	bc->last  = newbuf;
-	debug3("bc_append: new last buffer %p with %"SSIZE_P" B (really %"SSIZE_P")", bc->last, (ssize_p)bc->last->size, (ssize_p)bc->last->realsize);
+	debug3("bc_append: new last buffer %p with %"SSIZE_P" B (really %"SSIZE_P")", (void*)bc->last, (ssize_p)bc->last->size, (ssize_p)bc->last->realsize);
 	return 0;
 }
 
@@ -637,7 +640,7 @@ static int bc_add(struct bufferchain *bc, const unsigned char *data, ssize_t siz
 			part = bc->last->realsize - bc->last->size;
 			if(part > size) part = size;
 
-			debug2("bc_add: adding %"SSIZE_P" B to existing block %p", (ssize_p)part, bc->last);
+			debug2("bc_add: adding %"SSIZE_P" B to existing block %p", (ssize_p)part, (void*)bc->last);
 			memcpy(bc->last->data+bc->last->size, data, part);
 			bc->last->size += part;
 			size -= part;

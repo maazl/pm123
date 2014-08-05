@@ -24,7 +24,9 @@
 	return value: number of clipped samples (0)
 */
 
-#if !defined(__APPLE__) && !defined(OS_IS_OS2)
+#ifdef OS_IS_OS2
+	.text
+#elif !defined(__APPLE__)
 	.section	.rodata
 #else
 	.data
@@ -60,7 +62,7 @@ ASM_NAME(synth_1to1_real_s_sse_asm):
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_1:
+1:
 	movups		(WINDOW), %xmm0
 	movups		16(WINDOW), %xmm1
 	movups		32(WINDOW), %xmm2
@@ -228,12 +230,12 @@ Loop_start_1:
 	
 	leal		32(SAMPLES), SAMPLES
 	decl		%ecx
-	jnz			Loop_start_1
+	jnz			1b
 	
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_2:
+1:
 	movups		(WINDOW), %xmm0
 	movups		16(WINDOW), %xmm1
 	movups		32(WINDOW), %xmm2
@@ -401,7 +403,7 @@ Loop_start_2:
 	
 	leal		32(SAMPLES), SAMPLES
 	decl		%ecx
-	jnz			Loop_start_2
+	jnz			1b
 	
 	xorl		%eax, %eax
 	
