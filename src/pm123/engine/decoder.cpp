@@ -270,7 +270,7 @@ ULONG Decoder::SaveInfo(const char* url, const META_INFO* info, int haveinfo)
 
 ULONG Decoder::SaveFile(const char* url, const char* format, int* what,
   const INFO_BUNDLE* info, DECODER_SAVE_ENUMERATION_CB cb, void* param)
-{ if (!decoder_saveinfo)
+{ if (!decoder_savefile)
   { EventHandler::PostFormat(MSG_ERROR, "The plug-in %s cannot save files.", ModRef->Key.cdata());
     return PLUGIN_NO_USABLE;
   }
