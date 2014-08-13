@@ -268,6 +268,19 @@ ULONG Decoder::SaveInfo(const char* url, const META_INFO* info, int haveinfo)
   return rc;
 }
 
+ULONG Decoder::SaveFile(const char* url, const char* format, int* what,
+  const INFO_BUNDLE* info, DECODER_SAVE_ENUMERATION_CB cb, void* param)
+{ if (!decoder_saveinfo)
+  { EventHandler::PostFormat(MSG_ERROR, "The plug-in %s cannot save files.", ModRef->Key.cdata());
+    return PLUGIN_NO_USABLE;
+  }
+  xstring errortxt;
+  ULONG rc = decoder_savefile(url, format, what, info, cb, param, &errortxt);
+  if (errortxt)
+    EventHandler::Post(rc ? MSG_ERROR : MSG_WARNING, errortxt);
+  return rc;
+}
+
 
 // Proxy for level 1 decoder interface
 class DecoderProxy1 : public Decoder, protected ProxyHelper

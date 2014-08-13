@@ -41,6 +41,8 @@
 #include <fileutil.h>
 #include <wildcards.h>
 #include <cpp/xstring.h>
+#include <cpp/container/stringset.h>
+#include <cpp/container/stringmap.h>
 
 #include <os2.h>
 

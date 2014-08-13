@@ -38,8 +38,8 @@
 
 #include "plugman.h"
 #include <decoder_plug.h>
-#include <cpp/container/stringmap.h>
-#include <cpp/container/stringset.h>
+#include <cpp/container/vector.h>
+#include <cpp/smartptr.h>
 
 
 /// Set of entry points related to decoder plug-ins.
@@ -55,7 +55,7 @@ struct DecoderProcs
                                       DECODER_INFO_ENUMERATION_CB cb, void* param);
   ULONG  DLLENTRYP(decoder_saveinfo )(const char* url, const META_INFO* info, int haveinfo, xstring* errortxt);
   ULONG  DLLENTRYP(decoder_savefile )(const char* url, const char* format, int* what, const INFO_BUNDLE* info,
-                                      DECODER_SAVE_ENUMERATION_CB cb, void* param);
+                                      DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* errortxt);
   ULONG  DLLENTRYP(decoder_editmeta )(HWND owner, const char* url);
   const  DECODER_WIZARD*
          DLLENTRYP(decoder_getwizard)();
@@ -137,8 +137,7 @@ class Decoder : public Plugin, protected DecoderProcs
 
   ULONG        EditMeta(HWND owner, const char* url) { return decoder_editmeta ? decoder_editmeta(owner, url) : 400; }
 
-  ULONG        SaveFile(const char* url, const char* format, int* what, const INFO_BUNDLE* info, DECODER_SAVE_ENUMERATION_CB cb, void* param)
-               { return decoder_savefile ? decoder_savefile(url, format, what, info, cb, param) : PLUGIN_NO_USABLE; }
+  ULONG        SaveFile(const char* url, const char* format, int* what, const INFO_BUNDLE* info, DECODER_SAVE_ENUMERATION_CB cb, void* param);
 
   /// Add additional entries in load/add menu in the main and the playlist's pop-up menu.
   static void  AppendLoadMenu(HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUNC* callbacks, size_t size);
