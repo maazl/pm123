@@ -91,8 +91,20 @@
  */
 #define MAKE_PPU_SIZE_CONSTR(xmin,ymin,xmax,ymax) PPU_RESIZECONSTR, (xmin)*65536+(ymin), (xmax)*65536+(ymax)
 
+/** Create BTNCDATA structure in resource file.
+ * @param checked TRUE = button is checked
+ * @param highlight TRUE = button is highlighted
+ */
+#define CD_BTNCDATA(checked, highlight) 10, checked, highlight, 0,0
+/** Create EFDATA structure in resource file.
+ * @param length Maximum allowed length of the input
+ */
 #define CD_EFDATA(length) 8, length, 0, 0
-
+/*** Create SPBCDATA structure in resource file.
+ * @param length Maximum allowed length of the input
+ * @param low lower limit
+ * @param high upper limit
+ */
 #define CD_SPBCDATA(length, low, high) 24,0, length,0, (low)&0xffff,(low)>>16, (high)&0xffff,(high)>>16, 0,0, 0,0
 
 #ifndef RC_INVOKED
