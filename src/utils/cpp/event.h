@@ -281,9 +281,9 @@ class class_delegate : public delegate<class_delegate<C,P>, P>
   , Inst(&inst)
   , Func(fn)
   {}
- private: // revoke access
+/* private: // revoke access
   void           rebind();
-  void           swap_rcv();
+  void           swap_rcv();*/
 };
 
 template <class C, class P>
@@ -322,9 +322,9 @@ class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
   { DEBUGLOG2(("class_delegate2<>(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, param2)); }
   ~class_delegate2()
   { DEBUGLOG2(("class_delegate2<>(%p)::~class_delegate2()\n", this)); }
- private: // revoke access
+/* private: // revoke access
   void           rebind();
-  void           swap_rcv();
+  void           swap_rcv();*/
 };
 
 template <class C, class P, class P2>
