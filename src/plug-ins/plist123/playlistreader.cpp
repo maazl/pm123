@@ -229,9 +229,9 @@ void PlaylistReader::Reset()
   Item.alias.reset();
   Item.start.reset();
   Item.stop.reset();
-  Item.pregap = -1;
-  Item.postgap = -1;
-  Item.gain = -1000;
+  Item.pregap = 0;
+  Item.postgap = 0;
+  Item.gain = 0;
   Cached = INFO_NONE;
   Reliable = INFO_NONE;
   Override = INFO_NONE;

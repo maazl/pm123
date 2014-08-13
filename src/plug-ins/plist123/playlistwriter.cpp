@@ -192,21 +192,21 @@ bool LSTWriter::AppendItem(const Item& item)
     Write("\n");
   }
   // gap
-  if (info.item->pregap >= 0 || info.item->postgap >= 0)
+  if (info.item->pregap != 0 || info.item->postgap != 0)
   { Write("#GAP ");
-    if (info.item->pregap >= 0)
+    if (info.item->pregap != 0)
     { sprintf(buf, "%.3f", info.item->pregap);
       Write(buf);
     }
     Write(", ");
-    if (info.item->postgap >= 0)
+    if (info.item->postgap != 0)
     { sprintf(buf, "%.3f", info.item->postgap);
       Write(buf);
     }
     Write("\n");
   }
   // gain
-  if (info.item->gain > -1000)
+  if (info.item->gain != 0)
   { sprintf(buf, "#GAIN %.1f\n", info.item->gain);
     Write(buf);
   }
@@ -214,11 +214,11 @@ bool LSTWriter::AppendItem(const Item& item)
   PM123_TIME songlen = -2;
   if (item.Valid & INFO_TECH)
   { if (info.tech->attributes & TATTR_PLAYLIST)
-    { if (item.Valid & INFO_OBJ)
-        songlen = info.obj->songlength;
-    } else
     { if (item.Valid & INFO_DRPL)
         songlen = info.drpl->totallength;
+    } else
+    { if (item.Valid & INFO_OBJ)
+        songlen = info.obj->songlength;
     }
   }
   // comment
@@ -287,8 +287,8 @@ bool LSTWriter::AppendItem(const Item& item)
     if ((item.Valid & INFO_TECH) && (info.tech->attributes & TATTR_PLAYLIST))
     { strcpy(buf, ",");
       if (item.Valid && INFO_RPL)
-      { sprintf(buf + 1, ",%i", info.rpl->songs);
-      } else
+        sprintf(buf + 1, ",%i", info.rpl->songs);
+      else
         strcpy(buf + 1, ",");
       if (item.Valid && INFO_DRPL)
       { sprintf(buf + strlen(buf), ",%.0f", info.drpl->totalsize);
