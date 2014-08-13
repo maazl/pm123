@@ -140,7 +140,7 @@ int XPROTOCOL::puts(const char* string)
     if (cp == NULL)
     { // write the remaining part of string.
       int len = strlen(string);
-      if (write( string, len ) == len)
+      if (write(string, len) != len)
         rc = -1;
       else
         rc += len;
