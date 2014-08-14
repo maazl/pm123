@@ -64,6 +64,7 @@
 #include <sys/stat.h>
 #include <math.h>
 #include <stdio.h>
+#include <errno.h>
 
 
 #if defined(DEBUG_MEM) && defined(DEBUG_LOG)
@@ -1708,7 +1709,7 @@ void GUIImp::PrepareText()
       text = xstring(text, 0, cfg.restrict_length) + "...";
     break;
   }
-  bmp_set_text(!text ? "" : text);
+  bmp_set_text(!text ? "" : text.cdata());
 }
 
 void GUIImp::Paint(HPS hps, UpdateFlags mask)
@@ -2078,6 +2079,7 @@ void GUIImp::Init()
 void GUIImp::Uninit()
 { DEBUGLOG(("GUIImp::Uninit()\n"));
 
+  InfoDialog::DestroyAll();
   PlaylistManager::DestroyAll();
   PlaylistView::DestroyAll();
   InspectorDialog::UnInit();

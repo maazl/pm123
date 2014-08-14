@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2012 M.Mueller
+ * Copyright 2007-2014 M.Mueller
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
@@ -476,17 +476,23 @@
 
 #define DLG_ITEMINFO       1800
 #define EF_INFOURL         1801
-#define EF_INFOALIAS       1805
-#define EF_INFOSTART       1806
+#define EF_INFOALIAS       1803
+#define EF_INFOSTART       1805
+#define CB_INFOSTART       1806
 #define EF_INFOSTOP        1807
-#define EF_INFOAT          1808
-#define EF_INFOPREGAP      1810
-#define EF_INFOPOSTGAP     1811
-#define EF_INFOGAIN        1812
+#define CB_INFOSTOP        1808
+#define EF_INFOAT          1809
+#define CB_INFOAT          1810
+#define EF_INFOPREGAP      1811
+#define CB_INFOPREGAP      1812
+#define EF_INFOPOSTGAP     1814
+#define CB_INFOPOSTGAP     1815
+#define EF_INFOGAIN        1816
+#define CB_INFOGAIN        1817
 #define CB_INFOALTERNATION 1820
-#define RB_INFOPLSHINHERIT 1821
-#define RB_INFOPLSHFORCE   1822
-#define RB_INFOPLSHCLEAR   1823
+#define RB_INFOPLSHINHERIT 1825
+#define RB_INFOPLSHFORCE   1826
+#define RB_INFOPLSHCLEAR   1827
 
 /* Write meta data */
 #define DLG_WRITEMETA      1900

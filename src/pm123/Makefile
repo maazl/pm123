@@ -137,13 +137,13 @@ gui\dialog.cpp:	gui\dialog.h configuration.h gui\gui.h 123_util.h gui\pm123.rc.h
 gui\docking.cpp:	gui\docking.h configuration.h eventhandler.h
 gui\filedlg.cpp:	gui\filedlg.h gui\pm123.rc.h configuration.h gui\dialog.h engine\plugman.h engine\decoder.h
 gui\gui.cpp:	gui\gui.h core\songiterator.h core\job.h engine\visual.h engine\decoder.h engine\filter.h engine\output.h engine\loadhelper.h gui\dialog.h gui\filedlg.h gui\properties.h configuration.h pm123.h gui\pm123.rc.h 123_util.h gui\skin.h gui\docking.h gui\infodialog.h gui\playlistview.h gui\playlistmanager.h gui\inspector.h gui\postmsginfo.h gui\playlistmenu.h gui\button95.h copyright.h
-gui\infodialog.h:	core\playable.h
+gui\infodialog.h:	gui\ainfodialog.h eventhandler.h gui\pm123.rc.h
 gui\playlistview.h:	gui\playlistbase.h
-gui\playlistbase.h:	core\playableinstance.h core\playable.h engine\controller.h gui\infodialog.h
+gui\playlistbase.h:	core\playableinstance.h core\playable.h engine\controller.h gui\ainfodialog.h
 gui\playlistmanager.h:	gui\playlistbase.h
 gui\postmsginfo.h:	core\dependencyinfo.h
 gui\playlistmenu.h:	core\aplayable.h core\location.h
-gui\infodialog.cpp:	gui\infodialog.h core\job.h pm123.h gui\gui.h gui\pm123.rc.h gui\dialog.h configuration.h eventhandler.h
+gui\infodialog.cpp:	gui\infodialog.h core\job.h pm123.h gui\gui.h gui\pm123.rc.h configuration.h
 gui\inspector.cpp:	gui\inspector.h gui\pm123.rc.h configuration.h core\playable.h core\dependencyinfo.h engine\controller.h pm123.h
 gui\playlistbase.cpp:	gui\playlistbase.h core\job.h engine\plugman.h engine\loadhelper.h gui\playlistmanager.h gui\playlistview.h gui\playlistmenu.h gui\infodialog.h gui\inspector.h gui\postmsginfo.h pm123.h gui\gui.h gui\dialog.h configuration.h 123_util.h gui\pm123.rc.h gui\docking.h
 gui\playlistmanager.cpp:	gui\playlistmanager.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h configuration.h gui\pm123.rc.h
@@ -158,3 +158,4 @@ remote\pipe.cpp:	remote\pipe.h remote\acommandprocessor.h configuration.h eventh
 core\job.h:	core\dependencyinfo.h
 core\job.cpp:	core\job.h core\playableset.h
 remote\commandprocessor.cpp:	remote\commandprocessor.h core\location.h core\job.h engine\plugman.h engine\loadhelper.h gui\dialog.h gui\gui.h eventhandler.h 123_util.h pm123.h copyright.h
+gui\ainfodialog.h:	core\playable.h

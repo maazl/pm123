@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<?fileVersion 4.0.0?>
-
-<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="cdt.managedbuild.toolchain.gnu.base.550594128">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.base.550594128" moduleId="org.eclipse.cdt.core.settings" name="Default">
@@ -45,6 +43,7 @@
 									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=3"/>
 									<listOptionValue builtIn="false" value="DEBUG_LOG=1"/>
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
+									<listOptionValue builtIn="false" value="&quot;size_t=unsigned int&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.undef.613370601" name="Undefined symbols (-U)" superClass="gnu.cpp.compiler.option.preprocessor.undef" valueType="undefDefinedSymbols">
 									<listOptionValue builtIn="false" value="linux"/>

@@ -328,6 +328,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       SetEmphasis(CRA_SOURCE, false);
       if (MenuWorker)
         MenuWorker->DetachMenu(IDM_PL_CONTENT);
+      // remove owner to avoid the menu window to be destroyed with the playlist window.
+      WinSetOwner(HwndMenu, NULLHANDLE);
       HwndMenu = NULLHANDLE;
     }
     break;
@@ -545,7 +547,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_PROPERTIES:
-        if (Source.size() == 1)
         { AInfoDialog::KeyType set;
           PopulateSetFromSource(set);
           UserOpenInfoView(set, AInfoDialog::Page_ItemInfo);

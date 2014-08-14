@@ -47,6 +47,8 @@ struct ControlBase
   void        Enabled(bool enable)                  { PMRASSERT(WinEnableWindow(Hwnd, enable)); }
   void        Visible(bool visible)                 { PMRASSERT(WinShowWindow(Hwnd, visible)); }
   ULONG       Style() const                         { return WinQueryWindowULong(Hwnd, QWL_STYLE); }
+  void        Style(ULONG style)                    { PMRASSERT(WinSetWindowULong(Hwnd, QWL_STYLE, style)); }
+  void        Style(ULONG style, ULONG mask)        { PMRASSERT(WinSetWindowBits(Hwnd, QWL_STYLE, style, mask)); }
   void        Text(const char* text)                { PMRASSERT(WinSetWindowText(Hwnd, text)); }
   xstring     Text() const                          { return WinQueryWindowXText(Hwnd); }
 };

@@ -85,6 +85,14 @@ void PlaylistView::DestroyAll()
       break;
     (*pp)->Destroy();
   }
+  if (RecMenu)
+  { WinDestroyWindow(RecMenu);
+    RecMenu = NULLHANDLE;
+  }
+  if (MainMenu)
+  { WinDestroyWindow(MainMenu);
+    MainMenu = NULLHANDLE;
+  }
 }
 
 InfoFlags PlaylistView::FilterRecordRequest(RecordBase* const rec, InfoFlags& filter)

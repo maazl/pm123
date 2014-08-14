@@ -34,7 +34,7 @@
 #include "../core/playableinstance.h"
 #include "../core/playable.h"
 #include "../engine/controller.h"
-#include "infodialog.h"
+#include "ainfodialog.h"
 #include <decoder_plug.h>
 
 #include <cpp/queue.h>

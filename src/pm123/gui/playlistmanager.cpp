@@ -86,6 +86,14 @@ void PlaylistManager::DestroyAll()
       break;
     (*pp)->Destroy();
   }
+  if (RecMenu)
+  { WinDestroyWindow(RecMenu);
+    RecMenu = NULLHANDLE;
+  }
+  if (MainMenu)
+  { WinDestroyWindow(MainMenu);
+    MainMenu = NULLHANDLE;
+  }
 }
 
 
