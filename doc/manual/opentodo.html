@@ -4,7 +4,7 @@
     <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
     <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
     <title>PM123 Known Problems &amp; ToDo list</title>
-    <meta name="author" content="Marcel Müller">
+    <meta name="author" content="Marcel M&uuml;ller">
     <style type="text/css">
 .open {
   background-color: #ffcccc;
@@ -80,14 +80,6 @@ function setVisibility(classname,visible) {
           <td>PM123 1.32 also support Unicode playlist files. This has to be
             ported.</td>
         </tr>
-        <tr class="work">
-          <td>14 minor todo,<br>
-            in work </td>
-          <td>Feature: continue playing when loading an enclosing playlist.</td>
-          <td>If the currently playing item is part of the actually loaded
-            playlist, playing should not be aborted. This is a configuration
-            option.</td>
-        </tr>
         <tr class="cancel">
           <td>17 minor todo,<br>
             won't fix </td>
@@ -121,12 +113,13 @@ function setVisibility(classname,visible) {
           <td valign="top">xio.dll currently disables the buffer if an object is
             opened for write access. </td>
         </tr>
-        <tr class="open">
+        <tr class="cancel">
           <td valign="top">30 minor todo,<br>
-            open </td>
+            won't fix</td>
           <td valign="top">PULSE123: checkbox&nbsp; <i>'keep context alive'</i>
             does not work. </td>
-          <td> Not yet implemented.</td>
+          <td> Not yet implemented. - Removed check box since it makes no much
+            sense.</td>
         </tr>
         <tr class="open">
           <td valign="top"><em>31 medium bug,<br>
@@ -185,16 +178,6 @@ this
           <td valign="top">Nested slices are not processed correctly when
             calculating aggregate information.</td>
           <td valign="top">Slices are not implemented in <tt>SongIterator::CaclcOffsetCacheEntry</tt>.</td>
-        </tr>
-        <tr class="open">
-          <td valign="top"><em>41 medium bug,<br>
-              open</em></td>
-          <td valign="top">Error message "Error reading stream (Code 18)" at the
-            end of a song (mpg123 only).<br>
-          </td>
-          <td valign="top">Sometimes PM123 shows an error message at the end of
-            a song. The playback itself is correct and also continue with the
-            next song in playlist mode.</td>
         </tr>
         <tr class="open">
           <td><em>43 medium bug,<br>
