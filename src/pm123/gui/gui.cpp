@@ -367,7 +367,7 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           amp_messagef(HFrame, MSG_ERROR, "Cannot edit tag of file:\n%s", pp->URL.cdata());
           break;
         case 0:   // tag changed
-          pp->RequestInfo(IF_Meta, PRI_Normal);
+          pp->Invalidate(IF_Meta);
           // Refresh will come automatically
         case 300: // tag unchanged
           break;
