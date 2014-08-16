@@ -24,6 +24,13 @@ PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
 
+LIBPARTS= $(LIBPARTS) src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO)
+LIBPARTS= $(LIBPARTS) src\gbm123\libgbm$(LBO)
+LIBPARTS= $(LIBPARTS) src\snd123\src\sndfile$(LBO) src\libmpg123\src\libmpg123$(LBO)
+LIBPARTS= $(LIBPARTS) src\ogg123\src\libogg$(LBO) src\vrb123\lib\libvorbis$(LBO)
+LIBPARTS= $(LIBPARTS) src\libflac\src\libFLAC\libFLAC$(LBO)
+LIBPARTS= $(LIBPARTS) src\pulseaudio\pulsecore\pulsecore$(LBO) src\pulseaudio\pulse\pulse$(LBO)
+
 TARGET  = $(PARTS)
 
 !include src\config\makerules
@@ -185,10 +192,13 @@ src\skinutil\skinutil.exe: src\utils\utilfct$(LBO) src\gbm123\libgbm$(LBO)
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-doc\pm123.inf:
+doc\pm123.inf: $(MDUMMY)
 	cd doc
 	@$(MAKE) $(MFLAGS)
 	@cd ..
+
+cleanparts: $(MDUMMY)
+	-@del pm123.exe $(PARTS) $(LIBPARTS) 2> nul
 
 clean:  clean123 $(MDUMMY)
 	cd src\gbm123
