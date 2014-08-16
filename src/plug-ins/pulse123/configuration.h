@@ -36,7 +36,6 @@
 // Configuration
 extern struct Cfg
 { xstring SinkServer;
-  bool    SinkKeepAlive;
   xstring Sink;
   xstring SinkPort;
   int     SinkMinLatency; // ms

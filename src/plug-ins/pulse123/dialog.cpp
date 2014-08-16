@@ -99,7 +99,6 @@ MRESULT IntrospectBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case DID_OK:
       { ComboBox cb(GetCtrl(CB_SERVER));
         const xstring& server = cb.Text();
-        Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
         // update MRU list
         if (server.length())
         { char key[] = "Server1";
@@ -216,7 +215,6 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   switch (msg)
   {case WM_INITDLG:
     { MRESULT ret = IntrospectBase::DlgProc(msg, mp1, mp2);
-      WinCheckButton(GetHwnd(), CB_PBKEEP, Configuration.SinkKeepAlive);
       if (Configuration.Sink)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), CB_SINKSRC, Configuration.Sink));
       if (Configuration.SinkPort)
@@ -240,7 +238,6 @@ MRESULT ConfigDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       { Configuration.SinkServer = WinQueryDlgItemXText(GetHwnd(), CB_SERVER);
-        Configuration.SinkKeepAlive = WinQueryButtonCheckstate(GetHwnd(), CB_PBKEEP);
         const xstring& sink = WinQueryDlgItemXText(GetHwnd(), CB_SINKSRC);
         Configuration.Sink = sink.length() && !sink.startsWithI("default") ? sink : xstring();
         const xstring& port = WinQueryDlgItemXText(GetHwnd(), CB_PORT);

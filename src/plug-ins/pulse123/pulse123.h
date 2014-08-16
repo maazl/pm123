@@ -44,7 +44,6 @@ extern PLUGIN_CONTEXT Ctx;
 #define GB_GENERIC    1000
 #define ST_GENERIC    1001
 #define CB_SERVER     2000
-#define CB_PBKEEP     2001
 #define ST_STATUS     2005
 #define PB_UPDATE     2006
 #define CB_SINKSRC    2010
