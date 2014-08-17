@@ -287,7 +287,7 @@ url123 amp_playlist_select(HWND owner, const char* title, FD_UserOpts opts)
     strlcpy(filedialog.szFullFile, listdir+8, sizeof filedialog.szFullFile);
   else
     filedialog.szFullFile[0] = 0;
-  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+  PMRASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog));
 
   if( filedialog.lReturn == DID_OK )
   { 
@@ -431,7 +431,7 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
       strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
     }
    retry:
-    PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+    PMRASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog));
 
     if (filedialog.lReturn != DID_OK)
       return xstring();
@@ -439,7 +439,9 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     const char* cp = dest.cdata() + 5;
     if (cp[2] == '/')
       cp += 3;
-    if (!amp_warn_if_overwrite(owner, cp))
+    struct stat fi;
+    if ( stat(cp, &fi) == 0
+      && !amp_query(owner, "File %s already exists. Overwrite it?", cp) )
       goto retry;
 
     relative = (filedialog.ulUser & FDU_RELATIV_ON) != 0;
@@ -531,57 +533,3 @@ USHORT amp_query3( HWND owner, const char* format, ... )
   va_end(args);
   return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNOCANCEL | MB_MOVEABLE );
 }
-
-/* Requests the user about overwriting a file. Returns
-   TRUE at confirmation or at absence of a file. */
-BOOL amp_warn_if_overwrite( HWND owner, const char* filename )
-{
-  struct stat fi;
-  if( stat( filename, &fi ) == 0 ) {
-    return amp_query( owner, "File %s already exists. Overwrite it?", filename );
-  } else {
-    return TRUE;
-  }
-}
-
-/* Tells the help manager to display a specific help window. */
-/*bool amp_show_help( SHORT resid )
-{ DEBUGLOG(("amp_show_help(%u)\n", resid));
-  return WinSendMsg( hhelp, HM_DISPLAY_HELP,
-    MPFROMSHORT( resid ), MPFROMSHORT( HM_RESOURCEID )) == 0;
-}*/
-
-/* global init */
-/*void dlg_init()
-{
-  xstring infname(startpath + "pm123.inf");
-  struct stat fi;
-  if( stat( infname, &fi ) != 0  )
-    // If the file of the help does not placed together with the program,
-    // we shall give to the help manager to find it.
-    infname = "pm123.inf";
-
-  HELPINIT hinit = { sizeof( hinit ) };
-  hinit.phtHelpTable = (PHELPTABLE)MAKELONG( HLP_MAIN, 0xFFFF );
-  hinit.pszHelpWindowTitle = "PM123 Help";
-  #ifdef DEBUG
-  hinit.fShowPanelId = CMIC_SHOW_PANEL_ID;
-  #else
-  hinit.fShowPanelId = CMIC_HIDE_PANEL_ID;
-  #endif
-  hinit.pszHelpLibraryName = (PSZ)infname.cdata();
-
-  hhelp = WinCreateHelpInstance( amp_player_hab(), &hinit );
-  if( hhelp == NULLHANDLE )
-    amp_error( amp_player_window(), "Error create help instance: %s", infname.cdata() );
-  else
-    PMRASSERT(WinAssociateHelpInstance(hhelp, amp_player_window()));
-    
-  WinSetHook( amp_player_hab(), HMQ_CURRENT, HK_HELP, (PFN)&HelpHook, 0 );  
-}
-
-void dlg_uninit()
-{ if (hhelp != NULLHANDLE)
-    WinDestroyHelpInstance(hhelp);
-}*/
-

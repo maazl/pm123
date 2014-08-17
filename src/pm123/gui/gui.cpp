@@ -191,7 +191,7 @@ class GUIImp : private GUI, private DialogBase
 
   //static Playable& EnsurePlaylist(Playable& list);
 
-  static void      SaveStream(HWND hwnd, BOOL enable);
+  static void      SaveStream(BOOL enable);
   friend BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition);
 
   static void      LoadAccel();           ///< (Re-)Loads the accelerator table and modifies it by the plug-ins.
@@ -857,9 +857,8 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         }
        case IDM_M_SAVE:
-          // TODO: Save stream
-          //amp_save_stream(HPlayer, !Ctrl::GetSavename());
-          break;
+        SaveStream(!Ctrl::GetSavename());
+        break;
 
        case IDM_M_PLAYLIST:
         PlaylistView::GetByKey(*DefaultPL)->SetVisible(true);
@@ -1350,12 +1349,14 @@ void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
 }
 
 
-void GUIImp::SaveStream(HWND hwnd, BOOL enable)
-{
+void GUIImp::SaveStream(BOOL enable)
+{ DEBUGLOG(("GUIImp::SaveStream(%u)\n", enable));
   if( enable )
   { FILEDLG filedialog = { sizeof(FILEDLG) };
-    filedialog.fl         = FDS_CENTER|FDS_SAVEAS_DIALOG|FDS_ENABLEFILELB;
-    filedialog.pszTitle   = "Save stream as";
+    filedialog.fl        = FDS_CENTER|FDS_SAVEAS_DIALOG|FDS_ENABLEFILELB;
+    filedialog.pszTitle  = "Save stream as";
+    char type[_MAX_PATH] = "";
+    filedialog.pszIType  = type;
 
     xstring savedir = Cfg::Get().savedir;
     if (savedir.length() > 8)
@@ -1363,10 +1364,13 @@ void GUIImp::SaveStream(HWND hwnd, BOOL enable)
       strlcpy(filedialog.szFullFile, surl2file(savedir), sizeof filedialog.szFullFile);
     else
       filedialog.szFullFile[0] = 0;
-    amp_file_dlg(HWND_DESKTOP, hwnd, &filedialog);
+    amp_file_dlg(HWND_DESKTOP, HPlayer, &filedialog);
 
     if (filedialog.lReturn == DID_OK)
-    { if (amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
+    {
+      struct stat fi;
+      if ( stat(filedialog.szFullFile, &fi) != 0
+        || amp_query(HPlayer, "File %s already exists. Append it?", filedialog.szFullFile) )
       { url123 url = url123::normalizeURL(filedialog.szFullFile);
         PostCtrlCommand(Ctrl::MkSave(url));
         Cfg::ChangeAccess().savedir = url.getBasePath();

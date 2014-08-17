@@ -228,7 +228,7 @@ const url123 url123::normalizeURL(const char* str)
   char* cp2;
   for (cp2 = strchr(cp, '\\'); cp2; cp2 = strchr(cp2+1, '\\'))
     *cp2 = '/';
-  // reduce /xxx/.. - s/\/[^\/]\/\.\.//g;
+  // reduce /???/.. - s/\/[^\/]\/\.\.//g;
   len = ret.length();
   for (cp2 = strstr(cp, "/."); cp2; cp2 = strstr(cp2, "/."))
   { DEBUGLOG(("url123::normalzieURL: removing? %s\n", cp2));

@@ -55,14 +55,6 @@
 #include <debuglog.h>
 
 
-/* file dialog additional flags
-#define  FDU_DIR_ENABLE   0x0001
-#define  FDU_RECURSEBTN   0x0002
-#define  FDU_RECURSE_ON   0x0004
-#define  FDU_RELATIVBTN   0x0008
-#define  FDU_RELATIV_ON   0x0010*/
-
-
 static xstring StartPath;
 const xstring& amp_startpath = StartPath;
 

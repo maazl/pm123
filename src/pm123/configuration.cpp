@@ -595,7 +595,7 @@ bool Cfg::Set(amp_cfg& settings)
 void Cfg::Init()
 {
   // Open profile
-  xstring inipath = amp_basepath + "\\PM123.INI"; // TODO: command line option
+  xstring inipath = amp_basepath + "\\PM123.INI";
   HIni = PrfOpenProfile(amp_player_hab, inipath);
   if (HIni == NULLHANDLE)
   { EventHandler::PostFormat(MSG_ERROR, "Failed to access PM123 configuration file %s.", inipath.cdata());

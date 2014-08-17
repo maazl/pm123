@@ -316,9 +316,7 @@ ssize_t MPG123::FRead(void* that, void* buffer, size_t size)
 {
   size = xio_fread(buffer, 1, size, this->XFile);
   if (this->XSave && size > 0)
-  { if (this->XSave)
-      xio_fwrite(buffer, 1, size, this->XSave);
-  }
+    xio_fwrite(buffer, 1, size, this->XSave);
   return size;
 }
 
@@ -837,15 +835,14 @@ PLUGIN_RC Decoder::Save(const xstring& savename)
   } else
   { // Enable or change savename
     if (XSave)
-    { if ( savename.length() == Savename.length()
-        && memcmp(savename.cdata(), Savename.cdata(), savename.length()) == 0 )
+    { if (savename == Savename)
         return PLUGIN_GO_ALREADY;
       xio_fclose(XSave);
       XSave = NULL;
       Savename.reset();
     }
-    XFILE* save = xio_fopen(savename, "abU");
-    if (save == NULL)
+    XSave = xio_fopen(savename, "abU");
+    if (XSave == NULL)
     { int err = xio_errno();
       LastError.sprintf("Could not open file to save data:\n%s\n%s",
         savename.cdata(), xio_strerror(err));

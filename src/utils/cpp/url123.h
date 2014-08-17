@@ -92,7 +92,7 @@ class url123 : public xstring
   /// @param str URL to normalize. This may be either a file name or any URI scheme.
   /// @return Normalized URL or \c NULL in case of an error.
   /// @details This functions takes care of backslashes in file names and converts them to forward slash.
-  /// Furthermore /xxx/../ is reduced. (Not Unix compliant.)
+  /// Furthermore /???/../ is reduced. (Not Unix compliant.)
   static const url123 normalizeURL(const char* str);
 
                 url123() {}
