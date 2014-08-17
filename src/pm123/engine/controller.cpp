@@ -1053,12 +1053,12 @@ void CtrlImp::MsgSave()
   Savename = StrArg;
 
   if (Glue::DecInitialized())
-  { ULONG rc = Glue::DecSave(Savename);
+  { // TODO: is it really a good idea to save different streams into the same file???
+    ULONG rc = Glue::DecSave(Savename);
     if (rc)
     { ReplyDecoderError(rc);
       return;
   } }
-  // TODO: is it really a good idea to save different streams into the same file???
   Reply(RC_OK);
 }
 
