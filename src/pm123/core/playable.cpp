@@ -883,7 +883,7 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
     if (match)
     { // Match! => Swap properties
       // If the slice changes this way an ChildInstChange event is fired here that invalidates the CollectionInfoCache.
-      if (match != &cur_new && &match->GetPlayable() != &cur_new)
+      if (match != &cur_new && &cur_new.GetPlayable() != &cur_new)
         match->AssignInstanceProperties((PlayableRef&)cur_new);
      exactmatch:
       // If it happened to be the first new entry we have to update first_new too.
@@ -894,7 +894,7 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
     } else
     { // No match => create new entry.
       match = CreateEntry(cur_new.GetPlayable());
-      if (match != &cur_new && &match->GetPlayable() != &cur_new)
+      if (match != &cur_new && &cur_new.GetPlayable() != &cur_new)
         match->AssignInstanceProperties((PlayableRef&)cur_new);
       InsertEntry(match, NULL);
       ret = true;
@@ -1092,14 +1092,15 @@ bool Playable::Sort(ItemComparer comp)
   // Sort index array
   merge_sort(index.begin(), index.end(), comp);
   // Adjust item sequence
-  vector<APlayable> newcontent(index.size());
-  for (PlayableInstance** cur = index.begin(); cur != index.end(); ++cur)
-    newcontent.append() = *cur;
-  bool changed = UpdateCollection(newcontent);
-  ASSERT(index.size() == 0); // All items should have been reused
+  if (!UpdateCollection((const vector<APlayable>&)index)) // covariance
+    what = IF_None;
+  else if (!Modified)
+  { what |= IF_Usage;
+    Modified = true;
+  }
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  CollectionChangeArgs args(*this, IF_Child, IF_Child*changed);
+  CollectionChangeArgs args(*this, IF_Child|what, what);
   RaiseInfoChange(args);
   return true;
 }
@@ -1119,11 +1120,15 @@ bool Playable::Shuffle()
   Entry* ep = NULL;
   while ((ep = Playlist->Items.next(ep)) != NULL)
     newcontent.insert(rand()%(newcontent.size()+1)) = ep;
-  bool changed = UpdateCollection(newcontent);
-  ASSERT(newcontent.size() == 0); // All items should have been reused
+  if (!UpdateCollection(newcontent))
+    what = IF_None;
+  else if (!Modified)
+  { what |= IF_Usage;
+    Modified = true;
+  }
   // done
   Info.InfoStat.EndUpdate(IF_Child);
-  CollectionChangeArgs args(*this, IF_Child, IF_Child*changed);
+  CollectionChangeArgs args(*this, IF_Child|what, what);
   RaiseInfoChange(args);
   return true;
 }
@@ -1171,7 +1176,7 @@ SaveCallbackFunc (void* param, xstring* url, const INFO_BUNDLE** info, int* cach
   return PLUGIN_OK;
 }
 
-bool Playable::Save(const url123& dest, const char* decoder, const char* format, bool relative)
+int Playable::Save(const url123& dest, const char* decoder, const char* format, bool relative)
 { DEBUGLOG(("Playable::Save(%s, %s, %s, %u)\n", dest.cdata(), decoder, format, relative));
   ULONG rc;
   try
@@ -1179,9 +1184,11 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
     SaveCallbackData cbd(*this, dest, relative);
     int what = IF_Child;
     rc = dp->SaveFile(dest, format, &what, &cbd.GetInfo(), &PROXYFUNCREF(SaveCallbackData)SaveCallbackFunc, &cbd);
+    if (rc != 0)
+      return rc;
   } catch (const ModuleException& ex)
   { EventHandler::PostFormat(MSG_ERROR, "Failed to save playlist %s:\n%s", dest.cdata(), ex.GetErrorText().cdata());
-    return false;
+    return PLUGIN_FAILED;
   }
 
   if (dest == URL)
@@ -1194,7 +1201,7 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
     if (pp)
       pp->SetModified(true, this);
   }
-  return dest;
+  return 0;
 }
 
 int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo)

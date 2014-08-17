@@ -454,7 +454,7 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     }
   }
 
-  if (!playlist.Save(dest, decoder, format, relative))
+  if (playlist.Save(dest, decoder, format, relative))
   { amp_messagef(owner, MSG_ERROR, "Failed to create playlist \"%s\". Error %s.", dest.cdata(), xio_strerror(xio_errno()));
     return xstring();
   }

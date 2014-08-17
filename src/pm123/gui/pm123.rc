@@ -1017,6 +1017,7 @@ MENU MNU_PLAYLIST
     MENUITEM "Object ~location",         IDM_PL_SORT_URLALL
     MENUITEM "~Playing time",            IDM_PL_SORT_TIMEALL
     MENUITEM "Physical si~ze",           IDM_PL_SORT_SIZEALL
+    MENUITEM SEPARATOR
     MENUITEM "~Random",                  IDM_PL_SORT_RANDALL
   }
   MENUITEM SEPARATOR
@@ -1072,6 +1073,7 @@ MENU PM_MAIN_MENU
     MENUITEM "Object ~location",         IDM_PL_SORT_URLALL
     MENUITEM "~Playing time",            IDM_PL_SORT_TIMEALL
     MENUITEM "Physical si~ze",           IDM_PL_SORT_SIZEALL
+    MENUITEM SEPARATOR
     MENUITEM "~Random",                  IDM_PL_SORT_RANDALL
   }
   MENUITEM SEPARATOR
@@ -1110,6 +1112,7 @@ MENU PM_REC_MENU
     MENUITEM "Object ~location",         IDM_PL_SORT_URL
     MENUITEM "~Playing time",            IDM_PL_SORT_TIME
     MENUITEM "Physical si~ze",           IDM_PL_SORT_SIZE
+    MENUITEM SEPARATOR
     MENUITEM "~Random",                  IDM_PL_SORT_RAND
   }
   MENUITEM SEPARATOR
