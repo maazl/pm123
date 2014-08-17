@@ -854,7 +854,6 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
   bool ret = false;
   PlayableRef* first_new = NULL;
   int index = 0;
-  // TODO: RefreshActive = true;
   // Place new entries, try to recycle existing ones.
   foreach (APlayable,*const*, npp, newcontent)
   { APlayable& cur_new = **npp;
@@ -922,7 +921,6 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
     //UpdateModified(true);
   }
 
-  // RefteshActive = false;
   return ret;
 }
 
