@@ -50,8 +50,6 @@ void amp_messagef(HWND owner, MESSAGE_TYPE type, const char* format, ...);
 BOOL amp_query(HWND owner, const char* format, ...);
 /// Requests the user about specified action. With cancel button.
 USHORT amp_query3(HWND owner, const char* format, ...);
-/// Requests the user about overwriting a file.
-BOOL amp_warn_if_overwrite(HWND owner, const char* filename);
 
 /// Wizard function for the default entry "File..."
 ULONG DLLENTRY amp_file_wizard(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param);
@@ -74,8 +72,6 @@ void amp_add_bookmark(HWND owner, APlayable& item);
 /// @param format IN/OUT format to save. Preselected Format on input, selected format on output.
 /// @return Path where the file has been saved. \c NULL in case the user did not press OK.
 url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas);
-/* Returns TRUE if the save stream feature has been enabled. */
-//void  amp_save_stream( HWND hwnd, BOOL enable );
 
 
 #endif /* DIALOG_H */
