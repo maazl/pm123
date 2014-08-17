@@ -203,6 +203,7 @@ class Playable
   /// small, it looks for identical or similar objects in the current collection content first.
   /// The content of the vector is destroyed in general.
   /// The function must be called from synchronized context.
+  /// It is up to the caller to raise change events.
   bool                      UpdateCollection(const vector<APlayable>& newcontent);
   /// InfoChange Events from the children
   void                      ChildChangeNotification(const PlayableChangeArgs& args);

@@ -916,10 +916,6 @@ bool Playable::UpdateCollection(const vector<APlayable>& newcontent)
     } while (cur != first_new);
     ret = true;
   }
-  if (ret)
-  { // TODO ValidateInfo(IF_Child, true, true);
-    //UpdateModified(true);
-  }
 
   return ret;
 }
@@ -1158,14 +1154,13 @@ class SaveCallbackData
 PROXYFUNCIMP(int DLLENTRY, SaveCallbackData)
 SaveCallbackFunc (void* param, xstring* url, const INFO_BUNDLE** info, int* cached, int* reliable)
 { SaveCallbackData& cbd = *(SaveCallbackData*)param;
-  // TODO: This is a race condition, because the exact content that is saved is not
-  // well defined if the list is currently manipulation. Normally a snapshot should be taken.
   cbd.Current = cbd.Parent.GetNext(cbd.Current);
   if (cbd.Current == NULL)
     return PLUGIN_FAILED;
   *url = cbd.Relative
     ? cbd.Current->GetPlayable().URL.makeRelative(cbd.Dest)
     : cbd.Current->GetPlayable().URL;
+  // Take a snapshot of the info's to save.
   cbd.Info.Assign(cbd.Current->GetInfo());
   *info  = &cbd.Info;
   *reliable = ~cbd.Current->RequestInfo(~IF_None, PRI_None);
