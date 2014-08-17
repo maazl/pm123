@@ -66,8 +66,7 @@ const HAB& amp_player_hab = Hab;
 
 
 void amp_fail(const char* fmt, ...)
-{ // TODO: Write error to PM if initialized.
-  va_list va;
+{ va_list va;
   va_start(va, fmt);
   vfprintf(stderr, fmt, va);
   va_end(va);
@@ -285,7 +284,6 @@ int main(int argc, char** argv)
   GUI::Uninit();
 
   Cfg::SaveIni();
-  // TODO: save volume
   Ctrl::Uninit();
 
   ///////////////////////////////////////////////////////////////////////////

@@ -243,7 +243,6 @@ struct AggregateInfo
   void                   Add(const volatile AggregateInfo& r, unsigned what);
 };
 
-// TODO: remove this class
 class AllInfo
 : public DecoderInfo
 , public AggregateInfo
