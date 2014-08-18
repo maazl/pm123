@@ -23,6 +23,7 @@ PARTS   = $(PARTS) src\plug-ins\drc123\drc123.dll
 PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
+PARTS   = $(PARTS) doc\pm123_pdk.inf
 
 LIBPARTS= $(LIBPARTS) src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO)
 LIBPARTS= $(LIBPARTS) src\gbm123\libgbm$(LBO)
@@ -192,7 +193,7 @@ src\skinutil\skinutil.exe: src\utils\utilfct$(LBO) src\gbm123\libgbm$(LBO)
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-doc\pm123.inf: $(MDUMMY)
+doc\pm123.inf doc\pm123_pdk.inf: $(MDUMMY)
 	cd doc
 	@$(MAKE) $(MFLAGS)
 	@cd ..
