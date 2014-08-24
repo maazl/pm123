@@ -104,15 +104,12 @@ static void TFNENTRY decoder_thread(void* arg)
   {
     DosWaitEventSem(w->play, SEM_INDEFINITE_WAIT);
 
-    if (w->Stop)
-      break;
-
-    w->status = DECODER_PLAYING;
-
-    while (!w->Stop)
+    for (;;)
     {
-      int read;
       DosResetEventSem(w->play, &resetcount);
+      if (w->Stop)
+        goto end;
+      w->status = DECODER_PLAYING;
 
       if (w->JumpToPos >= 0)
       { sf_count_t jumptoframe = (sf_count_t)(w->JumpToPos * w->SFInfo.samplerate +.5);
@@ -137,7 +134,7 @@ static void TFNENTRY decoder_thread(void* arg)
         goto end;
       }
 
-      read = sf_readf_float(w->Sndfile, buffer, frames);
+      int read = sf_readf_float(w->Sndfile, buffer, frames);
       if (read <= 0)
         break;
 
@@ -146,6 +143,8 @@ static void TFNENTRY decoder_thread(void* arg)
       w->NextSkip -= read;
       markerpos += read;
     }
+    if (w->Stop)
+      goto end;
     // File finished
     (*w->DecEvent)(w->A, DECEVENT_PLAYSTOP, NULL);
     w->status = DECODER_STOPPING;
@@ -401,7 +400,7 @@ decoder_fileinfo(const char* url, XFILE* handle, int* what, const INFO_BUNDLE* i
   tech.samplerate = sfinfo.samplerate;
   tech.channels = sfinfo.channels;
   tech.attributes = TATTR_SONG;
-  tech.info.sprintf(have_subformat ? "%s %f kHz%s %s" : "%s %f kHz%s",
+  tech.info.sprintf(have_subformat ? "%s %.1f kHz%s %s" : "%s %.1f kHz%s",
     format_info.name, sfinfo.samplerate/1000., chan, format_more.name);
   if (have_subformat)
     tech.format.sprintf("%s %s%s", format_info.extension, sf_subformats[sfinfo.format&SF_FORMAT_SUBMASK], endian);

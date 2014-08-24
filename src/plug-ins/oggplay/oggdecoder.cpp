@@ -289,12 +289,11 @@ void OggDecoderThread::DecoderThread()
   for(;;)
   { Play.Wait();
 
-    if (StopRq)
-      goto end;
-
-    Status = DECODER_PLAYING;
     for (;;)
     { Play.Reset();
+      if (StopRq)
+        goto end;
+      Status = DECODER_PLAYING;
 
       double newpos = JumpToPos;
       if (SkipSecs && GetPos() >= NextSkip)
@@ -347,8 +346,6 @@ void OggDecoderThread::DecoderThread()
           WinPostMsg( w->hwnd, WM_METADATA, MPFROMP( w->metadata_buff ), 0 );
         }
       }*/
-      if (StopRq)
-        goto end;
     }
     if (StopRq)
       goto end;
