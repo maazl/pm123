@@ -117,92 +117,92 @@ typedef struct {
 
 /* Ogg BITSTREAM PRIMITIVES: bitstream ************************/
 
-extern void DLLENTRY oggpack_writeinit(oggpack_buffer *b);
-extern int  DLLENTRY oggpack_writecheck(oggpack_buffer *b);
-extern void DLLENTRY oggpack_writetrunc(oggpack_buffer *b,long bits);
-extern void DLLENTRY oggpack_writealign(oggpack_buffer *b);
-extern void DLLENTRY oggpack_writecopy(oggpack_buffer *b,void *source,long bits);
-extern void DLLENTRY oggpack_reset(oggpack_buffer *b);
-extern void DLLENTRY oggpack_writeclear(oggpack_buffer *b);
-extern void DLLENTRY oggpack_readinit(oggpack_buffer *b,unsigned char *buf,int bytes);
-extern void DLLENTRY oggpack_write(oggpack_buffer *b,unsigned long value,int bits);
-extern long DLLENTRY oggpack_look(oggpack_buffer *b,int bits);
-extern long DLLENTRY oggpack_look1(oggpack_buffer *b);
-extern void DLLENTRY oggpack_adv(oggpack_buffer *b,int bits);
-extern void DLLENTRY oggpack_adv1(oggpack_buffer *b);
-extern long DLLENTRY oggpack_read(oggpack_buffer *b,int bits);
-extern long DLLENTRY oggpack_read1(oggpack_buffer *b);
-extern long DLLENTRY oggpack_bytes(oggpack_buffer *b);
-extern long DLLENTRY oggpack_bits(oggpack_buffer *b);
-extern unsigned char* DLLENTRY oggpack_get_buffer(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_writeinit(oggpack_buffer *b);
+extern int   DLLENTRY oggpack_writecheck(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_writetrunc(oggpack_buffer *b,long bits);
+extern void  DLLENTRY oggpack_writealign(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_writecopy(oggpack_buffer *b,void *source,long bits);
+extern void  DLLENTRY oggpack_reset(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_writeclear(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_readinit(oggpack_buffer *b,unsigned char *buf,int bytes);
+extern void  DLLENTRY oggpack_write(oggpack_buffer *b,unsigned long value,int bits);
+extern long  DLLENTRY oggpack_look(oggpack_buffer *b,int bits);
+extern long  DLLENTRY oggpack_look1(oggpack_buffer *b);
+extern void  DLLENTRY oggpack_adv(oggpack_buffer *b,int bits);
+extern void  DLLENTRY oggpack_adv1(oggpack_buffer *b);
+extern long  DLLENTRY oggpack_read(oggpack_buffer *b,int bits);
+extern long  DLLENTRY oggpack_read1(oggpack_buffer *b);
+extern long  DLLENTRY oggpack_bytes(oggpack_buffer *b);
+extern long  DLLENTRY oggpack_bits(oggpack_buffer *b);
+extern unsigned char *DLLENTRY oggpack_get_buffer(oggpack_buffer *b);
 
-extern void DLLENTRY oggpackB_writeinit(oggpack_buffer *b);
-extern int  DLLENTRY oggpackB_writecheck(oggpack_buffer *b);
-extern void DLLENTRY oggpackB_writetrunc(oggpack_buffer *b,long bits);
-extern void DLLENTRY oggpackB_writealign(oggpack_buffer *b);
-extern void DLLENTRY oggpackB_writecopy(oggpack_buffer *b,void *source,long bits);
-extern void DLLENTRY oggpackB_reset(oggpack_buffer *b);
-extern void DLLENTRY oggpackB_writeclear(oggpack_buffer *b);
-extern void DLLENTRY oggpackB_readinit(oggpack_buffer *b,unsigned char *buf,int bytes);
-extern void DLLENTRY oggpackB_write(oggpack_buffer *b,unsigned long value,int bits);
-extern long DLLENTRY oggpackB_look(oggpack_buffer *b,int bits);
-extern long DLLENTRY oggpackB_look1(oggpack_buffer *b);
-extern void DLLENTRY oggpackB_adv(oggpack_buffer *b,int bits);
-extern void DLLENTRY oggpackB_adv1(oggpack_buffer *b);
-extern long DLLENTRY oggpackB_read(oggpack_buffer *b,int bits);
-extern long DLLENTRY oggpackB_read1(oggpack_buffer *b);
-extern long DLLENTRY oggpackB_bytes(oggpack_buffer *b);
-extern long DLLENTRY oggpackB_bits(oggpack_buffer *b);
-extern unsigned char* DLLENTRY oggpackB_get_buffer(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_writeinit(oggpack_buffer *b);
+extern int   DLLENTRY oggpackB_writecheck(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_writetrunc(oggpack_buffer *b,long bits);
+extern void  DLLENTRY oggpackB_writealign(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_writecopy(oggpack_buffer *b,void *source,long bits);
+extern void  DLLENTRY oggpackB_reset(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_writeclear(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_readinit(oggpack_buffer *b,unsigned char *buf,int bytes);
+extern void  DLLENTRY oggpackB_write(oggpack_buffer *b,unsigned long value,int bits);
+extern long  DLLENTRY oggpackB_look(oggpack_buffer *b,int bits);
+extern long  DLLENTRY oggpackB_look1(oggpack_buffer *b);
+extern void  DLLENTRY oggpackB_adv(oggpack_buffer *b,int bits);
+extern void  DLLENTRY oggpackB_adv1(oggpack_buffer *b);
+extern long  DLLENTRY oggpackB_read(oggpack_buffer *b,int bits);
+extern long  DLLENTRY oggpackB_read1(oggpack_buffer *b);
+extern long  DLLENTRY oggpackB_bytes(oggpack_buffer *b);
+extern long  DLLENTRY oggpackB_bits(oggpack_buffer *b);
+extern unsigned char *DLLENTRY oggpackB_get_buffer(oggpack_buffer *b);
 
 /* Ogg BITSTREAM PRIMITIVES: encoding **************************/
 
-extern int     DLLENTRY ogg_stream_packetin(ogg_stream_state *os, ogg_packet *op);
-extern int     DLLENTRY ogg_stream_iovecin(ogg_stream_state *os, ogg_iovec_t *iov,
+extern int      DLLENTRY ogg_stream_packetin(ogg_stream_state *os, ogg_packet *op);
+extern int      DLLENTRY ogg_stream_iovecin(ogg_stream_state *os, ogg_iovec_t *iov,
                                    int count, long e_o_s, ogg_int64_t granulepos);
-extern int     DLLENTRY ogg_stream_pageout(ogg_stream_state *os, ogg_page *og);
-extern int     DLLENTRY ogg_stream_pageout_fill(ogg_stream_state *os, ogg_page *og, int nfill);
-extern int     DLLENTRY ogg_stream_flush(ogg_stream_state *os, ogg_page *og);
-extern int     DLLENTRY ogg_stream_flush_fill(ogg_stream_state *os, ogg_page *og, int nfill);
+extern int      DLLENTRY ogg_stream_pageout(ogg_stream_state *os, ogg_page *og);
+extern int      DLLENTRY ogg_stream_pageout_fill(ogg_stream_state *os, ogg_page *og, int nfill);
+extern int      DLLENTRY ogg_stream_flush(ogg_stream_state *os, ogg_page *og);
+extern int      DLLENTRY ogg_stream_flush_fill(ogg_stream_state *os, ogg_page *og, int nfill);
 
 /* Ogg BITSTREAM PRIMITIVES: decoding **************************/
 
-extern int     DLLENTRY ogg_sync_init(ogg_sync_state *oy);
-extern int     DLLENTRY ogg_sync_clear(ogg_sync_state *oy);
-extern int     DLLENTRY ogg_sync_reset(ogg_sync_state *oy);
-extern int     DLLENTRY ogg_sync_destroy(ogg_sync_state *oy);
-extern int     DLLENTRY ogg_sync_check(ogg_sync_state *oy);
+extern int      DLLENTRY ogg_sync_init(ogg_sync_state *oy);
+extern int      DLLENTRY ogg_sync_clear(ogg_sync_state *oy);
+extern int      DLLENTRY ogg_sync_reset(ogg_sync_state *oy);
+extern int      DLLENTRY ogg_sync_destroy(ogg_sync_state *oy);
+extern int      DLLENTRY ogg_sync_check(ogg_sync_state *oy);
 
-extern char*   DLLENTRY ogg_sync_buffer(ogg_sync_state *oy, long size);
-extern int     DLLENTRY ogg_sync_wrote(ogg_sync_state *oy, long bytes);
-extern long    DLLENTRY ogg_sync_pageseek(ogg_sync_state *oy,ogg_page *og);
-extern int     DLLENTRY ogg_sync_pageout(ogg_sync_state *oy, ogg_page *og);
-extern int     DLLENTRY ogg_stream_pagein(ogg_stream_state *os, ogg_page *og);
-extern int     DLLENTRY ogg_stream_packetout(ogg_stream_state *os,ogg_packet *op);
-extern int     DLLENTRY ogg_stream_packetpeek(ogg_stream_state *os,ogg_packet *op);
+extern char    *DLLENTRY ogg_sync_buffer(ogg_sync_state *oy, long size);
+extern int      DLLENTRY ogg_sync_wrote(ogg_sync_state *oy, long bytes);
+extern long     DLLENTRY ogg_sync_pageseek(ogg_sync_state *oy,ogg_page *og);
+extern int      DLLENTRY ogg_sync_pageout(ogg_sync_state *oy, ogg_page *og);
+extern int      DLLENTRY ogg_stream_pagein(ogg_stream_state *os, ogg_page *og);
+extern int      DLLENTRY ogg_stream_packetout(ogg_stream_state *os,ogg_packet *op);
+extern int      DLLENTRY ogg_stream_packetpeek(ogg_stream_state *os,ogg_packet *op);
 
 /* Ogg BITSTREAM PRIMITIVES: general ***************************/
 
-extern int     DLLENTRY ogg_stream_init(ogg_stream_state *os,int serialno);
-extern int     DLLENTRY ogg_stream_clear(ogg_stream_state *os);
-extern int     DLLENTRY ogg_stream_reset(ogg_stream_state *os);
-extern int     DLLENTRY ogg_stream_reset_serialno(ogg_stream_state *os,int serialno);
-extern int     DLLENTRY ogg_stream_destroy(ogg_stream_state *os);
-extern int     DLLENTRY ogg_stream_check(ogg_stream_state *os);
-extern int     DLLENTRY ogg_stream_eos(ogg_stream_state *os);
+extern int      DLLENTRY ogg_stream_init(ogg_stream_state *os,int serialno);
+extern int      DLLENTRY ogg_stream_clear(ogg_stream_state *os);
+extern int      DLLENTRY ogg_stream_reset(ogg_stream_state *os);
+extern int      DLLENTRY ogg_stream_reset_serialno(ogg_stream_state *os,int serialno);
+extern int      DLLENTRY ogg_stream_destroy(ogg_stream_state *os);
+extern int      DLLENTRY ogg_stream_check(ogg_stream_state *os);
+extern int      DLLENTRY ogg_stream_eos(ogg_stream_state *os);
 
-extern void    DLLENTRY ogg_page_checksum_set(ogg_page *og);
+extern void     DLLENTRY ogg_page_checksum_set(ogg_page *og);
 
-extern int     DLLENTRY ogg_page_version(const ogg_page *og);
-extern int     DLLENTRY ogg_page_continued(const ogg_page *og);
-extern int     DLLENTRY ogg_page_bos(const ogg_page *og);
-extern int     DLLENTRY ogg_page_eos(const ogg_page *og);
+extern int      DLLENTRY ogg_page_version(const ogg_page *og);
+extern int      DLLENTRY ogg_page_continued(const ogg_page *og);
+extern int      DLLENTRY ogg_page_bos(const ogg_page *og);
+extern int      DLLENTRY ogg_page_eos(const ogg_page *og);
 extern ogg_int64_t DLLENTRY ogg_page_granulepos(const ogg_page *og);
-extern int     DLLENTRY ogg_page_serialno(const ogg_page *og);
-extern long    DLLENTRY ogg_page_pageno(const ogg_page *og);
-extern int     DLLENTRY ogg_page_packets(const ogg_page *og);
+extern int      DLLENTRY ogg_page_serialno(const ogg_page *og);
+extern long     DLLENTRY ogg_page_pageno(const ogg_page *og);
+extern int      DLLENTRY ogg_page_packets(const ogg_page *og);
 
-extern void    DLLENTRY ogg_packet_clear(ogg_packet *op);
+extern void     DLLENTRY ogg_packet_clear(ogg_packet *op);
 
 
 #ifdef __cplusplus

@@ -43,6 +43,7 @@ typedef struct {
   ogg_int64_t DLLENTRYP(tell_func)  (void *datasource);
 } ov_callbacks;
 
+#ifndef OV_EXCLUDE_STATIC_CALLBACKS
 
 /* a few sets of convenient callbacks, especially for use under
  * Windows where ov_open_callbacks() should always be used instead of
@@ -73,8 +74,6 @@ static ogg_int64_t DLLENTRY _ov_header_ftell_wrap(FILE *f){
 #endif
 }
 
-#ifndef OV_EXCLUDE_STATIC_CALLBACKS
-
 /* These structs below (OV_CALLBACKS_DEFAULT etc) are defined here as
  * static data. That means that every file which includes this header
  * will get its own copy of these structs whether it uses them or
@@ -89,14 +88,14 @@ static ov_callbacks OV_CALLBACKS_DEFAULT = {
   (size_t DLLENTRYPF()(void *, size_t, size_t, void *))  fread,
   (int DLLENTRYPF()(void *, ogg_int64_t, int))           _ov_header_fseek_wrap,
   (int DLLENTRYPF()(void *))                             fclose,
-  (ogg_int64_t DLLENTRYPF()(void *))                     _ov_header_ftell_wrap,
+  (ogg_int64_t DLLENTRYPF()(void *))                     _ov_header_ftell_wrap
 };
 
 static ov_callbacks OV_CALLBACKS_NOCLOSE = {
   (size_t DLLENTRYPF()(void *, size_t, size_t, void *))  fread,
   (int DLLENTRYPF()(void *, ogg_int64_t, int))           _ov_header_fseek_wrap,
   (int DLLENTRYPF()(void *))                             NULL,
-  (ogg_int64_t DLLENTRYPF()(void *))                     _ov_header_fseek_wrap,
+  (ogg_int64_t DLLENTRYPF()(void *))                     _ov_header_ftell_wrap
 };
 
 static ov_callbacks OV_CALLBACKS_STREAMONLY = {
@@ -196,8 +195,8 @@ extern ogg_int64_t DLLENTRY ov_raw_tell(OggVorbis_File *vf);
 extern ogg_int64_t DLLENTRY ov_pcm_tell(OggVorbis_File *vf);
 extern double DLLENTRY ov_time_tell(OggVorbis_File *vf);
 
-extern vorbis_info* DLLENTRY ov_info(OggVorbis_File *vf,int link);
-extern vorbis_comment* DLLENTRY ov_comment(OggVorbis_File *vf,int link);
+extern vorbis_info *DLLENTRY ov_info(OggVorbis_File *vf,int link);
+extern vorbis_comment *DLLENTRY ov_comment(OggVorbis_File *vf,int link);
 
 extern long DLLENTRY ov_read_float(OggVorbis_File *vf,float ***pcm_channels,int samples,
                           int *bitstream);

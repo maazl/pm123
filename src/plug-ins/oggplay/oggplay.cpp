@@ -149,7 +149,7 @@ vce_read( void* ptr, size_t size, size_t count, void* file ) {
   return xio_fread( ptr, size, count, (XFILE*)file );
 }
 static size_t
-vce_write( void* ptr, size_t size, size_t count, void* file ) {
+vce_write( const void* ptr, size_t size, size_t count, void* file ) {
   return xio_fwrite( ptr, size, count, (XFILE*)file );
 }
 
