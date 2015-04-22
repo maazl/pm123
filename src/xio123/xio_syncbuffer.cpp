@@ -119,7 +119,7 @@ int XIOsyncbuffer::read(void* result, unsigned int count)
     memcpy((char*)result + read_done, head + data_ptr, read_size);
   read_done += read_size;
   data_ptr += read_size;
-  if (data_ptr > size)
+  if (data_ptr >= size)
     data_ptr -= size;
   data_unread -= read_size;
 
