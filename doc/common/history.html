@@ -9,6 +9,15 @@
     <h2>PM123's History of changes</h2>
     <h3>PM123 1.41 (beta 3)</h3>
     <blockquote>
+      <h4>XIO123</h4>
+    </blockquote>
+    <ul>
+      <li><em>Fixed severe file corruption issue when writing OggVorbis comments</em>
+        and rarely some others. Happened when a read access to a synchronously
+        buffered stream happens to end exactly at the end of the ring buffer
+        since 1.41.</li>
+    </ul>
+    <blockquote>
       <h4>WAVPLAY</h4>
     </blockquote>
     <ul>
@@ -19,7 +28,8 @@
       <h4>OGGPLAY</h4>
     </blockquote>
     <ul>
-      <li>Upgraded to libogg 1.3.2, libvorbis 1.3.5 and vorbis-tools 1.4.0.</li>
+      <li>Upgrade to <em>libogg 1.3.2</em>, <em>libvorbis 1.3.5</em> and <em>vorbis-tools
+          1.4.0</em>.</li>
     </ul>
     <h3>PM123 1.41 (beta 2)</h3>
     <ul>
