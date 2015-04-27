@@ -108,7 +108,7 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
     tech.channels   = dec.GetChannels();
     tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
     char buf[14];
-    tech.info.sprintf("%u kbps, %.1f kHz, %s",
+    tech.info.sprintf("%u bps, %.1f kHz, %s",
                       dec.GetBitrate(), tech.samplerate/1000.0,
                       tech.channels == 1 ? "Mono" : tech.channels == 2 ? "Stereo" : (sprintf(buf, "%i Ch.", tech.channels), buf));
   }
