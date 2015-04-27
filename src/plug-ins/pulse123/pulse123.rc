@@ -39,7 +39,7 @@ DLGTEMPLATE DLG_CONFIG
   {
     GROUPBOX " PulseAudio Server ",         GB_GENERIC,   4, 72, 224, 32, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~URL",                 ST_GENERIC,   8, 88,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    LTEXT           "~Server",              ST_GENERIC,   8, 88,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
     COMBOBOX        "",                     CB_SERVER,   64, 16, 104, 80, CBS_DROPDOWN
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     PUSHBUTTON      "Connect",              PB_UPDATE,  172, 84,  52, 12, WS_GROUP
@@ -50,7 +50,7 @@ DLGTEMPLATE DLG_CONFIG
 
     GROUPBOX " Select Target ",             GB_GENERIC,   4, 40, 224, 32, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
-    LTEXT           "~Sink",                ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
+    LTEXT           "~Output",              ST_GENERIC,   8, 56,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
     COMBOBOX        "",                     CB_SINKSRC,  64, 24, 160, 40, CBS_DROPDOWNLIST
       PRESPARAMS                   MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     LTEXT           "~Port",                ST_GENERIC,   8, 44,  52,  8, DT_BOTTOM|WS_GROUP|DT_MNEMONIC
