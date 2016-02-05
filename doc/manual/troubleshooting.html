@@ -1,140 +1,134 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html lang="en" resid="1019" sublinks="bugreport.html">
-<head>
-  <title>Troubleshooting</title>
-  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-</head>
-<body>
-<h2>PM123 Troubleshooting</h2>
-<ol>
-  <li>
-    <h3>The player says that <i>no matching decoder</i> plug-in is
-available when playing files without standard extensions.</h3>
-    <p>By default PM123 tries decoders only if either the file
-extension is known to work with this decoder or the file type is listed
-in the file type list of the matching decoder plug-in in the <a
- href="plug-ins_dec-cfg.html">configuration dialog</a>. </p>
-    <ul>
-      <li>Either add one of the file types that the file has in
-the file's properties dialog to the list of known types for the
-matching decode plug-in or </li>
-      <li>check the box 'Try unsupported file extensions and
-types too' for the desired plug-in. But note that this can
-significantly degrade performance when examining large playlists. </li>
-    </ul>
-  </li>
-  <li>
-    <h3>International characters (e.g umlauts) of MPEG Audio files show
-as garbage.</h3>
-    <p>There are encoding problems with the ID3 tags. Either the
-settings in the <a href="mpg123.html">MPG123 configuration</a> are bad
-or the tags itself use nonstandard encodings.<br>
-    <em> ID3V1 tags do not have a well defined encoding</em>.
-ISO-8859-1 is common, because a similar one is used by WinXX, but
-around the world there are almost all encodings used in ID3V1 tags.
-Have a look at the <a href="mpg123.html">MPG123 configuration</a> and
-activate the auto detection.<br>
-    <em>ID3V2 tags do not support OS/2 standard codepages</em>
-and they never have done so. So if you tagged the files with an OS/2
-application (including PM123 1.32) it is very likely that the
-tags have been written in an OS/2 codepage. This should be cured. You
-may set the read encoding for ID3V2 to the matching codepage and use a
-Unicode format for writing ID3V2 (I recommend UTF-8). Once you rewrite
-the tag with PM123 it uses no longer a non-standard encoding.</p>
-  </li>
-  <li>
-    <h3>The player does no longer get the total playing time and
-uses very much CPU.</h3>
-    <p>Maybe the engine is busy for some reason. Press Alt+Shift+<kbd>I</kbd>
-in the main window to open the <a href="inspector.html">Inspector
-Window</a>. The section '<i>Worker Queue</i>'
-will show what is currently going an. Maybe you have touched some links
-to large or non-existing items, that take longer to be analyzed.
-Especially links to large, remote folders are considerably slow. You
-also might adjust the number of worker threads in the <a
- href="settingsio.html">configuration dialog</a>. </p>
-  </li>
-  <li>
-    <h3>The player skips and/or the audio doesn't sound right.</h3>
-    <p>There might be multiple reasons if you encounter this
-problem. Some of them are listed here. First of all, <em>check
-your MP3 file</em>. It may be broken. It might play successfully
-on another player, but mpg123 may not necessarily like it. If you think
-it's not related to the input stream, maybe the problem is one of
-these: </p>
-    <ul>
-      <li>You have a polling device driver (for example, a very
-old 2x CD-ROM or <tt>PRINT01.SYS</tt> without <tt>/IRQ</tt>
-switch)</li>
-      <li>You have a video card that supports '<i>automatic
-PCI bus retry</i>', but your motherboard stops processing during
-those retries. Disable the feature (video driver).</li>
-      <li>You have an ATI Mach64 and you are experiencing a bug
-in the video driver using software mouse pointers (i.e. colored mouse
-pointers).</li>
-      <li>You have a process that hogs all the CPU. Get a CPU
-monitor (we recommend CPUMon) and a process killer from <a
- href="http://hobbes.nmsu.edu">hobbes.nmsu.edu</a>.</li>
-      <li>Your CPU is too slow (or overheated). We recommend you
-have at least a Pentium II machine.</li>
-      <li>You have outdated, old or <em>buggy sound drivers</em>.
-This is a common problem. Many sound drivers out there for OS/2 just
-plain suck. We have tried to test PM123 on as many drivers as we can,
-but some drivers are incomplete and/or buggy.</li>
-    </ul>
-  </li>
-  <li>
-    <h3>The player crashes on startup.</h3>
-    <ul>
-      <li>You have an old <tt>MPG123.DLL</tt> (or
-some other DLL PM123 comes with) in your <tt>LIBPATH</tt>.
-Or you tried to start different versions of PM123 from different
-directories at the same time.<br>
-Set <tt>LIBPATHSTRICT=T</tt> to get this working.
-(Requires recent OS/2 kernel.)</li>
-      <li>Your system doesn't support DIVE (Direct Video
-Extensions). Try renaming <tt>visplug\analyzer.dll</tt> to
-something else.</li>
-      <li>PM123 might dislike a file that you used the last time, or
-the settings might be broken. Try removing the <tt>PM123.INI</tt> to
-restores all setting to the default. </li>
-    </ul>
-  </li>
-  <li>
-    <h3>My mouse cursor is jerky or jumpy!</h3>
-    <ul>
-      <li>You have a bad video driver. You should try SciTech
-Display Drivers also known as SNAP which should fix all your problems.
-If this
-does not work out, we cannot help you more on this matter, but we urge
-you to call/mail your video driver manufacturer about this problem. </li>
-      <li>You have a colored or animated mouse pointer that is
-not supported properly by your video driver. They are <em>software
-mouse cursors</em> and they don't mix very well with high
-performance multimedia applications that draw rapidly to the screen.
-SDD drivers do not exhibit this problem. Switch back to the old black
-and white OS/2 default mouse pointer and/or disable pointer animation.
-The default b/w pointer is a <em>hardware mouse cursor</em>.
-This problem is often caused by all high speed DIVE applications. </li>
-      <li>If all fails, one way to fix this problem is to set
-analyzer disabled by default (Properties -&gt; Plug-Ins -&gt;
-analyzer.dll -&gt; Configure). Of course you won't see the cool
-graphics then. </li>
-    </ul>
-  </li>
-  <li>
-    <h3>The analyzer and the timers stop working after long
-playbacks.</h3>
-    <p>This is a bug in some sound drivers that prevents MMOS2 to
-return playing times beyond 2**<sup>30</sup> samples. This
-is after about 6 to 7 hours at 44 to 48 kHz sampling rate.<br>
-If you activated 'retain playing position on stop' press the play/stop
-button twice and the sound device is reinitialized. This gives you
-another 6 hours. ;-)</p>
-  </li>
-</ol>
-<h3>None of the above</h3>
-If you think there is something wrong with&nbsp;PM123, you
-may send a <a href="bugreport.html">bug report</a>.
-</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1019" sublinks="bugreport.html" lang="en">
+  <head>
+    <meta content="text/html; charset=windows-1252" http-equiv="content-type">
+    <title>Troubleshooting</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+  </head>
+  <body>
+    <h2>PM123 Troubleshooting</h2>
+    <ol>
+      <li>
+        <h3>The player says that <i>no matching decoder</i> plug-in is
+          available when playing files without standard extensions.</h3>
+        <p>By default PM123 tries decoders only if either the file extension is
+          known to work with this decoder or the file type is listed in the file
+          type list of the matching decoder plug-in in the <a href="plug-ins_dec-cfg.html">configuration
+            dialog</a>. </p>
+        <ul>
+          <li>Either add one of the file types that the file has in the file's
+            properties dialog to the list of known types for the matching decode
+            plug-in or </li>
+          <li>check the box 'Try unsupported file extensions and types too' for
+            the desired plug-in. But note that this can significantly degrade
+            performance when examining large playlists.</li>
+        </ul>
+      </li>
+      <li>
+        <h3>International characters (e.g umlauts) of MPEG Audio files show as
+          garbage.</h3>
+        <p>There are encoding problems with the ID3 tags. Either the settings in
+          the <a href="mpg123.html">MPG123 configuration</a> are bad or the
+          tags itself use nonstandard encodings.<br>
+          <em> ID3V1 tags do not have a well defined encoding</em>. ISO-8859-1
+          is common, because a similar one is used by WinXX, but around the
+          world there are almost all encodings used in ID3V1 tags. Have a look
+          at the <a href="mpg123.html">MPG123 configuration</a> and activate
+          the auto detection.<br>
+          <em>ID3V2 tags do not support OS/2 standard codepages</em> and they
+          never have done so. So if you tagged the files with an OS/2
+          application (including PM123 1.32) it is very likely that the tags
+          have been written in an OS/2 codepage. This should be cured. You may
+          set the read encoding for ID3V2 to the matching codepage and use a
+          Unicode format for writing ID3V2 (I recommend UTF-8). Once you rewrite
+          the tag with PM123 it uses no longer a non-standard encoding.</p>
+      </li>
+      <li>
+        <h3>The player does no longer get the total playing time and uses very
+          much CPU.</h3>
+        <p>Maybe the engine is busy for some reason. Press Alt+Shift+<kbd>I</kbd>
+          in the main window to open the <a href="inspector.html">Inspector
+            Window</a>. The section '<i>Worker Queue</i>' will show what is
+          currently going an. Maybe you have touched some links to large or
+          non-existing items, that take longer to be analyzed. Especially links
+          to large, remote folders are considerably slow. You also might adjust
+          the number of worker threads in the <a href="settingsio.html">configuration
+            dialog</a>. </p>
+      </li>
+      <li>
+        <h3>The player skips and/or the audio doesn't sound right.</h3>
+        <p>There might be multiple reasons if you encounter this problem. Some
+          of them are listed here. First of all, <em>check your MP3 file</em>.
+          It may be broken. It might play successfully on another player, but
+          mpg123 may not necessarily like it. If you think it's not related to
+          the input stream, maybe the problem is one of these: </p>
+        <ul>
+          <li>You have a polling device driver (for example, a very old 2x
+            CD-ROM or <tt>PRINT01.SYS</tt> without <tt>/IRQ</tt> switch)</li>
+          <li>You have a video card that supports '<i>automatic PCI bus retry</i>',
+            but your motherboard stops processing during those retries. Disable
+            the feature (video driver).</li>
+          <li>You have an ATI Mach64 and you are experiencing a bug in the video
+            driver using software mouse pointers (i.e. colored mouse pointers).</li>
+          <li>You have a process that hogs all the CPU. Get a CPU monitor (we
+            recommend CPUMon) and a process killer from <a href="http://hobbes.nmsu.edu">hobbes.nmsu.edu</a>.</li>
+          <li>Your CPU is too slow (or overheated). We recommend you have at
+            least a Pentium II machine.</li>
+          <li>You have outdated, old or <em>buggy sound drivers</em>. This is a
+            common problem. Many sound drivers out there for OS/2 just plain
+            suck. We have tried to test PM123 on as many drivers as we can, but
+            some drivers are incomplete and/or buggy.</li>
+        </ul>
+      </li>
+      <li>
+        <h3>The player crashes on startup.</h3>
+        <ul>
+          <li>You have an old <tt>MPG123.DLL</tt> (or some other DLL PM123
+            comes with) in your <tt>LIBPATH</tt>. Or you tried to start
+            different versions of PM123 from different directories at the same
+            time.<br>
+            Set <tt>LIBPATHSTRICT=T</tt> to get this working. (Requires recent
+            OS/2 kernel.)</li>
+          <li>Your system doesn't support DIVE (Direct Video Extensions). Try
+            renaming <tt>visplug\analyzer.dll</tt> to something else.</li>
+          <li>PM123 might dislike a file that you used the last time, or the
+            settings might be broken. Try removing the <tt>PM123.INI</tt> to
+            restores all setting to the default. </li>
+        </ul>
+      </li>
+      <li>
+        <h3>My mouse cursor is jerky or jumpy!</h3>
+        <ul>
+          <li>You have a bad video driver. You should try SciTech Display
+            Drivers also known as SNAP which should fix all your problems. If
+            this does not work out, we cannot help you more on this matter, but
+            we urge you to call/mail your video driver manufacturer about this
+            problem. </li>
+          <li>You have a colored or animated mouse pointer that is not supported
+            properly by your video driver. They are <em>software mouse cursors</em>
+            and they don't mix very well with high performance multimedia
+            applications that draw rapidly to the screen. SDD drivers do not
+            exhibit this problem. Switch back to the old black and white OS/2
+            default mouse pointer and/or disable pointer animation. The default
+            b/w pointer is a <em>hardware mouse cursor</em>. This problem is
+            often caused by all high speed DIVE applications. </li>
+          <li>If all fails, one way to fix this problem is to set analyzer
+            disabled by default (Properties -&gt; Plug-Ins -&gt; analyzer.dll
+            -&gt; Configure). Of course you won't see the cool graphics then. </li>
+        </ul>
+      </li>
+      <li>
+        <h3>The analyzer and the timers stop working after long playbacks.</h3>
+        <p>This is a bug in some sound drivers that prevents MMOS2 to return
+          playing times beyond 2<sup>30</sup> samples. This is after about 6 to
+          7 hours at 44 to 48 kHz sampling rate.<br>
+          If you activated 'retain playing position on stop' press the play/stop
+          button twice and the sound device is reinitialized. This gives you
+          another 6 hours. ;-)</p>
+      </li>
+    </ol>
+    <h3>None of the above</h3>
+    <p> If you think there is something wrong with&nbsp;PM123, you may send a <a
+        href="bugreport.html">bug report</a>.</p>
+  </body>
 </html>
