@@ -224,7 +224,7 @@ void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
  * @param result reply.
  * @remarks You might use PLUGIN_CONTEXT->message_display during processing.
  * The error handler is redirected for the current thread if it is a remote command. */
-void DLLENTRY plugin_command(const char* command, xstring* result);
+void DLLENTRY plugin_command(const char* command, xstring* result, xstring* messages);
 /** Cancel plug-in initialization. Called before the plug-in is unloaded.
  * @param unload ?
  * @return 0 -> ok */
