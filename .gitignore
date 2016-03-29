@@ -26,3 +26,19 @@
 *.exe
 *.out
 *.app
+
+# OS/2 Help files
+*.ipf
+*.inf
+*.bmp # converted bitmaps for ipfc
+
+# OS/2 resource files
+*.res
+
+# Doxygen
+doxydoc
+
+# Misc
+idx
+diff
+log
