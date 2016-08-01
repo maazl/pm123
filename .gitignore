@@ -3,6 +3,7 @@
 *.lo
 *.o
 *.obj
+*.S.e
 
 # Precompiled Headers
 *.gch
@@ -37,6 +38,9 @@
 
 # Doxygen
 doxydoc
+
+# distribution files
+dist
 
 # Misc
 idx
