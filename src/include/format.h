@@ -157,7 +157,7 @@ typedef struct
 /** @brief Info about a referenced item in a playlist.
  * @details This kind of information is only used in conjunction with DECODER_INFO_ENUMERATION_CB / DECODER_SAVE_ENUMERATION_CB. */
 typedef struct
-{ xstring    alias;      /**< Alias name for a object reference or NULL on default. */
+{ xstring    alias;      /**< Alias name for a object reference or NULL by default. */
   xstring    start;      /**< Start location in the referenced object as PM123 location string.
                           **< NULL = the beginning of the object. */
   xstring    stop;       /**< Stop location in the referenced object as PM123 location string.

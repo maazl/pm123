@@ -829,7 +829,7 @@ void CommandProcessor::XStatus()
   if (song)
   { switch (ParseDisp(Request))
     {case CFG_DISP_ID3TAG:
-      Reply.append(GUI::ConstructTagString(*song->GetInfo().meta));
+      GUI::AppendTagString(Reply, *song->GetInfo().meta);
       if (Reply.length())
         break;
       // if tag is empty - use filename instead of it.

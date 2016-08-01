@@ -1674,46 +1674,58 @@ void GUIImp::PrepareText()
   DEBUGLOG(("GUI::PrepareText() %p %u\n", cur, Cfg::Get().viewmode));
 
   const volatile amp_cfg& cfg = Cfg::Get();
-  xstring text;
+  xstringbuilder text;
   InfoFlags invalid = cur->RequestInfo(IF_Tech|IF_Meta|IF_Item, PRI_Normal);
   const INFO_BUNDLE_CV& info = cur->GetInfo();
   switch (cfg.viewmode)
   {case CFG_DISP_ID3TAG:
     if (!(invalid & IF_Meta))
-    { text = ConstructTagString(*info.meta);
+    { AppendTagString(text, *info.meta);
       if (text.length())
         break;
       text.reset();
     }
     // if tag is empty - use filename instead of it.
    case CFG_DISP_FILENAME:
-    { // Give Priority to an alias name if any
-      if (!(invalid & IF_Item))
-        text = info.item->alias;
-      if (!text)
-      { text = cur->GetPlayable().URL.getShortName();
-        if (cfg.restrict_meta && text.length() > cfg.restrict_length)
-          text = xstring(text, 0, cfg.restrict_length) + "...";
-      }
-      // In case the information is pending display a message
-      if (invalid & IF_Tech)
-        text = text + " - loading...";
-      // In case of an invalid item display an error message.
-      else if (info.tech->attributes & TATTR_INVALID)
-        text = text + " - " + xstring(info.tech->info);
-      break;
+    // Give Priority to an alias name if any
+    if (!(invalid & IF_Item))
+    { xstring s(info.item->alias);
+      if (s)
+        text += s;
     }
+    if (!text.length())
+    { text += cur->GetPlayable().URL.getShortName();
+      if (cfg.restrict_meta && text.length() > cfg.restrict_length)
+      { text.erase(cfg.restrict_length);
+        text += "...";
+    } }
+    // In case the information is pending display a message
+    if (invalid & IF_Tech)
+      text += " - loading...";
+    // In case of an invalid item display an error message.
+    else if ((info.tech->attributes & TATTR_INVALID))
+    { xstring s(info.tech->info);
+      if (s)
+      { text += " - ";
+        text += s;
+    } }
+    break;
    case CFG_DISP_FILEINFO:
     // In case the information is pending display a message
     if (invalid & IF_Tech)
-      text = text + " - loading...";
+      text += "loading...";
     else
-      text = info.tech->info;
+    { xstring s(info.tech->info);
+      if (s)
+        text += s;
+    }
     if (cfg.restrict_meta && text.length() > cfg.restrict_length)
-      text = xstring(text, 0, cfg.restrict_length) + "...";
+    { text.erase(cfg.restrict_length);
+      text += "...";
+    }
     break;
   }
-  bmp_set_text(!text ? "" : text.cdata());
+  bmp_set_text(text);
 }
 
 void GUIImp::Paint(HPS hps, UpdateFlags mask)
@@ -2137,7 +2149,7 @@ HWND              GUI::HHelp   = NULLHANDLE;
 
 
 /* Constructs a string of the displayable text from the file information. */
-const xstring GUI::ConstructTagString(const volatile META_INFO& meta)
+void GUI::AppendTagString(xstringbuilder& target, const volatile META_INFO& meta)
 {
   unsigned maxlen = 0;
   { const volatile amp_cfg& cfg = Cfg::Get();
@@ -2145,37 +2157,33 @@ const xstring GUI::ConstructTagString(const volatile META_INFO& meta)
       maxlen = cfg.restrict_length;
   }
 
-  xstringbuilder result;
-
   xstring tmp1(meta.artist);
   xstring tmp2(meta.title);
   if (tmp1 && *tmp1)
-  { append_restricted(result, tmp1, maxlen);
+  { append_restricted(target, tmp1, maxlen);
     if (tmp2 && *tmp2)
-      result += ": ";
+      target += ": ";
   }
   if (tmp2 && *tmp2)
-    append_restricted(result, tmp2, maxlen);
+    append_restricted(target, tmp2, maxlen);
 
   tmp1 = meta.album;
   tmp2 = meta.year;
   if (tmp1 && *tmp1)
-  { result += " (";
-    append_restricted(result, tmp1, maxlen);
+  { target += " (";
+    append_restricted(target, tmp1, maxlen);
     if (tmp2 && *tmp2)
-      result.appendf(", %s)", tmp2.cdata());
+      target.appendf(", %s)", tmp2.cdata());
     else
-      result += ')';
+      target += ')';
   } else if (tmp2 && *tmp2)
-    result.appendf(" (%s)", tmp2.cdata());
+    target.appendf(" (%s)", tmp2.cdata());
 
   tmp1 = meta.comment;
   if (tmp1)
-  { result += " -- ";
-    append_restricted(result, tmp1, maxlen);
+  { target += " -- ";
+    append_restricted(target, tmp1, maxlen);
   }
-
-  return result;
 }
 
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
