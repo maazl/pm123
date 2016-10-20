@@ -587,10 +587,7 @@ bool btree_base::joinOrRebalance(iterator& where)
     }
     // rebalance right?
     if (size > NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos))
-    { size_t count((size - leaf->size()) >> 1);
-      if (count >= size)
-        count = size - 1;
-      leaf->rebalanceR2L(*right, count);
+    { leaf->rebalanceR2L(*right, (size - leaf->size()) >> 1);
       goto done;
     }
   }
@@ -600,8 +597,6 @@ bool btree_base::joinOrRebalance(iterator& where)
     // rebalance left?
     if (size > NODE_SIZE >> 1 && (leaf->size() == 0 || where.Pos < leaf->size()))
     { size_t count((size - leaf->size()) >> 1);
-      if (count >= leaf->size())
-        count = leaf->size() - 1;
       left->rebalanceL2R(*leaf, count);
       where.Pos += count;
     }
