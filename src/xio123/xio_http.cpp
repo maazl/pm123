@@ -169,7 +169,8 @@ int XIOhttp::read_file(url123 url, int64_t range)
     request.append("Host: ");
     url.appendComponentTo(request, url123::C_Host);
     request.append("\r\n"
-                   "User-Agent: XIO123/1.1 (OS/2)\r\n");
+                   "User-Agent: XIO123/1.1 (OS/2)\r\n"
+                   "Connection: close\r\n");
     //  "Accept: audio/mpeg, audio/x-mpegurl, */*\r\n"); causes problems
 
     if (proxy && proxy_auth)
