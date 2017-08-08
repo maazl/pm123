@@ -85,6 +85,7 @@ class PlaylistView
     CID_Start,
     CID_Stop,
     CID_At,
+    CID_Title,
     CID_URL
   };
  private:

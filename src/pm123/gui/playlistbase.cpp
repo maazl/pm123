@@ -400,7 +400,16 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case CN_REALLOCPSZ:
         { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
           DEBUGLOG(("PlaylistBase::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,}\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText));
-          *ed->ppszText = DirectEdit.allocate(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+          if (ed->pFieldInfo->offStruct > sizeof(MINIRECORDCORE))
+          { // offset beyond MINIRECORDCORE => xstring data type
+            // This changes the semantic in the way that the new edited string will be stored in place rather than in DirectEdit.
+            // DirectEdit recevies the /old/ value in this case.
+            xstring& target = (xstring&)*ed->ppszText;
+            DirectEdit = target;
+            target.allocate(ed->cbText-1);
+          } else
+          { *ed->ppszText = DirectEdit.allocate(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+          }
           return MRFROMLONG(TRUE);
         }
 

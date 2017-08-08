@@ -40,6 +40,7 @@
 #include "playlistmenu.h"
 #include "gui.h"
 #include "dialog.h"
+#include "metawritedlg.h"
 #include "pm123.rc.h"
 #include <cpp/showaccel.h>
 #include <utilfct.h>
@@ -114,30 +115,31 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
     CFA_FITITLEREADONLY,
     "Name (Alias)",
     offsetof(PlaylistView::Record, pszIcon),
-    CID_Alias,
+    CID_Alias
   },
   { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Start",
     offsetof(PlaylistView::Record, Start),
-    CID_Start,
+    CID_Start
   },
   { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Stop",
     offsetof(PlaylistView::Record, Stop),
-    CID_Stop,
+    CID_Stop
   },
   { CFA_STRING | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Location",
     offsetof(PlaylistView::Record, At),
-    CID_At,
+    CID_At
   },
-  { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
+  { CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
     "Title",
-    offsetof(PlaylistView::Record, Song)
+    offsetof(PlaylistView::Record, Song),
+    CID_Title
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING | CFA_RIGHT,
     CFA_FITITLEREADONLY | CFA_CENTER,
@@ -295,8 +297,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             { PlayableInstance& pi = *rec->Data()->Content;
               Mutex::Lock lock(pi.GetPlayable().Mtx);
               ItemInfo info = *pi.GetInfo().item;
-              if (DirectEdit.length())
-                info.start = DirectEdit;
+              if (rec->Start.length())
+                info.start = rec->Start;
               else
                 info.start.reset();
               pi.OverrideItem(info.IsInitial() ? NULL : &info);
@@ -307,8 +309,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             { PlayableInstance& pi = *rec->Data()->Content;
               Mutex::Lock lock(pi.GetPlayable().Mtx);
               ItemInfo info = *pi.GetInfo().item;
-              if (DirectEdit.length())
-                info.stop = DirectEdit;
+              if (rec->Stop.length())
+                info.stop = rec->Stop;
               else
                 info.stop.reset();
               pi.OverrideItem(info.IsInitial() ? NULL : &info);
@@ -319,12 +321,33 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             { PlayableInstance& pi = *rec->Data()->Content;
               Mutex::Lock lock(pi.GetPlayable().Mtx);
               AttrInfo info = *pi.GetInfo().attr;
-              if (DirectEdit.length())
-                info.at = DirectEdit;
+              if (rec->At.length())
+                info.at = rec->At;
               else
                 info.at.reset();
               pi.OverrideAttr(info.IsInitial() ? NULL : &info);
               // TODO: Error message
+            }
+            break;
+           case CID_Title:
+            if (rec->Song.length())
+            { vector<APlayable> items(1, &rec->Data()->Content->GetPlayable());
+              MetaWriteDlg wdlg(items);
+              const char* cp = strstr(rec->Song, " / ");
+              if (cp)
+              { // artist & title
+                wdlg.MetaFlags = DECODER_HAVE_TITLE|DECODER_HAVE_ARTIST;
+                int pos = cp - rec->Song.cdata();
+                wdlg.MetaData.artist = xstring(rec->Song, 0, pos);
+                wdlg.MetaData.title = xstring(rec->Song, pos + 3);
+              } else
+              { // title only
+                wdlg.MetaFlags = DECODER_HAVE_TITLE;
+                wdlg.MetaData.title = rec->Song;
+              }
+              // Invoke worker dialog
+              wdlg.DoDialog(GetHwnd());
+              DEBUGLOG(("PlaylistView(%p)::DlgPro: END_EDIT CID_Title - after DoDialog\n", this));
             }
             break;
            case CID_URL:

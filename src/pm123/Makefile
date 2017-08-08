@@ -20,7 +20,7 @@ OBJENGINE = $(OBJENGINE) engine\glue$(CO) engine\controller$(CO) engine\loadhelp
 OBJREMOTE = remote\commandprocessor$(CO) remote\acommandprocessor$(CO) remote\pipe$(CO)
 
 OBJGUI   = gui\postmsginfo$(CO) gui\playlistmenu$(CO) gui\button95$(CO) gui\docking$(CO)
-OBJGUI   = $(OBJGUI) gui\dialog$(CO) gui\filedlg$(CO) gui\properties$(CO) gui\infodialog$(CO)
+OBJGUI   = $(OBJGUI) gui\dialog$(CO) gui\filedlg$(CO) gui\properties$(CO) gui\infodialog$(CO) gui\metawritedlg$(CO)
 OBJGUI   = $(OBJGUI) gui\playlistbase$(CO) gui\playlistview$(CO) gui\playlistmanager$(CO)
 OBJGUI   = $(OBJGUI) gui\skin$(CO) gui\gui$(CO) gui\inspector$(CO)
 
@@ -143,12 +143,12 @@ gui\playlistbase.h:	core\playableinstance.h core\playable.h engine\controller.h 
 gui\playlistmanager.h:	gui\playlistbase.h
 gui\postmsginfo.h:	core\dependencyinfo.h
 gui\playlistmenu.h:	core\aplayable.h core\location.h
-gui\infodialog.cpp:	gui\infodialog.h core\job.h pm123.h gui\gui.h gui\pm123.rc.h configuration.h
+gui\infodialog.cpp:	gui\infodialog.h gui\metawritedlg.h core\job.h pm123.h gui\gui.h gui\pm123.rc.h configuration.h
 gui\inspector.cpp:	gui\inspector.h gui\pm123.rc.h configuration.h core\playable.h core\dependencyinfo.h engine\controller.h pm123.h
 gui\playlistbase.cpp:	gui\playlistbase.h core\job.h engine\plugman.h engine\loadhelper.h gui\playlistmanager.h gui\playlistview.h gui\playlistmenu.h gui\infodialog.h gui\inspector.h gui\postmsginfo.h pm123.h gui\gui.h gui\dialog.h configuration.h 123_util.h gui\pm123.rc.h gui\docking.h
 gui\playlistmanager.cpp:	gui\playlistmanager.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h configuration.h gui\pm123.rc.h
 gui\playlistmenu.cpp:	pm123.h gui\pm123.rc.h gui\playlistmenu.h core\playable.h core\job.h
-gui\playlistview.cpp:	gui\playlistview.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h gui\dialog.h gui\pm123.rc.h
+gui\playlistview.cpp:	gui\playlistview.h core\playable.h engine\decoder.h gui\playlistmenu.h gui\gui.h gui\dialog.h gui\metawritedlg.h gui\pm123.rc.h
 gui\postmsginfo.cpp:	gui\postmsginfo.h
 gui\properties.cpp:	gui\properties.h configuration.h gui\pm123.rc.h eventhandler.h gui\dialog.h gui\gui.h 123_util.h copyright.h engine\plugman.h engine\decoder.h engine\visual.h pm123.h
 gui\skin.cpp:	gui\skin.h configuration.h engine\visual.h pm123.h eventhandler.h gui\pm123.rc.h gui\button95.h gui\dialog.h
@@ -159,3 +159,5 @@ core\job.h:	core\dependencyinfo.h
 core\job.cpp:	core\job.h core\playableset.h
 remote\commandprocessor.cpp:	remote\commandprocessor.h core\location.h core\job.h engine\plugman.h engine\loadhelper.h gui\dialog.h gui\gui.h eventhandler.h 123_util.h pm123.h copyright.h
 gui\ainfodialog.h:	core\playable.h
+gui\metawritedlg.h:	core\aplayable.h pm123.h
+gui\metawritedlg.cpp:	gui\metawritedlg.h gui\pm123.rc.h core\playable.h eventhandler.h

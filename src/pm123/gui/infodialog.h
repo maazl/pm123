@@ -210,42 +210,6 @@ class InfoDialog
     virtual InfoFlags GetRequestFlags();
   };
  private:
-  /// Progress window for meta data writes. Includes asynchronous worker.
-  class MetaWriteDlg : private DialogBase
-  {public:
-    META_INFO       MetaData;     ///< Information to write
-    DECODERMETA     MetaFlags;    ///< Parts of MetaData to write
-    const vector<APlayable>& Dest;///< Write to this songs
-   private:
-    // Friend nightmare because InfoDialogMetaWriteErrorHandler can't be a static member function.
-    friend class InfoDialog;
-    enum
-    { UM_START = WM_USER+1,     ///< Start the worker thread
-      UM_STATUS                 ///< Worker thread reports: at item #(ULONG)mp1
-    };
-    bool            SkipErrors;
-   private: // Worker thread shared
-    TID             WorkerTID;
-    volatile unsigned CurrentItem;
-    volatile bool   Cancel;
-    Event           ResumeSignal;
-    volatile int    RC;
-    volatile xstring Text;
-   private: // Worker thread
-    void            Worker();
-    friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
-    friend void DLLENTRY InfoDialogMetaWriteErrorHandler(MetaWriteDlg* that, MESSAGE_TYPE type, const xstring& msg);
-   protected:
-    // Dialog procedure
-    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-   public:
-    MetaWriteDlg(const vector<APlayable>& dest);
-    ~MetaWriteDlg();
-    ULONG           DoDialog(HWND owner);
-  };
-  friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
-  friend void DLLENTRY InfoDialogMetaWriteErrorHandler(MetaWriteDlg* that, MESSAGE_TYPE type, const xstring& msg);
- private:
   class Merger
   { Data&           Target;
     Fields          AggEnabled;
@@ -312,8 +276,5 @@ class InfoDialog
                     { return Repository::FindByKey(obj); }
   static void       DestroyAll();
 };
-
-void DLLENTRY InfoDialogMetaWriteErrorHandler(InfoDialog::MetaWriteDlg* that, MESSAGE_TYPE type, const xstring& msg);
-
 
 #endif
