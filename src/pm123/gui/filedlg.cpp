@@ -364,9 +364,12 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 /* This function creates and displays the file dialog
  * and returns the user's selection or selections.
  */
-
 HWND DLLENTRY amp_file_dlg(HWND hparent, HWND howner, PFILEDLG filedialog)
-{
+{ // Convert slashes. OS/2 does not care much, but it might look confusing when not unique.
+  { char* cp = filedialog->szFullFile;
+    while ((cp = strchr(cp, '/')) != NULL)
+      *cp++ = '\\';
+  }
   filedialog->hMod       = NULLHANDLE;
   switch (filedialog->ulUser & FDU_DIR_ONLY)
   {case FDU_DIR_ONLY:
