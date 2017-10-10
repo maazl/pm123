@@ -968,8 +968,8 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
 }
 
 bool Playable::MoveItem(PlayableInstance& item, PlayableInstance* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertItem(&%p{%s}, %p{%s}) - %u\n", this, DebugName().cdata(),
-    &item, item.DebugName().cdata(), before->DebugName().cdata()));
+{ DEBUGLOG(("Playable(%p{%s})::InsertItem(&%p{%s}, %p{%s})\n", this, DebugName().cdata(),
+    &item, item.DebugName().cdata(), before, before->DebugName().cdata()));
   Mutex::Lock lock(Mtx);
   // Check whether the parameter before is still valid
   if (!item.HasParent(this) || (before && !before->HasParent(this)))
