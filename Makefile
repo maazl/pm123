@@ -393,6 +393,7 @@ depend: $(MDUMMY)
 dist: distzip distpackage $(MDUMMY)
 
 distfiles: filesclean $(PARTS) $(MDUMMY)
+	-@mkdir dist\files         2>nul
 	-@mkdir dist\files\visplug 2>nul
 	-@mkdir dist\files\icons   2>nul
 	-@mkdir dist\files\pdk     2>nul
