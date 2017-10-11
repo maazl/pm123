@@ -446,7 +446,7 @@ distzip: distfiles $(MDUMMY)
 
 distsrc: $(MDUMMY)
 	-@del dist\pm123-$(VERSION)-src.zip  2> nul
-	zip -9 -r dist\pm123-$(VERSION)-src.zip * -x .svn *.zip dist\files\* src\config\makerules *$(CO) *$(LBI) *$(LBO) *.res *.dll *.exe doc\*.bmp *.ipf *.inf doxydoc\* diff idx stat stat2
+	zip -9 -r dist\pm123-$(VERSION)-src.zip * -x .svn .git *.zip dist\files\* src\config\makerules *$(CO) *$(LBI) *$(LBO) *.res *.dll *.exe doc\*.bmp *.ipf *.inf doxydoc\* diff idx stat stat2
 
 distclean: filesclean $(MDUMMY)
 	-@del dist\pm123-$(VERSION).exe 2> nul
