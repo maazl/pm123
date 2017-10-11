@@ -947,7 +947,7 @@ void CtrlImp::MsgJump()
     loc2 = Current().Loc;
   loc.Swap(loc2);
   if (loc2.GetRoot())
-  { loc.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
+  { loc2.NavigateCount(Job::SyncJob, 0, TATTR_SONG);
     LoadCore(new PrefetchEntry(0, loc2));
   } else
     LoadCore(NULL);

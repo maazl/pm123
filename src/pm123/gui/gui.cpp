@@ -314,8 +314,11 @@ MRESULT GUIImp::GUIDlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         target.NavigateUp();
       const volatile amp_cfg& cfg = Cfg::Get();
       if (cfg.itemaction == CFG_ACTION_NAVTO)
-        GUIImp::PostCtrlCommand(Ctrl::MkJump(new Location(target), true));
-      else
+      { Ctrl::ControlCommand* cmd = Ctrl::MkJump(new Location(target), true);
+        if (cfg.playonload)
+          cmd->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
+        GUIImp::PostCtrlCommand(cmd);
+      } else
       { LoadHelper lhp(cfg.playonload*LoadHelper::LoadPlay|LoadHelper::LoadKeepItem | (cfg.itemaction == CFG_ACTION_QUEUE)*LoadHelper::LoadAppend);
         lhp.AddItem(*target.GetCurrent());
         Load(lhp);
