@@ -1,0 +1,8 @@
+src/lib* linguist-vendored
+src/fft123/* linguist-vendored
+src/gbm123/* linguist-vendored
+src/ogg123/* linguist-vendored
+src/vrb123/* linguist-vendored
+src/snd123/* linguist-vendored
+src/zlb123/* linguist-vendored
+src/pulseaudio/* linguist-vendored
