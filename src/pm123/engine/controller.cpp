@@ -351,7 +351,7 @@ ULONG CtrlImp::DecoderStart(PrefetchEntry& pe, bool reverse)
   }
 
   IsSeeking = at > 0;
-  ULONG rc = Glue::DecPlay(song, pe.Offset, at, stop);
+  ULONG rc = Glue::DecPlay(pe.Loc, pe.Offset, at, stop);
   if (rc != 0)
     return rc;
 

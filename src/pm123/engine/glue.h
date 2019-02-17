@@ -68,12 +68,12 @@ class Glue
 
  public: // Control interface for the decoder engine, not thread safe
   /// Invoke decoder to play an URL
-  /// @param song to play
+  /// @param loc (nested playlist) item to to play.
   /// @param time offset when reporting playing time.
   /// I.e. the time index of the first sample of this song, regardless of \a start.
   /// @param start Start decoding of the song at time index \a start.
   /// @param stop If &gt; 0 then stop decoding at time index \a stop and send \c DECEVENT_PLAYSTOP.
-  static ULONG DecPlay(APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
+  static ULONG DecPlay(const Location& loc, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
   /// Stop the current decoder immediately
   static ULONG DecStop();
   /// Close decoder plug-in. This may block until the decoder thread has ended.

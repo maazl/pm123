@@ -727,11 +727,12 @@ ULONG Playable::DecoderFileInfo(InfoFlags& what, INFO_BUNDLE& info, void* param)
         xio_get_metainfo(stream.Handle, XIO_META_GENRE, &meta.genre);
     }
   }
-  DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
+  DEBUGLOG(("Playable::DecoderFileInfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{%s, %s ... %f} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
     phys.filesize, phys.tstmp, phys.attributes,
     tech.samplerate, tech.channels, tech.attributes,
       tech.info.cdata(), tech.format.cdata(), tech.decoder.cdata(),
     info.obj->songlength, info.obj->bitrate, info.obj->num_items,
+    info.meta->title.cdata(), info.meta->artist.cdata(), info.meta->album_peak,
     info.attr->ploptions, info.attr->at.cdata(),
     info.rpl->songs, info.rpl->lists, info.rpl->lists, info.rpl->unknown,
     info.drpl->totallength, info.drpl->unk_length, info.drpl->totalsize, info.drpl->unk_size,
