@@ -738,7 +738,7 @@ void Decoder::ThreadFunc()
   // The flag my be set while executing mpg123_read
   if (UpdateMeta)
   { UpdateMeta = false;
-    META_INFO meta;
+    META_INFO meta = META_INFO_INIT;
     FillMetaInfo(meta);
     DecMutex.Release();
     (*OutEvent)(OutParam, DECEVENT_CHANGEMETA, &meta);
