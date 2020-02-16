@@ -2,7 +2,7 @@ TOPDIR   = ..\\..
 INCDIR   = ../include;$(TOPDIR)/libfaad/include;$(TOPDIR)/include;$(TOPDIR)/utils
 TARGET   = libfaad$(LBO)
 CFLAGS_USR = -DHAVE_CONFIG_H 
-CFLAGS_DBG_USR = -DANALYSIS
+#CFLAGS_DBG_USR = -DANALYSIS
 #CFLAGS_OPT_USR = 
 #AFLAGS_USR = -DOBJ_FORMAT_aout
 

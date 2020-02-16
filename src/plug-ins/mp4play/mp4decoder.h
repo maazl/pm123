@@ -49,10 +49,10 @@ class Mp4Decoder
   //HWND   hwnd;       // PM interface main frame window handle.
   int64_t       FileTime;
   int32_t       TimeScale;
- private:
-  double        Songlength;
   int           Samplerate;
   int           Channels;
+ private:
+  double        Songlength;
   long          Bitrate;
 
   /*char*  metadata_buff;
@@ -76,7 +76,7 @@ class Mp4Decoder
   /// Opens MP4 file. Returns 0 if it successfully opens the file.
   /// @return A nonzero return value indicates an error. A -1 return value
   /// indicates an unsupported format of the file.
-  int           Open(xstring url, XFILE* file) { URL = url; SetFile(file); return Init(mp4ff_open_read_metaonly(&Callbacks)); }
+  int           Open(xstring url, XFILE* file);
   void          Close()               { if (MP4stream) { mp4ff_close(MP4stream); MP4stream = NULL; } }
 
   void          GetMeta(META_INFO& meta);
@@ -100,13 +100,12 @@ typedef struct DECODER_STRUCT : public Mp4Decoder
   NeAACDecHandle FAAD;
   int32_t       NumFrames;
   int32_t       CurrentFrame;///< Index of next MP4 sample to play
-  int32_t       DiscardSamples;///< Discard the first samples of the current frame
 
   // specify a function which the decoder should use for output
   int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
   // decoder events
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
   void* A;                  ///< only to be used with the precedent functions
 
   int64_t       ResumePcms;

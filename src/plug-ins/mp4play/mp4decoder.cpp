@@ -46,17 +46,17 @@
 const double seek_window = .2;
 
 static uint32_t vio_read(void* w, void* ptr, uint32_t size)
-{ DEBUGLOG2(("aac123:vio_read(%p, %p, %i)\n", w, ptr, size));
+{ DEBUGLOG2(("mp4play:vio_read(%p, %p, %i)\n", w, ptr, size));
   return xio_fread(ptr, 1, size, (XFILE*)w);
 }
 
 static uint32_t vio_write(void* w, void* ptr, uint32_t size)
-{ DEBUGLOG2(("aac123:vio_write(%p, %p, %i)\n", w, ptr, size));
+{ DEBUGLOG2(("mp4play:vio_write(%p, %p, %i)\n", w, ptr, size));
   return xio_fwrite((const void*)ptr, 1, size, (XFILE*)w);
 }
 
 static uint32_t vio_seek(void* w, uint64_t offset)
-{ DEBUGLOG2(("aac123:vio_seek(%p, %llu)\n", w, offset));
+{ DEBUGLOG2(("mp4play:vio_seek(%p, %llu)\n", w, offset));
   if (xio_fseekl((XFILE*)w, offset, XIO_SEEK_SET) >= 0)
     return 0;
   else
@@ -64,7 +64,7 @@ static uint32_t vio_seek(void* w, uint64_t offset)
 }
 
 static uint32_t vio_truncate(void *w)
-{ DEBUGLOG2(("aac123:vio_truncate(%p)\n", w));
+{ DEBUGLOG2(("mp4play:vio_truncate(%p)\n", w));
   int64_t pos = xio_ftelll((XFILE*)w);
   if (pos == -1)
     return ~0;
@@ -114,20 +114,31 @@ int Mp4Decoder::Init(mp4ff_t* mp4)
   if (FileTime != -1)
     Songlength = ((double)FileTime) / TimeScale + 0.5;
 
+  return 0;
+}
+
+int Mp4Decoder::Open(xstring url, XFILE* file)
+{ URL = url;
+  SetFile(file);
   Samplerate = -1;
   Channels = -1;
-  unsigned char* decoder_info;
-  unsigned decoder_info_size;
-  if (!mp4ff_get_decoder_config(MP4stream, Track, &decoder_info, &decoder_info_size))
-  { mp4AudioSpecificConfig mp4ASC;
+  int r = Init(mp4ff_open_read_metaonly(&Callbacks));
+  if (r == 0)
+  { unsigned char* decoder_info;
+    unsigned decoder_info_size;
+    if (mp4ff_get_decoder_config(MP4stream, Track, &decoder_info, &decoder_info_size))
+      return -1;
+    mp4AudioSpecificConfig mp4ASC;
     if (!NeAACDecAudioSpecificConfig(decoder_info, decoder_info_size, &mp4ASC))
     { Samplerate = (int)mp4ASC.samplingFrequency;
       Channels = mp4ASC.channelsConfiguration ? mp4ASC.channelsConfiguration : mp4ff_get_channel_count(MP4stream, Track);
-      free(decoder_info);
-  } }
-
-  return 0;
+    } else
+      r = -1;
+    free(decoder_info);
+  }
+  return r;
 }
+
 
 xstring Mp4Decoder::ConvertString(const char* tag)
 {
@@ -210,19 +221,13 @@ void Mp4DecoderThread::DecoderThread()
   { Mutex::Lock lock(Mtx);
     SetFile(xio_fopen(URL, "rbXU"));
     if (GetFile() == NULL)
-    { xstring errortext;
-      errortext.sprintf("Unable to open file %s\n%s", URL.cdata(), xio_strerror(xio_errno()));
-      Ctx.plugin_api->message_display(MSG_ERROR, errortext);
-      (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
+    { (*DecEvent)(A, DECEVENT_PLAYERROR, xstring().sprintf("Unable to open file '%s'\n%s", URL.cdata(), xio_strerror(xio_errno())).cdata());
       goto end;
     }
 
     int rc = Init(mp4ff_open_read(&Callbacks));
     if (rc != 0)
-    { xstring errortext;
-      errortext.sprintf("Unable to open file %s\nUnsupported file format", URL.cdata());
-      Ctx.plugin_api->message_display(MSG_ERROR, errortext);
-      (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
+    { (*DecEvent)(A, DECEVENT_PLAYERROR, xstring().sprintf("Unable to open file '%s'\nUnsupported file format", URL.cdata()).cdata());
       goto end;
     }
 
@@ -231,6 +236,25 @@ void Mp4DecoderThread::DecoderThread()
     NeAACDecConfigurationPtr config = NeAACDecGetCurrentConfiguration(FAAD);
     config->outputFormat = FAAD_FMT_FLOAT;
     //config->downMatrix = 1; should be optional by config dialog
+
+    unsigned char* decoder_info;
+    unsigned decoder_info_size;
+    if (mp4ff_get_decoder_config(MP4stream, Track, &decoder_info, &decoder_info_size))
+    { (*DecEvent)(A, DECEVENT_PLAYERROR, xstring().sprintf("File '%s'\ndoes not contain AAC decoder information.", URL.cdata()).cdata());
+      goto end;
+    }
+
+    unsigned long samplerate;
+    unsigned char channels;
+    rc = NeAACDecInit2(FAAD, decoder_info, decoder_info_size, &samplerate, &channels);
+    free(decoder_info);
+    if (rc)
+    { (*DecEvent)(A, DECEVENT_PLAYERROR, xstring().sprintf("Failed to initialize AAC decoder: %i", rc).cdata());
+      goto end;
+    }
+
+    Samplerate = (int)samplerate;
+    Channels = channels;
   }
 
   NumFrames = mp4ff_num_samples(MP4stream, Track);
@@ -260,18 +284,21 @@ void Mp4DecoderThread::DecoderThread()
         if (newpos < 0)
           break; // Begin of song
       }
-      DiscardSamples = 0;
+      int32_t discardSamples = 0; // Discard the first samples of the current frame (in units of TimeScale)
       if (newpos >= 0)
-      { NextSkip = newpos + seek_window;
-        { CurrentFrame = mp4ff_find_sample_use_offsets(MP4stream, Track, (int64_t)(JumpToPos * TimeScale), &DiscardSamples);
+      { DEBUGLOG(("mp4play:seek to %f\n", newpos));
+        NextSkip = newpos + seek_window;
+        { CurrentFrame = mp4ff_find_sample_use_offsets(MP4stream, Track, (int64_t)(newpos * TimeScale), &discardSamples);
           NeAACDecPostSeekReset(FAAD, CurrentFrame);
           newpos = JumpToPos;
           JumpToPos = -1;
         }
+        DEBUGLOG(("mp4play:seek %i, %i\n", CurrentFrame, discardSamples));
         if (newpos >= 0)
           (*DecEvent)(A, DECEVENT_SEEKSTOP, NULL);
-        if (CurrentFrame == -1)
+        if (CurrentFrame < 0 || CurrentFrame > NumFrames)
           break; // Seek out of range => begin/end of song
+        PlayedSecs = (double)(mp4ff_get_sample_position(MP4stream, Track, CurrentFrame) + discardSamples) / TimeScale;
       }
 
       int32_t frame_duration;
@@ -282,10 +309,7 @@ void Mp4DecoderThread::DecoderThread()
         if (CurrentFrame > NumFrames)
           break; // end of song
       }
-      frame_duration -= DiscardSamples;
-      if (frame_duration <= 0) // empty frame
-        continue;
-
+      frame_duration -= discardSamples;
       int32_t frame_size;
       { Mutex::Lock lock(Mtx);
         frame_size = mp4ff_read_sample_v2(MP4stream, Track, CurrentFrame, buffer.get());
@@ -296,16 +320,20 @@ void Mp4DecoderThread::DecoderThread()
       }
 
       // AAC decode
+      DEBUGLOG(("mp4play:NeAACDecDecode: %u {%08x,%08x,...}[%i]\n", CurrentFrame, ((int32_t*)buffer.get())[0], ((int32_t*)buffer.get())[1], frame_size));
       NeAACDecFrameInfo frame_info;
       float* source = (float*)NeAACDecDecode(FAAD, &frame_info, buffer.get(), frame_size);
 
       if (frame_info.error > 0)
-      { (*DecEvent)(A, DECEVENT_PLAYERROR, faacDecGetErrorMessage(frame_info.error));
+      { (*DecEvent)(A, DECEVENT_PLAYERROR, NeAACDecGetErrorMessage(frame_info.error));
         goto end;
       }
-      if (!source)
-        continue; // error => skip this frame
-      source += frame_info.channels * DiscardSamples; // skip some data?
+      if (!source || frame_info.samples == 0)
+        continue; // error or empty => skip this frame
+
+      discardSamples *= frame_info.samplerate / TimeScale; // SBR rescale
+      source += frame_info.channels * discardSamples; // skip some data?
+      frame_duration = frame_info.samples / frame_info.channels - discardSamples;
 
       for (;;)
       { FORMAT_INFO2 output_format;
@@ -321,8 +349,9 @@ void Mp4DecoderThread::DecoderThread()
         if (count > frame_duration)
           count = frame_duration;
         memcpy(target, source, sizeof(float) * count * frame_info.channels);
+        DEBUGLOG(("mp4play:OutCommitBuffer(, %i, %f)\n", count, PlayedSecs));
         (*OutCommitBuffer)(A, count, PlayedSecs);
-        PlayedSecs += count / GetSamplerate();
+        PlayedSecs += (double)count / frame_info.samplerate;
 
         if (frame_duration == count)
           break;
@@ -398,13 +427,12 @@ ULONG Mp4DecoderThread::DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* pa
       /*if (params->Fast && File && xio_can_seek(File) != XIO_CAN_SEEK_FAST)
         return PLUGIN_UNSUPPORTED;*/
       SkipSecs = seek_window * params->SkipSpeed;
-      NextSkip = PlayedSecs;
+      JumpToPos = NextSkip = PlayedSecs;
       Play.Set();
       break;
 
     case DECODER_JUMPTO:
-      JumpToPos = params->JumpTo;
-      NextSkip = JumpToPos;
+      JumpToPos = NextSkip = params->JumpTo;
       Play.Set();
       break;
 
