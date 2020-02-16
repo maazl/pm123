@@ -365,7 +365,7 @@ static uint32_t create_ilst(const mp4ff_metadata_t * data,void ** out_buffer,uin
 		{
 			uint32_t index = mp4ff_meta_genre_to_index(genre_ptr);
 			if (index==0)
-				membuffer_write_std_tag(buf,"ï¿½gen",genre_ptr);
+				membuffer_write_std_tag(buf,"©gen",genre_ptr);
 			else
 				membuffer_write_int16_tag(buf,"gnre",(uint16_t)index);
 		}
@@ -653,11 +653,4 @@ int32_t mp4ff_meta_update(mp4ff_callback_t *f,const mp4ff_metadata_t * data)
 	mp4ff_close(ff);
     return 1;
 }
-
-uint32_t mp4ff_meta_get(const mp4ff_t *f, const mp4ff_tag_t **tags)
-{
-    *tags = f->tags.tags;
-    return f->tags.count;
-}
-
 #endif

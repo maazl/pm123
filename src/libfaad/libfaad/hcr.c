@@ -197,11 +197,11 @@ static void read_segment(bits_t *segment, uint8_t segwidth, bitfile *ld)
 
      if (segwidth > 32)
      {
-        segment->bufb = faad_getbits(ld, segwidth - 32 DEBUGVAR(1,1,__func__));
-        segment->bufa = faad_getbits(ld, 32 DEBUGVAR(1,2,__func__));
+        segment->bufb = faad_getbits(ld, segwidth - 32);        
+        segment->bufa = faad_getbits(ld, 32);        
 
     } else {
-        segment->bufa = faad_getbits(ld, segwidth DEBUGVAR(1,3,__func__));
+        segment->bufa = faad_getbits(ld, segwidth);
         segment->bufb = 0;        
     }    
 }
@@ -225,7 +225,7 @@ uint8_t reordered_spectral_data(NeAACDecStruct *hDecoder, ic_stream *ics,
 
     uint16_t sp_offset[8];
     uint16_t g, i, sortloop, set, bitsread;
-    uint16_t bitsleft, codewordsleft;
+    /*uint16_t bitsleft, codewordsleft*/;
     uint8_t w_idx, sfb, this_CB, last_CB, this_sec_CB; 
     
     const uint16_t nshort = hDecoder->frameLength/8;

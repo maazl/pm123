@@ -229,7 +229,7 @@ static INLINE int16_t sbr_huff_dec(bitfile *ld, sbr_huff_tab t_huff)
 
     while (index >= 0)
     {
-        bit = (uint8_t)faad_get1bit(ld DEBUGVAR(1,1,__func__));
+        bit = (uint8_t)faad_get1bit(ld);
         index = t_huff[index][bit];
     }
 

@@ -304,22 +304,7 @@ int32_t mp4ff_num_samples(const mp4ff_t *f, const int32_t track)
     return total;
 }
 
-int32_t mp4ff_get_max_samples_size(const mp4ff_t *f, const int track)
-{
-    const mp4ff_track_t * p_track = f->track[track];
-    int32_t bytes = p_track->stsz_sample_size;
 
-    if (!bytes)
-    {
-        int32_t *sp = p_track->stsz_table;
-        int32_t *end = sp + p_track->stsz_sample_count;
-        for (; sp != end; ++sp)
-            if (*sp > bytes)
-                bytes = *sp;
-    }
-
-    return bytes;
-}
 
 
 uint32_t mp4ff_get_sample_rate(const mp4ff_t *f, const int32_t track)
@@ -353,13 +338,12 @@ int32_t mp4ff_get_sample_duration_use_offsets(const mp4ff_t *f, const int32_t tr
 int32_t mp4ff_get_sample_duration(const mp4ff_t *f, const int32_t track, const int32_t sample)
 {
     int32_t i, co = 0;
-    const mp4ff_track_t *p_track = f->track[track];
 
-    for (i = 0; i < p_track->stts_entry_count; i++)
+    for (i = 0; i < f->track[track]->stts_entry_count; i++)
     {
-		int32_t delta = p_track->stts_sample_count[i];
+		int32_t delta = f->track[track]->stts_sample_count[i];
 		if (sample < co + delta)
-			return p_track->stts_sample_delta[i];
+			return f->track[track]->stts_sample_delta[i];
 		co += delta;
     }
     return (int32_t)(-1);
@@ -369,19 +353,18 @@ int64_t mp4ff_get_sample_position(const mp4ff_t *f, const int32_t track, const i
 {
     int32_t i, co = 0;
 	int64_t acc = 0;
-    const mp4ff_track_t *p_track = f->track[track];
 
-    for (i = 0; i < p_track->stts_entry_count; i++)
+    for (i = 0; i < f->track[track]->stts_entry_count; i++)
     {
-		int32_t delta = p_track->stts_sample_count[i];
+		int32_t delta = f->track[track]->stts_sample_count[i];
 		if (sample < co + delta)
 		{
-			acc += p_track->stts_sample_delta[i] * (sample - co);
+			acc += f->track[track]->stts_sample_delta[i] * (sample - co);
 			return acc;
 		}
 		else
 		{
-			acc += p_track->stts_sample_delta[i] * delta;
+			acc += f->track[track]->stts_sample_delta[i] * delta;
 		}
 		co += delta;
     }
@@ -391,13 +374,12 @@ int64_t mp4ff_get_sample_position(const mp4ff_t *f, const int32_t track, const i
 int32_t mp4ff_get_sample_offset(const mp4ff_t *f, const int32_t track, const int32_t sample)
 {
     int32_t i, co = 0;
-    const mp4ff_track_t *p_track = f->track[track];
 
-    for (i = 0; i < p_track->ctts_entry_count; i++)
+    for (i = 0; i < f->track[track]->ctts_entry_count; i++)
     {
-		int32_t delta = p_track->ctts_sample_count[i];
+		int32_t delta = f->track[track]->ctts_sample_count[i];
 		if (sample < co + delta)
-			return p_track->ctts_sample_offset[i];
+			return f->track[track]->ctts_sample_offset[i];
 		co += delta;
     }
     return 0;

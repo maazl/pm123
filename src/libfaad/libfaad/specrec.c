@@ -25,7 +25,7 @@
 ** Commercial non-GPL licensing of this software is possible.
 ** For more info contact Nero AG through Mpeg4AAClicense@nero.com.
 **
-** $Id: specrec.c,v 1.62 2009/01/26 23:51:15 menno Exp $
+** $Id: specrec.c,v 1.63 2010/06/04 20:47:56 menno Exp $
 **/
 
 /*
@@ -915,18 +915,18 @@ uint8_t reconstruct_single_channel(NeAACDecStruct *hDecoder, ic_stream *ics,
         /* element_output_channels not set yet */
         hDecoder->element_output_channels[hDecoder->fr_ch_ele] = output_channels;
     } else if (hDecoder->element_output_channels[hDecoder->fr_ch_ele] != output_channels) {
-        /* element inconsistency */
-
-        /* this only happens if PS is actually found but not in the first frame
+        /* element inconsistency
+         * this only happens if PS is actually found but not in the first frame
          * this means that there is only 1 bitstream element!
          */
 
-        /* reset the allocation */
-        hDecoder->element_alloced[hDecoder->fr_ch_ele] = 0;
-
-        hDecoder->element_output_channels[hDecoder->fr_ch_ele] = output_channels;
-
-        //return 21;
+        if (hDecoder->fr_channels == 1) {
+            /* reset the allocation */
+            hDecoder->element_alloced[hDecoder->fr_ch_ele] = 0;
+            hDecoder->element_output_channels[hDecoder->fr_ch_ele] = output_channels;
+        } else {
+            return 21;
+        }
     }
 
     if (hDecoder->element_alloced[hDecoder->fr_ch_ele] == 0)
@@ -1109,13 +1109,13 @@ uint8_t reconstruct_channel_pair(NeAACDecStruct *hDecoder, ic_stream *ics1, ic_s
 #ifdef PROFILE
     int64_t count = faad_get_ts();
 #endif
-    if (hDecoder->element_alloced[hDecoder->fr_ch_ele] == 0)
+    if (hDecoder->element_alloced[hDecoder->fr_ch_ele] != 2)
     {
         retval = allocate_channel_pair(hDecoder, cpe->channel, (uint8_t)cpe->paired_channel);
         if (retval > 0)
             return retval;
 
-        hDecoder->element_alloced[hDecoder->fr_ch_ele] = 1;
+        hDecoder->element_alloced[hDecoder->fr_ch_ele] = 2;
     }
 
     /* dequantisation and scaling */
@@ -1131,16 +1131,13 @@ uint8_t reconstruct_channel_pair(NeAACDecStruct *hDecoder, ic_stream *ics1, ic_s
     hDecoder->requant_cycles += count;
 #endif
 
-
     /* pns decoding */
     if (ics1->ms_mask_present)
     {
         pns_decode(ics1, ics2, spec_coef1, spec_coef2, hDecoder->frameLength, 1, hDecoder->object_type,
             &(hDecoder->__r1), &(hDecoder->__r2));
     } else {
-        pns_decode(ics1, NULL, spec_coef1, NULL, hDecoder->frameLength, 0, hDecoder->object_type,
-            &(hDecoder->__r1), &(hDecoder->__r2));
-        pns_decode(ics2, NULL, spec_coef2, NULL, hDecoder->frameLength, 0, hDecoder->object_type,
+        pns_decode(ics1, ics2, spec_coef1, spec_coef2, hDecoder->frameLength, 0, hDecoder->object_type,
             &(hDecoder->__r1), &(hDecoder->__r2));
     }
 

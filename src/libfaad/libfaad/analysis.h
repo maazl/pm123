@@ -37,7 +37,7 @@ extern "C" {
 
 
 #ifdef ANALYSIS
-#define DEBUGDEC        ,uint8_t print,uint16_t var,const uint8_t *dbg
+#define DEBUGDEC        ,uint8_t print,uint16_t var,uint8_t *dbg
 #define DEBUGVAR(A,B,C) ,A,B,C
 extern uint16_t dbg_count;
 #else

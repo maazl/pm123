@@ -80,7 +80,6 @@ int32_t mp4ff_get_decoder_config(const mp4ff_t *f, const int track,
 int32_t mp4ff_get_track_type(const mp4ff_t *f, const int track);
 int32_t mp4ff_total_tracks(const mp4ff_t *f);
 int32_t mp4ff_num_samples(const mp4ff_t *f, const int track);
-int32_t mp4ff_get_max_samples_size(const mp4ff_t *f, const int track);
 int32_t mp4ff_time_scale(const mp4ff_t *f, const int track);
 
 uint32_t mp4ff_get_avg_bitrate(const mp4ff_t *f, const int32_t track);
@@ -119,8 +118,6 @@ typedef struct
     char *item;
     char *value;
 } mp4ff_tag_t;
-
-uint32_t mp4ff_meta_get(const mp4ff_t *f, const mp4ff_tag_t **tags);
 
 /* metadata list structure */
 typedef struct

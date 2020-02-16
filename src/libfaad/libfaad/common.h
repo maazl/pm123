@@ -25,7 +25,7 @@
 ** Commercial non-GPL licensing of this software is possible.
 ** For more info contact Nero AG through Mpeg4AAClicense@nero.com.
 **
-** $Id: common.h,v 1.77 2009/02/05 00:51:03 menno Exp $
+** $Id: common.h,v 1.79 2015/01/26 17:48:53 knik Exp $
 **/
 
 #ifndef __COMMON_H__
@@ -38,8 +38,6 @@ extern "C" {
 #ifdef HAVE_CONFIG_H
 #  include "../config.h"
 #endif
-
-#define STDC_HEADERS 1
 
 #include "neaacdec.h"
 
@@ -315,7 +313,8 @@ char *strchr(), *strrchr();
   }
 
 
-  #if defined(_WIN32) && !defined(__MINGW32__)
+  #if defined(_WIN32) && !defined(_WIN64) && !defined(__MINGW32__)
+    #ifndef HAVE_LRINTF
     #define HAS_LRINTF
     static INLINE int lrintf(float f)
     {
@@ -327,6 +326,7 @@ char *strchr(), *strrchr();
         }
         return i;
     }
+    #endif /* HAVE_LRINTF */
   #elif (defined(__i386__) && defined(__GNUC__) && \
 	!defined(__CYGWIN__) && !defined(__MINGW32__))
     #ifndef HAVE_LRINTF
@@ -371,6 +371,7 @@ char *strchr(), *strrchr();
 
 #ifdef HAVE_SINF
 #  define sin sinf
+#error
 #endif
 #ifdef HAVE_COSF
 #  define cos cosf
