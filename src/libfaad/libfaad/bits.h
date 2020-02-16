@@ -180,7 +180,7 @@ static /*INLINE*/ uint32_t faad_getbits(bitfile *ld, uint32_t n DEBUGDEC)
 
 #ifdef ANALYSIS
     if (print)
-        fprintf(stdout, "%4d %2d bits, val: %4d, variable: %d %s\n", dbg_count++, n, ret, var, dbg);
+        fprintf(stderr, "%4d %2d bits, val: %4d, variable: %d %s\n", dbg_count++, n, ret, var, dbg);
 #endif
 
     return ret;
@@ -194,6 +194,10 @@ static INLINE uint8_t faad_get1bit(bitfile *ld DEBUGDEC)
     {
         ld->bits_left--;
         r = (uint8_t)((ld->bufa >> ld->bits_left) & 1);
+#ifdef ANALYSIS
+        if (print)
+            fprintf(stderr, "%4d %2d bits, val: %4d, variable: %d %s\n", dbg_count++, 1, r, var, dbg);
+#endif
         return r;
     }
 
@@ -202,7 +206,7 @@ static INLINE uint8_t faad_get1bit(bitfile *ld DEBUGDEC)
     r = (uint8_t)(ld->bufb >> 31);
     faad_flushbits_ex(ld, 1);
 #else
-    r = (uint8_t)faad_getbits(ld, 1);
+    r = (uint8_t)faad_getbits(ld, 1 DEBUGVAR(print,var,dbg));
 #endif
     return r;
 }
@@ -279,7 +283,7 @@ static /*INLINE*/ uint32_t faad_getbits_rev(bitfile *ld, uint32_t n
 
 #ifdef ANALYSIS
     if (print)
-        fprintf(stdout, "%4d %2d bits, val: %4d, variable: %d %s\n", dbg_count++, n, ret, var, dbg);
+        fprintf(stderr, "%4d %2d bits, val: %4d, variable: %d %s\n", dbg_count++, n, ret, var, dbg);
 #endif
 
     return ret;

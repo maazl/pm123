@@ -247,7 +247,7 @@ static int latmCheck(latm_header *latm, bitfile *ld)
             while(bits>0)
             {
                 m = min(bits, 8);
-                faad_getbits(ld, m);
+                faad_getbits(ld, m DEBUGVAR(1,1,__func__));
                 bits -= m;
             }
         }
@@ -391,7 +391,7 @@ long NeAACDecInit(NeAACDecHandle hpDecoder,
 }
 
 /* Init the library using a DecoderSpecificInfo */
-char NeAACDecInit2(NeAACDecHandle hpDecoder,
+signed char NeAACDecInit2(NeAACDecHandle hpDecoder,
                                unsigned char *pBuffer,
                                unsigned long SizeOfDecoderSpecificInfo,
                                unsigned long *samplerate,
@@ -485,7 +485,7 @@ char NeAACDecInit2(NeAACDecHandle hpDecoder,
 }
 
 #ifdef DRM
-char NeAACDecInitDRM(NeAACDecHandle *hpDecoder,
+signed char NeAACDecInitDRM(NeAACDecHandle *hpDecoder,
                                  unsigned long samplerate,
                                  unsigned char channels)
 {
@@ -1201,7 +1201,7 @@ static void* aac_frame_decode(NeAACDecStruct *hDecoder,
 
     /* cleanup */
 #ifdef ANALYSIS
-    fflush(stdout);
+    fflush(stderr);
 #endif
 
 #ifdef PROFILE
@@ -1241,7 +1241,7 @@ error:
 
     /* cleanup */
 #ifdef ANALYSIS
-    fflush(stdout);
+    fflush(stderr);
 #endif
 
     return NULL;

@@ -114,7 +114,7 @@ static uint8_t ObjectTypesTable[32] = {
 };
 
 /* Table 1.6.1 */
-char NeAACDecAudioSpecificConfig(unsigned char *pBuffer,
+signed char NeAACDecAudioSpecificConfig(unsigned char *pBuffer,
                                              unsigned long buffer_size,
                                              mp4AudioSpecificConfig *mp4ASC)
 {
@@ -142,7 +142,7 @@ int8_t AudioSpecificConfigFromBitfile(bitfile *ld,
     mp4ASC->samplingFrequencyIndex = (uint8_t)faad_getbits(ld, 4
         DEBUGVAR(1,2,"parse_audio_decoder_specific_info(): SamplingFrequencyIndex"));
 	if(mp4ASC->samplingFrequencyIndex==0x0f)
-		faad_getbits(ld, 24);
+		faad_getbits(ld, 24 DEBUGVAR(1,2,__func__));
 
     mp4ASC->channelsConfiguration = (uint8_t)faad_getbits(ld, 4
         DEBUGVAR(1,3,"parse_audio_decoder_specific_info(): ChannelsConfiguration"));

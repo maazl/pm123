@@ -153,9 +153,9 @@ typedef struct mp4AudioSpecificConfig
     unsigned char aacSpectralDataResilienceFlag;
     unsigned char epConfig;
 
-    char sbr_present_flag;
-    char forceUpSampling;
-    char downSampledSBR;
+    signed char sbr_present_flag;
+    signed char forceUpSampling;
+    signed char downSampledSBR;
 } mp4AudioSpecificConfig;
 
 typedef struct NeAACDecConfiguration
@@ -215,14 +215,14 @@ NEAACDECAPI long NeAACDecInit(NeAACDecHandle hDecoder,
                               unsigned char *channels);
 
 /* Init the library using a DecoderSpecificInfo */
-NEAACDECAPI char NeAACDecInit2(NeAACDecHandle hDecoder,
+NEAACDECAPI signed char NeAACDecInit2(NeAACDecHandle hDecoder,
                                unsigned char *pBuffer,
                                unsigned long SizeOfDecoderSpecificInfo,
                                unsigned long *samplerate,
                                unsigned char *channels);
 
 /* Init the library for DRM */
-NEAACDECAPI char NeAACDecInitDRM(NeAACDecHandle *hDecoder, unsigned long samplerate,
+NEAACDECAPI signed char NeAACDecInitDRM(NeAACDecHandle *hDecoder, unsigned long samplerate,
                                  unsigned char channels);
 
 NEAACDECAPI void NeAACDecPostSeekReset(NeAACDecHandle hDecoder, long frame);
@@ -241,7 +241,7 @@ NEAACDECAPI void* NeAACDecDecode2(NeAACDecHandle hDecoder,
                                   void **sample_buffer,
                                   unsigned long sample_buffer_size);
 
-NEAACDECAPI char NeAACDecAudioSpecificConfig(unsigned char *pBuffer,
+NEAACDECAPI signed char NeAACDecAudioSpecificConfig(unsigned char *pBuffer,
                                              unsigned long buffer_size,
                                              mp4AudioSpecificConfig *mp4ASC);
 

@@ -197,11 +197,11 @@ static void read_segment(bits_t *segment, uint8_t segwidth, bitfile *ld)
 
      if (segwidth > 32)
      {
-        segment->bufb = faad_getbits(ld, segwidth - 32);        
-        segment->bufa = faad_getbits(ld, 32);        
+        segment->bufb = faad_getbits(ld, segwidth - 32 DEBUGVAR(1,1,__func__));
+        segment->bufa = faad_getbits(ld, 32 DEBUGVAR(1,2,__func__));
 
     } else {
-        segment->bufa = faad_getbits(ld, segwidth);
+        segment->bufa = faad_getbits(ld, segwidth DEBUGVAR(1,3,__func__));
         segment->bufb = 0;        
     }    
 }

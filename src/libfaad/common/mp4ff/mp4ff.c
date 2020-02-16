@@ -304,6 +304,22 @@ int32_t mp4ff_num_samples(const mp4ff_t *f, const int32_t track)
     return total;
 }
 
+int32_t mp4ff_get_max_samples_size(const mp4ff_t *f, const int track)
+{
+    const mp4ff_track_t * p_track = f->track[track];
+    int32_t bytes = p_track->stsz_sample_size;
+
+    if (!bytes)
+    {
+        int32_t *sp = p_track->stsz_table;
+        int32_t *end = sp + p_track->stsz_sample_count;
+        for (; sp != end; ++sp)
+            if (*sp > bytes)
+                bytes = *sp;
+    }
+
+    return bytes;
+}
 
 
 

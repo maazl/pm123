@@ -39,6 +39,8 @@ extern "C" {
 #  include "../config.h"
 #endif
 
+#define STDC_HEADERS 1
+
 #include "neaacdec.h"
 
 #if 1
@@ -371,7 +373,6 @@ char *strchr(), *strrchr();
 
 #ifdef HAVE_SINF
 #  define sin sinf
-#error
 #endif
 #ifdef HAVE_COSF
 #  define cos cosf
