@@ -1,0 +1,17 @@
+LIBRARY MP4PLAY INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 MP4 Player'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   decoder_init      @1
+   decoder_uninit    @2
+   decoder_command   @3
+   decoder_status    @4
+   decoder_length    @5
+   decoder_fileinfo  @6
+   decoder_support   @7
+   decoder_event     @8
+   decoder_saveinfo  @12
+
+   plugin_query      @10
+   plugin_init       @11
