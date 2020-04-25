@@ -45,6 +45,35 @@
 /// Length of the chunks played during scan of a file.
 const double seek_window = .2;
 
+
+const char* Mp4Decoder::Sniffer(struct _XFILE* stream)
+{ // https://mimesniff.spec.whatwg.org/#signature-for-mp4
+  unsigned char buffer[16];
+  if (xio_fread(buffer, sizeof(buffer), 1, stream) != 1)
+    return NULL;
+  if (buffer[0] & 3)
+    return NULL;
+  uint32_t box = buffer[0] << 24 | buffer[1] << 16 | buffer[2] << 8 | buffer[0];
+  int64_t size = xio_fsize(stream);
+  if (size != -1 && size < box)
+    return NULL;
+  if (*(uint32_t*)(buffer + 4) != 0x70797466)
+    return NULL;
+  if (buffer[8] == 'm' && buffer[9] == 'p' && buffer[10] == '4')
+    return "mp4";
+  if (*(uint32_t*)(buffer + 8) != 0x41344d20)
+    return "M4A";
+  box -= 12;
+  while (box -= 4)
+  { if (xio_fread(buffer, 4, 1, stream) != 1)
+      return NULL;
+    if (buffer[0] == 'm' && buffer[1] == 'p' && buffer[2] == '4')
+      return "mp4";
+  }
+  return NULL;
+}
+
+
 static uint32_t vio_read(void* w, void* ptr, uint32_t size)
 { DEBUGLOG2(("mp4play:vio_read(%p, %p, %i)\n", w, ptr, size));
   return xio_fread(ptr, 1, size, (XFILE*)w);
@@ -117,9 +146,8 @@ int Mp4Decoder::Init(mp4ff_t* mp4)
   return 0;
 }
 
-int Mp4Decoder::Open(xstring url, XFILE* file)
-{ URL = url;
-  SetFile(file);
+int Mp4Decoder::Open(XFILE* file)
+{ SetFile(file);
   Samplerate = -1;
   Channels = -1;
   int r = Init(mp4ff_open_read_metaonly(&Callbacks));
@@ -180,7 +208,7 @@ void Mp4Decoder::GetMeta(META_INFO& meta)
 vector<Mp4DecoderThread> Mp4DecoderThread::Instances;
 Mutex Mp4DecoderThread::InstMtx;
 
-Mp4DecoderThread::DECODER_STRUCT()
+Mp4DecoderThread::Mp4DecoderThread()
 : DecoderTID(-1)
 , Status(DECODER_STOPPED)
 , SkipSecs(0)
@@ -191,7 +219,7 @@ Mp4DecoderThread::DECODER_STRUCT()
   Instances.append() = this;
 }
 
-Mp4DecoderThread::~DECODER_STRUCT()
+Mp4DecoderThread::~Mp4DecoderThread()
 {
   DecoderCommand(DECODER_STOP, NULL);
 
@@ -209,7 +237,8 @@ Mp4DecoderThread::~DECODER_STRUCT()
   if (tid != -1)
     wait_thread(tid, 5000);
 
-  NeAACDecClose(FAAD);
+  if (FAAD)
+    NeAACDecClose(FAAD);
 }
 
 /* Decoding thread. */

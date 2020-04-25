@@ -42,6 +42,7 @@
 #include <debuglog.h>
 
 #include "mp4decoder.h"
+#include "aacdecoder.h"
 
 
 PLUGIN_CONTEXT Ctx = {0};
@@ -49,14 +50,14 @@ PLUGIN_CONTEXT Ctx = {0};
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int DLLENTRY decoder_init(Mp4DecoderThread** returnw)
+int DLLENTRY decoder_init(DECODER_STRUCT** returnw)
 {
   *returnw = new Mp4DecoderThread;
   return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than this is needed. */
-BOOL DLLENTRY decoder_uninit(Mp4DecoderThread* w)
+BOOL DLLENTRY decoder_uninit(DECODER_STRUCT* w)
 {
   delete w;
   return TRUE;
@@ -65,29 +66,27 @@ BOOL DLLENTRY decoder_uninit(Mp4DecoderThread* w)
 /* There is a lot of commands to implement for this function. Parameters
    needed for each of the are described in the definition of the structure
    in the decoder_plug.h file. */
-ULONG DLLENTRY decoder_command(Mp4DecoderThread* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
+ULONG DLLENTRY decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
 {
   return w->DecoderCommand(msg, params);
 }
 
-void DLLENTRY decoder_event(Mp4DecoderThread* w, OUTEVENTTYPE event)
+void DLLENTRY decoder_event(DECODER_STRUCT* w, OUTEVENTTYPE event)
 {
   // TODO!
 }
 
 /* Returns current status of the decoder. */
-ULONG DLLENTRY decoder_status(Mp4DecoderThread* w)
+ULONG DLLENTRY decoder_status(DECODER_STRUCT* w)
 {
   return w->GetStatus();
 }
 
 /* Returns number of milliseconds the stream lasts. */
-PM123_TIME DLLENTRY decoder_length(Mp4DecoderThread* w)
+PM123_TIME DLLENTRY decoder_length(DECODER_STRUCT* w)
 {
   return w->GetSonglength();
 }
-
-static xstringconst M4A("M4A");
 
 /* Returns information about specified file. */
 ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
@@ -96,26 +95,61 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
   if (handle == NULL)
     return PLUGIN_NO_PLAY;
 
-  Mp4Decoder dec;
-  if (dec.Open(url, handle) != 0)
-    return PLUGIN_NO_PLAY;
+  const char* format;
+  if ((format = Mp4Decoder::Sniffer(handle)) != NULL) // M4A?
+  { xio_rewind(handle);
+    Mp4Decoder dec;
+    if (dec.Open(handle) != 0)
+      return PLUGIN_NO_PLAY;
 
-  { TECH_INFO& tech = *info->tech;
-    tech.samplerate = dec.GetSamplerate();
-    tech.channels   = dec.GetChannels();
-    tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
-    char buf[20];
-    tech.info.sprintf("%.1f kbps, %.1f kHz, %s",
-      dec.GetBitrate()/1000., tech.samplerate/1000.,
-      tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
-    tech.format = M4A;
-  }
-  { OBJ_INFO& obj = *info->obj;
-    if (dec.GetSonglength() > 0)
-      obj.songlength = dec.GetSonglength();
-    obj.bitrate    = dec.GetBitrate();
-  }
-  dec.GetMeta(*info->meta);
+    { TECH_INFO& tech = *info->tech;
+      tech.samplerate = dec.GetSamplerate();
+      tech.channels   = dec.GetChannels();
+      tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
+      char buf[20];
+      tech.info.sprintf("%.1f kbps, %.1f kHz, %s",
+        dec.GetBitrate()/1000., tech.samplerate/1000.,
+        tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
+      tech.format = format;
+    }
+    { OBJ_INFO& obj = *info->obj;
+      if (dec.GetSonglength() > 0)
+        obj.songlength = dec.GetSonglength();
+      obj.bitrate    = dec.GetBitrate();
+    }
+    dec.GetMeta(*info->meta);
+
+  } else if ((format = AacDecoder::Sniffer(handle)) != NULL)
+  { // try ADTS/ADIF
+    xio_rewind(handle);
+    AacDecoder dec;
+    if ((info->tech->info = dec.Open(handle)) != NULL)
+      return PLUGIN_NO_PLAY;
+
+    OBJ_INFO& obj = *info->obj;
+    obj.songlength = dec.GetMeta(*info->meta);
+    // estimate bitrate
+    if (obj.songlength > 0 && info->phys->filesize > 0)
+      obj.bitrate = (int)(info->phys->filesize * 8 / obj.songlength);
+
+    { TECH_INFO& tech = *info->tech;
+      tech.samplerate = dec.GetSamplerate();
+      tech.channels   = dec.GetChannels();
+      tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
+      char buf[20];
+      if (obj.bitrate > 0)
+        tech.info.sprintf("%.1f kbps, %.1f kHz, %s",
+          obj.bitrate/1000., tech.samplerate/1000.,
+          tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
+      else
+        tech.info.sprintf("%.1f kHz, %s",
+          tech.samplerate/1000.,
+          tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
+      tech.format = format;
+    }
+
+  } else
+    return PLUGIN_NO_PLAY;
 
   *what |= INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR;
   return PLUGIN_OK;
@@ -220,6 +254,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
 
 static const DECODER_FILETYPE filetypes[] =
 { { "Digital Audio", "M4A", "*.m4a;*.m4b;*.mp4", DECODER_FILENAME|DECODER_URL|DECODER_SONG/*|DECODER_METAINFO*/ }
+, { "Digital Audio", "AAC", "*.aac;*.adif", DECODER_FILENAME|DECODER_URL|DECODER_SONG/*|DECODER_METAINFO*/ }
 };
 
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
@@ -230,11 +265,11 @@ ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
 
 
 /* Returns information about plug-in. */
-int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param )
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param)
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Marcel Mueller";
-  param->desc         = "MP4 Play 1.0";
+  param->desc         = "AAC Play 1.0";
   param->configurable = FALSE;
   param->interface    = PLUGIN_INTERFACE_LEVEL;
   return 0;

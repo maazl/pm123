@@ -1,6 +1,5 @@
 /*
- * Copyright 2009-2013 Marcel Mueller
- * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2020 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,7 +29,8 @@
 #ifndef PM123_AACDECODER_H
 #define PM123_AACDECODER_H
 
-#include <decoder_plug.h>
+#include "aacplay.h"
+
 #include <xio.h>
 #include <mp4ff.h>
 #include <neaacdec.h>
@@ -39,12 +39,10 @@
 
 
 class Mp4Decoder
-{public:
-  xstring       URL;
- protected:
-  mp4ff_t*      MP4stream;
-  int           Track;
-  mp4ff_callback_t Callbacks;
+{protected:
+  mp4ff_t*      MP4stream;  ///< MP4 (QuickTime) file decoder, NULL if ADTS/ADIF stream
+  int           Track;      ///< Track in MP4 that contains AAC data.
+  mp4ff_callback_t Callbacks;///<File I/O callbacks for MP4stream
  protected:
   //HWND   hwnd;       // PM interface main frame window handle.
   int64_t       FileTime;
@@ -65,6 +63,8 @@ class Mp4Decoder
   /// Convert metadata string to PM123s codepage.
   static xstring ConvertString(const char* tag);
  public:
+  static const char* Sniffer(struct _XFILE* stream);
+
   Mp4Decoder();
   ~Mp4Decoder();
 
@@ -76,7 +76,7 @@ class Mp4Decoder
   /// Opens MP4 file. Returns 0 if it successfully opens the file.
   /// @return A nonzero return value indicates an error. A -1 return value
   /// indicates an unsupported format of the file.
-  int           Open(xstring url, XFILE* file);
+  int           Open(XFILE* file);
   void          Close()               { if (MP4stream) { mp4ff_close(MP4stream); MP4stream = NULL; } }
 
   void          GetMeta(META_INFO& meta);
@@ -84,8 +84,9 @@ class Mp4Decoder
   PROXYFUNCDEF void DLLENTRY Observer(XIO_META type, const char* metabuff, long pos, void* arg);
 };
 
-typedef struct DECODER_STRUCT : public Mp4Decoder
+struct Mp4DecoderThread : public DECODER_STRUCT, public Mp4Decoder
 {private:
+  xstring       URL;
   Event         Play;       ///< For internal use to sync the decoder thread.
   Mutex         Mtx;        ///< For internal use to sync the decoder thread.
   int           DecoderTID; ///< Decoder thread identifier.
@@ -111,11 +112,12 @@ typedef struct DECODER_STRUCT : public Mp4Decoder
   int64_t       ResumePcms;
 
 public:
-  DECODER_STRUCT();
-  ~DECODER_STRUCT();
+  Mp4DecoderThread();
+  ~Mp4DecoderThread();
 
   ULONG         DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
   DECODERSTATE  GetStatus() const { return Status; }
+  double        GetSonglength() const { return Mp4Decoder::GetSonglength(); }
 
   static int    ReplaceStream(const char* sourcename, const char* destname);
 
@@ -124,10 +126,10 @@ public:
   void          DecoderThread();
 
  private: // Instance repository
-  static vector<DECODER_STRUCT> Instances;
+  static vector<Mp4DecoderThread> Instances;
   static Mutex InstMtx;
 
-} Mp4DecoderThread;
+};
 
 #define MAXRESYNC 15
 
