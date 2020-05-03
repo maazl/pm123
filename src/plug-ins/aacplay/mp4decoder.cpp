@@ -102,8 +102,6 @@ static uint32_t vio_truncate(void *w)
 
 Mp4Decoder::Mp4Decoder()
 : MP4stream(NULL)
-, Songlength(-1)
-, Bitrate(-1)
 { Callbacks.read = &vio_read;
   Callbacks.write = &vio_write;
   Callbacks.seek = &vio_seek;
@@ -208,15 +206,29 @@ void Mp4Decoder::GetMeta(META_INFO& meta)
 vector<Mp4DecoderThread> Mp4DecoderThread::Instances;
 Mutex Mp4DecoderThread::InstMtx;
 
-Mp4DecoderThread::Mp4DecoderThread()
+Mp4DecoderThread::Mp4DecoderThread(const DECODER_PARAMS2* params)
 : DecoderTID(-1)
-, Status(DECODER_STOPPED)
-, SkipSecs(0)
 , JumpToPos(-1)
+, PlayedSecs(0)
 , FAAD(NULL)
+, NumFrames(0)
+, CurrentFrame(0)
+, ResumePcms(0)
 {
   Mutex::Lock lock(InstMtx);
   Instances.append() = this;
+
+  URL = params->URL;
+
+  NextSkip  = JumpToPos = params->JumpTo;
+  SkipSecs  = seek_window * params->SkipSpeed;
+  State    = DECODER_STARTING;
+  StopRq    = false;
+  DecoderTID = _beginthread(PROXYFUNCREF(Mp4DecoderThread)DecoderThreadStub, 0, 65535, this);
+  if (DecoderTID == -1)
+    State = DECODER_STOPPED;
+  else
+    Play.Set(); // Go!
 }
 
 Mp4DecoderThread::~Mp4DecoderThread()
@@ -303,7 +315,7 @@ void Mp4DecoderThread::DecoderThread()
     { Play.Reset();
       if (StopRq)
         goto end;
-      Status = DECODER_PLAYING;
+      State = DECODER_PLAYING;
 
       double newpos = JumpToPos;
       if (SkipSecs && PlayedSecs >= NextSkip)
@@ -315,14 +327,14 @@ void Mp4DecoderThread::DecoderThread()
       }
       int32_t discardSamples = 0; // Discard the first samples of the current frame (in units of TimeScale)
       if (newpos >= 0)
-      { DEBUGLOG(("mp4play:seek to %f\n", newpos));
+      { DEBUGLOG(("Mp4DecoderThread:seek to %f\n", newpos));
         NextSkip = newpos + seek_window;
         { CurrentFrame = mp4ff_find_sample_use_offsets(MP4stream, Track, (int64_t)(newpos * TimeScale), &discardSamples);
           NeAACDecPostSeekReset(FAAD, CurrentFrame);
           newpos = JumpToPos;
           JumpToPos = -1;
         }
-        DEBUGLOG(("mp4play:seek %i, %i\n", CurrentFrame, discardSamples));
+        DEBUGLOG(("Mp4DecoderThread:seek %i, %i\n", CurrentFrame, discardSamples));
         if (newpos >= 0)
           (*DecEvent)(A, DECEVENT_SEEKSTOP, NULL);
         if (CurrentFrame < 0 || CurrentFrame > NumFrames)
@@ -349,7 +361,7 @@ void Mp4DecoderThread::DecoderThread()
       }
 
       // AAC decode
-      DEBUGLOG(("mp4play:NeAACDecDecode: %u {%08x,%08x,...}[%i]\n", CurrentFrame, ((int32_t*)buffer.get())[0], ((int32_t*)buffer.get())[1], frame_size));
+      DEBUGLOG(("Mp4DecoderThread:NeAACDecDecode: %u {%08x,%08x,...}[%i]\n", CurrentFrame, ((int32_t*)buffer.get())[0], ((int32_t*)buffer.get())[1], frame_size));
       NeAACDecFrameInfo frame_info;
       float* source = (float*)NeAACDecDecode(FAAD, &frame_info, buffer.get(), frame_size);
 
@@ -378,7 +390,7 @@ void Mp4DecoderThread::DecoderThread()
         if (count > frame_duration)
           count = frame_duration;
         memcpy(target, source, sizeof(float) * count * frame_info.channels);
-        DEBUGLOG(("mp4play:OutCommitBuffer(, %i, %f)\n", count, PlayedSecs));
+        DEBUGLOG(("Mp4DecoderThread:OutCommitBuffer(, %i, %f)\n", count, PlayedSecs));
         (*OutCommitBuffer)(A, count, PlayedSecs);
         PlayedSecs += (double)count / frame_info.samplerate;
 
@@ -398,7 +410,7 @@ end:
   XFILE* file = InterlockedXch(&GetFile(), (XFILE*)NULL);
   if (file)
     xio_fclose(file);
-  Status = DECODER_STOPPED;
+  State = DECODER_STOPPED;
   DecoderTID = -1;
 }
 
@@ -409,67 +421,44 @@ PROXYFUNCIMP(void, Mp4DecoderThread) TFNENTRY DecoderThreadStub(void* arg)
 ULONG Mp4DecoderThread::DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params)
 { switch (msg)
   {
-    case DECODER_SETUP:
-      OutRequestBuffer = params->OutRequestBuffer;
-      OutCommitBuffer  = params->OutCommitBuffer;
-      DecEvent         = params->DecEvent;
-      A                = params->A;
-      break;
-
-    case DECODER_PLAY:
-    {
-      if (DecoderTID != -1)
-      { if (Status == DECODER_STOPPED)
-          DecoderCommand(DECODER_STOP, NULL);
-        else
-          return PLUGIN_GO_ALREADY;
-      }
-
-      URL = params->URL;
-
-      NextSkip  = JumpToPos = params->JumpTo;
-      SkipSecs  = seek_window * params->SkipSpeed;
-      Status    = DECODER_STARTING;
-      StopRq    = false;
-      DecoderTID = _beginthread(PROXYFUNCREF(Mp4DecoderThread)DecoderThreadStub, 0, 65535, this);
-      if (DecoderTID == -1)
-      { Status = DECODER_STOPPED;
-        return PLUGIN_FAILED;
-      }
-      Play.Set(); // Go!
-      break;
-    }
-
-    case DECODER_STOP:
-    {
-      if (DecoderTID == -1)
+  case DECODER_PLAY:
+    if (DecoderTID != -1)
+    { if (State == DECODER_STOPPED)
+        DecoderCommand(DECODER_STOP, NULL);
+      else
         return PLUGIN_GO_ALREADY;
-
-      Status = DECODER_STOPPING;
-      StopRq = true;
-
-      Play.Set();
-      break;
     }
+  case DECODER_SETUP:
+    // continue in base class
+    return DECODER_STRUCT::DecoderCommand(msg, params);
 
-    case DECODER_FFWD:
-      /*if (params->Fast && File && xio_can_seek(File) != XIO_CAN_SEEK_FAST)
-        return PLUGIN_UNSUPPORTED;*/
-      SkipSecs = seek_window * params->SkipSpeed;
-      JumpToPos = NextSkip = PlayedSecs;
-      Play.Set();
-      break;
+  case DECODER_STOP:
+  { if (DecoderTID == -1)
+      return PLUGIN_GO_ALREADY;
 
-    case DECODER_JUMPTO:
-      JumpToPos = NextSkip = params->JumpTo;
-      Play.Set();
-      break;
+    State = DECODER_STOPPING;
+    StopRq = true;
 
-    default:
-      return PLUGIN_UNSUPPORTED;
-   }
+    Play.Set();
+    return PLUGIN_OK;
+  }
 
-   return PLUGIN_OK;
+  case DECODER_FFWD:
+    /*if (params->Fast && File && xio_can_seek(File) != XIO_CAN_SEEK_FAST)
+      return PLUGIN_UNSUPPORTED;*/
+    SkipSecs = seek_window * params->SkipSpeed;
+    JumpToPos = NextSkip = PlayedSecs;
+    Play.Set();
+    return PLUGIN_OK;
+
+  case DECODER_JUMPTO:
+    JumpToPos = NextSkip = params->JumpTo;
+    Play.Set();
+    return PLUGIN_OK;
+
+  default:
+    return PLUGIN_UNSUPPORTED;
+  }
 }
 
 int Mp4DecoderThread::ReplaceStream(const char* sourcename, const char* destname)

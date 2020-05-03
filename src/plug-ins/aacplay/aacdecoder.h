@@ -29,10 +29,16 @@
 #ifndef AACDECODER_H
 #define AACDECODER_H
 
+#include "aacplay.h"
+
 #include <neaacdec.h>
 #include <xio.h>
 #include <decoder_plug.h>
+#include <cpp/mutex.h>
+#include <cpp/smartptr.h>
+#include <cpp/container/vector.h>
 #include "id3v2/id3v2.h"
+
 
 class AacDecoder
 {protected:
@@ -40,7 +46,11 @@ class AacDecoder
   ID3V2_TAG*    Tag;
   int           Samplerate;
   int           Channels;
-  unsigned      Offset;
+  double        Songlength;
+  unsigned      Offset;     ///< Offset of AAC frames from file start
+  sco_arr<unsigned char> Buffer;
+  unsigned      Start;      ///< Start of unconsumed data within Buffer
+  unsigned      End;        ///< End of valid data within Buffer.
 
  public:
   /// Check whether stream could be decoded by this class.
@@ -54,11 +64,39 @@ class AacDecoder
 
   int           GetChannels() const   { return Channels; }
   int           GetSamplerate() const { return Samplerate; }
+  double        GetSonglength() const { return Songlength; }
   unsigned      GetOffset() const     { return Offset; }
-
   /// Retrieve ID3V2 tag information if any
-  /// @return Song length in seconds or -1 if unknown
-  double        GetMeta(META_INFO& meta);
+  void          GetMeta(META_INFO& meta);
+};
+
+class AacDecoderThread : public DECODER_STRUCT, public AacDecoder
+{private:
+  xstring       URL;
+  XFILE*        File;
+  Event         Play;       ///< For internal use to sync the decoder thread.
+  Mutex         Mtx;        ///< For internal use to sync the decoder thread.
+  int           DecoderTID; ///< Decoder thread identifier.
+
+  bool          StopRq;
+  //float         SkipSecs;   ///< Forward/rewind, 0 = off
+  double        JumpToPos;  ///< Perform seek ASAP, -1 = off
+  double        NextSkip;
+  double        PlayedSecs; ///< Seconds played so far (ignoring seek operations)
+
+ public:
+                AacDecoderThread(const DECODER_PARAMS2* params);
+  virtual       ~AacDecoderThread();
+  virtual ULONG DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
+  virtual double GetSonglength() const { return AacDecoder::GetSonglength(); }
+
+ private:
+  PROXYFUNCDEF void TFNENTRY DecoderThreadStub(void* arg);
+  void          DecoderThread();
+
+ private: // Instance repository
+  static vector<AacDecoderThread> Instances;
+  static Mutex InstMtx;
 };
 
 #endif // AACDECODER_H

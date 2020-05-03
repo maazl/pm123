@@ -34,12 +34,25 @@
 
 /// Base interface for decoder instances
 struct DECODER_STRUCT
-{
-  virtual               ~DECODER_STRUCT() {}
-  virtual ULONG         DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params) = 0;
-  virtual DECODERSTATE  GetStatus() const = 0;
-  virtual double        GetSonglength() const = 0;
-};
+{protected:
+  // specify a function which the decoder should use for output
+  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
+  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
+  // decoder events
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
+  void*           A;               // only to be used with the precedent functions
 
+  int             State;
+
+ public:
+  void*                 operator new(size_t count);
+  void*                 operator new(size_t count, DECODER_STRUCT* that) { return that; }
+  void                  operator delete(void* ptr) { ::operator delete[](ptr); }
+                        DECODER_STRUCT() : State(DECODER_STOPPED) {}
+  virtual               ~DECODER_STRUCT() {}
+  virtual ULONG         DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
+  virtual DECODERSTATE  GetStatus() const;
+  virtual double        GetSonglength() const;
+};
 
 #endif // AACPLAY_H

@@ -3,7 +3,7 @@
 #
 
 TOPDIR  = ..\\..
-INCDIR  = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123;$(TOPDIR)\libfaad\include;$(TOPDIR)\libfaad\common\mp4ff
+INCDIR  = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123;$(TOPDIR)\libfaad\include;$(TOPDIR)\libfaad\common\mp4ff;$(TOPDIR)\zlb123
 CFLAGS_USR = -DPLUGIN_INTERFACE_LEVEL=3
 
 include $(TOPDIR)\config\makerules

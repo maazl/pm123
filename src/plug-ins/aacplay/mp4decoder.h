@@ -51,10 +51,6 @@ class Mp4Decoder
   int           Channels;
  private:
   double        Songlength;
-  long          Bitrate;
-
-  /*char*  metadata_buff;
-  int    metadata_size;*/
 
  protected:
   void          SetFile(XFILE* file)  { Callbacks.user_data = file; }
@@ -90,7 +86,6 @@ struct Mp4DecoderThread : public DECODER_STRUCT, public Mp4Decoder
   Event         Play;       ///< For internal use to sync the decoder thread.
   Mutex         Mtx;        ///< For internal use to sync the decoder thread.
   int           DecoderTID; ///< Decoder thread identifier.
-  DECODERSTATE  Status;     ///< Decoder status
 
   bool          StopRq;
   float         SkipSecs;   ///< Forward/rewind, 0 = off
@@ -102,22 +97,14 @@ struct Mp4DecoderThread : public DECODER_STRUCT, public Mp4Decoder
   int32_t       NumFrames;
   int32_t       CurrentFrame;///< Index of next MP4 sample to play
 
-  // specify a function which the decoder should use for output
-  int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
-  void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  // decoder events
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
-  void* A;                  ///< only to be used with the precedent functions
-
   int64_t       ResumePcms;
 
 public:
-  Mp4DecoderThread();
-  ~Mp4DecoderThread();
+                Mp4DecoderThread(const DECODER_PARAMS2* params);
+  virtual       ~Mp4DecoderThread();
 
-  ULONG         DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
-  DECODERSTATE  GetStatus() const { return Status; }
-  double        GetSonglength() const { return Mp4Decoder::GetSonglength(); }
+  virtual ULONG DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params);
+  virtual double GetSonglength() const { return Mp4Decoder::GetSonglength(); }
 
   static int    ReplaceStream(const char* sourcename, const char* destname);
 
@@ -127,11 +114,8 @@ public:
 
  private: // Instance repository
   static vector<Mp4DecoderThread> Instances;
-  static Mutex InstMtx;
-
+  static Mutex  InstMtx;
 };
-
-#define MAXRESYNC 15
 
 #endif
 

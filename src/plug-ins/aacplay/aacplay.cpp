@@ -47,19 +47,64 @@
 
 PLUGIN_CONTEXT Ctx = {0};
 
+// this operator new allocates always enough space to hold any of the decoder thread classes.
+void* DECODER_STRUCT::operator new(size_t count)
+{ return new char[max(sizeof(AacDecoderThread), sizeof(Mp4DecoderThread))];
+}
+
+ULONG DECODER_STRUCT::DecoderCommand(DECMSGTYPE msg, const DECODER_PARAMS2* params)
+{ switch (msg)
+  {
+  default:
+    return PLUGIN_FAILED;
+
+  case DECODER_SETUP:
+    OutRequestBuffer = params->OutRequestBuffer;
+    OutCommitBuffer  = params->OutCommitBuffer;
+    DecEvent         = params->DecEvent;
+    A                = params->A;
+    return PLUGIN_OK;
+
+  case DECODER_PLAY:
+    switch (State)
+    {case DECODER_ERROR:
+      return PLUGIN_ERROR;
+     default:
+      return PLUGIN_GO_ALREADY;
+     case DECODER_STOPPED:;
+    }
+    // change implementing class according to format.
+    // This calls destructor and placement new to change the type.
+    const xstring format = params->Info->tech->format;
+    if (format.equals("M4A") || format.equals("mp4"))
+    { this->~DECODER_STRUCT();
+      new (this) Mp4DecoderThread(params);
+    } else if (format.equals("ADIF") || format.equals("ADTS"))
+    { this->~DECODER_STRUCT();
+      new (this) AacDecoderThread(params);
+    } else
+      return PLUGIN_GO_FAILED;
+    return State == DECODER_STOPPED ? PLUGIN_FAILED : PLUGIN_OK;
+  }
+}
+
+DECODERSTATE DECODER_STRUCT::GetStatus() const
+{ return (DECODERSTATE)State; }
+
+double DECODER_STRUCT::GetSonglength() const
+{ return -1; }
+
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
 int DLLENTRY decoder_init(DECODER_STRUCT** returnw)
-{
-  *returnw = new Mp4DecoderThread;
+{ *returnw = new DECODER_STRUCT();
   return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than this is needed. */
 BOOL DLLENTRY decoder_uninit(DECODER_STRUCT* w)
-{
-  delete w;
+{ delete w;
   return TRUE;
 }
 
@@ -67,8 +112,7 @@ BOOL DLLENTRY decoder_uninit(DECODER_STRUCT* w)
    needed for each of the are described in the definition of the structure
    in the decoder_plug.h file. */
 ULONG DLLENTRY decoder_command(DECODER_STRUCT* w, DECMSGTYPE msg, const DECODER_PARAMS2* params)
-{
-  return w->DecoderCommand(msg, params);
+{ return w->DecoderCommand(msg, params);
 }
 
 void DLLENTRY decoder_event(DECODER_STRUCT* w, OUTEVENTTYPE event)
@@ -78,30 +122,28 @@ void DLLENTRY decoder_event(DECODER_STRUCT* w, OUTEVENTTYPE event)
 
 /* Returns current status of the decoder. */
 ULONG DLLENTRY decoder_status(DECODER_STRUCT* w)
-{
-  return w->GetStatus();
+{ return w->GetStatus();
 }
 
 /* Returns number of milliseconds the stream lasts. */
 PM123_TIME DLLENTRY decoder_length(DECODER_STRUCT* w)
-{
-  return w->GetSonglength();
+{ return w->GetSonglength();
 }
 
 /* Returns information about specified file. */
 ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* what, const INFO_BUNDLE* info,
                                 DECODER_INFO_ENUMERATION_CB cb, void* param)
-{
-  if (handle == NULL)
+{ if (handle == NULL)
     return PLUGIN_NO_PLAY;
 
-  const char* format;
-  if ((format = Mp4Decoder::Sniffer(handle)) != NULL) // M4A?
-  { xio_rewind(handle);
-    Mp4Decoder dec;
+  const char* format = Mp4Decoder::Sniffer(handle);
+  xio_rewind(handle);
+  if (format != NULL) // M4A?
+  { Mp4Decoder dec;
     if (dec.Open(handle) != 0)
       return PLUGIN_NO_PLAY;
 
+    dec.GetMeta(*info->meta);
     { TECH_INFO& tech = *info->tech;
       tech.samplerate = dec.GetSamplerate();
       tech.channels   = dec.GetChannels();
@@ -117,40 +159,45 @@ ULONG DLLENTRY decoder_fileinfo(const char* url, struct _XFILE* handle, int* wha
         obj.songlength = dec.GetSonglength();
       obj.bitrate    = dec.GetBitrate();
     }
-    dec.GetMeta(*info->meta);
+    goto hit;
+  }
 
-  } else if ((format = AacDecoder::Sniffer(handle)) != NULL)
+  format = AacDecoder::Sniffer(handle);
+  xio_rewind(handle);
+  if (format != NULL)
   { // try ADTS/ADIF
-    xio_rewind(handle);
     AacDecoder dec;
     if ((info->tech->info = dec.Open(handle)) != NULL)
       return PLUGIN_NO_PLAY;
 
+    dec.GetMeta(*info->meta);
     OBJ_INFO& obj = *info->obj;
-    obj.songlength = dec.GetMeta(*info->meta);
+    obj.songlength = dec.GetSonglength();
     // estimate bitrate
     if (obj.songlength > 0 && info->phys->filesize > 0)
       obj.bitrate = (int)(info->phys->filesize * 8 / obj.songlength);
 
-    { TECH_INFO& tech = *info->tech;
-      tech.samplerate = dec.GetSamplerate();
-      tech.channels   = dec.GetChannels();
-      tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
-      char buf[20];
-      if (obj.bitrate > 0)
-        tech.info.sprintf("%.1f kbps, %.1f kHz, %s",
-          obj.bitrate/1000., tech.samplerate/1000.,
-          tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
-      else
-        tech.info.sprintf("%.1f kHz, %s",
-          tech.samplerate/1000.,
-          tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
-      tech.format = format;
-    }
+    TECH_INFO& tech = *info->tech;
+    tech.samplerate = dec.GetSamplerate();
+    tech.channels   = dec.GetChannels();
+    tech.attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE*(xio_protocol(handle) == XIO_PROTOCOL_FILE);
+    char buf[20];
+    if (obj.bitrate > 0)
+      tech.info.sprintf("%.1f kbps, %.1f kHz, %s",
+        obj.bitrate/1000., tech.samplerate/1000.,
+        tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
+    else
+      tech.info.sprintf("%.1f kHz, %s",
+        tech.samplerate/1000.,
+        tech.channels == 1 ? "mono" : tech.channels == 2 ? "stereo" : (sprintf(buf, "%i channels", tech.channels), buf));
+    tech.format = format;
 
-  } else
-    return PLUGIN_NO_PLAY;
+    goto hit;
+  }
 
+  return PLUGIN_NO_PLAY;
+
+ hit:
   *what |= INFO_TECH|INFO_OBJ|INFO_META|INFO_ATTR;
   return PLUGIN_OK;
 }
