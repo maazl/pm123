@@ -63,6 +63,8 @@ IF ARG(1) = '' THEN DO
    SAY " -c      Check for recursions"
    SAY " -x      Unix like file expansion, e.g. *.cpp"
    SAY " -s      search in sub directories for sourcefiles too"
+   SAY " -Eext   Create rules for summary targets rather than recursive rules"
+   SAY "         The summary rule gets the extension ext."
    SAY " -q      Do not print warnings"
    SAY " --      no more options"
    EXIT 48
@@ -82,6 +84,7 @@ opt.checkrec   = 0
 opt.wildcard   = 0
 opt.cwd        = DIRECTORY()
 opt.orexx      = 0
+opt.summaryext = ''
 opt.opencmd    = 'OPEN'
 opt.debug      = 0
 
@@ -139,6 +142,8 @@ DO WHILE params \= ''
          opt.checkrec = 1
        WHEN SUBSTR(param, 2) = 'x' THEN
          opt.wildcard = 1
+       WHEN SUBSTR(param, 2, 1) = 'E' THEN
+         opt.summaryext = SUBSTR(param, 3)
        WHEN SUBSTR(param, 2) = '_' THEN
          opt.debug = 1
        OTHERWISE
@@ -153,7 +158,6 @@ DO WHILE params \= ''
       END
    END
 
-file.0 = files
 opt.include.0 = includes
 
 IF file.0 = 0 THEN
@@ -161,40 +165,56 @@ IF file.0 = 0 THEN
 
 /* Here we go! Scan the files */
 rule.0 = 0
-DO i = 1 TO file.0
+i = 0
+DO WHILE i < files
+   i = i + 1
    IF opt.wildcard & (VERIFY(file.i, "*?", "M") \= 0) THEN DO
       CALL SysFileTree file.i, "match", "OF"opt.subdir
       IF match.0 \= 0 THEN DO
          dir = DirFromPath(file.i)
          absdir = DIRECTORY()
+         dirlen = LENGTH(absdir) + 2
          IF dir \= '' THEN DO
             CALL SysFileTree dir, "absdir", "OD"
             IF absdir.0 = 0 THEN
                CALL Error 60, 'Failed to get absolute path of 'dir
             absdir = absdir.1
+            dirlen = LENGTH(absdir) - LENGTH(dir) + 1
             END
-         dirlen = LENGTH(absdir) - LENGTH(dir) + 2
          IF RIGHT(absdir, 1) \= '\' THEN
             dirlen = dirlen + 1
          IF RIGHT(dir, 1) \= '\' THEN
             dirlen = dirlen - 1
          DO j = 1 TO match.0
             /*SAY 'W: 'dir"_"absdir"_"match.j*/
-            CALL DoFile SUBSTR(match.j, dirlen)
+            files = files + 1
+            file.files = SUBSTR(match.j, dirlen)
             END
-         ITERATE
          END
+      file.i = ''
       END
    ELSE
       /* single file mode */
       CALL DoFile file.i
    END
+file.0 = files
 
 IF opt.checkrec THEN
    DO i = 1 TO rule.0
       stack.0 = 0
       CALL CheckRec rule.i
       END
+
+/* collect rules recurively */
+IF opt.summaryext <> '' THEN DO
+   /* discard all direct rules */
+   rule.0 = 0
+   /* create summary rules */
+   DO i = 1 TO file.0
+      IF file.i <> '' THEN
+         CALL CollectRules file.i
+      END
+   END
 
 /* write result */
 CALL WriteRules opt.makefile
@@ -261,12 +281,47 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
       IF dep = '' THEN
          ITERATE
       /* append rule */
-      IF length(rule.i) < 7 THEN
+      IF LENGTH(rule.i) < 7 THEN
          CALL LINEOUT ARG(1), rule.i":"||"0909"x||SUBSTR(dep, 2)
       ELSE
          CALL LINEOUT ARG(1), rule.i":"||"09"x||SUBSTR(dep, 2)
       END
 
+   RETURN
+
+CollectRules: PROCEDURE EXPOSE opt. rule.
+   /* collect dependencies */
+   dep = ' '
+   CALL RecursiveDep ARG(1)
+   /* build target name */
+   target = ARG(1)
+   p = LASTPOS('.', target)
+   q = LASTPOS('\', target)
+   IF p > 0 & p > q THEN
+      target = SUBSTR(target, 1, p - 1)
+   target = target'.'opt.summaryext
+   /* write summary rule */
+   symname = SymName(MakeAbs(target, opt.cwd))
+   i = rule.0 + 1
+   rule.i = target
+   CALL VALUE symname, SUBSTR(dep, 1, LENGTH(dep) - 1)
+   rule.0 = i
+   RETURN
+
+/* Filter dependencies and return only distinct values.
+ * ARG(1)  file to check
+ * return  parts of dependency list not yet added
+ */
+RecursiveDep: PROCEDURE EXPOSE dep rule. opt.
+   dep = dep||ARG(1)' '
+   symname = SymName(NormPath(MakeAbs(ARG(1), opt.cwd)))
+   deps = VALUE(symname)
+   DO WHILE deps <> ''
+      PARSE VAR deps WITH ndep deps
+      IF POS(' 'ndep' ', dep) <> 0 THEN
+         ITERATE
+      CALL RecursiveDep ndep
+      END
    RETURN
 
 /* Check single file

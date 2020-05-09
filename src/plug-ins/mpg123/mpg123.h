@@ -209,7 +209,7 @@ typedef struct DECODER_STRUCT : public MPG123
   /// function which the decoder should use for output
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
   /// decoder events
-  void  DLLENTRYP(OutEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void  DLLENTRYP(OutEvent        )(void* a, DECEVENTTYPE event, const void* param);
   /// only to be used with the precedent functions
   void* OutParam;
 

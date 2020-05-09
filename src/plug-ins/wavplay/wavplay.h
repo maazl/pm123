@@ -63,7 +63,7 @@ struct DECODER_STRUCT
   int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
   /** decoder events */
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
   void* A;                  /**< only to be used with the precedent functions */
 };
 

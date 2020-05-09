@@ -53,7 +53,7 @@ class Glue
   /// Decoder event arguments
   typedef struct
   { DECEVENTTYPE Type;
-    void*        Param;
+    const void*  Param;
   } DecEventArgs;
 
  protected:

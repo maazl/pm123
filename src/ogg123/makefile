@@ -4,7 +4,7 @@
 
 TOPDIR  = ..
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 DEF     = ogg$(LDEF_SUFFX)
 LIBS    = src\libogg$(LBO) 
@@ -19,12 +19,11 @@ ogg123$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ ogg123.dll
 
 src\libogg$(LBO):
-	cd src
-	@$(MAKE) $(MFLAGS)
-	@cd ..
+	@$(MAKE) -C src $(MFLAGS)
 
 clean: $(MDUMMY)
-	cd src
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..
+	@$(MAKE) -C src $(MFLAGS) clean
 	-@del ogg123.dll ogg123$(LBI) $(OBJECTS) 2> nul
+
+depend: $(MDUMMY)
+	@$(MAKE) -C src $(MFLAGS) depend

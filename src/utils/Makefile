@@ -6,21 +6,21 @@ TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include;.
 TARGET   = utilfct$(LBO)
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
-OBJECTS = utilfct$(CO) utilfct_listbox$(CO) utilfct_menu$(CO) utilfct_notebook$(CO)
-OBJECTS = $(OBJECTS) utilfct_dlg$(CO) utilfct_pm_misc$(CO) utilfct_thread$(CO) utilfct_slider$(CO)
-OBJECTS = $(OBJECTS) fileutil$(CO)
-OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
-OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
-OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnchr$(CO) strnlen$(CO)
-OBJECTS = $(OBJECTS) strutils$(CO) strptime$(CO)
-OBJECTS = $(OBJECTS) eautils$(CO) eadecode$(CO)
-OBJECTS = $(OBJECTS) memcmpcpy$(CO) vdelegate$(CO) interlocked$(CO) debuglog$(CO)
+OBJECTS = utilfct$(CO) utilfct_listbox$(CO) utilfct_menu$(CO) utilfct_notebook$(CO) \
+	utilfct_dlg$(CO) utilfct_pm_misc$(CO) utilfct_thread$(CO) utilfct_slider$(CO) \
+	fileutil$(CO) \
+	errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO) \
+	charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO) \
+	strlcat$(CO) snprintf$(CO) strnchr$(CO) strnlen$(CO) \
+	strutils$(CO) strptime$(CO) \
+	eautils$(CO) eadecode$(CO) \
+	memcmpcpy$(CO) vdelegate$(CO) interlocked$(CO) debuglog$(CO)
 STDLIBS = $(LIBS_UNI)
 
 utilfct$(LBO): $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 charset.exe:	charset.obj
@@ -29,49 +29,58 @@ charset.exe:	charset.obj
 clean: $(MDUMMY)
 	-@del utilfct$(LBO) $(OBJECTS) 2> nul
 
-abs2rel.c:	fileutil.h
-fileutil.h:	..\include\config.h
-..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
-charset.c:	charset.h strutils.h debuglog.h utilfct.h
-debuglog.h:	.\errorstr.h
-utilfct.h:	..\include\config.h .\errorstr.h .\minmax.h .\strutils.h
-debuglog.c:	debuglog.h snprintf.h strutils.h
-eautils.c:	debuglog.h
-errorstr.c:	strutils.h snprintf.h
-fileutil.c:	fileutil.h strutils.h minmax.h
-memcmpcpy.c:	strutils.h
-pcmfloat2int.c:	pcmconvert.h utilfct.h debuglog.h
-pcmconvert.h:	..\include\format.h
-..\include\format.h:	..\include\plugin.h
-..\include\plugin.h:	..\include\config.h .\cpp\xstring.h
-.\cpp\xstring.h:	.\cpp\smartptr.h
-.\cpp\smartptr.h:	..\include\config.h .\cpp\cpputil.h .\cpp\mutex.h .\debuglog.h
-.\cpp\mutex.h:	..\include\config.h .\interlocked.h .\debuglog.h
-.\interlocked.h:	..\include\config.h
-.\debuglog.h:	.\errorstr.h
-pcmfloat2int_merge.c:	pcmconvert.h utilfct.h debuglog.h
-pcmint2float.c:	pcmconvert.h .\debuglog.h
-pcmint2float_extract.c:	pcmconvert.h .\debuglog.h
-queue.c:	queue.h
-rel2abs.c:	fileutil.h
-strchomp.c:	strutils.h
-strnchr.c:	strutils.h
-strnlen.c:	strutils.h
-utilfct.c:	utilfct.h debuglog.h
-utilfct_listbox.c:	utilfct.h debuglog.h
-utilfct_menu.c:	utilfct.h debuglog.h
-utilfct_notebook.c:	utilfct.h debuglog.h
-utilfct_pm_misc.c:	utilfct.h debuglog.h
-utilfct_slider.c:	utilfct.h debuglog.h
-utilfct_thread.c:	utilfct.h debuglog.h
-vdelegate.c:	vdelegate.h
-vdelegate.h:	..\include\config.h
-wildcards.c:	wildcards.h .\debuglog.h
-inimacro.c:	inimacro.h fileutil.h utilfct.h debuglog.h
-inimacro.h:	..\include\config.h
-strutils.c:	strutils.h
-utilfct_dlg.c:	utilfct.h debuglog.h
-interlocked.c:	interlocked.h
-interlocked.h:	..\include\config.h
-eadecode.c:	strutils.h debuglog.h
-strptime.c:	strutils.h
+cpp\algorithm.o:	cpp\algorithm.cpp 
+cpp\debugmem.o:	cpp\debugmem.cpp
+cpp\directory.o:	cpp\directory.cpp 
+cpp\dlgcontrols.o:	cpp\dlgcontrols.cpp 
+cpp\event.o:	cpp\event.cpp cpp\cpputil.h
+cpp\mutex.o:	cpp\mutex.cpp 
+cpp\pmutils_dnd.o:	cpp\pmutils_dnd.cpp 
+cpp\priority_queue.o:	cpp\priority_queue.cpp 
+cpp\queue.o:	cpp\queue.cpp 
+cpp\showaccel.o:	cpp\showaccel.cpp 
+cpp\url123.o:	cpp\url123.cpp 
+cpp\windowbase.o:	cpp\windowbase.cpp 
+cpp\xstring.o:	cpp\xstring.cpp cpp\container\btree.h
+cpp\xstring_alloc.o:	cpp\xstring_alloc.cpp 
+cpp\xstring_alloc_plugin.o:	cpp\xstring_alloc_plugin.cpp 
+cpp\xstringbuilder.o:	cpp\xstringbuilder.cpp 
+cpp\xstringconst.o:	cpp\xstringconst.cpp 
+cpp\container\btree.o:	cpp\container\btree.cpp cpp\cpputil.h 
+cpp\container\iterator.o:	cpp\container\iterator.cpp 
+cpp\container\list.o:	cpp\container\list.cpp 
+cpp\container\stringmap.o:	cpp\container\stringmap.cpp 
+cpp\container\stringset.o:	cpp\container\stringset.cpp 
+cpp\container\vector.o:	cpp\container\vector.cpp cpp\cpputil.h
+cpp\test\test_btree.o:	cpp\test\test_btree.cpp 
+cpp\test\test_int_ptr.o:	cpp\test\test_int_ptr.cpp
+utilfct_listbox.o:	utilfct_listbox.c debuglog.h 
+wildcards.o:	wildcards.c .\debuglog.h 
+abs2rel.o:	abs2rel.c 
+charset.o:	charset.c strutils.h utilfct.h .\errorstr.h  .\strutils.h
+debuglog.o:	debuglog.c snprintf.h 
+eadecode.o:	eadecode.c strutils.h 
+eautils.o:	eautils.c 
+errorstr.o:	errorstr.c snprintf.h
+fileutil.o:	fileutil.c strutils.h 
+inimacro.o:	inimacro.c fileutil.h  debuglog.h
+interlocked.o:	interlocked.c 
+memcmpcpy.o:	memcmpcpy.c 
+queue.o:	queue.c 
+rel2abs.o:	rel2abs.c 
+snprintf.o:	snprintf.c
+strchomp.o:	strchomp.c 
+strlcat.o:	strlcat.c
+strlcpy.o:	strlcpy.c
+strnchr.o:	strnchr.c 
+strnlen.o:	strnlen.c 
+strptime.o:	strptime.c 
+strutils.o:	strutils.c 
+utilfct.o:	utilfct.c debuglog.h 
+utilfct_dlg.o:	utilfct_dlg.c debuglog.h 
+utilfct_slider.o:	utilfct_slider.c debuglog.h 
+utilfct_menu.o:	utilfct_menu.c debuglog.h 
+utilfct_thread.o:	utilfct_thread.c debuglog.h 
+utilfct_notebook.o:	utilfct_notebook.c debuglog.h 
+utilfct_pm_misc.o:	utilfct_pm_misc.c debuglog.h 
+vdelegate.o:	vdelegate.c 

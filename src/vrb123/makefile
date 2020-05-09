@@ -4,7 +4,7 @@
 
 TOPDIR  = ..
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 DEF     = vrb$(LDEF_SUFFX)
 LIBS    = lib\libvorbis$(LBO) $(TOPDIR)\ogg123\src\libogg$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
@@ -20,12 +20,11 @@ vrb123$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ vrb123.dll
 
 lib\libvorbis$(LBO):
-	cd lib
-	@$(MAKE) $(MFLAGS)
-	@cd ..
+	@$(MAKE) -C lib $(MFLAGS)
 
 clean: $(MDUMMY)
-	cd lib
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..
+	@$(MAKE) -C lib $(MFLAGS) clean
 	-@del vrb123.dll vrb123$(LBI) $(OBJECTS) 2> nul
+
+depend: $(MDUMMY)
+	@$(MAKE) -C lib $(MFLAGS) depend

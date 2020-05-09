@@ -27,7 +27,7 @@
  */
 
 
-#include "container/stringmap.h"
+#include "stringmap.h"
 
 
 int TFNENTRY strabbrevicmp(const char* str, const char* abbrev)

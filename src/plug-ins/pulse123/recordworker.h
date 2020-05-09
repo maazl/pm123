@@ -53,7 +53,7 @@ typedef struct DECODER_STRUCT
  private:
   int  DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  void DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
   void*              A;
   Params             Par;
  private:

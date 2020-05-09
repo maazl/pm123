@@ -6,14 +6,14 @@ DLL     = yes
 TOPDIR  = ..\..\..
 TARGET  = all2
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 all2: g72x$(LBO) $(MDUMMY)
 
 OBJECTS = g721$(CO) g723_16$(CO) g723_24$(CO) g723_40$(CO) g72x$(CO) 
 
 g72x$(LBO): $(LIBS) $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)

@@ -6,14 +6,14 @@ DLL     = yes
 TOPDIR  = ..\..\..
 INCDIR  = ..\..\kernel;..\..\rdft;$(TOPDIR)\include
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 all: rdft_codelets$(LBO) $(MDUMMY)
 
 OBJECTS = hc2r$(CO) hfb$(CO) r2hc$(CO) r2r$(CO)
 
 rdft_codelets$(LBO): $(LIBS) $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)

@@ -13,7 +13,7 @@ CFLAGS_DBG_USR = -DFLAC__OVERFLOW_DETECT
 CFLAGS_OPT_USR = -DFLaC__INLINE=INLINE
 AFLAGS_USR = -DOBJ_FORMAT_aout
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 # C files
 OBJECTS=bitmath$(CO) \
@@ -39,59 +39,37 @@ OBJECTS=bitmath$(CO) \
 	window$(CO)
 
 # Assembler files
-OBJECTS=$(OBJECTS) \
-	ia32/bitreader_asm$(OBJ) \
-	ia32/cpu_asm$(OBJ) \
-	ia32/fixed_asm$(OBJ) \
-	ia32/lpc_asm$(OBJ) \
-	ia32/stream_encoder_asm$(OBJ)
+OBJECTS+=ia32\bitreader_asm$(OBJ) \
+	ia32\cpu_asm$(OBJ) \
+	ia32\fixed_asm$(OBJ) \
+	ia32\lpc_asm$(OBJ) \
+	ia32\stream_encoder_asm$(OBJ)
 
 libFLAC$(LBO): $(OBJECTS) $(LIBS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del libFLAC$(LBO) $(OBJECTS) *.e 2> nul
+	-@del libFLAC$(LBO) $(OBJECTS) *.e 2>nul
 
-bitmath.c:	.\include\private\bitmath.h ..\..\include\FLAC\assert.h
-.\include\private\bitmath.h:	..\..\include\FLAC\ordinals.h
-bitreader.c:	.\include\private\bitmath.h .\include\private\bitreader.h .\include\private\crc.h ..\..\include\FLAC\assert.h
-.\include\private\bitreader.h:	..\..\include\FLAC\ordinals.h
-.\include\private\crc.h:	..\..\include\FLAC\ordinals.h
-bitwriter.c:	.\include\private\bitmath.h .\include\private\bitwriter.h .\include\private\crc.h ..\..\include\FLAC\assert.h ..\..\include\share\alloc.h
-.\include\private\bitwriter.h:	..\..\include\FLAC\ordinals.h
-cpu.c:		.\include\private\cpu.h
-.\include\private\cpu.h:	..\..\include\FLAC\ordinals.h
-crc.c:		.\include\private\crc.h
-fixed.c:	.\include\private\bitmath.h .\include\private\fixed.h ..\..\include\FLAC\assert.h
-.\include\private\fixed.h:	.\include\private\float.h ..\..\include\FLAC\format.h
-.\include\private\float.h:	..\..\include\FLAC\ordinals.h
-float.c:	..\..\include\FLAC\assert.h .\include\private\float.h
-format.c:	..\..\include\FLAC\assert.h ..\..\include\FLAC\format.h .\include\private\format.h
-.\include\private\format.h:	..\..\include\FLAC\format.h
-lpc.c:		..\..\include\FLAC\assert.h ..\..\include\FLAC\format.h .\include\private\bitmath.h .\include\private\lpc.h
-.\include\private\lpc.h:	.\include\private\float.h ..\..\include\FLAC\format.h
-md5.c:		.\include\private\md5.h ..\..\include\share\alloc.h
-.\include\private\md5.h:	..\..\include\FLAC\ordinals.h
-memory.c:	.\include\private\memory.h ..\..\include\FLAC\assert.h ..\..\include\share\alloc.h
-.\include\private\memory.h:	.\include\private\float.h ..\..\include\FLAC\ordinals.h
-metadata_iterators.c:	.\include\private\metadata.h ..\..\include\FLAC\assert.h ..\..\include\FLAC\stream_decoder.h ..\..\include\share\alloc.h
-.\include\private\metadata.h:	..\..\include\FLAC\metadata.h
-metadata_object.c:	.\include\private\metadata.h ..\..\include\FLAC\assert.h ..\..\include\share\alloc.h
-ogg_decoder_aspect.c:	..\..\include\FLAC\assert.h .\include\private\ogg_decoder_aspect.h .\include\private\ogg_mapping.h
-.\include\private\ogg_decoder_aspect.h:	..\..\include\FLAC\ordinals.h ..\..\include\FLAC\stream_decoder.h
-.\include\private\ogg_mapping.h:	..\..\include\FLAC\ordinals.h
-ogg_encoder_aspect.c:	..\..\include\FLAC\assert.h .\include\private\ogg_encoder_aspect.h .\include\private\ogg_mapping.h
-.\include\private\ogg_encoder_aspect.h:	..\..\include\FLAC\ordinals.h ..\..\include\FLAC\stream_encoder.h
-ogg_helper.c:	..\..\include\FLAC\assert.h ..\..\include\share\alloc.h .\include\private\ogg_helper.h .\include\protected\stream_encoder.h
-.\include\private\ogg_helper.h:	..\..\include\FLAC\stream_encoder.h
-.\include\protected\stream_encoder.h:	..\..\include\FLAC\stream_encoder.h .\include\private\ogg_encoder_aspect.h .\include\private\float.h
-ogg_mapping.c:	.\include\private\ogg_mapping.h
-stream_decoder.c:	..\..\include\FLAC\assert.h ..\..\include\share\alloc.h .\include\protected\stream_decoder.h .\include\private\bitreader.h .\include\private\bitmath.h .\include\private\cpu.h .\include\private\crc.h .\include\private\fixed.h .\include\private\format.h .\include\private\lpc.h .\include\private\md5.h .\include\private\memory.h
-.\include\protected\stream_decoder.h:	..\..\include\FLAC\stream_decoder.h .\include\private\ogg_decoder_aspect.h
-stream_encoder.c:	..\..\include\FLAC\assert.h ..\..\include\FLAC\stream_decoder.h ..\..\include\share\alloc.h .\include\protected\stream_encoder.h .\include\private\bitwriter.h .\include\private\bitmath.h .\include\private\crc.h .\include\private\cpu.h .\include\private\fixed.h .\include\private\format.h .\include\private\lpc.h .\include\private\md5.h .\include\private\memory.h .\include\private\ogg_helper.h .\include\private\ogg_mapping.h .\include\private\stream_encoder_framing.h .\include\private\window.h
-.\include\private\stream_encoder_framing.h:	..\..\include\FLAC\format.h
-.\include\private\window.h:	.\include\private\float.h ..\..\include\FLAC\format.h
-stream_encoder_framing.c:	.\include\private\stream_encoder_framing.h .\include\private\crc.h ..\..\include\FLAC\assert.h
-window.c:	..\..\include\FLAC\assert.h ..\..\include\FLAC\format.h .\include\private\window.h
-
+bitmath.o:	bitmath.c ..\..\../libflac/include\FLAC/assert.h 
+bitreader.o:	bitreader.c .\include\private\bitreader.h  ..\..\../libflac/include\FLAC/assert.h
+bitwriter.o:	bitwriter.c .\include\private\bitwriter.h  ..\..\../libflac/include\FLAC/assert.h
+cpu.o:		cpu.c 
+crc.o:		crc.c 
+fixed.o:	fixed.c .\include\private\fixed.h 
+float.o:	float.c .\include\private\float.h 
+format.o:	format.c ..\..\../libflac/include\FLAC/format.h ..\..\include\FLAC\ordinals.h 
+lpc.o:		lpc.c ..\..\../libflac/include\FLAC/format.h ..\..\include\FLAC\ordinals.h .\include\private\lpc.h 
+md5.o:		md5.c ..\..\../libflac/include\share/alloc.h
+memory.o:	memory.c ..\..\../libflac/include\FLAC/assert.h 
+metadata_iterators.o:	metadata_iterators.c ..\..\../libflac/include\FLAC/assert.h  ..\..\../libflac/include\share/alloc.h
+metadata_object.o:	metadata_object.c ..\..\../libflac/include\FLAC/assert.h 
+ogg_decoder_aspect.o:	ogg_decoder_aspect.c .\include\private\ogg_decoder_aspect.h 
+ogg_encoder_aspect.o:	ogg_encoder_aspect.c .\include\private\ogg_encoder_aspect.h 
+ogg_helper.o:	ogg_helper.c ..\..\../libflac/include\share/alloc.h .\include\protected\stream_encoder.h 
+ogg_mapping.o:	ogg_mapping.c 
+stream_decoder.o:	stream_decoder.c ..\..\../libflac/include\share/alloc.h .\include\private\bitreader.h  .\include\private\cpu.h .\include\private\fixed.h .\include\private\lpc.h .\include\private\memory.h
+stream_encoder.o:	stream_encoder.c ..\..\../libflac/include\FLAC/stream_decoder.h ..\..\include\FLAC\format.h ..\..\include\FLAC\ordinals.h .\include\protected\stream_encoder.h  .\include\private\bitmath.h .\include\private\cpu.h .\include\private\format.h .\include\private\md5.h .\include\private\ogg_helper.h .\include\private\stream_encoder_framing.h
+stream_encoder_framing.o:	stream_encoder_framing.c .\include\private\crc.h 
+window.o:	window.c ..\..\../libflac/include\FLAC/format.h ..\..\include\FLAC\ordinals.h 

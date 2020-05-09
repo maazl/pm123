@@ -17,24 +17,6 @@
   comps.2.opts   = "gcc_3"
   comps.2.sig    = "(GCC) 3."
 
-  comps.3.info   = "IBM VisualAge C++ 3.6"
-  comps.3.cc     = "icc.exe"
-  comps.3.args   = ""
-  comps.3.opts   = "icc_36"
-  comps.3.sig    = "Version 3.6"
-
-  comps.4.info   = "Open Watcom C++"
-  comps.4.cc     = "wcl386.exe"
-  comps.4.args   = ""
-  comps.4.opts   = "wcc"
-  comps.4.sig    = "Open Watcom"
-
-  comps.5.info   = "IBM VisualAge C++ 3.0"
-  comps.5.cc     = "icc.exe"
-  comps.5.args   = ""
-  comps.5.opts   = "icc_30"
-  comps.5.sig    = "Version 3"
-
   comps.0        = 5
   comps.selected = 0
 

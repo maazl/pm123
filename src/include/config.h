@@ -6,12 +6,6 @@
 
 #if defined(__GNUC__)
   #include <config_gcc.h>
-#elif defined(__WATCOMC__)
-  #include <config_wcc.h>
-#elif (defined(__IBMC__) && __IBMC__ >  300) || (defined(__IBMCPP__) && __IBMCPP__ >  300)
-  #include <config_icc_36.h>
-#elif (defined(__IBMC__) && __IBMC__ <= 300) || (defined(__IBMCPP__) && __IBMCPP__ <= 300)
-  #include <config_icc_30.h>
 #else
   #error Unsupported compiler.
 #endif

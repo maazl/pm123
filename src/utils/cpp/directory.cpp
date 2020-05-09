@@ -27,7 +27,7 @@
  */
 
 #include "directory.h"
-#include <cpp/container/stringset.h>
+#include "cpp/container/stringset.h"
 #include <strutils.h>
 #include <errorstr.h>
 #include <memory.h>

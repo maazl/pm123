@@ -27,7 +27,7 @@
  */
 
 
-#include "container/stringset.h"
+#include "stringset.h"
 
 void stringset_base::inc_refs()
 { void*const* dp(vector_base::begin());

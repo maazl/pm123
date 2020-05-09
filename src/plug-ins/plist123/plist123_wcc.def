@@ -1,9 +1,0 @@
-SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
-OPTION MANYAUTODATA
-OPTION DESCRIPTION 'PM123 MP3 Decoder'
-
-EXPORT plugin_init      .1
-EXPORT plugin_query     .3
-EXPORT decoder_fileinfo .6
-EXPORT decoder_support  .7
-EXPORT decoder_savefile .13

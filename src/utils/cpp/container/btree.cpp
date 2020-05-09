@@ -30,8 +30,8 @@
 //#define DEBUG_LOG 2
 
 #include "btree.h"
-#include <cpp/cpputil.h>
-#include <cpp/container/vector.h>
+#include "../cpputil.h"
+#include "vector.h"
 #include <memory.h>
 
 

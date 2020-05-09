@@ -6,17 +6,16 @@ DLL     = yes
 TOPDIR  = ..\..\..
 TARGET  = all2
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 all2: gsm610$(LBO) $(MDUMMY)
 
-OBJECTS = add$(CO) decode$(CO) gsm_decode$(CO) gsm_encode$(CO) long_term$(CO)
-OBJECTS = $(OBJECTS) preprocess$(CO) short_term$(CO) code$(CO) gsm_create$(CO)
-OBJECTS = $(OBJECTS) gsm_destroy$(CO) gsm_option$(CO) lpc$(CO) rpe$(CO)
-OBJECTS = $(OBJECTS) table$(CO)
+OBJECTS = add$(CO) decode$(CO) gsm_decode$(CO) gsm_encode$(CO) long_term$(CO) \
+	preprocess$(CO) short_term$(CO) code$(CO) gsm_create$(CO) \
+	gsm_destroy$(CO) gsm_option$(CO) lpc$(CO) rpe$(CO) table$(CO)
 
 gsm610$(LBO): $(LIBS) $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)

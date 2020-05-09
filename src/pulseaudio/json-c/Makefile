@@ -27,10 +27,10 @@ TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 TARGET   = $(A_TARGETS)
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
-OBJECTS = arraylist$(CO) debug$(CO) json_object$(CO) json_tokener$(CO) json_util$(CO) 
-OBJECTS = $(OBJECTS) linkhash$(CO) printbuf$(CO) 
+OBJECTS = arraylist$(CO) debug$(CO) json_object$(CO) json_tokener$(CO) json_util$(CO)  \
+	linkhash$(CO) printbuf$(CO) 
 
 lib$(NAME)$(LBO): $(OBJECTS)
 	-@del $@ 2>nul
@@ -82,18 +82,13 @@ lib$(NAME)$(LBO): $(OBJECTS)
 clean: $(MDUMMY)
 	-@del $(OBJECTS) $(TARGET) 2>nul
 
-arraylist.c:	config.h bits.h arraylist.h
-config.h:	..\..\include\config.h
-..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
-debug.c:	config.h debug.h
-json_object.c:	config.h debug.h printbuf.h linkhash.h arraylist.h json_object.h json_object_private.h
-json_tokener.c:	config.h bits.h debug.h printbuf.h arraylist.h json_object.h json_tokener.h
-json_tokener.h:	json_object.h
-json_util.c:	config.h bits.h debug.h printbuf.h json_object.h json_tokener.h json_util.h
-json_util.h:	json_object.h
-linkhash.c:	linkhash.h
-printbuf.c:	config.h bits.h debug.h printbuf.h
-test1.c:	json.h
-json.h:		bits.h debug.h linkhash.h arraylist.h json_util.h json_object.h json_tokener.h
-test2.c:	json.h
-test3.c:	json.h
+arraylist.o:	arraylist.c bits.h 
+debug.o:	debug.c debug.h
+json_object.o:	json_object.c debug.h linkhash.h json_object.h 
+json_tokener.o:	json_tokener.c bits.h printbuf.h json_object.h 
+json_util.o:	json_util.c bits.h printbuf.h json_tokener.h 
+linkhash.o:	linkhash.c 
+printbuf.o:	printbuf.c bits.h printbuf.h
+test1.o:	test1.c 
+test2.o:	test2.c 
+test3.o:	test3.c 

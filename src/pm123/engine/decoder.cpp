@@ -292,7 +292,7 @@ class DecoderProxy1 : public Decoder, protected ProxyHelper
   ULONG  DLLENTRYP(vdecoder_command      )(void* w, ULONG msg, DECODER_PARAMS* params);
   int    DLLENTRYP(voutput_request_buffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void   DLLENTRYP(voutput_commit_buffer )(void* a, int len, PM123_TIME posmarker);
-  void   DLLENTRYP(voutput_event         )(void* a, DECEVENTTYPE event, void* param);
+  void   DLLENTRYP(voutput_event         )(void* a, DECEVENTTYPE event, const void* param);
   void*  a;
   ULONG  DLLENTRYP(vdecoder_fileinfo )(const char* filename, DECODER_INFO* info);
   ULONG  DLLENTRYP(vdecoder_trackinfo)(const char* drive, int track, DECODER_INFO* info);

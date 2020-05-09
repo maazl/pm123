@@ -3,392 +3,221 @@
 #
 
 VERSION = 1.41
-PARTS   = $(PARTS) src\xio123\xio123.dll
-PARTS   = $(PARTS) src\fft123\fft123.dll
-PARTS   = $(PARTS) src\zlb123\zlb123.dll
-PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
-PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
-PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
-PARTS   = $(PARTS) src\plug-ins\os2audio\os2audio.dll
-PARTS   = $(PARTS) src\plug-ins\oggplay\oggplay.dll
-PARTS   = $(PARTS) src\plug-ins\flac123\flac123.dll
-PARTS   = $(PARTS) src\plug-ins\realeq\realeq.dll
-PARTS   = $(PARTS) src\plug-ins\wavplay\wavplay.dll
-PARTS   = $(PARTS) src\plug-ins\wavout\wavout.dll
-PARTS   = $(PARTS) src\plug-ins\os2rec\os2rec.dll
-PARTS   = $(PARTS) src\plug-ins\pulse123\pulse123.dll
-PARTS   = $(PARTS) src\plug-ins\foldr123\foldr123.dll
-PARTS   = $(PARTS) src\plug-ins\plist123\plist123.dll
-PARTS   = $(PARTS) src\plug-ins\drc123\drc123.dll
-PARTS   = $(PARTS) src\pm123\pm123.exe
-PARTS   = $(PARTS) src\skinutil\skinutil.exe
-PARTS   = $(PARTS) doc\pm123.inf
-PARTS   = $(PARTS) doc\pm123_pdk.inf
+PARTS =	src\xio123\xio123.dll \
+	src\fft123\fft123.dll \
+	src\zlb123\zlb123.dll \
+	src\plug-ins\analyzer\analyzer.dll \
+	src\plug-ins\cddaplay\cddaplay.dll \
+	src\plug-ins\mpg123\mpg123.dll \
+	src\plug-ins\os2audio\os2audio.dll \
+	src\plug-ins\oggplay\oggplay.dll \
+	src\plug-ins\flac123\flac123.dll \
+	src\plug-ins\realeq\realeq.dll \
+	src\plug-ins\wavplay\wavplay.dll \
+	src\plug-ins\wavout\wavout.dll \
+	src\plug-ins\os2rec\os2rec.dll \
+	src\plug-ins\pulse123\pulse123.dll \
+	src\plug-ins\foldr123\foldr123.dll \
+	src\plug-ins\plist123\plist123.dll \
+	src\plug-ins\drc123\drc123.dll \
+	src\plug-ins\aacplay\aacplay.dll \
+	src\pm123\pm123.exe \
+	src\skinutil\skinutil.exe \
+	doc\pm123.inf \
+	doc\pm123_pdk.inf
 
-LIBPARTS= $(LIBPARTS) src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO)
-LIBPARTS= $(LIBPARTS) src\gbm123\libgbm$(LBO)
-LIBPARTS= $(LIBPARTS) src\snd123\src\sndfile$(LBO) src\libmpg123\src\libmpg123$(LBO)
-LIBPARTS= $(LIBPARTS) src\ogg123\src\libogg$(LBO) src\vrb123\lib\libvorbis$(LBO)
-LIBPARTS= $(LIBPARTS) src\libflac\src\libFLAC\libFLAC$(LBO)
-LIBPARTS= $(LIBPARTS) src\pulseaudio\pulsecore\pulsecore$(LBO) src\pulseaudio\pulse\pulse$(LBO)
+LIBPARTS= src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) \
+	src\gbm123\libgbm$(LBO) \
+	src\snd123\src\sndfile$(LBO) src\libmpg123\libmpg123$(LBO) \
+	src\ogg123\src\libogg$(LBO) src\vrb123\lib\libvorbis$(LBO) \
+	src\libflac\src\libFLAC\libFLAC$(LBO) \
+	src\pulseaudio\pulsecore\libpulsecore$(LBO) src\pulseaudio\pulse\libpulse$(LBO) \
+	src\pulseaudio\json-c\libjson$(LBO) \
+	src\libfaad\libfaad\libfaad$(LBO)
 
 TARGET  = $(PARTS)
 
-!include src\config\makerules
+include src\config\makerules
 
 all: $(TARGET)
 
 src\utils\utilfct$(LBO):
-	cd src\utils
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\utils $(MFLAGS)
 
 src\utils\cpp\cpputil$(LBO) src\utils\cpp\cpputil_plugin$(LBO):
-	cd src\utils\cpp
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\utils\cpp $(MFLAGS)
 
 src\gbm123\libgbm$(LBO):
-	cd src\gbm123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\gbm123 $(MFLAGS)
 
 src\fft123\fft123.dll src\fft123\fft123$(LBI): src\utils\utilfct$(LBO)
-	cd src\fft123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\fft123 $(MFLAGS)
 
 src\xio123\xio123.dll src\xio123\xio123$(LBI): src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO)
-	cd src\xio123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\xio123 $(MFLAGS)
 
-src\libmpg123\src\libmpg123$(LBO):
-	cd src\libmpg123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+src\libmpg123\libmpg123$(LBO):
+	@$(MAKE) -C src\libmpg123 $(MFLAGS)
 
 src\snd123\src\sndfile$(LBO):
-	cd src\snd123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\snd123 $(MFLAGS)
 
 src\ogg123\src\libogg$(LBO):
-	cd src\ogg123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\ogg123 $(MFLAGS)
 
 src\vrb123\lib\libvorbis$(LBO): src\ogg123\src\libogg$(LBO)
-	cd src\vrb123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\vrb123 $(MFLAGS)
 
 src\libflac\src\libFLAC\libFLAC$(LBO):
-	cd src\libflac\src\libFLAC
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..\..
+	@$(MAKE) -C src\libflac\src\libFLAC $(MFLAGS)
 
 src\zlb123\zlb123.dll src\zlb123\zlb123$(LBI):
-	cd src\zlb123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\zlb123 $(MFLAGS)
 
 src\pulseaudio\libspeex\libspeex$(LBO):
-	cd src\pulseaudio\libspeex
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\pulseaudio\libspeex $(MFLAGS)
 
 src\pulseaudio\json-c\libjson$(LBO):
-	cd src\pulseaudio\json-c
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\pulseaudio\json-c $(MFLAGS)
 
-src\pulseaudio\pulsecore\pulsecore$(LBO):
-	cd src\pulseaudio\pulsecore
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+src\pulseaudio\pulsecore\libpulsecore$(LBO):
+	@$(MAKE) -C src\pulseaudio\pulsecore $(MFLAGS)
 
-src\pulseaudio\pulse\pulse$(LBO):
-	cd src\pulseaudio\pulse
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+src\pulseaudio\pulse\libpulse$(LBO):
+	@$(MAKE) -C src\pulseaudio\pulse $(MFLAGS)
+
+src\libfaad\libfaad\libfaad$(LBO):
+	@$(MAKE) -C src\libfaad\libfaad $(MFLAGS)
+
+src\libfaad\common\mp4ff\mp4ff$(LBO):
+	@$(MAKE) -C src\libfaad\common\mp4ff $(MFLAGS)
 
 src\plug-ins\analyzer\analyzer.dll: src\utils\utilfct$(LBO) src\fft123\fft123$(LBI)
-	cd src\plug-ins\analyzer
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\analyzer $(MFLAGS)
 
 src\plug-ins\cddaplay\cddaplay.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI)
-	cd src\plug-ins\cddaplay
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\cddaplay $(MFLAGS)
 
-src\plug-ins\mpg123\mpg123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\zlb123\zlb123$(LBI) src\libmpg123\src\libmpg123$(LBO)
-	cd src\plug-ins\mpg123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+src\plug-ins\mpg123\mpg123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\zlb123\zlb123$(LBI) src\libmpg123\libmpg123$(LBO)
+	@$(MAKE) -C src\plug-ins\mpg123 $(MFLAGS)
 
 src\plug-ins\os2audio\os2audio.dll: src\utils\utilfct$(LBO)
-	cd src\plug-ins\os2audio
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\os2audio $(MFLAGS)
 
 src\plug-ins\realeq\realeq.dll: src\utils\utilfct$(LBO) src\fft123\fft123$(LBI)
-	cd src\plug-ins\realeq
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\realeq $(MFLAGS)
 
 src\plug-ins\wavplay\wavplay.dll: src\utils\utilfct$(LBO) src\snd123\src\sndfile$(LBO) src\xio123\xio123$(LBI)
-	cd src\plug-ins\wavplay
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\wavplay $(MFLAGS)
 
 src\plug-ins\wavout\wavout.dll: src\utils\utilfct$(LBO)
-	cd src\plug-ins\wavout
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\wavout $(MFLAGS)
 
 src\plug-ins\oggplay\oggplay.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\ogg123\src\libogg$(LBO) src\vrb123\lib\libvorbis$(LBO)
-	cd src\plug-ins\oggplay
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\oggplay $(MFLAGS)
 
 src\plug-ins\flac123\flac123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\libflac\src\libFLAC\libFLAC$(LBO)
-	cd src\plug-ins\flac123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\flac123 $(MFLAGS)
 
 src\plug-ins\os2rec\os2rec.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\os2rec $(MFLAGS)
 
-src\plug-ins\pulse123\pulse123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\pulseaudio\pulsecore\pulsecore$(LBO) src\pulseaudio\pulse\pulse$(LBO) src\pulseaudio\json-c\libjson$(LBO)
-	cd src\plug-ins\pulse123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+src\plug-ins\pulse123\pulse123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\pulseaudio\pulsecore\libpulsecore$(LBO) src\pulseaudio\pulse\libpulse$(LBO) src\pulseaudio\json-c\libjson$(LBO)
+	@$(MAKE) -C src\plug-ins\pulse123 $(MFLAGS)
 
 src\plug-ins\foldr123\foldr123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
-	cd src\plug-ins\foldr123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\foldr123 $(MFLAGS)
 
 src\plug-ins\plist123\plist123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
-	cd src\plug-ins\plist123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\plist123 $(MFLAGS)
 
 src\plug-ins\drc123\drc123.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO)
-	cd src\plug-ins\drc123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..\..
+	@$(MAKE) -C src\plug-ins\drc123 $(MFLAGS)
+
+src\plug-ins\aacplay\aacplay.dll: src\utils\utilfct$(LBO) src\utils\cpp\cpputil_plugin$(LBO) src\xio123\xio123$(LBI) src\zlb123\zlb123$(LBI) src\libfaad\libfaad\libfaad$(LBO) src\libfaad\common\mp4ff\mp4ff$(LBO)
+	@$(MAKE) -C src\plug-ins\aacplay $(MFLAGS)
 
 src\pm123\pm123.exe: src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\xio123\xio123$(LBI) src\gbm123\libgbm$(LBO)
-	cd src\pm123
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\pm123 $(MFLAGS)
 
 src\skinutil\skinutil.exe: src\utils\utilfct$(LBO) src\gbm123\libgbm$(LBO)
-	cd src\skinutil
-	@$(MAKE) $(MFLAGS)
-	@cd ..\..
+	@$(MAKE) -C src\skinutil $(MFLAGS)
 
 doc\pm123.inf doc\pm123_pdk.inf: $(MDUMMY)
-	cd doc
-	@$(MAKE) $(MFLAGS)
-	@cd ..
+	@$(MAKE) -C doc $(MFLAGS)
 
 cleanparts: $(MDUMMY)
 	-@del pm123.exe $(PARTS) $(LIBPARTS) 2> nul
 
 clean:  clean123 $(MDUMMY)
-	cd src\gbm123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\fft123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\libmpg123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\snd123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\ogg123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\vrb123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\pulseaudio\libspeex
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\pulseaudio\json-c
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\pulseaudio\pulsecore
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\pulseaudio\pulse
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\zlb123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd doc
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..
+	@$(MAKE) -C src\gbm123 $(MFLAGS) clean
+	@$(MAKE) -C src\fft123 $(MFLAGS) clean
+	@$(MAKE) -C src\libmpg123 $(MFLAGS) clean
+	@$(MAKE) -C src\snd123 $(MFLAGS) clean
+	@$(MAKE) -C src\ogg123 $(MFLAGS) clean
+	@$(MAKE) -C src\vrb123 $(MFLAGS) clean
+	@$(MAKE) -C src\libflac\src\libFLAC $(MFLAGS) clean
+	@$(MAKE) -C src\pulseaudio\libspeex $(MFLAGS) clean
+	@$(MAKE) -C src\pulseaudio\json-c $(MFLAGS) clean
+	@$(MAKE) -C src\pulseaudio\pulsecore $(MFLAGS) clean
+	@$(MAKE) -C src\pulseaudio\pulse $(MFLAGS) clean
+	@$(MAKE) -C src\zlb123 $(MFLAGS) clean
+	@$(MAKE) -C doc $(MFLAGS) clean
 
 clean123: $(MDUMMY)
-	cd src\utils
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\utils\cpp
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\xio123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd src\plug-ins\analyzer
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\cddaplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\mpg123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2audio
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\realeq
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\wavplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\wavout
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\oggplay
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\flac123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\pulse123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\foldr123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\plist123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\plug-ins\drc123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
-	cd src\pm123
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..
-	cd doc
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..
+	@$(MAKE) -C src\utils $(MFLAGS) clean
+	@$(MAKE) -C src\utils\cpp $(MFLAGS) clean
+	@$(MAKE) -C src\xio123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\analyzer $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\cddaplay $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\mpg123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\os2audio $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\os2rec $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\realeq $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\wavplay $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\wavout $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\oggplay $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\flac123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\os2rec $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\pulse123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\foldr123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\plist123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\drc123 $(MFLAGS) clean
+	@$(MAKE) -C src\plug-ins\aacplay $(MFLAGS) clean
+	@$(MAKE) -C src\pm123 $(MFLAGS) clean
+	@$(MAKE) -C doc $(MFLAGS) clean
 
 depend: $(MDUMMY)
-	cd src\utils
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\utils\cpp
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\gbm123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\xio123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\libmpg123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\snd123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\ogg123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\vrb123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\pulseaudio\libspeex
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\pulseaudio\json-c
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\pulseaudio\pulsecore
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\pulseaudio\pulse
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\analyzer
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\cddaplay
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\mpg123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\realeq
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\wavplay
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\wavout
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\oggplay
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\flac123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\os2audio
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\os2rec
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\pulse123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\foldr123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\plist123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\plug-ins\drc123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..\..
-	cd src\pm123
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\main
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
-	cd src\skinutil
-	@$(MAKE) $(MFLAGS) depend
-	@cd ..\..
+	@$(MAKE) -C src\utils $(MFLAGS) depend
+	@$(MAKE) -C src\utils\cpp $(MFLAGS) depend
+	@$(MAKE) -C src\gbm123 $(MFLAGS) depend
+	@$(MAKE) -C src\xio123 $(MFLAGS) depend
+	@$(MAKE) -C src\libmpg123 $(MFLAGS) depend
+	@$(MAKE) -C src\snd123 $(MFLAGS) depend
+	@$(MAKE) -C src\ogg123 $(MFLAGS) depend
+	@$(MAKE) -C src\vrb123 $(MFLAGS) depend
+	@$(MAKE) -C src\libflac\src\libFLAC $(MFLAGS) depend
+	@$(MAKE) -C src\pulseaudio\libspeex $(MFLAGS) depend
+	@$(MAKE) -C src\pulseaudio\json-c $(MFLAGS) depend
+	@$(MAKE) -C src\pulseaudio\pulsecore $(MFLAGS) depend
+	@$(MAKE) -C src\pulseaudio\pulse $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\analyzer $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\cddaplay $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\mpg123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\realeq $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\wavplay $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\wavout $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\oggplay $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\flac123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\os2audio $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\os2rec $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\pulse123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\foldr123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\plist123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\drc123 $(MFLAGS) depend
+	@$(MAKE) -C src\plug-ins\aacplay $(MFLAGS) depend
+	@$(MAKE) -C src\pm123 $(MFLAGS) depend
+	@$(MAKE) -C src\skinutil $(MFLAGS) depend
 
 dist: distzip distpackage $(MDUMMY)
 
@@ -414,6 +243,7 @@ distfiles: filesclean $(PARTS) $(MDUMMY)
 	copy src\plug-ins\foldr123\foldr123.dll dist\files
 	copy src\plug-ins\plist123\plist123.dll dist\files
 	copy src\plug-ins\drc123\drc123.dll     dist\files
+	copy src\plug-ins\aacplay\aacplay.dll     dist\files
 	copy src\pm123\pm123.exe        dist\files
 	copy src\pm123\default.skn      dist\files
 	copy src\skinutil\skinutil.exe  dist\files
@@ -439,11 +269,11 @@ distpackage: distfiles $(MDUMMY)
 
 distzip: distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).zip del dist\pm123-$(VERSION).zip
-!ifdef DEBUG_LOG
+ifdef DEBUG_LOG
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION)-debug.zip * -x .svn CVS\* .cvsignore "
-!else
+else
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x .svn CVS\* .cvsignore "
-!endif
+endif
 
 distsrc: $(MDUMMY)
 	-@del dist\pm123-$(VERSION)-src.zip  2> nul
@@ -503,8 +333,4 @@ filesclean: $(MDUMMY)
 	-@del dist\files\*.log          2> nul
 
 test: distfiles
-	cd test
-	@$(MAKE) $(MFLAGS)
-	@cd ..
-
-
+	@$(MAKE) -C test $(MFLAGS)

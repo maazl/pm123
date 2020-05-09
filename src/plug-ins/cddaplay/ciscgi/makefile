@@ -5,14 +5,14 @@
 DLL     = yes
 TOPDIR  = ..\..\..
 
-!include $(TOPDIR)\config\makerules
+include $(TOPDIR)\config\makerules
 
 OBJECTS = cgifldld$(CO) cgiupper$(CO) urldcode$(CO) urlncode$(CO) urlvalue$(CO)
 
 all: ciscgi$(LBO) $(MDUMMY)
 
 ciscgi$(LBO): $(OBJECTS)
-	if exist $@ del $@
+	-@del $@ 2>nul
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 cgifldld$(CO): cgifldld.c cisrcl.h

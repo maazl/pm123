@@ -50,6 +50,15 @@
 #define HAVE_FTRUNCATE    1 /* Define to 1 if you have the `ftruncate' function. */
 #define HAVE_LRINT        1 /* Define to 1 if you have C99's `lrint' function. */
 #define HAVE_LRINTF       1 /* Define to 1 if you have C99's `lrintf' function. */
+#define HAVE_MEMCPY       1 /* Define to 1 if you have the `memcpy' function. */
+#define HAVE_STRCHR       1 /* Define to 1 if you have the `strchr' function. */
+#define HAVE_SINF         1 /* Define to 1 if you have the `sinf' function. */
+#define HAVE_COSF         1 /* Define to 1 if you have the `cosf' function. */
+#define HAVE_LOGF         1 /* Define to 1 if you have the `logf' function. */
+#define HAVE_EXPF         1 /* Define to 1 if you have the `expf' function. */
+#define HAVE_FLOORF       1 /* Define to 1 if you have the `floorf' function. */
+#define HAVE_CEILF        1 /* Define to 1 if you have the `ceilf' function. */
+#define HAVE_SQRTF        1 /* Define to 1 if you have the `sqrtf' function. */
 #define HAVE_SSIZE_T      1 /* Define to 1 if the system has the type `ssize_t'. */
 #undef  HAVE_CLOCK_GETTIME  /* Define to 1 if you have the `clock_gettime' function. */
 

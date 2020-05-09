@@ -32,8 +32,8 @@
 #include <utilfct.h>
 #include "windowbase.h"
 
-#include <cpp/smartptr.h>
-#include <cpp/mutex.h>
+#include "cpp/smartptr.h"
+#include "cpp/mutex.h"
 #include <os2.h>
 
 #include <stdlib.h>

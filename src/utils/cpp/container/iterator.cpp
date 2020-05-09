@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cpp/container/iterator.h>
+#include "iterator.h"
 
 
 vector_iterator_base::vector_iterator_base(vector_base& source)

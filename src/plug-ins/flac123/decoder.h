@@ -114,7 +114,7 @@ typedef struct DECODER_STRUCT : public DecoderBase
   void* A;
   int   DLLENTRYP(OutRequestBuffer)(void* a, const FORMAT_INFO2* format, float** buf);
   void  DLLENTRYP(OutCommitBuffer )(void* a, int len, PM123_TIME posmarker);
-  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, void* param);
+  void  DLLENTRYP(DecEvent        )(void* a, DECEVENTTYPE event, const void* param);
  private: // State
   DECODERSTATE State;
   int          DecoderTID;
@@ -138,7 +138,7 @@ typedef struct DECODER_STRUCT : public DecoderBase
   void Setup(void* a,
     int  DLLENTRYP(req)(void*, const FORMAT_INFO2*, float**),
     void DLLENTRYP(commit)(void*, int, PM123_TIME),
-    void DLLENTRYP(event)(void*, DECEVENTTYPE, void*) )
+    void DLLENTRYP(event)(void*, DECEVENTTYPE, const void*) )
   { Reset(); A = a; OutRequestBuffer = req; OutCommitBuffer = commit; DecEvent = event; }
 
   PLUGIN_RC Play(const xstring& url, PM123_TIME start);

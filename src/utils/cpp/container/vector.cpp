@@ -27,8 +27,8 @@
  */
 
 
-#include "container/vector.h"
-#include "cpputil.h"
+#include "vector.h"
+#include "../cpputil.h"
 
 #include <memory.h>
 

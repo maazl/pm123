@@ -108,7 +108,7 @@ class GlueImp : private Glue
   PROXYFUNCDEF int DLLENTRY GlueRequestBuffer(void* a, const FORMAT_INFO2* format, float** buf);
   PROXYFUNCDEF void DLLENTRY GlueCommitBuffer(void* a, int len, PM123_TIME posmarker);
   // 4 callback interface
-  PROXYFUNCDEF void DLLENTRY DecEventHandler(void* a, DECEVENTTYPE event, void* param);
+  PROXYFUNCDEF void DLLENTRY DecEventHandler(void* a, DECEVENTTYPE event, const void* param);
   PROXYFUNCDEF void DLLENTRY OutEventHandler(void* w, OUTEVENTTYPE event);
 };
 
@@ -611,7 +611,7 @@ GlueCommitBuffer(void* a, int len, PM123_TIME posmarker)
 }
 
 PROXYFUNCIMP(void DLLENTRY, GlueImp)
-DecEventHandler(void* a, DECEVENTTYPE event, void* param)
+DecEventHandler(void* a, DECEVENTTYPE event, const void* param)
 { DEBUGLOG(("GlueImp::DecEventHandler(%p, %d, %p)\n", a, event, param));
   // Discard bad events.
   if (a != GlueImp::Procs.A)

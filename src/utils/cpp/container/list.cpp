@@ -27,7 +27,7 @@
  */
 
 
-#include "container/list.h"
+#include "list.h"
 
 #include <debuglog.h>
 
