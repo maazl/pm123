@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1072" level="3" lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+    <title>Advanced Audio Decoder</title>
+    <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+    <meta content="Marcel M&uuml;ller" name="author">
+  </head>
+  <body>
+    <h2>PM123's Advanced Audio Decoder</h2>
+    <p>The AAC Decoder can handle <em>AAC audio files and streams</em>. It uses the free <a href="https://packages.debian.org/de/bullseye/libfaad2">libfaad2
+        decoder library</a> version 2.9.1 from the Debian repository.</p>
+    <h3>Supported file formats</h3>
+    <ul>
+      <li>Supports high efficiency encoding with SBR (<span class="st"><span class="st">Spectral Band Replication</span></span>).</li>
+      <li>No support for DRM protected files like iTunes.</li>
+    </ul>
+    <p><b>MPEG 4 Audio (M4A)</b></p>
+    <ul>
+      <li>Read <em>QuickTime meta data</em> tags. (no writing so far).</li>
+      <li>Fast seek support.</li>
+    </ul>
+    <p><b>ADTS and ADIF streams</b> (e.g. <em>Icecast, SHOUTcast</em>)</p>
+    <ul>
+      <li><em>Read and ID3v2.x tags.</em> (no writing so far)</li>
+      <li>No seek support so far if the streams are saves as file. (Seeking ADTS is not reliable anyways.)</li>
+      <li>No fast forward/rewind for the same reason.</li>
+    </ul>
+    <h3>Hints</h3>
+    <ul>
+      <li>Place the <code>aacplay.dll</code> plug-in <i>before</i> <code>mpg123.dll</code>, because mpg123 tends to identify ADTS
+        headers as MP3, but fails to play them of course.</li>
+    </ul>
+    <ul>
+    </ul>
+  </body>
+</html>

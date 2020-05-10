@@ -117,6 +117,7 @@ const amp_cfg Cfg::Default =
 , "foldr123.dll?enabled=true\n"
   "flac123.dll?enabled=true\n"
   "oggplay.dll?enabled=true\n"
+  "aacplay.dll?enabled=true\n"
   "mpg123.dll?enabled=true\n"
   "wavplay.dll?enabled=true\n"
   "plist123.dll?enabled=true&filetypes=Playlist\n"

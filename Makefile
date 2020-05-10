@@ -2,7 +2,7 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.41
+VERSION = 1.42b1
 PARTS =	src\xio123\xio123.dll \
 	src\fft123\fft123.dll \
 	src\zlb123\zlb123.dll \
