@@ -44,7 +44,7 @@ OBJECTS2 = protocol-cli$(CO) protocol-esound$(CO) \
 	start-child$(CO) strbuf$(CO) strlist$(CO) svolume_arm$(CO) \
 	svolume_c$(CO) svolume_mmx$(CO) svolume_sse$(CO) tagstruct$(CO) \
 	thread-mq$(CO) thread-os2$(CO) time-smoother$(CO) \
-	tokenizer$(CO) usergroup$(CO) ffmpeg/resample2$(CO)
+	tokenizer$(CO) usergroup$(CO) ffmpeg\resample2$(CO)
 
 libpulsecore$(LBO): $(OBJECTS) $(OBJECTS2)
 	-@del $@ 2>nul
@@ -52,9 +52,9 @@ libpulsecore$(LBO): $(OBJECTS) $(OBJECTS2)
 	$(LB) $@ $(OBJECTS2) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del libpulsecore$(LBO) 2> nul
-	-@del $(OBJECTS)    2> nul
-	-@del $(OBJECTS2)    2> nul
+	-@del libpulsecore$(LBO) 2>nul
+	-@del $(OBJECTS) 2>nul
+	-@del $(OBJECTS2) 2>nul  
 
 dllmain.o:	dllmain.c 
 arpa-inet.o:	arpa-inet.c ..\..\pulseaudio\pulsecore/macro.h  ..\..\pulseaudio\pulsecore/core-util.h arpa-inet.h

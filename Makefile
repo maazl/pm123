@@ -153,6 +153,7 @@ clean:  clean123 $(MDUMMY)
 	@$(MAKE) -C src\gbm123 $(MFLAGS) clean
 	@$(MAKE) -C src\fft123 $(MFLAGS) clean
 	@$(MAKE) -C src\libmpg123 $(MFLAGS) clean
+	@$(MAKE) -C src\libfaad $(MFLAGS) clean
 	@$(MAKE) -C src\snd123 $(MFLAGS) clean
 	@$(MAKE) -C src\ogg123 $(MFLAGS) clean
 	@$(MAKE) -C src\vrb123 $(MFLAGS) clean
@@ -185,6 +186,7 @@ clean123: $(MDUMMY)
 	@$(MAKE) -C src\plug-ins\drc123 $(MFLAGS) clean
 	@$(MAKE) -C src\plug-ins\aacplay $(MFLAGS) clean
 	@$(MAKE) -C src\pm123 $(MFLAGS) clean
+	@$(MAKE) -C src\skinutil $(MFLAGS) clean
 	@$(MAKE) -C doc $(MFLAGS) clean
 
 depend: $(MDUMMY)
@@ -193,6 +195,7 @@ depend: $(MDUMMY)
 	@$(MAKE) -C src\gbm123 $(MFLAGS) depend
 	@$(MAKE) -C src\xio123 $(MFLAGS) depend
 	@$(MAKE) -C src\libmpg123 $(MFLAGS) depend
+	@$(MAKE) -C src\libfaad $(MFLAGS) depend
 	@$(MAKE) -C src\snd123 $(MFLAGS) depend
 	@$(MAKE) -C src\ogg123 $(MFLAGS) depend
 	@$(MAKE) -C src\vrb123 $(MFLAGS) depend
