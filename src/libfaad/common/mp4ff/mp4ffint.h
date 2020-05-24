@@ -163,6 +163,14 @@ typedef struct
     uint32_t count;
 } mp4ff_metadata_t;
 
+/* edit list entry */
+typedef struct
+{
+    uint32_t track_duration;
+    uint32_t media_time;
+    uint32_t media_rate;
+} mp4ff_elst_t;
+
 typedef struct
 {
     int32_t type;
