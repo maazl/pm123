@@ -39,6 +39,7 @@
 #include <fileutil.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <math.h>
 
 #include <neaacdec.h>
 
@@ -133,13 +134,25 @@ int Mp4Decoder::Init(mp4ff_t* mp4)
       break;
   }
 
-  Songlength = -1;
+  SongLength = -1;
+  SongOffset = 0;
   FileTime = mp4ff_get_track_duration_use_offsets(MP4stream, Track);
   TimeScale = mp4ff_time_scale(MP4stream, Track);
   if (TimeScale < 0)
     return -1;
   if (FileTime != -1)
-    Songlength = ((double)FileTime) / TimeScale + 0.5;
+    SongLength = (double)FileTime / TimeScale;
+
+  // honor edit list for gapless playback
+  const mp4ff_elst_t* edit_list;
+  int entries = mp4ff_get_edit_list(MP4stream, Track, &edit_list);
+  if (entries && edit_list->media_time) // some M4A contain trash edit list entries => ignore them
+  { SongOffset = (double)edit_list->media_time / TimeScale;
+    SongLength = edit_list->track_duration;
+    while (--entries)
+      SongLength += (++edit_list)->track_duration;
+    SongLength /= TimeScale;
+  }
 
   return 0;
 }
@@ -301,12 +314,20 @@ void Mp4DecoderThread::DecoderThread()
   NumFrames = mp4ff_num_samples(MP4stream, Track);
   CurrentFrame = 0;
 
-  // After opening a new file we so are in its beginning.
-  if (JumpToPos == 0)
+  // After opening a new file we so are in its beginning, unless gapless
+  if (JumpToPos == 0 && !SongOffset)
     JumpToPos = -1;
 
   // Decoder frame buffer
   buffer.reset(mp4ff_get_max_samples_size(MP4stream, Track));
+
+  // always decode frame 0 to keep neaacdec happy
+  int32_t frame_size;
+  { Mutex::Lock lock(Mtx);
+    frame_size = mp4ff_read_sample_v2(MP4stream, Track, CurrentFrame, buffer.get());
+  }
+  NeAACDecFrameInfo frame_info;
+  NeAACDecDecode(FAAD, &frame_info, buffer.get(), frame_size);
 
   for(;;)
   { Play.Wait();
@@ -329,7 +350,7 @@ void Mp4DecoderThread::DecoderThread()
       if (newpos >= 0)
       { DEBUGLOG(("Mp4DecoderThread:seek to %f\n", newpos));
         NextSkip = newpos + seek_window;
-        { CurrentFrame = mp4ff_find_sample_use_offsets(MP4stream, Track, (int64_t)(newpos * TimeScale), &discardSamples);
+        { CurrentFrame = mp4ff_find_sample_use_offsets(MP4stream, Track, (int64_t)((newpos + SongOffset) * TimeScale + .5), &discardSamples);
           NeAACDecPostSeekReset(FAAD, CurrentFrame);
           newpos = JumpToPos;
           JumpToPos = -1;
@@ -339,8 +360,12 @@ void Mp4DecoderThread::DecoderThread()
           (*DecEvent)(A, DECEVENT_SEEKSTOP, NULL);
         if (CurrentFrame < 0 || CurrentFrame > NumFrames)
           break; // Seek out of range => begin/end of song
-        PlayedSecs = (double)(mp4ff_get_sample_position(MP4stream, Track, CurrentFrame) + discardSamples) / TimeScale;
+        PlayedSecs = (double)(mp4ff_get_sample_position(MP4stream, Track, CurrentFrame) + discardSamples) / TimeScale + SongOffset;
       }
+
+      // Beyond end?
+      if (PlayedSecs >= SongLength)
+        break;
 
       int32_t frame_duration;
       if (CurrentFrame == 0)
@@ -362,7 +387,6 @@ void Mp4DecoderThread::DecoderThread()
 
       // AAC decode
       DEBUGLOG(("Mp4DecoderThread:NeAACDecDecode: %u {%08x,%08x,...}[%i]\n", CurrentFrame, ((int32_t*)buffer.get())[0], ((int32_t*)buffer.get())[1], frame_size));
-      NeAACDecFrameInfo frame_info;
       float* source = (float*)NeAACDecDecode(FAAD, &frame_info, buffer.get(), frame_size);
 
       if (frame_info.error > 0)
@@ -375,6 +399,15 @@ void Mp4DecoderThread::DecoderThread()
       discardSamples *= frame_info.samplerate / TimeScale; // SBR rescale
       source += frame_info.channels * discardSamples; // skip some data?
       frame_duration = frame_info.samples / frame_info.channels - discardSamples;
+      if (frame_duration <= 0)
+        continue; // empty frame?
+
+      // cut if beyond SongLength
+      if (PlayedSecs + frame_duration / frame_info.samplerate > SongLength)
+      { frame_duration = (int)floor((SongLength - PlayedSecs * frame_info.samplerate + .5));
+        if (frame_duration <= 0)
+          break;
+      }
 
       for (;;)
       { FORMAT_INFO2 output_format;

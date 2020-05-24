@@ -178,6 +178,8 @@ static uint8_t mp4ff_atom_name_to_type(const int8_t a, const int8_t b,
 
     if (mp4ff_atom_compare(a,b,c,d, 'e','d','t','s'))
         return ATOM_EDTS;
+    else if (mp4ff_atom_compare(a,b,c,d, 'e','l','s','t'))
+        return ATOM_ELST;
     else if (mp4ff_atom_compare(a,b,c,d, 'e','s','d','s'))
         return ATOM_ESDS;
     else if (mp4ff_atom_compare(a,b,c,d, 'f','t','y','p'))
@@ -619,6 +621,31 @@ static int32_t mp4ff_read_mdhd(mp4ff_t *f)
     mp4ff_read_int16(f);
     return 1;
 }
+
+static int32_t mp4ff_read_elst(mp4ff_t *f)
+{
+    mp4ff_track_t* p_track = f->track[f->total_tracks - 1];
+    int32_t i;
+
+    mp4ff_read_char(f); /* version */
+    mp4ff_read_int24(f); /* flags */
+
+    i = p_track->elst_entry_count = mp4ff_read_int32(f);
+    if (p_track->elst_entry_count != 0)
+    {
+        mp4ff_elst_t* ep = p_track->elst_table = (mp4ff_elst_t*)malloc(p_track->elst_entry_count * sizeof(mp4ff_elst_t));
+        while (i--)
+        {
+            ep->track_duration = mp4ff_read_int32(f);
+            ep->media_time = mp4ff_read_int32(f);
+            ep->media_rate = mp4ff_read_int32(f);
+            ++ep;
+        }
+    }
+
+    return 1;
+}
+
 #ifdef USE_TAGGING
 static int32_t mp4ff_read_meta(mp4ff_t *f, const uint64_t size)
 {
@@ -675,6 +702,9 @@ int32_t mp4ff_atom_read(mp4ff_t *f, const int32_t size, const uint8_t atom_type)
     } else if (atom_type == ATOM_MDHD) {
         /* track header */
         mp4ff_read_mdhd(f);
+    } else if (atom_type == ATOM_ELST) {
+        /* track header */
+        mp4ff_read_elst(f);
 #ifdef USE_TAGGING
     } else if (atom_type == ATOM_META) {
         /* iTunes Metadata box */

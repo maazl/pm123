@@ -49,8 +49,8 @@ class Mp4Decoder
   int32_t       TimeScale;
   int           Samplerate;
   int           Channels;
- private:
-  double        Songlength;
+  double        SongLength; ///< length of entire media
+  double        SongOffset; ///< start offset of media (typically encoder delay)
 
  protected:
   void          SetFile(XFILE* file)  { Callbacks.user_data = file; }
@@ -66,7 +66,7 @@ class Mp4Decoder
 
   int           GetChannels() const   { return Channels; }
   int           GetSamplerate() const { return Samplerate; }
-  double        GetSonglength() const { return Songlength; }
+  double        GetSonglength() const { return SongLength; }
   long          GetBitrate() const    { return mp4ff_get_avg_bitrate(MP4stream, Track); }
 
   /// Opens MP4 file. Returns 0 if it successfully opens the file.

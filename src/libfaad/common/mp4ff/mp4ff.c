@@ -86,6 +86,8 @@ void mp4ff_close(mp4ff_t *ff)
 				free(ff->track[i]->ctts_sample_count);
 			if (ff->track[i]->ctts_sample_offset)
 				free(ff->track[i]->ctts_sample_offset);
+            if (ff->track[i]->elst_table)
+                free(ff->track[i]->elst_table);
 #ifdef ITUNES_DRM
             if (ff->track[i]->p_drms)
                 drms_free(ff->track[i]->p_drms);
@@ -114,7 +116,7 @@ static int need_parse_when_meta_only(uint8_t atom_type)
 {
 	switch(atom_type)
 	{
-	case ATOM_EDTS:
+//	case ATOM_EDTS:
 //	case ATOM_MDIA:
 //	case ATOM_MINF:
 	case ATOM_DRMS:
@@ -321,6 +323,11 @@ int32_t mp4ff_get_max_samples_size(const mp4ff_t *f, const int track)
     return bytes;
 }
 
+int32_t mp4ff_get_edit_list(const mp4ff_t *f, const int32_t track, const mp4ff_elst_t** list)
+{
+    *list = f->track[track]->elst_table;
+    return f->track[track]->elst_entry_count;
+}
 
 
 uint32_t mp4ff_get_sample_rate(const mp4ff_t *f, const int32_t track)

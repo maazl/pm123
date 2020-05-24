@@ -94,6 +94,8 @@ extern "C" {
 #define ATOM_EPISODE        171
 #define ATOM_PODCAST        172
 
+#define ATOM_ELST 192
+
 #define ATOM_UNKNOWN 255
 #define ATOM_FREE ATOM_UNKNOWN
 #define ATOM_SKIP ATOM_UNKNOWN
@@ -161,7 +163,6 @@ typedef struct
     uint32_t count;
 } mp4ff_metadata_t;
 
-
 typedef struct
 {
     int32_t type;
@@ -207,6 +208,10 @@ typedef struct
 
     uint32_t timeScale;
     uint64_t duration;
+
+    /* edts/elst */
+    int32_t elst_entry_count;
+    mp4ff_elst_t *elst_table;
 
 } mp4ff_track_t;
 

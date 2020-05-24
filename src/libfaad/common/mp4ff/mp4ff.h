@@ -54,6 +54,14 @@ typedef struct
 /* mp4 main file structure */
 typedef void* mp4ff_t;
 
+/* edit list entry */
+typedef struct
+{
+    uint32_t track_duration;
+    uint32_t media_time;
+    uint32_t media_rate;
+} mp4ff_elst_t;
+
 
 /* API */
 
@@ -90,6 +98,8 @@ int64_t mp4ff_get_track_duration_use_offsets(const mp4ff_t *f, const int32_t tra
 uint32_t mp4ff_get_sample_rate(const mp4ff_t *f, const int32_t track);
 uint32_t mp4ff_get_channel_count(const mp4ff_t * f,const int32_t track);
 uint32_t mp4ff_get_audio_type(const mp4ff_t * f,const int32_t track);
+
+uint32_t mp4ff_get_edit_list(const mp4ff_t *f, const int32_t track, const mp4ff_elst_t** list);
 
 
 /* metadata */
