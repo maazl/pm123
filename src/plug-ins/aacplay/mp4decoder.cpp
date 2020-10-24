@@ -358,7 +358,7 @@ void Mp4DecoderThread::DecoderThread()
         DEBUGLOG(("Mp4DecoderThread:seek %i, %i\n", CurrentFrame, discardSamples));
         if (newpos >= 0)
           (*DecEvent)(A, DECEVENT_SEEKSTOP, NULL);
-        if (CurrentFrame < 0 || CurrentFrame > NumFrames)
+        if (CurrentFrame < 0 || CurrentFrame >= NumFrames)
           break; // Seek out of range => begin/end of song
         PlayedSecs = (double)(mp4ff_get_sample_position(MP4stream, Track, CurrentFrame) + discardSamples) / TimeScale + SongOffset;
       }
@@ -370,10 +370,14 @@ void Mp4DecoderThread::DecoderThread()
       int32_t frame_duration;
       if (CurrentFrame == 0)
         frame_duration = 0;
+      else if (CurrentFrame >= NumFrames)
+        break; // end of song
       else
       { frame_duration = mp4ff_get_sample_duration(MP4stream, Track, CurrentFrame);
-        if (CurrentFrame > NumFrames)
-          break; // end of song
+        if (frame_duration < 0)
+        { (*DecEvent)(A, DECEVENT_PLAYERROR, NULL);
+          goto end;
+        }
       }
       frame_duration -= discardSamples;
       int32_t frame_size;
