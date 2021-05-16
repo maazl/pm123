@@ -33,6 +33,7 @@
 
 #include "mpg123.h"
 #include "dialog.h"
+#include "genre.h"
 
 #include <charset.h>
 #include <decoder_plug.h>
@@ -417,6 +418,12 @@ static void copy_id3v2_tag(META_INFO& info, const ID3V2_TAG* tag)
     copy_id3v2_string(tag, ID3V2_TPE1, info.artist);
     copy_id3v2_string(tag, ID3V2_TALB, info.album);
     copy_id3v2_string(tag, ID3V2_TCON, info.genre);
+    if (info.genre && info.genre[0U] == '(' && info.genre[info.genre.length()-1] == ')')
+    { // Replace (#) ID3V1 genres
+      unsigned g, l;
+      if (sscanf(info.genre.cdata()+1, "%u%n", &g, &l) == 1 && l == info.genre.length() - 2 && g < GENRE_LARGEST)
+        info.genre = genres[g];
+    }
     copy_id3v2_string(tag, ID3V2_TDRC, info.year);
 
     for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_COMM, i )) != NULL ; i++ )

@@ -8,9 +8,8 @@ TARGET  = mpg123.dll
 
 include $(TOPDIR)\config\makerules
 
-OBJECTS = mpg123$(CO) dialog$(CO)
-OBJECTS += id3v1\id3v1$(CO) id3v1\genre$(CO)
-OBJECTS += id3v2\id3v2_strings$(CO) id3v2\id3v2_frame$(CO) id3v2\id3v2$(CO)
+OBJECTS = mpg123$(CO) dialog$(CO) genre$(CO)
+OBJECTS += id3v1\id3v1$(CO) id3v2\id3v2_strings$(CO) id3v2\id3v2_frame$(CO) id3v2\id3v2$(CO)
 LIBS    = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\xio123\xio123$(LBI) $(TOPDIR)\libmpg123\libmpg123$(LBO) \
 	$(TOPDIR)\zlb123\zlb123$(LBI) $(TOPDIR)\utils\cpp\cpputil_plugin$(LBO)
 SYSLIBS = $(LIBS_UNI)
@@ -30,12 +29,10 @@ clean: $(MDUMMY)
 	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
 
 .o:		.cproject
-dialog.o:	dialog.cpp mpg123.h ..\../include\plugin.h ..\../xio123\xio.h ..\../utils\../libmpg123/mpg123.h  ..\../utils\cpp/container/vector.h ..\../utils\utilfct.h ..\../include\decoder_plug.h ..\../utils\snprintf.h
-mpg123.o:	mpg123.cpp dialog.h ..\../include\decoder_plug.h ..\../utils\snprintf.h ..\../utils\fileutil.h
-makedebug.o:	makedebug.cmd
-.externalToolBuilders\org.eclipse.cdt.managedbuilder.core.genmakebuilder (3).o:	.externalToolBuilders\org.eclipse.cdt.managedbuilder.core.genmakebuilder (3).launch
+dialog.o:	dialog.cpp mpg123.h ..\../include\plugin.h ..\../xio123\xio.h ..\../utils\../libmpg123/mpg123.h  ..\../utils\cpp/container/vector.h ..\../utils\charset.h ..\../utils\fileutil.h ..\../utils\debuglog.h ..\../utils\eautils.h
+mpg123.o:	mpg123.cpp dialog.h ..\../utils\charset.h ..\../utils\debuglog.h ..\../utils\eautils.h 
 id3v1\id3v1.o:	id3v1\id3v1.cpp
-id3v1\genre.o:	id3v1\genre.c 
+genre.o:	genre.c 
 id3v2\id3v2.o:	id3v2\id3v2.cpp 
 id3v2\id3v2_frame.o:	id3v2\id3v2_frame.cpp
 id3v2\id3v2_strings.o:	id3v2\id3v2_strings.cpp

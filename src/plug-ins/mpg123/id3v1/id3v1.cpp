@@ -36,7 +36,7 @@
 #include <snprintf.h>
 #include <charset.h>
 #include <plugin.h>
-#include "id3v1/genre.h"
+#include "genre.h"
 
 #include <stdio.h>
 #include <stdlib.h>

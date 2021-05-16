@@ -33,6 +33,7 @@
 
 #include "dialog.h"
 #include "mpg123.h"
+#include "genre.h"
 
 #include <charset.h>
 #include <utilfct.h>
@@ -47,8 +48,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-
-#include <id3v1/genre.h>
 
 
 static CH_ENTRY id3v2_ch_list[4]; 
@@ -360,7 +359,7 @@ static void id3v1_store( HWND hwnd, ID3V1_TAG* data, unsigned what, ULONG codepa
   }
 }
 
-static void apply_id3v2_string( HWND hwnd, SHORT id, ID3V2_FRAME* frame, size_t applen, ULONG codepage)
+static void apply_id3v2_string(HWND hwnd, SHORT id, ID3V2_FRAME* frame, size_t applen, ULONG codepage, void (*preprocess)(char (&buf)[256]) = NULL)
 { HWND ctrl;
   ULONG len;
   char buf[256];
@@ -374,6 +373,8 @@ static void apply_id3v2_string( HWND hwnd, SHORT id, ID3V2_FRAME* frame, size_t 
   if (len != 0 && len != applen)
     return;
   id3v2_get_string_ex(frame, buf, sizeof buf, codepage);
+  if (preprocess)
+    preprocess(buf);
   if (len)
   { char buf2[32];
     PMRASSERT(WinQueryWindowText(ctrl, sizeof buf2, buf2));
@@ -381,6 +382,14 @@ static void apply_id3v2_string( HWND hwnd, SHORT id, ID3V2_FRAME* frame, size_t 
       return;
   }
   PMRASSERT(WinSetWindowText(ctrl, buf));
+}
+
+// Replace (#) ID3V1 genres
+static void preprocess_genre(char (&buf)[256])
+{ unsigned g, l, n = strnlen(buf, sizeof buf);
+  if (buf[0] == '(' && buf[n - 1] == ')'
+    && sscanf(buf + 1, "%u%n", &g, &l) == 1 && l == n - 2 && g < GENRE_LARGEST)
+    strncpy(buf, genres[g], sizeof buf);
 }
 
 // Load the data from a V2.x tag into the dialog page.
@@ -408,7 +417,7 @@ static void id3v2_load( HWND hwnd, const ID3V2_TAG* tag, ULONG codepage )
   }
   apply_id3v2_string(hwnd, EN_TRACK,    id3v2_get_frame(tag, ID3V2_TRCK, 1), 0, codepage);
   apply_id3v2_string(hwnd, EN_DATE,     id3v2_get_frame(tag, ID3V2_TDRC, 1), 4, codepage);
-  apply_id3v2_string(hwnd, CO_GENRE,    id3v2_get_frame(tag, ID3V2_TCON, 1), 0, codepage);
+  apply_id3v2_string(hwnd, CO_GENRE,    id3v2_get_frame(tag, ID3V2_TCON, 1), 0, codepage, &preprocess_genre);
   apply_id3v2_string(hwnd, EN_COPYRIGHT,id3v2_get_frame(tag, ID3V2_TCOP, 1), 0, codepage);
 }
 
